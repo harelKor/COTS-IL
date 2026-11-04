@@ -55,3 +55,39 @@ body {
   direction: ltr;
   unicode-bidi: isolate;
 }
+
+/* Supplier product descriptions, which arrive as sanitized HTML. */
+.rich-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-x: auto;
+}
+
+.rich-text ul {
+  list-style: disc;
+  padding-inline-start: 1.25rem;
+}
+
+.rich-text ol {
+  list-style: decimal;
+  padding-inline-start: 1.25rem;
+}
+
+.rich-text h2,
+.rich-text h3,
+.rich-text h4 {
+  font-weight: 600;
+}
+
+.rich-text a {
+  color: var(--brand);
+  text-decoration: underline;
+}
+
+.rich-text th,
+.rich-text td {
+  border: 1px solid var(--line);
+  padding: 0.25rem 0.5rem;
+  text-align: start;
+}

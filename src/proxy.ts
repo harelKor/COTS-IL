@@ -1,17 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-/** Paths anyone may open without signing in. */
-const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth"];
+/** The site is open for browsing. Only these paths need an account. */
+const PRIVATE_PATHS = ["/admin", "/pending"];
 
-function isPublic(pathname: string) {
-  return PUBLIC_PATHS.some((p) => pathname === p || (p !== "/" && pathname.startsWith(`${p}/`)));
+function isPrivate(pathname: string) {
+  return PRIVATE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 /**
  * Refreshes the Supabase session cookie on every request and sends signed-out
- * visitors to /login. This is only an optimistic check: pages and server
- * actions still verify the user and their permissions themselves.
+ * visitors of private paths to /login. This is only an optimistic check: pages
+ * and server actions still verify the user and their permissions themselves.
  */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
 
   const { data } = await supabase.auth.getClaims();
 
-  if (!data?.claims && !isPublic(request.nextUrl.pathname)) {
+  if (!data?.claims && isPrivate(request.nextUrl.pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", request.nextUrl.pathname);

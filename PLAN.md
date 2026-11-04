@@ -138,6 +138,8 @@ Ledger invariants (enforced in `packages/domain`, inside DB transactions with `S
 
 ## 6. Screens
 
+The catalog is public: anyone can search and see prices. An account is required only to order.
+
 Team portal (Hebrew RTL): sign-up (team number, FRC/FTC, contact) → verify email → "waiting for approval"; home (search, suppliers, categories, recent orders); catalog (filters for supplier, program, category, availability; exact or partial SKU search; sorting); product page (variant picker, ILS price, availability with check date, link to source); cart (grouped by supplier, subtotal, "local shipping priced later"); submit request; my orders (status, lines, shortages, documents, history, quote approval); team settings (details, users, roles, invites).
 
 Admin: dashboard (pending sign-ups, orders to review, quotes waiting, open POs, shipments, shortages); order review and quote editor; consolidation board (approved lines grouped by supplier → create or extend a PO, split, adjust); supplier PO (PDF/Excel in English, record the manual order and reference, purchase prices, invoice); shipments and customs; receiving (received, damaged, location, allocate); deliveries (pick, pickup or ship, partial delivery note); catalog and pricing (suppliers, sync runs and errors, rules, overrides, review queue); reports (sales, purchasing, shortages, turnaround, profit).

@@ -1,6 +1,7 @@
 /**
- * Local development seed: an admin (the mentor), one approved FRC team, one
- * pending FTC team, and the six suppliers. Safe to run more than once.
+ * Local development seed: an admin (the mentor), one approved FRC team and one
+ * pending FTC team. Safe to run more than once. Suppliers and categories come
+ * from the migrations, and products from `npm run sync`.
  * All seeded users share SEED_PASSWORD from .env.local.
  */
 import { config } from "dotenv";
@@ -42,15 +43,6 @@ const users: SeedUser[] = [
   },
 ];
 
-const suppliers: (typeof schema.suppliers.$inferInsert)[] = [
-  { code: "andymark", name: "AndyMark", baseUrl: "https://andymark.com", platform: "shopify", programs: ["FRC", "FTC"] },
-  { code: "rev", name: "REV Robotics", baseUrl: "https://www.revrobotics.com", platform: "bigcommerce", programs: ["FRC", "FTC"] },
-  { code: "wcp", name: "WCP", baseUrl: "https://wcproducts.com", platform: "shopify", programs: ["FRC"] },
-  { code: "ctre", name: "CTR Electronics", baseUrl: "https://store.ctr-electronics.com", platform: "shopify", programs: ["FRC"] },
-  { code: "gobilda", name: "goBILDA", baseUrl: "https://www.gobilda.com", platform: "bigcommerce", programs: ["FTC"] },
-  { code: "ttb", name: "The Thrifty Bot", baseUrl: "https://thethriftybot.com", platform: "shopify", programs: ["FRC"] },
-];
-
 async function main() {
   const { data: list, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
   if (listError) throw listError;
@@ -75,8 +67,7 @@ async function main() {
     }
   }
 
-  await db.insert(schema.suppliers).values(suppliers).onConflictDoNothing({ target: schema.suppliers.code });
-  console.log(`seeded ${users.length} users and ${suppliers.length} suppliers`);
+  console.log(`seeded ${users.length} users`);
 }
 
 main()

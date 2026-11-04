@@ -21,7 +21,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={<div className="h-14 border-b border-line bg-surface" />}>
           <SiteHeader />
         </Suspense>
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
       </body>
     </html>
   );

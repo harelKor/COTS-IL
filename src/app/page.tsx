@@ -1,79 +1,95 @@
-import { asc, eq } from "drizzle-orm";
+import Form from "next/form";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { db, schema } from "@/db";
 import { getViewer } from "@/lib/auth";
+import { getFacets } from "@/lib/catalog";
+import { catalogHref } from "@/lib/catalog-filters";
 
-function Landing() {
+/** Browsing is open to everyone, so a team waiting for approval just gets a reminder. */
+async function TeamNotice() {
+  const viewer = await getViewer();
+  if (!viewer || viewer.isAdmin || viewer.teams.some((t) => t.status === "active") || viewer.teams.length === 0) {
+    return null;
+  }
   return (
-    <section className="py-12 text-center">
-      <h1 className="mb-4 text-3xl font-bold">
-        ציוד <span className="ltr">FRC</span> ו-<span className="ltr">FTC</span> מכל הספקים, בהזמנה אחת
-      </h1>
-      <p className="mx-auto mb-8 max-w-xl text-muted">
-        בונים סל ממוצרי AndyMark, REV, WCP, CTRE, goBILDA ו-The Thrifty Bot, שולחים למנטור, מקבלים הצעת מחיר סופית
-        ומאשרים. המנטור מזמין, מרכז ומוסר לקבוצה.
-      </p>
-      <div className="flex justify-center gap-3">
-        <Link href="/signup" className="rounded-md bg-brand px-5 py-2.5 text-white hover:bg-brand-strong">
-          הרשמת קבוצה
-        </Link>
-        <Link href="/login" className="rounded-md border border-line bg-surface px-5 py-2.5 hover:bg-subtle">
-          כניסה
-        </Link>
-      </div>
-    </section>
+    <Link href="/pending" className="block rounded-lg border border-warning bg-surface p-3 text-sm hover:bg-subtle">
+      הקבוצה שלכם עדיין לא אושרה. אפשר לעיין בקטלוג, ולהזמין אחרי אישור המנטור.
+    </Link>
   );
 }
 
-async function Home() {
-  const viewer = await getViewer();
-  if (!viewer) return <Landing />;
-  if (!viewer.isAdmin && !viewer.teams.some((t) => t.status === "active")) redirect("/pending");
-
-  const suppliers = await db
-    .select({ code: schema.suppliers.code, name: schema.suppliers.name, programs: schema.suppliers.programs })
-    .from(schema.suppliers)
-    .where(eq(schema.suppliers.active, true))
-    .orderBy(asc(schema.suppliers.name));
-
-  const team = viewer.teams.find((t) => t.status === "active");
+async function Browse() {
+  const { categories, suppliers } = await getFacets();
 
   return (
-    <div className="flex flex-col gap-8">
+    <>
       <section>
-        <h1 className="text-2xl font-bold">שלום{viewer.fullName ? `, ${viewer.fullName}` : ""}</h1>
-        {team && (
-          <p className="text-muted">
-            {team.name} · <span className="ltr">{`${team.program} ${team.number}`}</span>
-          </p>
-        )}
-      </section>
-
-      <section className="rounded-lg border border-dashed border-line bg-surface p-6 text-muted">
-        הקטלוג, החיפוש והסל יגיעו בשלב הבא (M1). כרגע אפשר לנהל את ההרשמה והקבוצה.
-      </section>
-
-      <section>
-        <h2 className="mb-3 font-semibold">ספקים</h2>
-        <ul className="grid gap-3 sm:grid-cols-3">
-          {suppliers.map((s) => (
-            <li key={s.code} className="rounded-lg border border-line bg-surface p-4">
-              <div className="ltr font-medium">{s.name}</div>
-              <div className="ltr text-xs text-muted">{s.programs.join(" / ")}</div>
+        <h2 className="mb-3 font-semibold">קטגוריות</h2>
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {categories.map((c) => (
+            <li key={c.slug}>
+              <Link
+                href={catalogHref({ category: c.slug })}
+                className="flex h-full flex-col rounded-lg border border-line bg-surface p-4 hover:border-brand"
+              >
+                <span className="font-medium">{c.name}</span>
+                <span className="text-xs text-muted">{c.count.toLocaleString("he-IL")} מוצרים</span>
+              </Link>
             </li>
           ))}
         </ul>
       </section>
-    </div>
+
+      <section>
+        <h2 className="mb-3 font-semibold">ספקים</h2>
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {suppliers.map((s) => (
+            <li key={s.code}>
+              <Link
+                href={catalogHref({ supplier: s.code })}
+                className="flex h-full flex-col rounded-lg border border-line bg-surface p-4 hover:border-brand"
+              >
+                <span className="ltr font-medium">{s.name}</span>
+                <span className="text-xs text-muted">{s.count.toLocaleString("he-IL")} מוצרים</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </>
   );
 }
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<p className="text-muted">טוען…</p>}>
-      <Home />
-    </Suspense>
+    <div className="flex flex-col gap-8">
+      <Suspense>
+        <TeamNotice />
+      </Suspense>
+
+      <section className="py-6 text-center">
+        <h1 className="mb-3 text-3xl font-bold">
+          ציוד <span className="ltr">FRC</span> ו-<span className="ltr">FTC</span> מכל הספקים, בהזמנה אחת
+        </h1>
+        <p className="mx-auto mb-6 max-w-xl text-muted">
+          מחפשים מוצרים, רואים מחיר בשקלים כולל מע״מ, ושולחים סל למנטור. המנטור מזמין מהספקים, מרכז ומוסר לקבוצה.
+          ההרשמה נדרשת רק כשמזמינים.
+        </p>
+        <Form action="/catalog" className="mx-auto flex max-w-xl gap-2">
+          <input
+            type="search"
+            name="q"
+            placeholder="חיפוש לפי שם או מק״ט"
+            aria-label="חיפוש"
+            className="min-w-0 flex-1 rounded-md border border-line bg-surface px-4 py-2.5"
+          />
+          <button className="rounded-md bg-brand px-5 py-2.5 text-white hover:bg-brand-strong">חיפוש</button>
+        </Form>
+      </section>
+
+      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+        <Browse />
+      </Suspense>
+    </div>
   );
 }

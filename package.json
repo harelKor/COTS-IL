@@ -13,6 +13,7 @@
     "db:reset": "supabase db reset",
     "env:local": "tsx scripts/write-env.ts",
     "seed": "tsx scripts/seed.ts",
+    "sync": "tsx scripts/sync.ts",
     "supabase:start": "supabase start"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
     "postgres": "^4.0.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "sanitize-html": "^2.18.1",
     "server-only": "^0.0.1",
     "zod": "^4.6.7"
   },
@@ -31,6 +33,7 @@
     "@types/node": "^24.19.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.2",
     "dotenv": "^18.0.9",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",

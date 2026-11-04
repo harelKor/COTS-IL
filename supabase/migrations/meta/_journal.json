@@ -15,6 +15,20 @@
       "when": 1793726992959,
       "tag": "20261103172952_auth_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793798072358,
+      "tag": "20261104131432_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793798074223,
+      "tag": "20261104131434_catalog_rls",
+      "breakpoints": true
     }
   ]
 }

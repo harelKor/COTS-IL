@@ -47,3 +47,12 @@ Hand-written SQL (RLS policies, triggers): `npx drizzle-kit generate --custom --
 | `npm run lint` / `npm run typecheck` / `npm test` | Checks run by CI |
 | `npm run db:generate` / `npm run db:reset` | Migrations |
 | `npm run env:local` / `npm run seed` | Local environment |
+
+## Catalog
+
+The site is open for browsing. An account is needed only to order and for the admin area (see `src/proxy.ts`).
+
+- `npm run sync` reads the Shopify suppliers (AndyMark, WCP, CTRE, The Thrifty Bot) into the database. `npm run sync -- wcp` syncs one.
+- `.github/workflows/sync.yml` runs it daily. It needs a `DATABASE_URL` repository secret pointing at the production database.
+- A failed or suspiciously small sync changes nothing and is recorded in `sync_jobs`.
+- Prices are USD × 1.6, rounded to whole shekels (`src/domain/pricing.ts`). Categories come from the rules in `src/suppliers/classify.ts`.

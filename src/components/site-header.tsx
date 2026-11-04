@@ -8,11 +8,14 @@ export async function SiteHeader() {
 
   return (
     <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
-        <Link href="/" className="font-bold">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
+        <Link href="/" className="whitespace-nowrap font-bold">
           פורטל רכש <span className="ltr">FIRST</span>
         </Link>
-        <nav className="flex items-center gap-4 text-sm">
+        <nav className="flex items-center gap-3 whitespace-nowrap text-sm sm:gap-4">
+          <Link href="/catalog" className="hover:text-brand">
+            קטלוג
+          </Link>
           {viewer ? (
             <>
               {viewer.isAdmin && (
