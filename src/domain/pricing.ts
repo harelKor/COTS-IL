@@ -6,7 +6,8 @@ export function priceIls(usd: string | number | null | undefined, multiplier = D
   if (usd === null || usd === undefined) return null;
   const value = typeof usd === "string" ? Number(usd) : usd;
   if (!Number.isFinite(value) || value <= 0) return null;
-  return Math.round(value * multiplier);
+  // Tiny parts can round down to nothing, and nothing in the catalog is free.
+  return Math.max(1, Math.round(value * multiplier));
 }
 
 const ils = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 0 });

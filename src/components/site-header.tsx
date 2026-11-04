@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { signout } from "@/app/auth/actions";
-import { getViewer } from "@/lib/auth";
+import { activeTeam, getViewer } from "@/lib/auth";
+import { cartCount } from "@/lib/orders";
 
 export async function SiteHeader() {
   const viewer = await getViewer();
   const team = viewer?.teams[0];
+  const ordering = viewer && activeTeam(viewer);
+  const inCart = ordering ? await cartCount(ordering.id) : 0;
 
   return (
-    <header className="border-b border-line bg-surface">
+    <header className="border-b border-line bg-surface print:hidden">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
         <Link href="/" className="whitespace-nowrap font-bold">
           פורטל רכש <span className="ltr">FIRST</span>
@@ -16,6 +19,16 @@ export async function SiteHeader() {
           <Link href="/catalog" className="hover:text-brand">
             קטלוג
           </Link>
+          {ordering && (
+            <>
+              <Link href="/cart" className="hover:text-brand">
+                סל{inCart > 0 && ` (${inCart})`}
+              </Link>
+              <Link href="/orders" className="hover:text-brand">
+                הזמנות
+              </Link>
+            </>
+          )}
           {viewer ? (
             <>
               {viewer.isAdmin && (

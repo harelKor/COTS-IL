@@ -21,6 +21,9 @@ export const teamRole = pgEnum("team_role", ["team_admin", "buyer", "viewer"]);
 export const supplierPlatform = pgEnum("supplier_platform", ["shopify", "bigcommerce", "csv"]);
 export const productStatus = pgEnum("product_status", ["published", "review", "hidden"]);
 export const syncStatus = pgEnum("sync_status", ["running", "succeeded", "failed"]);
+export const orderStatus = pgEnum("order_status", ["submitted", "quote_sent", "approved", "rejected", "cancelled"]);
+export const deliveryMethod = pgEnum("delivery_method", ["pickup", "ship"]);
+export const quoteStatus = pgEnum("quote_status", ["sent", "approved", "rejected", "superseded"]);
 
 const createdAt = timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -192,4 +195,120 @@ export const syncJobs = pgTable("sync_jobs", {
   finishedAt: timestamp("finished_at", { withTimezone: true }),
   counts: jsonb("counts"),
   error: text("error"),
+});
+
+/** A team's shared cart. Prices are read live from the catalog until the order is submitted. */
+export const cartItems = pgTable(
+  "cart_items",
+  {
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    variantId: uuid("variant_id")
+      .notNull()
+      .references(() => variants.id, { onDelete: "cascade" }),
+    qty: integer("qty").notNull(),
+    addedBy: uuid("added_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt,
+  },
+  (t) => [primaryKey({ columns: [t.teamId, t.variantId] })],
+);
+
+export const teamOrders = pgTable(
+  "team_orders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    number: integer("number").notNull().generatedByDefaultAsIdentity({ startWith: 1001 }),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id),
+    status: orderStatus("status").notNull().default("submitted"),
+    deliveryMethod: deliveryMethod("delivery_method").notNull(),
+    address: text("address"),
+    contactName: text("contact_name").notNull(),
+    contactPhone: text("contact_phone").notNull(),
+    notes: text("notes"),
+    rejectionReason: text("rejection_reason"),
+    submittedBy: uuid("submitted_by")
+      .notNull()
+      .references(() => profiles.id),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("team_orders_number_key").on(t.number), index("team_orders_team_id_idx").on(t.teamId)],
+);
+
+/** Copies everything at submit time, so later catalog syncs never change an order (spec §8, AT-04). */
+export const teamOrderItems = pgTable(
+  "team_order_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => teamOrders.id, { onDelete: "cascade" }),
+    variantId: uuid("variant_id")
+      .notNull()
+      .references(() => variants.id),
+    qty: integer("qty").notNull(),
+    supplierCode: text("supplier_code").notNull(),
+    supplierName: text("supplier_name").notNull(),
+    supplierSku: text("supplier_sku"),
+    title: text("title").notNull(),
+    options: jsonb("options").$type<{ name: string; value: string }[]>().notNull(),
+    productUrl: text("product_url").notNull(),
+    priceUsd: numeric("price_usd", { precision: 10, scale: 2 }).notNull(),
+    multiplier: numeric("multiplier", { precision: 6, scale: 3 }).notNull(),
+    unitPriceIls: integer("unit_price_ils").notNull(),
+    pricedAt: timestamp("priced_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("team_order_items_order_id_idx").on(t.orderId)],
+);
+
+/** Sending a changed quote adds a new version, and the team has to approve it again. */
+export const quotes = pgTable(
+  "quotes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => teamOrders.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    status: quoteStatus("status").notNull().default("sent"),
+    shippingIls: integer("shipping_ils").notNull(),
+    notes: text("notes"),
+    rejectionReason: text("rejection_reason"),
+    sentBy: uuid("sent_by")
+      .notNull()
+      .references(() => profiles.id),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("quotes_order_version_key").on(t.orderId, t.version)],
+);
+
+export const quoteLines = pgTable(
+  "quote_lines",
+  {
+    quoteId: uuid("quote_id")
+      .notNull()
+      .references(() => quotes.id, { onDelete: "cascade" }),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => teamOrderItems.id, { onDelete: "cascade" }),
+    qty: integer("qty").notNull(),
+    unitPriceIls: integer("unit_price_ils").notNull(),
+    changeReason: text("change_reason"),
+  },
+  (t) => [primaryKey({ columns: [t.quoteId, t.itemId] })],
+);
+
+/** Proof of what was approved: who, when, and a hash of the quote's content. */
+export const quoteApprovals = pgTable("quote_approvals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  quoteId: uuid("quote_id")
+    .notNull()
+    .references(() => quotes.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => profiles.id),
+  contentHash: text("content_hash").notNull(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 });

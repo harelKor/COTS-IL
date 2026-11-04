@@ -1,8 +1,10 @@
 import { and, desc, eq } from "drizzle-orm";
+import Link from "next/link";
 import { Suspense } from "react";
 import { db, schema } from "@/db";
 import { Button } from "@/components/form";
 import { requireAdmin } from "@/lib/auth";
+import { countOrdersAwaitingMentor } from "@/lib/orders";
 import { reviewTeam } from "./actions";
 
 const statusLabels = {
@@ -26,9 +28,18 @@ async function TeamsTable() {
     .orderBy(desc(schema.teams.createdAt));
 
   const pending = rows.filter((r) => r.team.status === "pending");
+  const awaitingOrders = await countOrdersAwaitingMentor();
 
   return (
     <div className="flex flex-col gap-8">
+      <Link
+        href="/admin/orders"
+        className="flex items-center justify-between rounded-lg border border-line bg-surface p-4 hover:border-brand"
+      >
+        <span className="font-semibold">הזמנות קבוצות</span>
+        <span className="text-sm text-muted">{awaitingOrders} ממתינות לבדיקה</span>
+      </Link>
+
       <section>
         <h2 className="mb-3 font-semibold">בקשות הרשמה ממתינות ({pending.length})</h2>
         {pending.length === 0 ? (

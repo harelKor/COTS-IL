@@ -8,6 +8,10 @@ describe("priceIls", () => {
     expect(priceIls(0.5)).toBe(1);
   });
 
+  it("never rounds a cheap part down to zero", () => {
+    expect(priceIls("0.25")).toBe(1);
+  });
+
   it("uses a custom multiplier", () => {
     expect(priceIls(100, 2)).toBe(200);
   });

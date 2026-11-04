@@ -65,6 +65,11 @@ export async function requireActiveViewer(): Promise<Viewer> {
   return viewer;
 }
 
+/** The approved team a user acts for, if any. Admins without a team have none. */
+export function activeTeam(viewer: Viewer) {
+  return viewer.teams.find((t) => t.status === "active") ?? null;
+}
+
 export async function requireAdmin(): Promise<Viewer> {
   const viewer = await getViewer();
   if (!viewer) redirect("/login?next=/admin");

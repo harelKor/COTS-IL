@@ -30,6 +30,19 @@
   }
 }
 
+/* Printed quotes are always black on white, whatever the screen's theme. */
+@media print {
+  :root {
+    --background: #ffffff;
+    --surface: #ffffff;
+    --subtle: #eef0f3;
+    --foreground: #000000;
+    --muted: #444444;
+    --line: #999999;
+    --warning: #7a4a00;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
