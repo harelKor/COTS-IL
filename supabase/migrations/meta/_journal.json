@@ -57,6 +57,20 @@
       "when": 1793804500963,
       "tag": "20261104150140_purchasing_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793808794717,
+      "tag": "20261104161314_logistics",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793808796507,
+      "tag": "20261104161316_logistics_rls",
+      "breakpoints": true
     }
   ]
 }

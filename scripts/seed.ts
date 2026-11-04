@@ -25,7 +25,7 @@ const db = drizzle(sql, { schema });
 type SeedUser = { email: string; meta: Record<string, unknown>; isAdmin?: boolean; teamStatus?: "active" };
 
 const users: SeedUser[] = [
-  { email: "mentor@beniadam.test", meta: { full_name: "המנטור" }, isAdmin: true },
+  { email: "mentor@beniadam.test", meta: { full_name: "הספק הישראלי" }, isAdmin: true },
   {
     email: "frc1690@beniadam.test",
     meta: {

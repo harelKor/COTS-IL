@@ -2,10 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { ActionForm } from "@/components/action-form";
+import { Button, Field, Input } from "@/components/form";
 import { PrintButton } from "@/components/print-button";
 import { describeOptions, poTotalUsd, shopifyCartUrl, skuList } from "@/domain/purchasing";
 import { requireAdmin } from "@/lib/auth";
+import { getPoShipping } from "@/lib/logistics";
 import { getPo } from "@/lib/purchasing";
+import { createShipment } from "../../logistics/actions";
 import { removePoLine } from "../actions";
 import { PO_STATUS_LABELS } from "../status";
 import { CancelPoForm, RecordOrderedForm } from "./po-forms";
@@ -24,6 +28,10 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
 
   const { po, supplier, lines } = result;
   const isDraft = po.status === "draft";
+  const shipping = await getPoShipping(po.id);
+  const unshipped = lines
+    .map((line) => ({ ...line, open: line.qty - (shipping.shipped.get(line.id) ?? 0) }))
+    .filter((line) => line.open > 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -156,6 +164,61 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
             cost: line.unitCostUsd,
           }))}
         />
+      )}
+
+      {po.status === "ordered" && (
+        <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 print:hidden">
+          <h2 className="font-semibold">משלוחים</h2>
+          {shipping.shipments.length > 0 && (
+            <ul className="flex flex-col gap-1 text-sm">
+              {shipping.shipments.map((s) => (
+                <li key={s.id}>
+                  <Link href={`/admin/logistics/${s.id}`} className="text-brand hover:underline">
+                    משלוח {s.number}
+                  </Link>{" "}
+                  <span className="ltr text-muted">{[s.carrier, s.tracking].filter(Boolean).join(" ")}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {unshipped.length > 0 ? (
+            <ActionForm action={createShipment} className="flex flex-col gap-3">
+              <input type="hidden" name="poId" value={po.id} />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="חברת שילוח" name="carrier">
+                  <Input name="carrier" dir="ltr" maxLength={100} />
+                </Field>
+                <Field label="מספר מעקב" name="tracking">
+                  <Input name="tracking" dir="ltr" maxLength={200} />
+                </Field>
+              </div>
+              <fieldset className="flex flex-col gap-2">
+                <legend className="mb-1 text-sm font-medium">כמות במשלוח הזה (אפשר לפצל)</legend>
+                {unshipped.map((line) => (
+                  <label key={line.id} className="flex items-center justify-between gap-3 text-sm">
+                    <span dir="ltr" className="min-w-0 text-start">
+                      {line.supplierSku ?? line.title}
+                    </span>
+                    <input
+                      name={`qty:${line.id}`}
+                      type="number"
+                      min={0}
+                      max={line.open}
+                      defaultValue={line.open}
+                      className="h-9 w-24 shrink-0 rounded-md border border-line bg-surface px-2 text-sm"
+                    />
+                  </label>
+                ))}
+              </fieldset>
+              <Field label="הערות" name="notes">
+                <Input name="notes" maxLength={2000} />
+              </Field>
+              <Button className="self-start">פתיחת משלוח</Button>
+            </ActionForm>
+          ) : (
+            <p className="text-sm text-muted">כל הכמויות כבר במשלוחים.</p>
+          )}
+        </section>
       )}
 
       {po.status !== "cancelled" && <CancelPoForm poId={po.id} needsReason={po.status === "ordered"} />}

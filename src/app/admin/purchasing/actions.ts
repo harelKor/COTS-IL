@@ -9,7 +9,7 @@ import { consolidateDemand } from "@/domain/purchasing";
 import { requireAdmin } from "@/lib/auth";
 import { getDemandForUpdate } from "@/lib/purchasing";
 
-const { auditLog, poAllocations, poLines, suppliers, supplierPos } = schema;
+const { auditLog, poAllocations, poLines, shipments, suppliers, supplierPos } = schema;
 
 function refresh(poId?: string) {
   revalidatePath("/admin/purchasing");
@@ -123,6 +123,8 @@ export async function cancelPo(_prev: PoFormState, formData: FormData): Promise<
     const [po] = await tx.select().from(supplierPos).where(eq(supplierPos.id, poId)).for("update");
     if (!po || po.status === "cancelled") return { error: "ההזמנה כבר בוטלה" };
     if (po.status === "ordered" && reason.length < 2) return { error: "הזמנה שכבר בוצעה דורשת סיבת ביטול" };
+    const [shipment] = await tx.select({ id: shipments.id }).from(shipments).where(eq(shipments.poId, poId)).limit(1);
+    if (shipment) return { error: "יש להזמנה משלוחים. קודם צריך למחוק אותם." };
 
     await tx.update(supplierPos).set({ status: "cancelled" }).where(eq(supplierPos.id, poId));
     await tx.insert(auditLog).values({

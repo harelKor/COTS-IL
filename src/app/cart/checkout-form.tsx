@@ -45,7 +45,7 @@ export function CheckoutForm({ defaults }: { defaults: Defaults }) {
           <Input name="contactPhone" dir="ltr" required defaultValue={values?.contactPhone ?? defaults.contactPhone} />
         </Field>
       </div>
-      <Field label="הערות למנטור" name="notes" errors={errors?.notes}>
+      <Field label="הערות לספק הישראלי" name="notes" errors={errors?.notes}>
         <textarea
           id="notes"
           name="notes"
@@ -59,7 +59,7 @@ export function CheckoutForm({ defaults }: { defaults: Defaults }) {
       <div className="flex flex-col gap-1">
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" name="confirm" className="mt-1" />
-          <span>זו בקשה ולא הזמנה סופית. המנטור יבדוק זמינות ומחירים, יוסיף עלות משלוח וישלח הצעה לאישור הקבוצה.</span>
+          <span>זו בקשה ולא הזמנה סופית. הספק הישראלי יבדוק זמינות ומחירים, יוסיף עלות משלוח וישלח הצעה לאישור הקבוצה.</span>
         </label>
         {errors?.confirm?.map((e) => (
           <p key={e} className="text-xs text-danger">
@@ -68,7 +68,7 @@ export function CheckoutForm({ defaults }: { defaults: Defaults }) {
         ))}
       </div>
 
-      <Button disabled={pending}>{pending ? "שולח…" : "שליחה למנטור"}</Button>
+      <Button disabled={pending}>{pending ? "שולח…" : "שליחה לספק הישראלי"}</Button>
     </form>
   );
 }

@@ -3,21 +3,9 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Viewer } from "@/lib/auth";
+import { getItemProgress, getOrderDeliveries } from "@/lib/logistics";
 
-const {
-  cartItems,
-  poAllocations,
-  poLines,
-  products,
-  quoteLines,
-  quotes,
-  supplierPos,
-  suppliers,
-  teamOrderItems,
-  teamOrders,
-  teams,
-  variants,
-} = schema;
+const { cartItems, products, quoteLines, quotes, suppliers, teamOrderItems, teamOrders, teams, variants } = schema;
 
 export async function getCart(teamId: string) {
   return db
@@ -128,21 +116,14 @@ export async function getOrderForViewer(orderId: string, viewer: Viewer) {
         )
     : [];
 
-  // Units already placed with a supplier. Teams see the quantities, not the supplier order itself.
-  const ordered = await db
-    .select({ itemId: poAllocations.orderItemId, qty: sql<number>`sum(${poAllocations.qty})::int` })
-    .from(poAllocations)
-    .innerJoin(poLines, eq(poLines.id, poAllocations.poLineId))
-    .innerJoin(supplierPos, and(eq(supplierPos.id, poLines.poId), eq(supplierPos.status, "ordered")))
-    .innerJoin(teamOrderItems, eq(teamOrderItems.id, poAllocations.orderItemId))
-    .where(eq(teamOrderItems.orderId, orderId))
-    .groupBy(poAllocations.orderItemId);
+  const progress = await getItemProgress([orderId]);
 
   return {
     ...row,
     membership: membership ?? null,
     items,
-    orderedQty: new Map(ordered.map((o) => [o.itemId, o.qty])),
+    progress: new Map(progress.map((p) => [p.orderItemId, p])),
+    deliveries: await getOrderDeliveries(orderId),
     quotes: quoteRows.map((quote) => ({ ...quote, lines: lines.filter((l) => l.quoteId === quote.id) })),
   };
 }

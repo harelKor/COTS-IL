@@ -25,6 +25,8 @@ export const orderStatus = pgEnum("order_status", ["submitted", "quote_sent", "a
 export const deliveryMethod = pgEnum("delivery_method", ["pickup", "ship"]);
 export const quoteStatus = pgEnum("quote_status", ["sent", "approved", "rejected", "superseded"]);
 export const poStatus = pgEnum("po_status", ["draft", "ordered", "cancelled"]);
+export const importCostType = pgEnum("import_cost_type", ["customs", "freight", "broker", "vat"]);
+export const deliveryStatus = pgEnum("delivery_status", ["prepared", "delivered"]);
 
 const createdAt = timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -369,4 +371,146 @@ export const poAllocations = pgTable(
     qty: integer("qty").notNull(),
   },
   (t) => [primaryKey({ columns: [t.poLineId, t.orderItemId] }), index("po_allocations_order_item_id_idx").on(t.orderItemId)],
+);
+
+/** One physical shipment from a supplier. A supplier order can arrive in several. */
+export const shipments = pgTable(
+  "shipments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    number: integer("number").notNull().generatedByDefaultAsIdentity({ startWith: 7001 }),
+    poId: uuid("po_id")
+      .notNull()
+      .references(() => supplierPos.id),
+    carrier: text("carrier"),
+    tracking: text("tracking"),
+    notes: text("notes"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => profiles.id),
+    createdAt,
+  },
+  (t) => [unique("shipments_number_key").on(t.number), index("shipments_po_id_idx").on(t.poId)],
+);
+
+export const shipmentItems = pgTable(
+  "shipment_items",
+  {
+    shipmentId: uuid("shipment_id")
+      .notNull()
+      .references(() => shipments.id, { onDelete: "cascade" }),
+    poLineId: uuid("po_line_id")
+      .notNull()
+      .references(() => poLines.id),
+    qty: integer("qty").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.shipmentId, t.poLineId] })],
+);
+
+export const importCosts = pgTable(
+  "import_costs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shipmentId: uuid("shipment_id")
+      .notNull()
+      .references(() => shipments.id, { onDelete: "cascade" }),
+    type: importCostType("type").notNull(),
+    amountIls: numeric("amount_ils", { precision: 12, scale: 2 }).notNull(),
+    /** Reclaimable VAT isn't a real cost, so the profit report leaves it out (spec §8, AT-10). */
+    vatReclaimable: boolean("vat_reclaimable").notNull().default(false),
+    reference: text("reference"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => profiles.id),
+    createdAt,
+  },
+  (t) => [index("import_costs_shipment_id_idx").on(t.shipmentId)],
+);
+
+export const receipts = pgTable(
+  "receipts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shipmentId: uuid("shipment_id")
+      .notNull()
+      .references(() => shipments.id),
+    notes: text("notes"),
+    receivedBy: uuid("received_by")
+      .notNull()
+      .references(() => profiles.id),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("receipts_shipment_id_idx").on(t.shipmentId)],
+);
+
+export const receiptLines = pgTable(
+  "receipt_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    receiptId: uuid("receipt_id")
+      .notNull()
+      .references(() => receipts.id, { onDelete: "cascade" }),
+    poLineId: uuid("po_line_id")
+      .notNull()
+      .references(() => poLines.id),
+    qtyReceived: integer("qty_received").notNull(),
+    qtyDamaged: integer("qty_damaged").notNull().default(0),
+    location: text("location"),
+  },
+  (t) => [index("receipt_lines_receipt_id_idx").on(t.receiptId), index("receipt_lines_po_line_id_idx").on(t.poLineId)],
+);
+
+/** Which team gets which received units. Only undamaged units can be allocated. */
+export const stockAllocations = pgTable(
+  "stock_allocations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    receiptLineId: uuid("receipt_line_id")
+      .notNull()
+      .references(() => receiptLines.id, { onDelete: "cascade" }),
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => teamOrderItems.id),
+    qty: integer("qty").notNull(),
+  },
+  (t) => [
+    unique("stock_allocations_line_item_key").on(t.receiptLineId, t.orderItemId),
+    index("stock_allocations_order_item_id_idx").on(t.orderItemId),
+  ],
+);
+
+export const deliveries = pgTable(
+  "deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    number: integer("number").notNull().generatedByDefaultAsIdentity({ startWith: 9001 }),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id),
+    method: deliveryMethod("method").notNull(),
+    address: text("address"),
+    status: deliveryStatus("status").notNull().default("prepared"),
+    recipientName: text("recipient_name"),
+    proofNote: text("proof_note"),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => profiles.id),
+    createdAt,
+  },
+  (t) => [unique("deliveries_number_key").on(t.number), index("deliveries_team_id_idx").on(t.teamId)],
+);
+
+export const deliveryItems = pgTable(
+  "delivery_items",
+  {
+    deliveryId: uuid("delivery_id")
+      .notNull()
+      .references(() => deliveries.id, { onDelete: "cascade" }),
+    allocationId: uuid("allocation_id")
+      .notNull()
+      .references(() => stockAllocations.id),
+    qty: integer("qty").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.deliveryId, t.allocationId] }), index("delivery_items_allocation_id_idx").on(t.allocationId)],
 );

@@ -4,7 +4,7 @@ export type OrderStatus = "submitted" | "quote_sent" | "approved" | "rejected" |
 export type TeamRole = "team_admin" | "buyer" | "viewer";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  submitted: "ממתינה לבדיקת המנטור",
+  submitted: "ממתינה לבדיקת הספק הישראלי",
   quote_sent: "הצעה ממתינה לאישור הקבוצה",
   approved: "הצעה אושרה",
   rejected: "נדחתה",

@@ -1,3 +1,4 @@
+import { LINE_STAGE_LABELS, lineStage, type LineProgress } from "@/domain/logistics";
 import { formatIls } from "@/domain/pricing";
 import { diffQuoteLines, ORDER_STATUS_LABELS, quoteTotals, type OrderStatus, type QuoteLine } from "@/domain/orders";
 
@@ -85,6 +86,18 @@ export function RequestTable({ items }: { items: OrderItem[] }) {
   );
 }
 
+function ProgressNote({ progress }: { progress?: LineProgress }) {
+  if (!progress || progress.quoted === 0) return null;
+  const stage = lineStage(progress);
+  if (stage === "waiting") return null;
+  return (
+    <div className="mt-1 text-xs text-success">
+      {LINE_STAGE_LABELS[stage]}
+      {progress.delivered > 0 && stage !== "delivered" && ` · נמסרו ${progress.delivered} מתוך ${progress.quoted}`}
+    </div>
+  );
+}
+
 type QuoteView = {
   version: number;
   shippingIls: number;
@@ -97,12 +110,12 @@ export function QuoteTable({
   quote,
   previous,
   items,
-  orderedQty,
+  progress,
 }: {
   quote: QuoteView;
   previous?: QuoteView;
   items: OrderItem[];
-  orderedQty?: Map<string, number>;
+  progress?: Map<string, LineProgress>;
 }) {
   const linesByItem = new Map(quote.lines.map((line) => [line.itemId, line]));
   const changes = diffQuoteLines(previous?.lines ?? [], quote.lines);
@@ -133,9 +146,7 @@ export function QuoteTable({
                 <td className="p-3">
                   <ItemDescription item={item} />
                   {line.changeReason && <div className="mt-1 text-xs text-warning">סיבת השינוי: {line.changeReason}</div>}
-                  {orderedQty?.has(line.itemId) && (
-                    <div className="mt-1 text-xs text-success">הוזמן מהספק: {orderedQty.get(line.itemId)}</div>
-                  )}
+                  <ProgressNote progress={progress?.get(line.itemId)} />
                 </td>
                 <td className="p-3">
                   {qtyBefore !== undefined && <s className="me-1 text-xs text-muted">{qtyBefore}</s>}

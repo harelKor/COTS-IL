@@ -13,7 +13,7 @@ async function TeamNotice() {
   }
   return (
     <Link href="/pending" className="block rounded-lg border border-warning bg-surface p-3 text-sm hover:bg-subtle">
-      הקבוצה שלכם עדיין לא אושרה. אפשר לעיין בקטלוג, ולהזמין אחרי אישור המנטור.
+      הקבוצה שלכם עדיין לא אושרה. אפשר לעיין בקטלוג, ולהזמין אחרי אישור הספק הישראלי.
     </Link>
   );
 }
@@ -72,7 +72,7 @@ export default function HomePage() {
           ציוד <span className="ltr">FRC</span> ו-<span className="ltr">FTC</span> מכל הספקים, בהזמנה אחת
         </h1>
         <p className="mx-auto mb-6 max-w-xl text-muted">
-          מחפשים מוצרים, רואים מחיר בשקלים כולל מע״מ, ושולחים סל למנטור. המנטור מזמין מהספקים, מרכז ומוסר לקבוצה.
+          מחפשים מוצרים, רואים מחיר בשקלים כולל מע״מ, ושולחים סל לספק הישראלי. הספק הישראלי מזמין מהספקים, מרכז ומוסר לקבוצה.
           ההרשמה נדרשת רק כשמזמינים.
         </p>
         <Form action="/catalog" className="mx-auto flex max-w-xl gap-2">

@@ -110,7 +110,7 @@ async function Product({ params }: PageProps<"/catalog/[supplier]/[handle]">) {
           </div>
 
           <p className="text-sm text-muted">
-            המחירים כוללים מע״מ. משלוח בישראל מתומחר בהצעת המחיר, והמחיר הסופי נקבע בהצעה שהמנטור שולח.
+            המחירים כוללים מע״מ. משלוח בישראל מתומחר בהצעת המחיר, והמחיר הסופי נקבע בהצעה שהספק הישראלי שולח.
           </p>
 
           {!viewer && (
@@ -128,7 +128,7 @@ async function Product({ params }: PageProps<"/catalog/[supplier]/[handle]">) {
           )}
           {viewer && !team && !viewer.isAdmin && (
             <div className="rounded-lg border border-dashed border-line bg-surface p-4 text-sm">
-              אפשר להזמין אחרי שהמנטור יאשר את הקבוצה.
+              אפשר להזמין אחרי שהספק הישראלי יאשר את הקבוצה.
             </div>
           )}
           {canAdd && (

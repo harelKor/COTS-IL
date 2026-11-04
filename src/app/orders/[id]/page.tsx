@@ -21,7 +21,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
   const result = await getOrderForViewer(id, viewer);
   if (!result) notFound();
 
-  const { order, team, membership, items, quotes, orderedQty } = result;
+  const { order, team, membership, items, quotes, progress, deliveries } = result;
   const [latest, previous] = quotes;
   const role = membership?.status === "active" ? membership.role : null;
   const waitingForDecision = latest?.status === "sent" && canDecideQuote(order.status);
@@ -75,8 +75,8 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           {previous && waitingForDecision && (
             <Alert tone="info">ההצעה עודכנה מאז הגרסה הקודמת. השינויים מסומנים בטבלה, וצריך לאשר מחדש.</Alert>
           )}
-          <QuoteTable quote={latest} previous={previous} items={items} orderedQty={orderedQty} />
-          {latest.notes && <p className="whitespace-pre-wrap text-sm">הערות המנטור: {latest.notes}</p>}
+          <QuoteTable quote={latest} previous={previous} items={items} progress={progress} />
+          {latest.notes && <p className="whitespace-pre-wrap text-sm">הערות הספק הישראלי: {latest.notes}</p>}
           {waitingForDecision &&
             (role && canApproveQuote(role) ? (
               <QuoteDecision quoteId={latest.id} />
@@ -87,8 +87,19 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
       ) : (
         <section className="flex flex-col gap-3">
           <h2 className="font-semibold">הבקשה שנשלחה</h2>
-          <p className="text-sm text-muted">המחירים נשמרו ברגע השליחה. המנטור יבדוק אותם ויוסיף עלות משלוח.</p>
+          <p className="text-sm text-muted">המחירים נשמרו ברגע השליחה. הספק הישראלי יבדוק אותם ויוסיף עלות משלוח.</p>
           <RequestTable items={items} />
+        </section>
+      )}
+
+      {deliveries.length > 0 && (
+        <section className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-4 text-sm print:hidden">
+          <h2 className="font-semibold">תעודות משלוח</h2>
+          {deliveries.map((d) => (
+            <Link key={d.id} href={`/deliveries/${d.id}`} className="text-brand hover:underline">
+              תעודה {d.number} · {d.status === "delivered" ? "נמסרה" : "בהכנה"}
+            </Link>
+          ))}
         </section>
       )}
 

@@ -65,7 +65,7 @@ async function Cart() {
   if (!viewer) redirect("/login?next=/cart");
   const team = activeTeam(viewer);
   if (!team) {
-    if (viewer.isAdmin) return <p className="text-muted">לחשבון המנטור אין סל. הזמנות נשלחות מחשבונות של קבוצות.</p>;
+    if (viewer.isAdmin) return <p className="text-muted">לחשבון הספק הישראלי אין סל. הזמנות נשלחות מחשבונות של קבוצות.</p>;
     redirect("/pending");
   }
   if (!canOrder(team.role)) return <Alert>ההרשאה שלכם בקבוצה היא לצפייה בלבד. בקשו ממנהל הקבוצה הרשאת קניין.</Alert>;
@@ -109,7 +109,7 @@ async function Cart() {
           <span>סה״כ כולל מע״מ</span>
           <span>{formatIls(subtotal(lines))}</span>
         </div>
-        <p className="text-sm text-muted">משלוח בישראל לא כלול, והמנטור מתמחר אותו בהצעה הסופית.</p>
+        <p className="text-sm text-muted">משלוח בישראל לא כלול, והספק הישראלי מתמחר אותו בהצעה הסופית.</p>
       </div>
       <CheckoutForm
         defaults={{

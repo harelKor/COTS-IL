@@ -14,7 +14,7 @@ export default function CheckEmailPage(props: PageProps<"/signup/check-email">) 
         <Suspense>
           <Email {...props} />
         </Suspense>
-        . לחצו עליו כדי להשלים את ההרשמה. לאחר מכן הבקשה תמתין לאישור המנטור.
+        . לחצו עליו כדי להשלים את ההרשמה. לאחר מכן הבקשה תמתין לאישור הספק הישראלי.
       </p>
     </div>
   );

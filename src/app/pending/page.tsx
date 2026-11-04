@@ -26,7 +26,7 @@ async function PendingStatus() {
   return (
     <p>
       בקשת ההרשמה של {team.name} (<span className="ltr">{`${team.program} ${team.number}`}</span>) ממתינה לאישור
-      המנטור. נעדכן אתכם בדוא״ל ברגע שהקבוצה תאושר.
+      הספק הישראלי. נעדכן אתכם בדוא״ל ברגע שהקבוצה תאושר.
     </p>
   );
 }

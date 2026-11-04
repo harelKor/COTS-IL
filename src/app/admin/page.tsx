@@ -45,6 +45,17 @@ async function TeamsTable() {
       >
         <span className="font-semibold">רכש והזמנות ספק</span>
       </Link>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          { href: "/admin/logistics", label: "משלוחים וקליטה" },
+          { href: "/admin/deliveries", label: "מסירות" },
+          { href: "/admin/shortages", label: "דוח חוסרים" },
+        ].map((link) => (
+          <Link key={link.href} href={link.href} className="rounded-lg border border-line bg-surface p-4 font-semibold hover:border-brand">
+            {link.label}
+          </Link>
+        ))}
+      </div>
 
       <section>
         <h2 className="mb-3 font-semibold">בקשות הרשמה ממתינות ({pending.length})</h2>
