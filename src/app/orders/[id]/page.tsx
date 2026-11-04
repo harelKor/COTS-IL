@@ -21,7 +21,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
   const result = await getOrderForViewer(id, viewer);
   if (!result) notFound();
 
-  const { order, team, membership, items, quotes } = result;
+  const { order, team, membership, items, quotes, orderedQty } = result;
   const [latest, previous] = quotes;
   const role = membership?.status === "active" ? membership.role : null;
   const waitingForDecision = latest?.status === "sent" && canDecideQuote(order.status);
@@ -75,7 +75,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           {previous && waitingForDecision && (
             <Alert tone="info">ההצעה עודכנה מאז הגרסה הקודמת. השינויים מסומנים בטבלה, וצריך לאשר מחדש.</Alert>
           )}
-          <QuoteTable quote={latest} previous={previous} items={items} />
+          <QuoteTable quote={latest} previous={previous} items={items} orderedQty={orderedQty} />
           {latest.notes && <p className="whitespace-pre-wrap text-sm">הערות המנטור: {latest.notes}</p>}
           {waitingForDecision &&
             (role && canApproveQuote(role) ? (

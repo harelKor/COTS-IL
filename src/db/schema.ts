@@ -24,6 +24,7 @@ export const syncStatus = pgEnum("sync_status", ["running", "succeeded", "failed
 export const orderStatus = pgEnum("order_status", ["submitted", "quote_sent", "approved", "rejected", "cancelled"]);
 export const deliveryMethod = pgEnum("delivery_method", ["pickup", "ship"]);
 export const quoteStatus = pgEnum("quote_status", ["sent", "approved", "rejected", "superseded"]);
+export const poStatus = pgEnum("po_status", ["draft", "ordered", "cancelled"]);
 
 const createdAt = timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -312,3 +313,60 @@ export const quoteApprovals = pgTable("quote_approvals", {
   contentHash: text("content_hash").notNull(),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** An order the mentor places by hand on one supplier's site. */
+export const supplierPos = pgTable(
+  "supplier_pos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    number: integer("number").notNull().generatedByDefaultAsIdentity({ startWith: 5001 }),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    status: poStatus("status").notNull().default("draft"),
+    supplierOrderRef: text("supplier_order_ref"),
+    notes: text("notes"),
+    orderedAt: timestamp("ordered_at", { withTimezone: true }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => profiles.id),
+    createdAt,
+  },
+  (t) => [unique("supplier_pos_number_key").on(t.number), index("supplier_pos_supplier_id_idx").on(t.supplierId)],
+);
+
+/** One per variant in a PO. Lines are only ever merged for the same variant. */
+export const poLines = pgTable(
+  "po_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    poId: uuid("po_id")
+      .notNull()
+      .references(() => supplierPos.id, { onDelete: "cascade" }),
+    variantId: uuid("variant_id")
+      .notNull()
+      .references(() => variants.id),
+    supplierVariantId: text("supplier_variant_id").notNull(),
+    supplierSku: text("supplier_sku"),
+    title: text("title").notNull(),
+    options: jsonb("options").$type<{ name: string; value: string }[]>().notNull(),
+    productUrl: text("product_url").notNull(),
+    unitCostUsd: numeric("unit_cost_usd", { precision: 10, scale: 2 }),
+  },
+  (t) => [unique("po_lines_po_variant_key").on(t.poId, t.variantId)],
+);
+
+/** Which team's order line each purchased unit is for. A line's quantity is the sum of these. */
+export const poAllocations = pgTable(
+  "po_allocations",
+  {
+    poLineId: uuid("po_line_id")
+      .notNull()
+      .references(() => poLines.id, { onDelete: "cascade" }),
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => teamOrderItems.id),
+    qty: integer("qty").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.poLineId, t.orderItemId] }), index("po_allocations_order_item_id_idx").on(t.orderItemId)],
+);

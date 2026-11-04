@@ -39,6 +39,12 @@ async function TeamsTable() {
         <span className="font-semibold">הזמנות קבוצות</span>
         <span className="text-sm text-muted">{awaitingOrders} ממתינות לבדיקה</span>
       </Link>
+      <Link
+        href="/admin/purchasing"
+        className="flex items-center justify-between rounded-lg border border-line bg-surface p-4 hover:border-brand"
+      >
+        <span className="font-semibold">רכש והזמנות ספק</span>
+      </Link>
 
       <section>
         <h2 className="mb-3 font-semibold">בקשות הרשמה ממתינות ({pending.length})</h2>

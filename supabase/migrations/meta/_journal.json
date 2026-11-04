@@ -43,6 +43,20 @@
       "when": 1793801999449,
       "tag": "20261104141959_ordering_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793804499154,
+      "tag": "20261104150139_purchasing",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793804500963,
+      "tag": "20261104150140_purchasing_rls",
+      "breakpoints": true
     }
   ]
 }

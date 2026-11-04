@@ -93,7 +93,17 @@ type QuoteView = {
 };
 
 /** Spec §8: a price change in the quote has to be visible to the team, so old values stay on screen. */
-export function QuoteTable({ quote, previous, items }: { quote: QuoteView; previous?: QuoteView; items: OrderItem[] }) {
+export function QuoteTable({
+  quote,
+  previous,
+  items,
+  orderedQty,
+}: {
+  quote: QuoteView;
+  previous?: QuoteView;
+  items: OrderItem[];
+  orderedQty?: Map<string, number>;
+}) {
   const linesByItem = new Map(quote.lines.map((line) => [line.itemId, line]));
   const changes = diffQuoteLines(previous?.lines ?? [], quote.lines);
   const totals = quoteTotals(quote.lines, quote.shippingIls);
@@ -123,6 +133,9 @@ export function QuoteTable({ quote, previous, items }: { quote: QuoteView; previ
                 <td className="p-3">
                   <ItemDescription item={item} />
                   {line.changeReason && <div className="mt-1 text-xs text-warning">סיבת השינוי: {line.changeReason}</div>}
+                  {orderedQty?.has(line.itemId) && (
+                    <div className="mt-1 text-xs text-success">הוזמן מהספק: {orderedQty.get(line.itemId)}</div>
+                  )}
                 </td>
                 <td className="p-3">
                   {qtyBefore !== undefined && <s className="me-1 text-xs text-muted">{qtyBefore}</s>}
