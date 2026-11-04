@@ -3,6 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db";
+import { acceptInvitationsForUser } from "@/lib/invitations";
 import { createClient } from "@/lib/supabase/server";
 import { formValues, loginSchema, safeNext, signupSchema, type FormState } from "@/lib/validation";
 
@@ -57,7 +58,7 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
     const message =
       error.code === "email_not_confirmed"
@@ -65,6 +66,8 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
         : "דוא״ל או סיסמה שגויים.";
     return { error: message, values };
   }
+
+  if (data.user.email) await acceptInvitationsForUser(data.user.id, data.user.email);
 
   redirect(safeNext(formData.get("next")));
 }

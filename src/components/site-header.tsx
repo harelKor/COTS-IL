@@ -11,7 +11,7 @@ export async function SiteHeader() {
 
   return (
     <header className="border-b border-line bg-surface print:hidden">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
+      <div className="mx-auto flex min-h-14 max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2">
         <Link href="/" className="whitespace-nowrap font-bold">
           פורטל רכש <span className="ltr">FIRST</span>
         </Link>
@@ -26,6 +26,9 @@ export async function SiteHeader() {
               </Link>
               <Link href="/orders" className="hover:text-brand">
                 הזמנות
+              </Link>
+              <Link href="/team" className="hover:text-brand">
+                קבוצה
               </Link>
             </>
           )}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ProductSummary } from "@/lib/catalog";
 import { formatIls, priceIls } from "@/domain/pricing";
+import { isAvailabilityFresh } from "@/domain/reports";
 
 const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
 
@@ -11,7 +12,9 @@ export function productHref(supplierCode: string, handle: string) {
 /** Suppliers only tell us yes or no, so this never shows a stock count. */
 export function Availability({ available, checkedAt }: { available: boolean | null; checkedAt: Date }) {
   const date = dayMonth.format(checkedAt);
-  if (available === null) return <span className="text-xs text-muted">זמינות לא אומתה</span>;
+  if (available === null || !isAvailabilityFresh(checkedAt, new Date())) {
+    return <span className="text-xs text-muted">זמינות לא אומתה</span>;
+  }
   return available ? (
     <span className="text-xs text-success">זמין אצל הספק (נבדק {date})</span>
   ) : (

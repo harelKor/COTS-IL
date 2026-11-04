@@ -56,3 +56,9 @@ The site is open for browsing. An account is needed only to order and for the ad
 - `.github/workflows/sync.yml` runs it daily. It needs a `DATABASE_URL` repository secret pointing at the production database.
 - A failed or suspiciously small sync changes nothing and is recorded in `sync_jobs`.
 - Prices are USD × 1.6, rounded to whole shekels (`src/domain/pricing.ts`). Categories come from the rules in `src/suppliers/classify.ts`.
+
+## Teams, reports and backups
+
+- Team admins manage users and details at `/team`. An invitation is a link they send themselves, valid for the invited email for two weeks.
+- `/admin/reports` covers sales, purchasing, import costs, turnaround and profit, with Excel export.
+- `.github/workflows/backup.yml` backs up the database nightly. It needs a `BACKUP_PASSPHRASE` repository secret. `docs/admin-guide.md` covers restoring, and is the guide for running the site.

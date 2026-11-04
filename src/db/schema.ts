@@ -514,3 +514,25 @@ export const deliveryItems = pgTable(
   },
   (t) => [primaryKey({ columns: [t.deliveryId, t.allocationId] }), index("delivery_items_allocation_id_idx").on(t.allocationId)],
 );
+
+/** An invitation by email. Only a hash of the link's token is stored. */
+export const teamInvitations = pgTable(
+  "team_invitations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: teamRole("role").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    invitedBy: uuid("invited_by")
+      .notNull()
+      .references(() => profiles.id),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt,
+  },
+  (t) => [index("team_invitations_email_idx").on(t.email), index("team_invitations_team_id_idx").on(t.teamId)],
+);

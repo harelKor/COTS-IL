@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /** The site is open for browsing. Only these paths need an account. */
-const PRIVATE_PATHS = ["/admin", "/pending", "/cart", "/orders", "/deliveries"];
+const PRIVATE_PATHS = ["/admin", "/pending", "/cart", "/orders", "/deliveries", "/team"];
 
 function isPrivate(pathname: string) {
   return PRIVATE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

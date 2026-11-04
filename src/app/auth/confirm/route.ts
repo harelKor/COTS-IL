@@ -1,5 +1,6 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import { acceptInvitationsForUser } from "@/lib/invitations";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/validation";
 
@@ -21,5 +22,10 @@ export async function GET(request: NextRequest) {
   if (error) {
     return NextResponse.redirect(new URL("/login?error=confirm", origin));
   }
+
+  // The address is proven now, so any team that invited it can take the user in.
+  const { data } = await supabase.auth.getUser();
+  if (data.user?.email) await acceptInvitationsForUser(data.user.id, data.user.email);
+
   return NextResponse.redirect(new URL(next, origin));
 }

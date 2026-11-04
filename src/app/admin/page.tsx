@@ -3,8 +3,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { db, schema } from "@/db";
 import { Button } from "@/components/form";
+import { formatDateTime } from "@/components/orders";
+import { isAvailabilityFresh } from "@/domain/reports";
 import { requireAdmin } from "@/lib/auth";
 import { countOrdersAwaitingMentor } from "@/lib/orders";
+import { getSyncStatus } from "@/lib/reports";
 import { reviewTeam } from "./actions";
 
 const statusLabels = {
@@ -13,6 +16,42 @@ const statusLabels = {
   rejected: { text: "נדחתה", className: "bg-danger/10 text-danger" },
   suspended: { text: "מושהית", className: "bg-subtle text-muted" },
 } as const;
+
+/** Flags a supplier whose last run failed, or that hasn't updated recently (AT-11). */
+async function SyncStatus() {
+  const rows = await getSyncStatus();
+  const now = new Date();
+  return (
+    <section>
+      <h2 className="mb-3 font-semibold">סנכרון קטלוג</h2>
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {rows.map((row) => {
+          const stale = !row.lastSuccessAt || !isAvailabilityFresh(row.lastSuccessAt, now);
+          const failed = row.status === "failed";
+          return (
+            <li
+              key={row.supplierId}
+              className={`rounded-lg border bg-surface p-3 text-sm ${stale || failed ? "border-warning" : "border-line"}`}
+            >
+              <div className="ltr font-medium">{row.supplierName}</div>
+              <div className="text-xs text-muted">
+                {row.lastSuccessAt ? (
+                  <>
+                    עודכן: <span className="ltr">{formatDateTime(row.lastSuccessAt)}</span>
+                  </>
+                ) : (
+                  "עדיין לא עודכן"
+                )}
+              </div>
+              {failed && <div className="text-xs text-warning">הריצה האחרונה נכשלה</div>}
+              {stale && <div className="text-xs text-warning">הזמינות מוצגת כלא מאומתת</div>}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 
 async function TeamsTable() {
   await requireAdmin();
@@ -45,17 +84,20 @@ async function TeamsTable() {
       >
         <span className="font-semibold">רכש והזמנות ספק</span>
       </Link>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { href: "/admin/logistics", label: "משלוחים וקליטה" },
           { href: "/admin/deliveries", label: "מסירות" },
           { href: "/admin/shortages", label: "דוח חוסרים" },
+          { href: "/admin/reports", label: "דוחות" },
         ].map((link) => (
           <Link key={link.href} href={link.href} className="rounded-lg border border-line bg-surface p-4 font-semibold hover:border-brand">
             {link.label}
           </Link>
         ))}
       </div>
+
+      <SyncStatus />
 
       <section>
         <h2 className="mb-3 font-semibold">בקשות הרשמה ממתינות ({pending.length})</h2>

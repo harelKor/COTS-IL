@@ -1,0 +1,34 @@
+name: Database backup
+
+on:
+  schedule:
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+# Backs up the app's data and user accounts, encrypted, as a 30-day artifact on
+# this private repo. A failed run emails the repo owner through GitHub.
+# docs/admin-guide.md explains how to restore.
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Dump and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          test -n "$BACKUP_PASSPHRASE" || { echo "BACKUP_PASSPHRASE secret is missing"; exit 1; }
+          # pg_dump needs a session connection: the pooler's port 5432, not the app's 6543.
+          SESSION_URL="${DATABASE_URL/:6543\//:5432\/}"
+          docker run --rm -e SESSION_URL="$SESSION_URL" postgres:17 \
+            sh -c 'pg_dump "$SESSION_URL" --format=custom --no-owner --no-privileges --schema=public --schema=auth' > backup.dump
+          test "$(stat -c %s backup.dump)" -gt 10000 || { echo "Backup is suspiciously small"; exit 1; }
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" \
+            --symmetric --cipher-algo AES256 --output backup.dump.gpg backup.dump
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: backup.dump.gpg
+          retention-days: 30
+          if-no-files-found: error
