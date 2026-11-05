@@ -6,8 +6,9 @@ import { formatDateTime, OrderStatusBadge } from "@/components/orders";
 import { formatIls } from "@/domain/pricing";
 import { activeTeam, getViewer } from "@/lib/auth";
 import { listOrders } from "@/lib/orders";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "ההזמנות שלנו | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "ההזמנות שלנו" };
 
 async function Orders() {
   const viewer = await getViewer();
@@ -57,7 +58,7 @@ export default function OrdersPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">ההזמנות שלנו</h1>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Orders />
       </Suspense>
     </div>

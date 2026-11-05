@@ -5,8 +5,9 @@ import { formatDateTime, OrderStatusBadge } from "@/components/orders";
 import { formatIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { listOrders } from "@/lib/orders";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "הזמנות קבוצות | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "הזמנות קבוצות" };
 
 async function Orders() {
   await requireAdmin();
@@ -61,7 +62,7 @@ export default function AdminOrdersPage() {
           לניהול הקבוצות
         </Link>
       </div>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Orders />
       </Suspense>
     </div>

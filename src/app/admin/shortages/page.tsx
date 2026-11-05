@@ -5,8 +5,9 @@ import { PrintButton } from "@/components/print-button";
 import { LINE_STAGE_LABELS, lineStage } from "@/domain/logistics";
 import { requireAdmin } from "@/lib/auth";
 import { getItemProgress, getSupplierShortages } from "@/lib/logistics";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "דוח חוסרים | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "דוח חוסרים" };
 
 async function Shortages() {
   await requireAdmin();
@@ -119,7 +120,7 @@ export default function ShortagesPage() {
           <PrintButton />
         </div>
       </div>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Shortages />
       </Suspense>
     </div>

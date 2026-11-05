@@ -9,8 +9,9 @@ import { canManageTeam, ROLE_LABELS } from "@/domain/teams";
 import { activeTeam, getViewer } from "@/lib/auth";
 import { removeMember, revokeInvitation, setMemberRole, updateTeamDetails } from "./actions";
 import { InviteForm } from "./invite-form";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "הקבוצה | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "הקבוצה" };
 
 const { memberships, profiles, teamInvitations, teams } = schema;
 
@@ -148,7 +149,7 @@ export default function TeamPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">הקבוצה</h1>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Team />
       </Suspense>
     </div>

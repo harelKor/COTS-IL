@@ -9,8 +9,9 @@ import { describeOptions } from "@/domain/purchasing";
 import { requireAdmin } from "@/lib/auth";
 import { getShipment } from "@/lib/logistics";
 import { addImportCost, deleteShipment, receiveShipment, removeImportCost, reverseReceipt, setAllocations } from "../actions";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "משלוח | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "משלוח" };
 
 const COST_LABELS = { customs: "מכס", freight: "הובלה", broker: "עמיל מכס", vat: "מע״מ יבוא" } as const;
 
@@ -233,7 +234,7 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
 
 export default function ShipmentPage(props: PageProps<"/admin/logistics/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted">טוען…</p>}>
+    <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
       <Shipment {...props} />
     </Suspense>
   );

@@ -1,18 +1,47 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { connection } from "next/server";
+import { Suspense, ViewTransition } from "react";
 import { AddToCart } from "@/components/add-to-cart";
-import { Availability, ProductImage } from "@/components/catalog";
+import { Availability, ProductImage, productImageTransition } from "@/components/catalog";
+import { Ltr } from "@/components/ltr";
+import { Loading, ProductSkeleton } from "@/components/skeleton";
 import { canOrder } from "@/domain/orders";
 import { formatIls, priceIls } from "@/domain/pricing";
 import { activeTeam, getViewer } from "@/lib/auth";
 import { getProduct } from "@/lib/catalog";
 import { catalogHref } from "@/lib/catalog-filters";
+import { descriptionText, isRealDescription, metaDescription } from "@/lib/description";
+
+export async function generateMetadata({ params }: PageProps<"/catalog/[supplier]/[handle]">): Promise<Metadata> {
+  const { supplier, handle } = await params;
+  const result = await getProduct(supplier, decodeURIComponent(handle));
+  if (!result) return { title: "המוצר לא נמצא" };
+
+  const { product, supplierName } = result;
+  const low = priceIls(product.minPriceUsd);
+  const price = low === null ? "" : `${formatIls(low)} כולל מע״מ · `;
+  const text = isRealDescription(product.descriptionHtml) ? descriptionText(product.descriptionHtml) : "";
+  const description = metaDescription(`${price}${supplierName}${text ? ` · ${text}` : ""}`);
+  const title = `${product.title} · ${supplierName}`;
+  const images = product.images[0] ? [{ url: product.images[0], alt: product.title }] : undefined;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/catalog/${supplier}/${handle}` },
+    openGraph: { title, description, images, type: "website" },
+    twitter: { card: images ? "summary_large_image" : "summary", title, description, images },
+  };
+}
 
 async function Product({ params }: PageProps<"/catalog/[supplier]/[handle]">) {
   const { supplier, handle } = await params;
   const result = await getProduct(supplier, decodeURIComponent(handle));
   if (!result) notFound();
+  // Availability compares the check date with today, so this part renders per request.
+  await connection();
 
   const { product, variants } = result;
   const viewer = await getViewer();
@@ -39,17 +68,14 @@ async function Product({ params }: PageProps<"/catalog/[supplier]/[handle]">) {
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <ProductImage
-            src={product.images[0]}
-            alt={product.title}
-            width={800}
-            className="aspect-square w-full rounded-lg border border-line"
-          />
+          <ViewTransition name={productImageTransition(product.id)} share="morph" default="none">
+            <ProductImage src={product.images[0]} alt={product.title} width={800} className="aspect-square w-full rounded-card p-6" />
+          </ViewTransition>
           {product.images.length > 1 && (
             <ul className="grid grid-cols-5 gap-2">
-              {product.images.slice(1, 6).map((src) => (
+              {product.images.slice(1, 6).map((src, i) => (
                 <li key={src}>
-                  <ProductImage src={src} alt="" width={160} className="aspect-square w-full rounded border border-line" />
+                  <ProductImage src={src} alt={`${product.title}, תמונה ${i + 2}`} width={160} className="aspect-square w-full rounded-xl p-1" />
                 </li>
               ))}
             </ul>
@@ -60,16 +86,16 @@ async function Product({ params }: PageProps<"/catalog/[supplier]/[handle]">) {
           <div>
             <Link
               href={catalogHref({ supplier: result.supplierCode })}
-              className="ltr text-sm text-muted hover:text-brand"
+              className="text-caption text-muted hover:text-brand"
             >
-              {result.supplierName}
+              <Ltr>{result.supplierName}</Ltr>
             </Link>
-            <h1 dir="ltr" className="text-start text-2xl font-bold">
+            <h1 dir="ltr" className="text-start text-title font-semibold">
               {product.title}
             </h1>
           </div>
 
-          <div className="max-h-[32rem] overflow-auto rounded-lg border border-line bg-surface">
+          <div className="max-h-[32rem] overflow-auto rounded-card border border-line bg-surface">
             <table className="w-full text-sm">
               <thead className="bg-subtle text-muted">
                 <tr>
@@ -143,9 +169,10 @@ async function Product({ params }: PageProps<"/catalog/[supplier]/[handle]">) {
         </div>
       </div>
 
-      {product.descriptionHtml && (
-        <section className="rounded-lg border border-line bg-surface p-5">
-          <h2 className="mb-3 font-semibold">תיאור הספק</h2>
+      {/* Some suppliers leave a placeholder ("This Page is for Reference Only") instead of a description. */}
+      {product.descriptionHtml && isRealDescription(product.descriptionHtml) && (
+        <section className="rounded-card bg-surface p-6">
+          <h2 className="mb-3 text-section font-semibold">תיאור הספק</h2>
           {/* Sanitized by sanitizeDescription when it was synced. */}
           <div dir="ltr" className="rich-text text-sm" dangerouslySetInnerHTML={{ __html: product.descriptionHtml }} />
         </section>
@@ -156,8 +183,18 @@ async function Product({ params }: PageProps<"/catalog/[supplier]/[handle]">) {
 
 export default function ProductPage(props: PageProps<"/catalog/[supplier]/[handle]">) {
   return (
-    <Suspense fallback={<p className="text-muted">טוען…</p>}>
-      <Product {...props} />
+    <Suspense
+      fallback={
+        <ViewTransition exit="page-exit" default="none">
+          <Loading>
+            <ProductSkeleton />
+          </Loading>
+        </ViewTransition>
+      }
+    >
+      <ViewTransition enter="reveal" default="none">
+        <Product {...props} />
+      </ViewTransition>
     </Suspense>
   );
 }

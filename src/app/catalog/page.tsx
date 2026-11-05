@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Form from "next/form";
 import Link from "next/link";
-import { Suspense } from "react";
+import { connection } from "next/server";
+import { Suspense, ViewTransition } from "react";
 import { AutoSubmitCheckbox, AutoSubmitSelect } from "@/components/auto-submit";
 import { ProductCard } from "@/components/catalog";
+import { CardGridSkeleton, Loading } from "@/components/skeleton";
 import { getFacets, searchProducts } from "@/lib/catalog";
 import { catalogHref, PAGE_SIZE, parseFilters, type CatalogFilters } from "@/lib/catalog-filters";
 
-export const metadata: Metadata = { title: "קטלוג | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "קטלוג" };
 
 const sortLabels = {
   relevance: "רלוונטיות",
@@ -18,7 +20,7 @@ const sortLabels = {
 
 function FilterBar({ filters, facets }: { filters: CatalogFilters; facets: Awaited<ReturnType<typeof getFacets>> }) {
   return (
-    <Form action="/catalog" className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+    <Form action="/catalog" className="flex flex-col gap-3 rounded-card bg-surface p-4">
       <div className="flex gap-2">
         <input
           type="search"
@@ -26,9 +28,9 @@ function FilterBar({ filters, facets }: { filters: CatalogFilters; facets: Await
           defaultValue={filters.q}
           placeholder="חיפוש לפי שם או מק״ט"
           aria-label="חיפוש"
-          className="min-w-0 flex-1 rounded-md border border-line bg-surface px-3 py-2"
+          className="h-11 min-w-0 flex-1 rounded-full bg-subtle px-4"
         />
-        <button className="rounded-md bg-brand px-4 py-2 text-white hover:bg-brand-strong">חיפוש</button>
+        <button className="h-11 rounded-full bg-brand px-5 text-white hover:bg-brand-strong">חיפוש</button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <AutoSubmitSelect name="category" defaultValue={filters.category} aria-label="קטגוריה">
@@ -93,6 +95,8 @@ function Pagination({ filters, total }: { filters: CatalogFilters; total: number
 
 async function Catalog({ searchParams }: PageProps<"/catalog">) {
   const filters = parseFilters(await searchParams);
+  // Availability compares the check date with today, so this part renders per request.
+  await connection();
   const [facets, { rows, total }] = await Promise.all([getFacets(), searchProducts(filters)]);
 
   return (
@@ -101,7 +105,7 @@ async function Catalog({ searchParams }: PageProps<"/catalog">) {
       <FilterBar key={catalogHref({ ...filters, page: 1 })} filters={filters} facets={facets} />
       <p className="text-sm text-muted">{total.toLocaleString("he-IL")} מוצרים</p>
       {rows.length > 0 ? (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
           {rows.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
@@ -120,11 +124,24 @@ export default function CatalogPage(props: PageProps<"/catalog">) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold">קטלוג</h1>
+        <h1 className="text-title font-semibold">קטלוג</h1>
         <p className="text-sm text-muted">המחירים כוללים מע״מ. משלוח בישראל מתומחר בהצעת המחיר.</p>
       </div>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
-        <Catalog {...props} />
+      <Suspense
+        fallback={
+          <ViewTransition exit="page-exit" default="none">
+            <Loading>
+              <div className="flex flex-col gap-6">
+                <div className="skeleton h-28 w-full rounded-card" />
+                <CardGridSkeleton count={12} />
+              </div>
+            </Loading>
+          </ViewTransition>
+        }
+      >
+        <ViewTransition enter="reveal" default="none">
+          <Catalog {...props} />
+        </ViewTransition>
       </Suspense>
     </div>
   );

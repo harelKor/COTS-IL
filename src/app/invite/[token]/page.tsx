@@ -7,8 +7,9 @@ import { ROLE_LABELS } from "@/domain/teams";
 import { getViewer } from "@/lib/auth";
 import { findInvitation } from "@/lib/invitations";
 import { joinInvited, signupInvited } from "../actions";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "הזמנה לקבוצה | פורטל רכש FIRST", robots: { index: false } };
+export const metadata: Metadata = { title: "הזמנה לקבוצה", robots: { index: false } };
 
 async function Invite({ params }: PageProps<"/invite/[token]">) {
   const { token } = await params;
@@ -87,7 +88,7 @@ export default function InvitePage(props: PageProps<"/invite/[token]">) {
   return (
     <div className="mx-auto max-w-md rounded-lg border border-line bg-surface p-6">
       <h1 className="mb-3 text-xl font-bold">הזמנה לקבוצה</h1>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Invite {...props} />
       </Suspense>
     </div>

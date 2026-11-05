@@ -8,8 +8,9 @@ import { requireAdmin } from "@/lib/auth";
 import { getDemand, listPos } from "@/lib/purchasing";
 import { createPo } from "./actions";
 import { PO_STATUS_LABELS } from "./status";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "רכש | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "רכש" };
 
 function SupplierBoard({ demand }: { demand: SupplierDemand }) {
   return (
@@ -124,7 +125,7 @@ export default function PurchasingPage() {
           לניהול
         </Link>
       </div>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Purchasing />
       </Suspense>
     </div>

@@ -4,8 +4,9 @@ import { Suspense } from "react";
 import { formatDateTime } from "@/components/orders";
 import { requireAdmin } from "@/lib/auth";
 import { listShipments } from "@/lib/logistics";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "משלוחים | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "משלוחים" };
 
 async function Shipments() {
   await requireAdmin();
@@ -74,7 +75,7 @@ export default function LogisticsPage() {
           לניהול
         </Link>
       </div>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Shipments />
       </Suspense>
     </div>

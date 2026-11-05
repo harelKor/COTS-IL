@@ -37,7 +37,8 @@ npm run sync             # sync Shopify suppliers (npm run sync -- wcp for one)
 ## RTL
 
 - `<html lang="he" dir="rtl">`. Logical properties only: `ms-`/`me-`, `ps-`/`pe-`, `start`/`end`, `inset-inline-*`. Never `ml-`/`mr-`/`left`/`right` for layout.
-- Every part name, SKU, unit, number with units and price goes in `<bdi>` (or the `<Ltr>` wrapper once Phase 1 adds it; today the `.ltr` class). Check "1/2" Hex", "#10-32", "₪ 1,250".
+- Every part name, SKU, unit and number with units goes in `<Ltr>` (`src/components/ltr.tsx`, a `<bdi dir="ltr">`); older pages still use the `.ltr` class. Check "1/2" Hex", "#10-32".
+- Prices come from `formatIls`, whose he-IL output already carries its own direction marks: don't wrap it in `<Ltr>`, which squashes "₪ 1,250" into "1,250₪".
 - Mirror arrows and sheets, never product photos.
 - Every component must work at 360px with no horizontal scroll and tap targets of at least 44px.
 

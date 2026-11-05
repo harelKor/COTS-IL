@@ -1,27 +1,40 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
-import { Suspense } from "react";
+import { CartPill } from "@/components/cart-pill";
 import { SiteHeader } from "@/components/site-header";
+import { Toaster } from "@/components/toast";
 import "./globals.css";
 
+// Only the fallback: Apple devices get SF and Windows gets Segoe (see --font-sans).
 const heebo = Heebo({
   variable: "--font-heebo",
   subsets: ["hebrew", "latin"],
 });
 
+const SITE_NAME = "פורטל רכש FIRST";
+
 export const metadata: Metadata = {
-  title: "פורטל רכש FIRST",
-  description: "הזמנת ציוד FRC ו-FTC מספקים בינלאומיים",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://cots-il.vercel.app"),
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: "ציוד FRC ו-FTC מכל הספקים בהזמנה אחת, במחירים בשקלים כולל מע״מ",
+  openGraph: { siteName: SITE_NAME, locale: "he_IL", type: "website" },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fbfbfd" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="he" dir="rtl" className={`${heebo.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
-        <Suspense fallback={<div className="h-14 border-b border-line bg-surface" />}>
-          <SiteHeader />
-        </Suspense>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+        <SiteHeader />
+        <main className="mx-auto w-full max-w-[1200px] flex-1 px-6 pt-8 pb-28 md:px-12">{children}</main>
+        <CartPill />
+        <Toaster />
       </body>
     </html>
   );

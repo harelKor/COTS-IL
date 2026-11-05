@@ -10,8 +10,9 @@ import { canRejectOrder, canSendQuote } from "@/domain/orders";
 import { requireAdmin } from "@/lib/auth";
 import { getOrderForViewer } from "@/lib/orders";
 import { QuoteEditor, RejectOrderForm, type EditorLine } from "./quote-editor";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "ניהול הזמנה | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "ניהול הזמנה" };
 
 async function AdminOrder({ params }: PageProps<"/admin/orders/[id]">) {
   const admin = await requireAdmin();
@@ -121,7 +122,7 @@ async function AdminOrder({ params }: PageProps<"/admin/orders/[id]">) {
 
 export default function AdminOrderPage(props: PageProps<"/admin/orders/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted">טוען…</p>}>
+    <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
       <AdminOrder {...props} />
     </Suspense>
   );

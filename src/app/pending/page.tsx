@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getViewer } from "@/lib/auth";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
 async function PendingStatus() {
   const viewer = await getViewer();
@@ -35,7 +36,7 @@ export default function PendingPage() {
   return (
     <div className="mx-auto max-w-md rounded-lg border border-line bg-surface p-6">
       <h1 className="mb-3 text-xl font-bold">ממתין לאישור</h1>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <PendingStatus />
       </Suspense>
     </div>

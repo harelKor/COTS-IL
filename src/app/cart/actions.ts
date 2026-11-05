@@ -1,7 +1,7 @@
 "use server";
 
 import { and, eq, sql } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
@@ -27,30 +27,61 @@ async function requireOrderingTeam() {
 
 export type AddToCartState = { added?: boolean; error?: string };
 
+/** Adds to the team's cart, or raises the quantity of a line that's already there. Returns an error message, or null. */
+async function addLine(teamId: string, userId: string, variantId: string, count: number): Promise<string | null> {
+  const [variant] = await db
+    .select({ priceUsd: variants.priceUsd, variantMissing: variants.missingSince, status: products.status, productMissing: products.missingSince })
+    .from(variants)
+    .innerJoin(products, eq(products.id, variants.productId))
+    .where(eq(variants.id, variantId));
+  if (!variant || variant.variantMissing || variant.productMissing || variant.status !== "published" || priceIls(variant.priceUsd) === null) {
+    return "לא ניתן להזמין את הפריט הזה";
+  }
+
+  await db
+    .insert(cartItems)
+    .values({ teamId, variantId, qty: count, addedBy: userId })
+    .onConflictDoUpdate({
+      target: [cartItems.teamId, cartItems.variantId],
+      set: { qty: sql`LEAST(${cartItems.qty} + excluded.qty, ${MAX_QTY})` },
+    });
+  revalidatePath("/cart");
+  return null;
+}
+
 export async function addToCart(_prev: AddToCartState, formData: FormData): Promise<AddToCartState> {
   const { viewer, team } = await requireOrderingTeam();
   const parsed = z.object({ variantId: z.uuid(), qty }).safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "כמות לא תקינה" };
 
-  const [variant] = await db
-    .select({ priceUsd: variants.priceUsd, variantMissing: variants.missingSince, status: products.status, productMissing: products.missingSince })
-    .from(variants)
-    .innerJoin(products, eq(products.id, variants.productId))
-    .where(eq(variants.id, parsed.data.variantId));
-  if (!variant || variant.variantMissing || variant.productMissing || variant.status !== "published" || priceIls(variant.priceUsd) === null) {
-    return { error: "לא ניתן להזמין את הפריט הזה" };
-  }
-
-  await db
-    .insert(cartItems)
-    .values({ teamId: team.id, variantId: parsed.data.variantId, qty: parsed.data.qty, addedBy: viewer.id })
-    .onConflictDoUpdate({
-      target: [cartItems.teamId, cartItems.variantId],
-      set: { qty: sql`LEAST(${cartItems.qty} + excluded.qty, ${MAX_QTY})` },
-    });
-
-  revalidatePath("/cart");
+  const error = await addLine(team.id, viewer.id, parsed.data.variantId, parsed.data.qty);
+  if (error) return { error };
+  refresh();
   return { added: true };
+}
+
+/** For the search panel and the cart sheet, which add without a form and stay on the page. */
+export async function quickAdd(variantId: string, count: number): Promise<{ error?: string }> {
+  const { viewer, team } = await requireOrderingTeam();
+  const parsed = z.object({ variantId: z.uuid(), qty }).safeParse({ variantId, qty: count });
+  if (!parsed.success) return { error: "כמות לא תקינה" };
+
+  const error = await addLine(team.id, viewer.id, parsed.data.variantId, parsed.data.qty);
+  refresh();
+  return error ? { error } : {};
+}
+
+/** Sets a cart line's quantity from the cart sheet's stepper. */
+export async function setCartQty(variantId: string, count: number): Promise<void> {
+  const { team } = await requireOrderingTeam();
+  const parsed = z.object({ variantId: z.uuid(), qty }).safeParse({ variantId, qty: count });
+  if (!parsed.success) return;
+  await db
+    .update(cartItems)
+    .set({ qty: parsed.data.qty })
+    .where(and(eq(cartItems.teamId, team.id), eq(cartItems.variantId, parsed.data.variantId)));
+  revalidatePath("/cart");
+  refresh();
 }
 
 export async function updateCartItem(formData: FormData) {

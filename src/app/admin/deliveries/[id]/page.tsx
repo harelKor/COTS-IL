@@ -9,8 +9,9 @@ import { PrintButton } from "@/components/print-button";
 import { requireAdmin } from "@/lib/auth";
 import { getDeliveryForViewer } from "@/lib/logistics";
 import { cancelDelivery, confirmDelivery } from "../actions";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "תעודת משלוח | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "תעודת משלוח" };
 
 const isoDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" });
 
@@ -61,7 +62,7 @@ async function AdminDelivery({ params }: PageProps<"/admin/deliveries/[id]">) {
 
 export default function AdminDeliveryPage(props: PageProps<"/admin/deliveries/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted">טוען…</p>}>
+    <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
       <AdminDelivery {...props} />
     </Suspense>
   );

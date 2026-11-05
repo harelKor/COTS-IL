@@ -10,8 +10,9 @@ import { getViewer } from "@/lib/auth";
 import { getOrderForViewer } from "@/lib/orders";
 import { cancelOrder } from "../actions";
 import { QuoteDecision } from "./quote-decision";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "הזמנה | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "הזמנה" };
 
 async function Order({ params }: PageProps<"/orders/[id]">) {
   const { id } = await params;
@@ -136,7 +137,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
 
 export default function OrderPage(props: PageProps<"/orders/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted">טוען…</p>}>
+    <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
       <Order {...props} />
     </Suspense>
   );

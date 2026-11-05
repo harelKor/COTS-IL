@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
-import { connection } from "next/server";
+import { cacheLife, cacheTag } from "next/cache";
 import { db, schema } from "@/db";
 import { PAGE_SIZE, searchPatterns, type CatalogFilters } from "./catalog-filters";
 
@@ -8,9 +8,16 @@ const { categories, products, suppliers, variants } = schema;
 
 const visible = and(eq(products.status, "published"), isNull(products.missingSince), eq(suppliers.active, true));
 
-export async function searchProducts(filters: CatalogFilters) {
-  await connection();
+/**
+ * The catalog changes once a day, when the sync runs, so public catalog reads
+ * are cached for hours. That lets pages render without a loading state.
+ */
+function catalogCache() {
+  cacheLife("hours");
+  cacheTag("catalog");
+}
 
+function searchQuery(filters: CatalogFilters) {
   const conditions: (SQL | undefined)[] = [visible];
   for (const pattern of searchPatterns(filters.q)) {
     conditions.push(sql`${products.searchText} ILIKE ${pattern}`);
@@ -33,6 +40,13 @@ export async function searchProducts(filters: CatalogFilters) {
     );
   }
   order.push(asc(products.title));
+  return { where, order };
+}
+
+export async function searchProducts(filters: CatalogFilters) {
+  "use cache";
+  catalogCache();
+  const { where, order } = searchQuery(filters);
 
   const rows = await db
     .select({
@@ -69,7 +83,8 @@ export type ProductSummary = Awaited<ReturnType<typeof searchProducts>>["rows"][
 
 /** Categories and suppliers that have something to show, with product counts. */
 export async function getFacets() {
-  await connection();
+  "use cache";
+  catalogCache();
   const count = sql<number>`count(*)::int`;
 
   const [categoryRows, supplierRows] = await Promise.all([
@@ -94,7 +109,8 @@ export async function getFacets() {
 }
 
 export async function getProduct(supplierCode: string, handle: string) {
-  await connection();
+  "use cache";
+  catalogCache();
 
   const [row] = await db
     .select({
@@ -119,3 +135,41 @@ export async function getProduct(supplierCode: string, handle: string) {
 
   return { ...row, variants: productVariants };
 }
+
+/** Variants a team can add: still listed, with a price. */
+const orderable = sql`${variants.missingSince} IS NULL AND ${variants.priceUsd} > 0`;
+
+/**
+ * The few best matches for the search panel. A product with exactly one orderable
+ * variant carries its id, so the panel can add it to the cart without opening the page.
+ */
+export async function quickSearch(q: string) {
+  "use cache";
+  catalogCache();
+  const filters: CatalogFilters = { q, category: "", supplier: "", program: "", availableOnly: false, sort: "relevance", page: 1 };
+  const { where, order } = searchQuery(filters);
+
+  return db
+    .select({
+      id: products.id,
+      handle: products.handle,
+      title: products.title,
+      image: sql<string | null>`${products.images}[1]`,
+      minPriceUsd: products.minPriceUsd,
+      maxPriceUsd: products.maxPriceUsd,
+      available: products.available,
+      supplierCode: suppliers.code,
+      supplierName: suppliers.name,
+      variantCount: sql<number>`(SELECT count(*)::int FROM ${variants} WHERE ${variants.productId} = ${products.id} AND ${orderable})`,
+      onlyVariantId: sql<string | null>`(SELECT CASE WHEN count(*) = 1 THEN min(${variants.id}::text) END FROM ${variants} WHERE ${variants.productId} = ${products.id} AND ${orderable})`,
+      onlyVariantSku: sql<string | null>`(SELECT CASE WHEN count(*) = 1 THEN min(${variants.supplierSku}) END FROM ${variants} WHERE ${variants.productId} = ${products.id} AND ${orderable})`,
+    })
+    .from(products)
+    .innerJoin(suppliers, eq(suppliers.id, products.supplierId))
+    .leftJoin(categories, eq(categories.id, products.categoryId))
+    .where(where)
+    .orderBy(...order)
+    .limit(8);
+}
+
+export type QuickResult = Awaited<ReturnType<typeof quickSearch>>[number];

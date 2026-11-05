@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/auth";
 import { countOrdersAwaitingMentor } from "@/lib/orders";
 import { getSyncStatus } from "@/lib/reports";
 import { reviewTeam } from "./actions";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
 const statusLabels = {
   pending: { text: "ממתינה", className: "bg-warning/10 text-warning" },
@@ -183,7 +184,7 @@ export default function AdminPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">ניהול</h1>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <TeamsTable />
       </Suspense>
     </div>

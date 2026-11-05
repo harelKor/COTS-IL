@@ -8,8 +8,9 @@ import { describeOptions } from "@/domain/purchasing";
 import { requireAdmin } from "@/lib/auth";
 import { getReadyToDeliver, listDeliveries } from "@/lib/logistics";
 import { createDelivery } from "./actions";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "מסירות | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "מסירות" };
 
 type Ready = Awaited<ReturnType<typeof getReadyToDeliver>>[number];
 
@@ -134,7 +135,7 @@ export default function DeliveriesPage() {
           לניהול
         </Link>
       </div>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Deliveries />
       </Suspense>
     </div>

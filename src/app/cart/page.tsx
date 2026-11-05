@@ -12,8 +12,9 @@ import { activeTeam, getViewer } from "@/lib/auth";
 import { getCart, type CartLine } from "@/lib/orders";
 import { removeCartItem, updateCartItem } from "./actions";
 import { CheckoutForm } from "./checkout-form";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "סל | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "סל" };
 
 const canBuy = (line: CartLine) =>
   !line.variantMissing && !line.productMissing && line.productStatus === "published" && priceIls(line.priceUsd) !== null;
@@ -22,7 +23,7 @@ function CartRow({ line }: { line: CartLine }) {
   const unit = priceIls(line.priceUsd);
   return (
     <li className="flex flex-wrap gap-3 border-t border-line p-3 first:border-t-0">
-      <ProductImage src={line.image ?? undefined} alt="" width={120} className="size-16 shrink-0 rounded" />
+      <ProductImage src={line.image ?? undefined} alt={line.title} width={120} className="size-16 shrink-0 rounded-xl" />
       <div className="min-w-48 flex-1">
         <Link dir="ltr" href={productHref(line.supplierCode, line.handle)} className="block text-start text-sm font-medium hover:text-brand">
           {line.title}
@@ -126,7 +127,7 @@ export default function CartPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">סל</h1>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Cart />
       </Suspense>
     </div>

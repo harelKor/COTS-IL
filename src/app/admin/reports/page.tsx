@@ -9,8 +9,9 @@ import { formatIls } from "@/domain/pricing";
 import { averageHours, profitSummary, VAT_RATE } from "@/domain/reports";
 import { requireAdmin } from "@/lib/auth";
 import { getImportCosts, getPurchases, getSales, parsePeriod } from "@/lib/reports";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "דוחות | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "דוחות" };
 
 const COST_LABELS = { customs: "מכס", freight: "הובלה", broker: "עמיל מכס", vat: "מע״מ יבוא" } as const;
 
@@ -260,7 +261,7 @@ export default function ReportsPage(props: PageProps<"/admin/reports">) {
           <PrintButton />
         </div>
       </div>
-      <Suspense fallback={<p className="text-muted">טוען…</p>}>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Reports {...props} />
       </Suspense>
     </div>

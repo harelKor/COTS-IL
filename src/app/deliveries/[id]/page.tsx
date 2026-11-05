@@ -5,8 +5,9 @@ import { DeliveryNote } from "@/components/delivery-note";
 import { PrintButton } from "@/components/print-button";
 import { getViewer } from "@/lib/auth";
 import { getDeliveryForViewer } from "@/lib/logistics";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "תעודת משלוח | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "תעודת משלוח" };
 
 async function Delivery({ params }: PageProps<"/deliveries/[id]">) {
   const { id } = await params;
@@ -27,7 +28,7 @@ async function Delivery({ params }: PageProps<"/deliveries/[id]">) {
 
 export default function DeliveryPage(props: PageProps<"/deliveries/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted">טוען…</p>}>
+    <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
       <Delivery {...props} />
     </Suspense>
   );

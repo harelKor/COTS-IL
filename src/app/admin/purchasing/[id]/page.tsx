@@ -13,8 +13,9 @@ import { createShipment } from "../../logistics/actions";
 import { removePoLine } from "../actions";
 import { PO_STATUS_LABELS } from "../status";
 import { CancelPoForm, RecordOrderedForm } from "./po-forms";
+import { Loading, PageSkeleton } from "@/components/skeleton";
 
-export const metadata: Metadata = { title: "הזמנת ספק | פורטל רכש FIRST" };
+export const metadata: Metadata = { title: "הזמנת ספק" };
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const usDate = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "Asia/Jerusalem" });
@@ -228,7 +229,7 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
 
 export default function PoPage(props: PageProps<"/admin/purchasing/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted">טוען…</p>}>
+    <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
       <Po {...props} />
     </Suspense>
   );
