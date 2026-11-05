@@ -33,7 +33,8 @@ npm run regroup          # rebuild product families from the DB, no fetching
 - Writes go only through server actions that check permissions first (`requireAdmin`, `requireActiveViewer` in `src/lib/auth.ts`). RLS is read-only.
 - `variants.id` is the key that carts, order items and POs point to. Never break it; order items keep their own snapshot.
 - The catalog lists `product_families` (`/catalog/p/<slug>`), rebuilt from products and variants after every sync. Families hold nothing that isn't derived; grouping rules live in `src/domain/families`.
-- Production migrations are applied by hand (`npx supabase db push`), and every push to `main` deploys production. Apply a migration before merging code that needs it.
+- Production migrations are applied by hand with `npx supabase db push --remote` (this CLI targets the local stack without `--remote`), and every push to `main` deploys production. Apply a migration before merging code that needs it.
+- The local Supabase stack runs on ports 544xx (`supabase/config.toml`). Another, unrelated project on this machine uses the default 543xx ports: never point COTS-IL commands at those.
 - Prices: `src/domain/pricing.ts` only. Availability is yes/no plus its check date, never a stock count.
 - Pure logic goes in `src/domain` with Vitest tests.
 

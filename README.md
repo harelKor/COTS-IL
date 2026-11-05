@@ -16,9 +16,9 @@ npm run seed             # mentor, two demo teams, six suppliers
 npm run dev              # http://localhost:3000
 ```
 
-Local services:
-- Supabase Studio (browse the DB): http://127.0.0.1:54323
-- Mailpit (catches sign-up / verification emails): http://127.0.0.1:54324
+Local services (on 544xx ports, so they never clash with another local Supabase project on the defaults):
+- Supabase Studio (browse the DB): http://127.0.0.1:54423
+- Mailpit (catches sign-up / verification emails): http://127.0.0.1:54424
 
 Seeded logins (`*@beniadam.test`) all use `SEED_PASSWORD` from `.env.local`:
 - `mentor@beniadam.test`: admin
