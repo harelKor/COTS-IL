@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server";
+import { familyHref } from "@/components/catalog";
 import { priceIls } from "@/domain/pricing";
 import { quickSearch } from "@/lib/catalog";
 import { parseQuickQuery, tokenIsPartName } from "@/lib/quick-query";
@@ -13,7 +14,7 @@ export type SearchResult = {
   fromPrice: boolean;
   available: boolean | null;
   variantCount: number;
-  /** Set when the product has a single orderable variant, so the panel can add it directly. */
+  /** Set when the family is a single part, so the panel can add it directly (the cheapest in stock). */
   variantId: string | null;
   sku: string | null;
 };
@@ -39,16 +40,16 @@ export async function GET(request: NextRequest) {
     const high = priceIls(r.maxPriceUsd);
     return {
       id: r.id,
-      href: `/catalog/${r.supplierCode}/${encodeURIComponent(r.handle)}`,
+      href: familyHref(r.slug),
       title: r.title,
       image: r.image,
-      supplierName: r.supplierName,
+      supplierName: r.supplierNames.join(" · "),
       priceIls: low,
       fromPrice: high !== null && high !== low,
       available: r.available,
       variantCount: r.variantCount,
-      variantId: r.onlyVariantId,
-      sku: r.onlyVariantSku,
+      variantId: r.onlyVariant?.id ?? null,
+      sku: r.onlyVariant?.sku ?? null,
     };
   });
   return Response.json({ results, qty } satisfies SearchResponse);

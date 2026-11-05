@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   bigserial,
   boolean,
   index,
@@ -21,6 +22,8 @@ export const teamRole = pgEnum("team_role", ["team_admin", "buyer", "viewer"]);
 export const supplierPlatform = pgEnum("supplier_platform", ["shopify", "bigcommerce", "csv"]);
 export const productStatus = pgEnum("product_status", ["published", "review", "hidden"]);
 export const syncStatus = pgEnum("sync_status", ["running", "succeeded", "failed"]);
+export const familyGrouping = pgEnum("family_grouping", ["title", "supplier", "single"]);
+export const groupingIssueReason = pgEnum("grouping_issue_reason", ["reference-page", "duplicate-options", "no-size"]);
 export const orderStatus = pgEnum("order_status", ["submitted", "quote_sent", "approved", "rejected", "cancelled"]);
 export const deliveryMethod = pgEnum("delivery_method", ["pickup", "ship"]);
 export const quoteStatus = pgEnum("quote_status", ["sent", "approved", "rejected", "superseded"]);
@@ -158,6 +161,13 @@ export const variants = pgTable(
     supplierVariantId: text("supplier_variant_id").notNull(),
     supplierSku: text("supplier_sku"),
     options: jsonb("options").$type<{ name: string; value: string }[]>().notNull().default([]),
+    /**
+     * Set by the grouping step after each sync (src/suppliers/families.ts). Per
+     * variant, because a reseller's product can list parts from several families.
+     */
+    familyId: uuid("family_id").references((): AnyPgColumn => productFamilies.id, { onDelete: "set null" }),
+    /** This variant's choices within its family, e.g. { teeth: "36t", bore: '1/2" Hex' }. */
+    familyOptions: jsonb("family_options").$type<Record<string, string>>().notNull().default({}),
     position: integer("position").notNull().default(0),
     grams: integer("grams"),
     priceUsd: numeric("price_usd", { precision: 10, scale: 2 }),
@@ -169,7 +179,78 @@ export const variants = pgTable(
   (t) => [
     unique("variants_supplier_variant_key").on(t.supplierId, t.supplierVariantId),
     index("variants_product_id_idx").on(t.productId),
+    index("variants_family_id_idx").on(t.familyId),
   ],
+);
+
+/**
+ * What the catalog lists: one part in all its sizes, possibly from several
+ * suppliers (docs/REDESIGN.md, "Data model changes"). Rebuilt from products and
+ * variants by the grouping step, so it holds nothing that isn't derived.
+ */
+export const productFamilies = pgTable(
+  "product_families",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** What the family is matched on across syncs, e.g. "t:gears:steel spur gear 20 dp". */
+    key: text("key").notNull().unique(),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    categoryId: uuid("category_id").references(() => categories.id),
+    grouping: familyGrouping("grouping").notNull(),
+    primaryProductId: uuid("primary_product_id").references((): AnyPgColumn => products.id, { onDelete: "set null" }),
+    supplierCodes: text("supplier_codes").array().notNull().default([]),
+    programs: program("programs").array().notNull().default([]),
+    images: text("images").array().notNull().default([]),
+    descriptionHtml: text("description_html"),
+    /** Option names that differ between the variants, in display order. */
+    optionKeys: text("option_keys").array().notNull().default([]),
+    variantCount: integer("variant_count").notNull().default(0),
+    minPriceUsd: numeric("min_price_usd", { precision: 10, scale: 2 }),
+    maxPriceUsd: numeric("max_price_usd", { precision: 10, scale: 2 }),
+    available: boolean("available"),
+    status: productStatus("status").notNull().default("published"),
+    searchText: text("search_text").notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
+    /** Set when no listed product is left in the family. */
+    missingSince: timestamp("missing_since", { withTimezone: true }),
+  },
+  (t) => [
+    index("product_families_category_id_idx").on(t.categoryId),
+    index("product_families_min_price_usd_idx").on(t.minPriceUsd),
+  ],
+);
+
+/** Sizes and specs for the catalog's filter chips (teeth, bore, DP, pitch, ID, OD…). */
+export const specValues = pgTable(
+  "spec_values",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => productFamilies.id, { onDelete: "cascade" }),
+    variantId: uuid("variant_id").references(() => variants.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+    num: numeric("num", { precision: 12, scale: 4 }),
+    unit: text("unit"),
+  },
+  (t) => [index("spec_values_family_id_idx").on(t.familyId), index("spec_values_key_value_idx").on(t.key, t.value)],
+);
+
+/** Products the grouping step left alone instead of guessing, for an admin to look at. */
+export const groupingIssues = pgTable(
+  "grouping_issues",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    reason: groupingIssueReason("reason").notNull(),
+    detail: text("detail").notNull(),
+    createdAt,
+  },
+  (t) => [unique("grouping_issues_product_reason_key").on(t.productId, t.reason)],
 );
 
 /** A row is added only when a variant's price or availability changes. */

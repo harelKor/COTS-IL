@@ -6,8 +6,15 @@ import { isAvailabilityFresh } from "@/domain/reports";
 
 const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
 
+/** A supplier product's own URL. It redirects to its family, with that variant selected. */
 export function productHref(supplierCode: string, handle: string) {
   return `/catalog/${supplierCode}/${encodeURIComponent(handle)}`;
+}
+
+/** A family's page. `variant` (a SKU or variant id) selects one of its variants. */
+export function familyHref(slug: string, variant?: string | null) {
+  const path = `/catalog/p/${encodeURIComponent(slug)}`;
+  return variant ? `${path}?v=${encodeURIComponent(variant)}` : path;
 }
 
 /** Suppliers only tell us yes or no, so this never shows a stock count. */
@@ -70,7 +77,7 @@ export function ProductCard({ product }: { product: ProductSummary }) {
   return (
     <li>
       <Link
-        href={productHref(product.supplierCode, product.handle)}
+        href={familyHref(product.slug)}
         className="group flex h-full flex-col gap-3 rounded-card p-1 transition-transform duration-200 ease-out hover:-translate-y-0.5"
       >
         <ViewTransition name={productImageTransition(product.id)} share="morph" default="none">
@@ -82,11 +89,16 @@ export function ProductCard({ product }: { product: ProductSummary }) {
           />
         </ViewTransition>
         <div className="flex flex-1 flex-col gap-1 px-1">
-          <span className="ltr text-caption text-muted">{product.supplierName}</span>
+          <span className="ltr text-caption text-muted">{product.supplierNames.join(" · ")}</span>
           <h2 dir="ltr" className="line-clamp-2 flex-1 text-start text-[15px] font-medium tracking-normal">
             {product.title}
           </h2>
-          <PriceRange min={product.minPriceUsd} max={product.maxPriceUsd} />
+          <span className="flex items-baseline justify-between gap-2">
+            <PriceRange min={product.minPriceUsd} max={product.maxPriceUsd} />
+            {product.variantCount > 1 && (
+              <span className="text-caption text-muted">{product.variantCount.toLocaleString("he-IL")} אפשרויות</span>
+            )}
+          </span>
           <Availability available={product.available} checkedAt={product.lastSeenAt} />
         </div>
       </Link>

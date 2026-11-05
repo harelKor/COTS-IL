@@ -24,13 +24,16 @@ npm run dev              # http://localhost:3000
 npm run lint && npm run typecheck && npm test   # what CI runs
 npm run db:generate      # migration from src/db/schema.ts
 npm run db:reset         # rebuild local DB from migrations, then seed again
-npm run sync             # sync Shopify suppliers (npm run sync -- wcp for one)
+npm run sync             # sync Shopify suppliers (npm run sync -- wcp for one), then regroup families
+npm run regroup          # rebuild product families from the DB, no fetching
 ```
 
 ## Rules that don't change
 
 - Writes go only through server actions that check permissions first (`requireAdmin`, `requireActiveViewer` in `src/lib/auth.ts`). RLS is read-only.
 - `variants.id` is the key that carts, order items and POs point to. Never break it; order items keep their own snapshot.
+- The catalog lists `product_families` (`/catalog/p/<slug>`), rebuilt from products and variants after every sync. Families hold nothing that isn't derived; grouping rules live in `src/domain/families`.
+- Production migrations are applied by hand (`npx supabase db push`), and every push to `main` deploys production. Apply a migration before merging code that needs it.
 - Prices: `src/domain/pricing.ts` only. Availability is yes/no plus its check date, never a stock count.
 - Pure logic goes in `src/domain` with Vitest tests.
 

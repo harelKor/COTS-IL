@@ -1,0 +1,236 @@
+import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import * as schema from "../db/schema";
+import { groupFamilies, type FamilyDraft, type GroupProduct } from "../domain/families/group";
+import { isRealDescription } from "../lib/description";
+
+type Db = PostgresJsDatabase<typeof schema>;
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+const BATCH = 500;
+
+function chunks<T>(items: T[], size = BATCH): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+export type RegroupCounts = {
+  families: number;
+  byGrouping: Record<string, number>;
+  /** Per supplier: listed variants (SKUs) and the families they ended up in. */
+  bySupplier: Record<string, { variants: number; families: number }>;
+  multiSupplierFamilies: number;
+  issues: Record<string, number>;
+};
+
+/**
+ * Rebuilds product families from the whole catalog, inside the caller's
+ * transaction. Runs after every supplier sync, because a family can span
+ * suppliers, and on its own with `npm run regroup`.
+ */
+export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
+  const now = new Date();
+  const { products, variants, suppliers, categories } = schema;
+
+  const productRows = await tx
+    .select({
+      id: products.id,
+      supplierCode: suppliers.code,
+      supplierName: suppliers.name,
+      title: products.title,
+      categorySlug: categories.slug,
+      descriptionHtml: products.descriptionHtml,
+      images: products.images,
+      programs: products.programs,
+      status: products.status,
+    })
+    .from(products)
+    .innerJoin(suppliers, eq(suppliers.id, products.supplierId))
+    .leftJoin(categories, eq(categories.id, products.categoryId))
+    .where(and(isNull(products.missingSince), eq(suppliers.active, true), notInArray(products.status, ["hidden"])));
+
+  const variantRows = await tx
+    .select({
+      id: variants.id,
+      productId: variants.productId,
+      sku: variants.supplierSku,
+      options: variants.options,
+      priceUsd: variants.priceUsd,
+      available: variants.available,
+    })
+    .from(variants)
+    .where(isNull(variants.missingSince))
+    .orderBy(variants.position);
+
+  const variantsByProduct = new Map<string, typeof variantRows>();
+  for (const v of variantRows) variantsByProduct.set(v.productId, [...(variantsByProduct.get(v.productId) ?? []), v]);
+  const productById = new Map(productRows.map((p) => [p.id, p]));
+
+  const input: GroupProduct[] = productRows
+    .filter((p) => variantsByProduct.has(p.id))
+    .map((p) => ({
+      id: p.id,
+      supplierCode: p.supplierCode,
+      title: p.title,
+      categorySlug: p.categorySlug,
+      descriptionHtml: p.descriptionHtml,
+      variants: variantsByProduct.get(p.id)!.map((v) => ({ id: v.id, sku: v.sku, options: v.options })),
+    }));
+
+  const { families, issues } = groupFamilies(input);
+  const categoryIds = new Map((await tx.select().from(categories)).map((c) => [c.slug, c.id]));
+
+  const variantById = new Map(variantRows.map((v) => [v.id, v]));
+  const familyValues = families.map((f) => familyRow(f, productById, variantById, categoryIds, now));
+
+  // Slugs move between families when titles change, so free them all first.
+  await tx.update(schema.productFamilies).set({ slug: sql`'old-' || ${schema.productFamilies.id}` });
+
+  const idByKey = new Map<string, string>();
+  for (const batch of chunks(familyValues)) {
+    const saved = await tx
+      .insert(schema.productFamilies)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: schema.productFamilies.key,
+        set: Object.fromEntries(
+          Object.keys(batch[0])
+            .filter((k) => k !== "key")
+            .map((k) => [k, sql.raw(`excluded.${toColumn(k)}`)]),
+        ),
+      })
+      .returning({ id: schema.productFamilies.id, key: schema.productFamilies.key });
+    for (const row of saved) idByKey.set(row.key, row.id);
+  }
+
+  const liveIds = [...idByKey.values()];
+  await tx
+    .update(schema.productFamilies)
+    .set({ missingSince: now })
+    .where(and(isNull(schema.productFamilies.missingSince), liveIds.length ? notInArray(schema.productFamilies.id, liveIds) : undefined));
+
+  // Variants point at their family; those of reference pages and hidden products at none.
+  await tx.update(variants).set({ familyId: null, familyOptions: {} });
+  const assignments = families.flatMap((f) =>
+    f.variantIds.map((vid) => [vid, idByKey.get(f.key)!, JSON.stringify(f.variantOptions[vid] ?? {})] as const),
+  );
+  for (const batch of chunks(assignments)) {
+    await tx.execute(sql`
+      UPDATE variants AS t SET family_id = v.family_id::uuid, family_options = v.options::jsonb
+      FROM (VALUES ${sql.join(batch.map(([vid, fid, opts]) => sql`(${vid}, ${fid}, ${opts})`), sql`, `)}) AS v(variant_id, family_id, options)
+      WHERE t.id = v.variant_id::uuid`);
+  }
+
+  await tx.delete(schema.specValues);
+  const specRows = families.flatMap((f) =>
+    f.specs.map((s) => ({
+      familyId: idByKey.get(f.key)!,
+      variantId: s.variantId,
+      key: s.key,
+      value: s.value,
+      num: s.num === null ? null : String(s.num),
+      unit: s.unit,
+    })),
+  );
+  for (const batch of chunks(specRows, 1000)) await tx.insert(schema.specValues).values(batch);
+
+  await tx.delete(schema.groupingIssues);
+  for (const batch of chunks(issues)) await tx.insert(schema.groupingIssues).values(batch);
+
+  return summarize(families, productById, variantById, variantsByProduct, issues);
+}
+
+/** Drizzle's property names to the table's column names, for the upsert's `excluded.` references. */
+function toColumn(key: string) {
+  return key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
+type ProductRow = {
+  id: string;
+  supplierCode: string;
+  supplierName: string;
+  title: string;
+  descriptionHtml: string | null;
+  images: string[];
+  programs: ("FRC" | "FTC")[];
+  status: "published" | "review" | "hidden";
+};
+type VariantRow = { id: string; productId: string; sku: string | null; options: { name: string; value: string }[]; priceUsd: string | null; available: boolean | null };
+
+function familyRow(
+  f: FamilyDraft,
+  productById: Map<string, ProductRow>,
+  variantById: Map<string, VariantRow>,
+  categoryIds: Map<string, string>,
+  now: Date,
+) {
+  const members = f.productIds.map((id) => productById.get(id)!);
+  const primary = productById.get(f.primaryProductId)!;
+  const ordered = [primary, ...members.filter((m) => m.id !== primary.id)];
+  const memberVariants = f.variantIds.map((id) => variantById.get(id)!);
+  const prices = memberVariants.flatMap((v) => (v.priceUsd && Number(v.priceUsd) > 0 ? [Number(v.priceUsd)] : []));
+  const availability = memberVariants.map((v) => v.available);
+
+  return {
+    key: f.key,
+    slug: f.slug,
+    title: f.title,
+    categoryId: f.categorySlug ? (categoryIds.get(f.categorySlug) ?? null) : null,
+    grouping: f.grouping,
+    primaryProductId: primary.id,
+    supplierCodes: f.suppliers,
+    programs: [...new Set(members.flatMap((m) => m.programs))],
+    images: [...new Set(ordered.flatMap((m) => m.images))].slice(0, 8),
+    descriptionHtml: ordered.find((m) => isRealDescription(m.descriptionHtml))?.descriptionHtml ?? null,
+    optionKeys: f.optionKeys,
+    variantCount: memberVariants.length,
+    minPriceUsd: prices.length ? Math.min(...prices).toFixed(2) : null,
+    maxPriceUsd: prices.length ? Math.max(...prices).toFixed(2) : null,
+    available: availability.every((a) => a === null) ? null : availability.some((a) => a === true),
+    status: members.some((m) => m.status === "published") ? ("published" as const) : ("review" as const),
+    // Only this family's own variants, so a reseller product spanning families doesn't
+    // make a SKU from one of them find the other.
+    searchText: [
+      f.title,
+      ...members.map((m) => `${m.title} ${m.supplierName}`),
+      ...memberVariants.flatMap((v) => [v.sku, ...Object.values(f.variantOptions[v.id] ?? {}), ...v.options.map((o) => o.value)]),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase(),
+    lastSeenAt: now,
+    missingSince: null,
+  };
+}
+
+function summarize(
+  families: FamilyDraft[],
+  productById: Map<string, ProductRow>,
+  variantById: Map<string, VariantRow>,
+  _variantsByProduct: Map<string, VariantRow[]>,
+  issues: { reason: string }[],
+): RegroupCounts {
+  const byGrouping: Record<string, number> = {};
+  const bySupplier: Record<string, { variants: number; families: number }> = {};
+  for (const f of families) {
+    byGrouping[f.grouping] = (byGrouping[f.grouping] ?? 0) + 1;
+    for (const code of f.suppliers) {
+      bySupplier[code] ??= { variants: 0, families: 0 };
+      bySupplier[code].families++;
+    }
+    for (const id of f.variantIds) {
+      bySupplier[productById.get(variantById.get(id)!.productId)!.supplierCode].variants++;
+    }
+  }
+  const issueCounts: Record<string, number> = {};
+  for (const i of issues) issueCounts[i.reason] = (issueCounts[i.reason] ?? 0) + 1;
+  return {
+    families: families.length,
+    byGrouping,
+    bySupplier,
+    multiSupplierFamilies: families.filter((f) => f.suppliers.length > 1).length,
+    issues: issueCounts,
+  };
+}
+

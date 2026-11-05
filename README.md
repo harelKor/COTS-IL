@@ -47,6 +47,7 @@ Hand-written SQL (RLS policies, triggers): `npx drizzle-kit generate --custom --
 | `npm run lint` / `npm run typecheck` / `npm test` | Checks run by CI |
 | `npm run db:generate` / `npm run db:reset` | Migrations |
 | `npm run env:local` / `npm run seed` | Local environment |
+| `npm run sync` / `npm run regroup` | Catalog sync / rebuild product families |
 
 ## Catalog
 
@@ -56,6 +57,16 @@ The site is open for browsing. An account is needed only to order and for the ad
 - `.github/workflows/sync.yml` runs it daily. It needs a `DATABASE_URL` repository secret pointing at the production database.
 - A failed or suspiciously small sync changes nothing and is recorded in `sync_jobs`.
 - Prices are USD × 1.6, rounded to whole shekels (`src/domain/pricing.ts`). Categories come from the rules in `src/suppliers/classify.ts`.
+
+## Product families
+
+The catalog lists families, not supplier products: one part in all its sizes, from every supplier that sells it (`docs/REDESIGN.md`, "Data model changes").
+
+- After each supplier sync, `src/suppliers/families.ts` regroups the whole catalog. A supplier product with options is a family as it is. Flat WCP-style products ("36t Steel Spur Gear (20 DP, 1/2" Hex Bore)") group by their title with the sizes taken out (`src/domain/families/parse.ts`), and the same SKU at two suppliers merges their families.
+- `npm run regroup` rebuilds families from the database without fetching. Run it after changing the grouping rules.
+- Families live at `/catalog/p/<slug>`. Old product URLs (`/catalog/wcp/wcp-0749`) redirect there with that variant selected.
+- Anything the rules aren't sure about stays on its own and is listed at `/admin/catalog/grouping`.
+- Carts, orders and supplier POs still point at the supplier's variant, so ordering is unchanged.
 
 ## Teams, reports and backups
 

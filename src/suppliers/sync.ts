@@ -1,6 +1,7 @@
 import { and, eq, isNull, lt, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../db/schema";
+import { regroupCatalog } from "./families";
 import type { FetchResult } from "./shopify";
 import type { NormalizedProduct } from "./types";
 
@@ -58,7 +59,12 @@ export async function syncSupplier(db: Db, supplier: Supplier, fetchCatalog: () 
 
   try {
     const { products, skipped } = await fetchCatalog();
-    const counts = await db.transaction((tx) => writeCatalog(tx, supplier, products));
+    // Families can span suppliers, so the whole catalog is regrouped with the new data.
+    const counts = await db.transaction(async (tx) => {
+      const written = await writeCatalog(tx, supplier, products);
+      const grouped = await regroupCatalog(tx);
+      return { ...written, families: grouped.families };
+    });
     const summary = { ...counts, skipped };
     await db
       .update(schema.syncJobs)

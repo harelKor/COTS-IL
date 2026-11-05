@@ -14,6 +14,7 @@
     "env:local": "tsx scripts/write-env.ts",
     "seed": "tsx scripts/seed.ts",
     "sync": "tsx scripts/sync.ts",
+    "regroup": "tsx scripts/regroup.ts",
     "supabase:start": "supabase start"
   },
   "dependencies": {
