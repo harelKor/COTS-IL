@@ -23,3 +23,11 @@ jobs:
       - run: npm run sync
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Pages cache the catalog for hours; mark it stale so they show this sync.
+      # Runs even if one supplier failed, since the others were saved.
+      - name: Refresh the site's catalog cache
+        if: ${{ !cancelled() }}
+        run: |
+          curl --fail-with-body -sS -X POST -H "Authorization: Bearer $REVALIDATE_SECRET" https://cots-il.vercel.app/api/revalidate
+        env:
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
