@@ -37,6 +37,7 @@ async function Orders() {
               </td>
               <td className="px-4 py-2">
                 {order.teamName} · <span className="ltr">{`${order.teamProgram} ${order.teamNumber}`}</span>
+                {order.teamStatus === "pending" && <span className="ms-2 rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning">קבוצה חדשה, ממתינה לאישור</span>}
               </td>
               <td className="whitespace-nowrap px-4 py-2">
                 <span className="ltr">{formatDateTime(order.submittedAt)}</span>

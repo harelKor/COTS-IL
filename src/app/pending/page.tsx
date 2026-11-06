@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { TeamStep } from "@/components/cart-panel";
 import { getViewer } from "@/lib/auth";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 
@@ -10,7 +11,12 @@ async function PendingStatus() {
 
   const team = viewer.teams[0];
   if (!team) {
-    return <p className="text-muted">החשבון שלכם אינו משויך לקבוצה. בקשו ממנהל הקבוצה להזמין אתכם.</p>;
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-muted">החשבון עוד לא משויך לקבוצה. קבוצה חדשה? צרו אותה כאן. הקבוצה כבר רשומה? בקשו מהמנטור/ית שלה הזמנה.</p>
+        <TeamStep />
+      </div>
+    );
   }
 
   if (team.status === "rejected" || team.status === "suspended") {
@@ -26,8 +32,8 @@ async function PendingStatus() {
 
   return (
     <p>
-      בקשת ההרשמה של {team.name} (<span className="ltr">{`${team.program} ${team.number}`}</span>) ממתינה לאישור
-      הספק הישראלי. נעדכן אתכם בדוא״ל ברגע שהקבוצה תאושר.
+      {team.name} (<span className="ltr">{`${team.program} ${team.number}`}</span>) ממתינה לאישור הספק הישראלי. אפשר כבר
+      לבנות סל ולשלוח בקשה ראשונה: היא תיבדק יחד עם הקבוצה.
     </p>
   );
 }

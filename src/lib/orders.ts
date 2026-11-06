@@ -3,6 +3,8 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Viewer } from "@/lib/auth";
+import { orderStage, type OrderStage } from "@/domain/order-stage";
+import type { OrderStatus } from "@/domain/orders";
 import { getItemProgress, getOrderDeliveries } from "@/lib/logistics";
 
 const { cartItems, products, quoteLines, quotes, suppliers, teamOrderItems, teamOrders, teams, variants } = schema;
@@ -66,6 +68,7 @@ export async function listOrders(teamId?: string) {
       teamName: teams.name,
       teamProgram: teams.program,
       teamNumber: teams.number,
+      teamStatus: teams.status,
       lineCount: sql<number>`(SELECT count(*)::int FROM ${teamOrderItems} WHERE ${teamOrderItems.orderId} = ${teamOrders.id})`,
       requestTotal: sql<number>`(SELECT coalesce(sum(${teamOrderItems.qty} * ${teamOrderItems.unitPriceIls}), 0)::int FROM ${teamOrderItems} WHERE ${teamOrderItems.orderId} = ${teamOrders.id})`,
       quoteTotal: sql<number | null>`(SELECT sum(${quoteLines.qty} * ${quoteLines.unitPriceIls})::int + ${latestQuote.shippingIls} FROM ${quoteLines} WHERE ${quoteLines.quoteId} = ${latestQuote.id})`,
@@ -134,4 +137,36 @@ export async function countOrdersAwaitingMentor() {
     .from(teamOrders)
     .where(and(eq(teamOrders.status, "submitted")));
   return count;
+}
+
+export type CheckoutDefaults = {
+  deliveryMethod: "pickup" | "ship";
+  address: string;
+  contactName: string;
+  contactPhone: string;
+};
+
+/** What the cart sheet sends with unless changed: the team's last order, else the team's details. */
+export async function getCheckoutDefaults(teamId: string): Promise<CheckoutDefaults> {
+  const [last] = await db
+    .select({ deliveryMethod: teamOrders.deliveryMethod, address: teamOrders.address, contactName: teamOrders.contactName, contactPhone: teamOrders.contactPhone })
+    .from(teamOrders)
+    .where(eq(teamOrders.teamId, teamId))
+    .orderBy(desc(teamOrders.submittedAt))
+    .limit(1);
+  if (last) return { deliveryMethod: last.deliveryMethod, address: last.address ?? "", contactName: last.contactName, contactPhone: last.contactPhone };
+  const [team] = await db.select().from(teams).where(eq(teams.id, teamId));
+  return {
+    deliveryMethod: team?.address ? "ship" : "pickup",
+    address: team?.address ?? "",
+    contactName: team?.contactName ?? "",
+    contactPhone: team?.contactPhone ?? "",
+  };
+}
+
+/** Each order's stage in the team's words, from its status and its lines' purchasing records. */
+export async function getOrderStages(orders: { id: string; status: OrderStatus }[]): Promise<Map<string, OrderStage>> {
+  if (orders.length === 0) return new Map();
+  const progress = await getItemProgress(orders.map((o) => o.id));
+  return new Map(orders.map((o) => [o.id, orderStage(o.status, progress.filter((p) => p.orderId === o.id))]));
 }

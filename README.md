@@ -69,6 +69,15 @@ The catalog lists families, not supplier products: one part in all its sizes, fr
 - Anything the rules aren't sure about stays on its own and is listed at `/admin/catalog/grouping`.
 - Carts, orders and supplier POs still point at the supplier's variant, so ordering is unchanged.
 
+## Ordering
+
+- Anyone can build a cart. A guest's cart is kept in the browser and joins the team's cart at sign-in.
+- The cart is a sheet (also at `/cart`) with one main action. A guest signs in there by email link (or Google, once it's enabled in Supabase) and creates the team if it's new. A mentor (`team_admin`) sends the quote request in one tap, with delivery and contact remembered from the last order. A student (`buyer`) passes the cart to the mentor.
+- A new team can send its first request while pending; the admin approves the team while reviewing it.
+- Carts can be shared as links (`/cart/shared?items=...`), and SKU lists pasted or dropped as a CSV.
+- On the admin's order page, each mentor gets a WhatsApp button and a copyable link to the quote. The link (`/q/<token>`) shows the quote with one Approve button and no sign-in. It's signed with `QUOTE_LINK_SECRET`, tied to that quote version, and expires after 14 days.
+- Production env vars: `QUOTE_LINK_SECRET` (required for approval links), `TBA_KEY` (optional, fills in FRC team names).
+
 ## Teams, reports and backups
 
 - Team admins manage users and details at `/team`. An invitation is a link they send themselves, valid for the invited email for two weeks.

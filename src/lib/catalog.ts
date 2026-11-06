@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
 import { searchPatterns, type CatalogFilters } from "./catalog-filters";
+import { familyHref } from "./catalog-links";
 
 const { categories, productFamilies: families, products, suppliers, variants } = schema;
 
@@ -490,4 +491,38 @@ export async function getGroupingReport() {
       .orderBy(groupingIssues.reason, suppliers.name, groupingIssues.detail),
   ]);
   return { bySupplier, byGrouping, multiSupplier: multi, issues };
+}
+
+/** The parts of a shared cart link, as cart lines, with the family each belongs to. Gone parts are left out. */
+export async function getSharedLines(variantIds: string[]) {
+  "use cache";
+  catalogCache();
+  if (variantIds.length === 0) return [];
+  const rows = await db
+    .select({
+      variantId: variants.id,
+      sku: variants.supplierSku,
+      options: variants.familyOptions,
+      priceUsd: variants.priceUsd,
+      title: products.title,
+      image: sql<string | null>`${products.images}[1]`,
+      supplierName: suppliers.name,
+      familySlug: families.slug,
+      familyTitle: families.title,
+    })
+    .from(variants)
+    .innerJoin(products, eq(products.id, variants.productId))
+    .innerJoin(suppliers, eq(suppliers.id, variants.supplierId))
+    .leftJoin(families, eq(families.id, variants.familyId))
+    .where(and(inArray(variants.id, variantIds), isNull(variants.missingSince), isNull(products.missingSince), eq(products.status, "published"), sql`${variants.priceUsd} > 0`));
+  return rows.map((r) => ({
+    variantId: r.variantId,
+    title: r.familyTitle ?? r.title,
+    options: Object.values(r.options).join(" / "),
+    sku: r.sku,
+    image: r.image,
+    href: r.familySlug ? familyHref(r.familySlug, r.sku ?? r.variantId) : "/catalog",
+    supplierName: r.supplierName,
+    unitPriceIls: priceIls(r.priceUsd),
+  }));
 }

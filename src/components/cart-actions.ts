@@ -1,14 +1,17 @@
 "use client";
 
 import { quickAdd, removeFromCart, setCartQty } from "@/app/cart/actions";
-import { addOptimistic, removeOptimistic, setQtyOptimistic, type CartSheetLine } from "./cart-store";
+import { addOptimistic, cartSnapshot, removeOptimistic, setQtyOptimistic, type CartSheetLine } from "./cart-store";
 import { showToast } from "./toast";
 
 /**
  * Cart changes from anywhere on the page: the store moves first, so the pill and
  * steppers answer within a frame, then the server catches up and its render
- * replaces the store. Nothing here asks for confirmation; removals offer Undo.
+ * replaces the store. A guest's cart stays in the browser, so it skips the
+ * server. Nothing here asks for confirmation; removals offer Undo.
  */
+
+const onServer = () => cartSnapshot().mode === "ordering";
 
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -59,16 +62,18 @@ export function addToCartNow(line: AddableLine, qty = 1, from?: Element | null) 
   addOptimistic(line.variantId, qty, line);
   haptic();
   flyToCart(from ?? null);
-  void quickAdd(line.variantId, qty).then(({ error }) => {
-    if (error) showToast(error, "error");
-  });
+  if (onServer()) {
+    void quickAdd(line.variantId, qty).then(({ error }) => {
+      if (error) showToast(error, "error");
+    });
+  }
 }
 
 export function changeQtyNow(variantId: string, qty: number) {
   if (qty < 1 || qty > 9999) return;
   setQtyOptimistic(variantId, qty);
   haptic();
-  void setCartQty(variantId, qty);
+  if (onServer()) void setCartQty(variantId, qty);
 }
 
 /** Removes a line at once and offers Undo for 5 seconds. */
@@ -76,13 +81,13 @@ export function removeNow(variantId: string) {
   const line = removeOptimistic(variantId);
   if (!line) return;
   haptic();
-  void removeFromCart(variantId);
+  if (onServer()) void removeFromCart(variantId);
   showToast("הוסר מהסל", "default", {
     label: "ביטול",
     run: () => {
       const { qty, ...rest } = line;
       addOptimistic(line.variantId, qty, rest);
-      void quickAdd(line.variantId, qty);
+      if (onServer()) void quickAdd(line.variantId, qty);
     },
   });
 }

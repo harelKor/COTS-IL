@@ -3,13 +3,13 @@
 import { Plus, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { SearchResponse, SearchResult } from "@/app/api/search/route";
-import { quickAdd } from "@/app/cart/actions";
 import { formatIls } from "@/domain/pricing";
 import { catalogHref } from "@/lib/catalog-filters";
 import { parseQuickQuery } from "@/lib/quick-query";
-import { addOptimistic, useCart } from "./cart-store";
+import { addToCartNow } from "./cart-actions";
+import { canEditCart, useCart } from "./cart-store";
 import { Ltr } from "./ltr";
 import { showToast } from "./toast";
 
@@ -37,7 +37,6 @@ export function SearchPanel() {
   // Results are kept with the text they answer, so stale ones never show.
   const [found, setFound] = useState<{ text: string } & SearchResponse>({ text: "", results: [], qty: 1 });
   const [active, setActive] = useState(0);
-  const [, startTransition] = useTransition();
   const listId = useId();
 
   const { q, text: query } = parseQuickQuery(text);
@@ -45,7 +44,7 @@ export function SearchPanel() {
   const results = q.length >= 2 && ready ? found.results : [];
   const qty = ready ? found.qty : parseQuickQuery(text).qty;
   const searching = q.length >= 2 && !ready;
-  const canAdd = mode === "ordering";
+  const canAdd = canEditCart(mode);
 
   function open() {
     if (dialog.current?.open) return;
@@ -92,22 +91,20 @@ export function SearchPanel() {
 
   function add(result: SearchResult) {
     if (!result.variantId) return;
-    const variantId = result.variantId;
-    addOptimistic(variantId, qty, {
-      variantId,
-      title: result.title,
-      options: "",
-      sku: result.sku,
-      image: result.image,
-      href: result.href,
-      supplierName: result.supplierName,
-      unitPriceIls: result.priceIls,
-    });
+    addToCartNow(
+      {
+        variantId: result.variantId,
+        title: result.title,
+        options: "",
+        sku: result.sku,
+        image: result.image,
+        href: result.href,
+        supplierName: result.supplierName,
+        unitPriceIls: result.priceIls,
+      },
+      qty,
+    );
     showToast(qty > 1 ? `נוסף לסל ×${qty}` : "נוסף לסל");
-    startTransition(async () => {
-      const { error } = await quickAdd(variantId, qty);
-      if (error) showToast(error, "error");
-    });
   }
 
   function go(href: string) {
@@ -258,14 +255,6 @@ export function SearchPanel() {
                 כל התוצאות
               </Link>
             </div>
-          )}
-          {q.length >= 2 && mode === "guest" && (
-            <p className="border-t border-line px-4 py-3 text-caption text-muted">
-              כדי להוסיף לסל צריך חשבון קבוצה.{" "}
-              <Link href="/login" onClick={close} className="text-brand hover:underline">
-                כניסה
-              </Link>
-            </p>
           )}
         </div>
       </dialog>

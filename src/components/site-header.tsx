@@ -1,10 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { signout } from "@/app/auth/actions";
-import { canOrder } from "@/domain/orders";
+import { canOrder, canSendRequest } from "@/domain/orders";
 import { priceIls } from "@/domain/pricing";
-import { activeTeam, getViewer } from "@/lib/auth";
-import { getCart } from "@/lib/orders";
+import { getViewer, orderingTeam } from "@/lib/auth";
+import { googleSignInEnabled } from "@/lib/auth-providers";
+import { getCart, getCheckoutDefaults } from "@/lib/orders";
 import type { CartState } from "./cart-store";
 import { CartSync } from "./cart-sync";
 import { productHref } from "./catalog";
@@ -18,17 +19,19 @@ const menuLink = "flex h-11 items-center rounded-lg px-3 hover:bg-subtle";
  * and the cart handed to the cart pill. Streams in after the static header.
  */
 async function Account() {
-  const viewer = await getViewer();
-  const team = viewer && activeTeam(viewer);
+  const [viewer, googleSignIn] = await Promise.all([getViewer(), googleSignInEnabled()]);
+  const team = viewer && orderingTeam(viewer);
 
   let cart: CartState;
-  if (!viewer) cart = { mode: "guest", lines: [] };
-  else if (!team) cart = { mode: viewer.isAdmin ? "admin" : "pending", lines: [] };
+  if (!viewer) cart = { mode: "guest", lines: [], googleSignIn };
+  else if (!team) cart = { mode: viewer.isAdmin ? "admin" : viewer.teams.length === 0 ? "noteam" : "pending", lines: [] };
   else if (!canOrder(team.role)) cart = { mode: "readonly", lines: [] };
   else {
-    const lines = await getCart(team.id);
+    const [lines, checkout] = await Promise.all([getCart(team.id), getCheckoutDefaults(team.id)]);
     cart = {
       mode: "ordering",
+      team: { name: team.name, program: team.program, number: team.number, status: team.status, isMentor: canSendRequest(team.role) },
+      checkout,
       lines: lines.map((l) => ({
         variantId: l.variantId,
         title: l.title,

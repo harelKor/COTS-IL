@@ -11,9 +11,15 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: "בוטלה",
 };
 
-/** Spec §3: buyers manage the cart and send requests, only the team admin approves quotes. */
+/** Students (buyer) and mentors (team_admin) build the team's cart. */
 export const canOrder = (role: TeamRole) => role === "team_admin" || role === "buyer";
+/** Only a mentor sends the cart as a quote request, and only a mentor approves the quote. */
+export const canSendRequest = (role: TeamRole) => role === "team_admin";
 export const canApproveQuote = (role: TeamRole) => role === "team_admin";
+
+export type TeamStatus = "pending" | "active" | "rejected" | "suspended";
+/** A new team can send its first request before it's approved: the Israeli supplier reviews both together. */
+export const teamCanOrder = (status: TeamStatus) => status === "active" || status === "pending";
 
 /** A quote can be changed even after approval, which sends the order back for a new approval. */
 export const canSendQuote = (status: OrderStatus) => status !== "cancelled";

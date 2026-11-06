@@ -1,7 +1,6 @@
 "use client";
 
 import { Copy, Minus, Plus, ShoppingBag } from "lucide-react";
-import Link from "next/link";
 import { useRef, useState, ViewTransition } from "react";
 import { choose, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
@@ -9,7 +8,7 @@ import { formatIls } from "@/domain/pricing";
 import { isAvailabilityFresh } from "@/domain/reports";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
 import { addToCartNow } from "./cart-actions";
-import { useCart } from "./cart-store";
+import { canEditCart, useCart } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
 import { showToast } from "./toast";
@@ -74,7 +73,7 @@ export function FamilyView({ family, variants, initialVariantId }: Props) {
   const chosen = offers.find((v) => v.supplierName === supplier) ?? offers[0] ?? null;
   const cartCount = lines.reduce((n, l) => n + l.qty, 0);
   const inCart = chosen ? lines.find((l) => l.variantId === chosen.id) : undefined;
-  const canAdd = mode === "ordering";
+  const canAdd = canEditCart(mode);
   const shown = photo ?? chosen?.image ?? family.images[0] ?? null;
   const gallery = [...new Set([...(chosen?.image ? [chosen.image] : []), ...family.images])].slice(0, 6);
   const lowest = Math.min(...variants.flatMap((v) => (v.priceIls === null ? [] : [v.priceIls])));
@@ -251,14 +250,6 @@ export function FamilyView({ family, variants, initialVariantId }: Props) {
         )}
 
         <div className="hidden md:block">{addControls}</div>
-        {mode === "guest" && (
-          <p className="text-caption text-muted">
-            כדי להזמין צריך חשבון קבוצה:{" "}
-            <Link href={`/login?next=${encodeURIComponent(familyHref(family.slug))}`} className="text-brand hover:underline">
-              כניסה
-            </Link>
-          </p>
-        )}
         <p className="text-caption text-muted">המחירים כוללים מע״מ. משלוח בישראל מתומחר בהצעת המחיר.</p>
         {chosen && (
           <a href={chosen.productUrl} target="_blank" rel="noopener noreferrer" className="self-start text-caption text-brand hover:underline">

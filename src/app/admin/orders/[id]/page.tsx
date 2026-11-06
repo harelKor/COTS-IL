@@ -9,6 +9,8 @@ import { OrderStatusBadge, formatDateTime } from "@/components/orders";
 import { canRejectOrder, canSendQuote } from "@/domain/orders";
 import { requireAdmin } from "@/lib/auth";
 import { getOrderForViewer } from "@/lib/orders";
+import { getApproveLinks } from "@/lib/quote-links";
+import { ApproveLinks } from "./approve-links";
 import { QuoteEditor, RejectOrderForm, type EditorLine } from "./quote-editor";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 
@@ -21,6 +23,7 @@ async function AdminOrder({ params }: PageProps<"/admin/orders/[id]">) {
   if (!result) notFound();
 
   const { order, team, items, quotes } = result;
+  const approveLinks = await getApproveLinks(order.id);
   const latest = quotes[0];
   const latestLines = new Map(latest?.lines.map((line) => [line.itemId, line]));
 
@@ -104,6 +107,22 @@ async function AdminOrder({ params }: PageProps<"/admin/orders/[id]">) {
         />
       ) : (
         <Alert tone="info">ההזמנה בוטלה.</Alert>
+      )}
+
+      {approveLinks && (
+        <section className="flex flex-col gap-3 rounded-card bg-surface p-4">
+          <h2 className="font-semibold">שליחת ההצעה לאישור</h2>
+          {approveLinks.missingSecret ? (
+            <Alert tone="info">כדי לשלוח קישורי אישור צריך להגדיר QUOTE_LINK_SECRET בסביבה.</Alert>
+          ) : approveLinks.mentors.length === 0 ? (
+            <p className="text-sm text-muted">לקבוצה אין מנטור/ית רשום/ה. אפשר לאשר מתוך האתר אחרי הצטרפות.</p>
+          ) : (
+            <>
+              <p className="text-sm text-muted">הקישור פותח את ההצעה עם כפתור אישור אחד, בלי כניסה. הוא תקף לגרסה הזאת בלבד, ל-14 יום.</p>
+              <ApproveLinks mentors={approveLinks.mentors} />
+            </>
+          )}
+        </section>
       )}
 
       {canRejectOrder(order.status) && <RejectOrderForm orderId={order.id} />}

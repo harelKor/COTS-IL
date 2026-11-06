@@ -2,8 +2,11 @@
 
 import { useSyncExternalStore } from "react";
 
-/** What the viewer can do with a cart. Only "ordering" has one. */
-export type CartMode = "loading" | "guest" | "pending" | "readonly" | "admin" | "ordering";
+/**
+ * What the viewer can do with a cart. "guest" keeps one in the browser until
+ * sign-in; "noteam" is signed in without a team yet; "ordering" has the team's.
+ */
+export type CartMode = "loading" | "guest" | "noteam" | "pending" | "readonly" | "admin" | "ordering";
 
 export type CartSheetLine = {
   variantId: string;
@@ -17,18 +20,64 @@ export type CartSheetLine = {
   unitPriceIls: number | null;
 };
 
-export type CartState = { mode: CartMode; lines: CartSheetLine[] };
+export type Checkout = {
+  deliveryMethod: "pickup" | "ship";
+  address: string;
+  contactName: string;
+  contactPhone: string;
+};
+
+export type CartTeam = {
+  name: string;
+  program: "FRC" | "FTC";
+  number: number;
+  status: "pending" | "active" | "rejected" | "suspended";
+  /** A mentor sends requests and approves quotes; a student builds the cart. */
+  isMentor: boolean;
+};
+
+export type CartState = { mode: CartMode; lines: CartSheetLine[]; team?: CartTeam; checkout?: Checkout; googleSignIn?: boolean };
 
 /**
- * The cart lives in the database, per team. The server sends it with every
- * render (CartSync), and the search panel and stepper change it here first, so
- * the pill moves the moment you tap, before the server answers.
+ * The team's cart lives in the database. The server sends it with every render
+ * (CartSync), and the catalog and the sheet change it here first, so the pill
+ * moves the moment you tap, before the server answers. A guest's cart lives
+ * only here, saved in the browser.
  */
 let state: CartState = { mode: "loading", lines: [] };
 const listeners = new Set<() => void>();
+const GUEST_KEY = "cots-il:guest-cart";
+
+function saveGuestCart(lines: CartSheetLine[]) {
+  try {
+    if (lines.length) localStorage.setItem(GUEST_KEY, JSON.stringify(lines));
+    else localStorage.removeItem(GUEST_KEY);
+  } catch {
+    // Private windows can refuse storage; the cart still works until the tab closes.
+  }
+}
+
+/** The cart a guest built before signing in, if any. */
+export function readGuestCart(): CartSheetLine[] {
+  try {
+    const raw = localStorage.getItem(GUEST_KEY);
+    const lines = raw ? (JSON.parse(raw) as CartSheetLine[]) : [];
+    return Array.isArray(lines) ? lines.filter((l) => typeof l?.variantId === "string" && l.qty > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function clearGuestCart() {
+  saveGuestCart([]);
+}
+
+/** Modes whose cart lives in the browser: a guest's, and one signed in but without a team yet. */
+const isLocal = (mode: CartMode) => mode === "guest" || mode === "noteam";
 
 function set(next: CartState) {
   state = next;
+  if (isLocal(next.mode)) saveGuestCart(next.lines);
   listeners.forEach((l) => l());
 }
 
@@ -43,16 +92,20 @@ export function useCart(): CartState {
   return useSyncExternalStore(subscribe, () => state, () => serverSnapshot);
 }
 
-/** Replaces the cart with what the server rendered. */
+export function cartSnapshot(): CartState {
+  return state;
+}
+
+/** Replaces the cart with what the server rendered. A guest's lines come from the browser. */
 export function syncCart(next: CartState) {
-  set(next);
+  set(isLocal(next.mode) ? { ...next, lines: readGuestCart() } : next);
 }
 
 /** Adds `qty` right away. `line` describes it when it isn't in the cart yet. */
 export function addOptimistic(variantId: string, qty: number, line: Omit<CartSheetLine, "qty"> | null) {
   const existing = state.lines.find((l) => l.variantId === variantId);
   if (existing) {
-    set({ ...state, lines: state.lines.map((l) => (l === existing ? { ...l, qty: l.qty + qty } : l)) });
+    set({ ...state, lines: state.lines.map((l) => (l === existing ? { ...l, qty: Math.min(l.qty + qty, 9999) } : l)) });
   } else if (line) {
     set({ ...state, lines: [...state.lines, { ...line, qty }] });
   }
@@ -68,6 +121,9 @@ export function removeOptimistic(variantId: string): CartSheetLine | null {
   if (line) set({ ...state, lines: state.lines.filter((l) => l !== line) });
   return line;
 }
+
+/** Whether the cart can be changed here: a guest's in the browser, a team member's on the server. */
+export const canEditCart = (mode: CartMode) => isLocal(mode) || mode === "ordering";
 
 export function cartTotals(lines: CartSheetLine[]) {
   return {

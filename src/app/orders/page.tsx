@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { formatDateTime, OrderStatusBadge } from "@/components/orders";
+import { StageBadge } from "@/components/order-timeline";
+import { formatDateTime } from "@/components/orders";
+import { ReorderButton } from "@/components/reorder-button";
 import { formatIls } from "@/domain/pricing";
-import { activeTeam, getViewer } from "@/lib/auth";
-import { listOrders } from "@/lib/orders";
+import { canOrder } from "@/domain/orders";
+import { getViewer, orderingTeam } from "@/lib/auth";
+import { getOrderStages, listOrders } from "@/lib/orders";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 
 export const metadata: Metadata = { title: "ההזמנות שלנו" };
@@ -13,11 +16,12 @@ export const metadata: Metadata = { title: "ההזמנות שלנו" };
 async function Orders() {
   const viewer = await getViewer();
   if (!viewer) redirect("/login?next=/orders");
-  if (viewer.isAdmin && !activeTeam(viewer)) redirect("/admin/orders");
-  const team = activeTeam(viewer);
+  if (viewer.isAdmin && !orderingTeam(viewer)) redirect("/admin/orders");
+  const team = orderingTeam(viewer);
   if (!team) redirect("/pending");
 
   const orders = await listOrders(team.id);
+  const stages = await getOrderStages(orders);
   if (orders.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-line bg-surface p-8 text-center text-muted">
@@ -32,11 +36,8 @@ async function Orders() {
   return (
     <ul className="flex flex-col gap-3">
       {orders.map((order) => (
-        <li key={order.id}>
-          <Link
-            href={`/orders/${order.id}`}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface p-4 hover:border-brand"
-          >
+        <li key={order.id} className="flex flex-wrap items-center gap-3 rounded-card bg-surface p-4">
+          <Link href={`/orders/${order.id}`} className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3 hover:text-brand">
             <div>
               <div className="font-medium">הזמנה {order.number}</div>
               <div className="text-xs text-muted">
@@ -45,9 +46,10 @@ async function Orders() {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold">{formatIls(order.quoteTotal ?? order.requestTotal)}</span>
-              <OrderStatusBadge status={order.status} />
+              <StageBadge stage={stages.get(order.id)!} />
             </div>
           </Link>
+          {canOrder(team.role) && <ReorderButton orderId={order.id} />}
         </li>
       ))}
     </ul>

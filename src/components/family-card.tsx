@@ -10,7 +10,7 @@ import { isAvailabilityFresh } from "@/domain/reports";
 import type { CardFamily, CardVariant } from "@/lib/catalog";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
 import { addToCartNow, type AddableLine } from "./cart-actions";
-import { useCart } from "./cart-store";
+import { canEditCart, useCart } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
 
@@ -70,7 +70,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
   const current = singlePart ? family.variants[0] : picked.chosen;
   const inCart = current ? lines.find((l) => l.variantId === current.id) : undefined;
   const familyInCart = lines.filter((l) => family.variants.some((v) => v.id === l.variantId)).reduce((n, l) => n + l.qty, 0);
-  const canAdd = mode === "ordering" && family.variants.length > 0;
+  const canAdd = canEditCart(mode) && family.variants.length > 0;
   const href = familyHref(family.slug, current?.sku ?? current?.id ?? null);
   const photo = sized(current?.image ?? family.image, layout === "row" ? 160 : 400);
 

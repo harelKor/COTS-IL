@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
+import { teamCanOrder } from "@/domain/orders";
 import { createClient } from "@/lib/supabase/server";
 
 export type Viewer = {
@@ -68,6 +69,14 @@ export async function requireActiveViewer(): Promise<Viewer> {
 /** The approved team a user acts for, if any. Admins without a team have none. */
 export function activeTeam(viewer: Viewer) {
   return viewer.teams.find((t) => t.status === "active") ?? null;
+}
+
+/**
+ * The team a user builds a cart and orders for: an approved one, or a new one
+ * still pending approval (its first request is reviewed with the team).
+ */
+export function orderingTeam(viewer: Viewer) {
+  return activeTeam(viewer) ?? viewer.teams.find((t) => teamCanOrder(t.status)) ?? null;
 }
 
 export async function requireAdmin(): Promise<Viewer> {

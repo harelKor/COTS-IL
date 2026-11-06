@@ -3,20 +3,51 @@ import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
-import { getViewer } from "@/lib/auth";
+import { ReorderButton } from "@/components/reorder-button";
+import { canOrder } from "@/domain/orders";
+import { formatIls } from "@/domain/pricing";
+import { getViewer, orderingTeam } from "@/lib/auth";
+import { listOrders } from "@/lib/orders";
 import { getFacets } from "@/lib/catalog";
 import { catalogHref } from "@/lib/catalog-filters";
 
-/** Browsing is open to everyone, so a team waiting for approval just gets a reminder. */
+/**
+ * A signed-in team sees its last order first, with "Order again" (one tap), and a
+ * new team a note that its first request will be reviewed with the team.
+ */
 async function TeamNotice() {
   const viewer = await getViewer();
-  if (!viewer || viewer.isAdmin || viewer.teams.some((t) => t.status === "active") || viewer.teams.length === 0) {
+  const team = viewer && orderingTeam(viewer);
+  if (!viewer || viewer.isAdmin || !team) {
+    if (viewer && !viewer.isAdmin && viewer.teams.length > 0 && !team) {
+      return (
+        <Link href="/pending" className="block rounded-card bg-surface p-4 text-sm shadow-lift hover:bg-subtle">
+          החשבון של הקבוצה מושהה. פרטים בעמוד הקבוצה.
+        </Link>
+      );
+    }
     return null;
   }
+  const [last] = await listOrders(team.id);
   return (
-    <Link href="/pending" className="block rounded-lg border border-warning bg-surface p-3 text-sm hover:bg-subtle">
-      הקבוצה שלכם עדיין לא אושרה. אפשר לעיין בקטלוג, ולהזמין אחרי אישור הספק הישראלי.
-    </Link>
+    <div className="flex flex-col gap-3">
+      {team.status === "pending" && (
+        <p className="rounded-card bg-surface p-4 text-sm shadow-lift">
+          הקבוצה חדשה וממתינה לאישור. אפשר כבר לבנות סל ולשלוח בקשה ראשונה: הספק הישראלי יאשר את הקבוצה יחד איתה.
+        </p>
+      )}
+      {last && canOrder(team.role) && (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-card bg-surface p-4 shadow-lift">
+          <Link href={`/orders/${last.id}`} className="min-w-0 hover:text-brand">
+            <span className="block font-medium">ההזמנה האחרונה: מס׳ {last.number}</span>
+            <span className="block text-caption text-muted">
+              {last.lineCount} שורות · {formatIls(last.quoteTotal ?? last.requestTotal)}
+            </span>
+          </Link>
+          <ReorderButton orderId={last.id} />
+        </section>
+      )}
+    </div>
   );
 }
 

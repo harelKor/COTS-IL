@@ -5,7 +5,10 @@ import { Suspense } from "react";
 import { Alert, Button } from "@/components/form";
 import { formatDateTime, OrderStatusBadge, QuoteTable, RequestTable } from "@/components/orders";
 import { PrintButton } from "@/components/print-button";
-import { canApproveQuote, canCancelOrder, canDecideQuote, canOrder } from "@/domain/orders";
+import { OrderTimeline } from "@/components/order-timeline";
+import { ReorderButton } from "@/components/reorder-button";
+import { orderStage } from "@/domain/order-stage";
+import { canApproveQuote, canCancelOrder, canDecideQuote, canOrder, teamCanOrder } from "@/domain/orders";
 import { getViewer } from "@/lib/auth";
 import { getOrderForViewer } from "@/lib/orders";
 import { cancelOrder } from "../actions";
@@ -24,7 +27,9 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
 
   const { order, team, membership, items, quotes, progress, deliveries } = result;
   const [latest, previous] = quotes;
-  const role = membership?.status === "active" ? membership.role : null;
+  const role = membership && teamCanOrder(membership.status) ? membership.role : null;
+  const stage = orderStage(order.status, [...progress.values()]);
+  const stoppedAt = latest ? "quoted" : "requested";
   const waitingForDecision = latest?.status === "sent" && canDecideQuote(order.status);
 
   return (
@@ -65,6 +70,10 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
         )}
       </section>
 
+      <section className="rounded-card bg-surface p-4 print:hidden">
+        <OrderTimeline stage={stage} stoppedAt={stoppedAt} />
+      </section>
+
       {latest ? (
         <section className="flex flex-col gap-3">
           <h2 className="font-semibold">
@@ -82,7 +91,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
             (role && canApproveQuote(role) ? (
               <QuoteDecision quoteId={latest.id} />
             ) : (
-              !viewer.isAdmin && <Alert tone="info">ההצעה ממתינה לאישור מנהל הקבוצה.</Alert>
+              !viewer.isAdmin && <Alert tone="info">ההצעה ממתינה לאישור המנטור/ית של הקבוצה.</Alert>
             ))}
         </section>
       ) : (
@@ -124,6 +133,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
         <Link href={viewer.isAdmin ? `/admin/orders/${order.id}` : "/orders"} className="text-sm text-brand hover:underline">
           {viewer.isAdmin ? "לניהול ההזמנה" : "לכל ההזמנות"}
         </Link>
+        {role && canOrder(role) && <ReorderButton orderId={order.id} />}
         {role && canOrder(role) && canCancelOrder(order.status) && (
           <form action={cancelOrder}>
             <input type="hidden" name="orderId" value={order.id} />

@@ -1,8 +1,8 @@
 import type { TeamRole } from "./orders";
 
 export const ROLE_LABELS: Record<TeamRole, string> = {
-  team_admin: "מנהל קבוצה",
-  buyer: "קניין",
+  team_admin: "מנטור/ית",
+  buyer: "סטודנט/ית",
   viewer: "צופה",
 };
 
