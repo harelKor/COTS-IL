@@ -84,6 +84,16 @@ export async function setCartQty(variantId: string, count: number): Promise<void
   refresh();
 }
 
+/** Takes a line out of the cart from a stepper. Undo adds it back with quickAdd. */
+export async function removeFromCart(variantId: string): Promise<void> {
+  const { team } = await requireOrderingTeam();
+  const id = z.uuid().safeParse(variantId);
+  if (!id.success) return;
+  await db.delete(cartItems).where(and(eq(cartItems.teamId, team.id), eq(cartItems.variantId, id.data)));
+  revalidatePath("/cart");
+  refresh();
+}
+
 export async function updateCartItem(formData: FormData) {
   const { team } = await requireOrderingTeam();
   const parsed = z.object({ variantId: z.uuid(), qty }).safeParse(Object.fromEntries(formData));

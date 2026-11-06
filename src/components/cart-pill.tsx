@@ -1,40 +1,15 @@
 "use client";
 
-import { Minus, Plus, ShoppingBag, X } from "lucide-react";
+import { ShoppingBag, X } from "lucide-react";
 import Link from "next/link";
-import { useRef, useTransition } from "react";
-import { setCartQty } from "@/app/cart/actions";
+import { useEffect, useRef } from "react";
 import { formatIls } from "@/domain/pricing";
-import { cartTotals, setQtyOptimistic, useCart, type CartSheetLine } from "./cart-store";
+import { cartTotals, useCart } from "./cart-store";
 import { Ltr } from "./ltr";
+import { QtyStepper } from "./qty-stepper";
 
 function thumb(src: string) {
   return src.startsWith("https://cdn.shopify.com/") ? `${src}${src.includes("?") ? "&" : "?"}width=120` : src;
-}
-
-function Stepper({ line }: { line: CartSheetLine }) {
-  const [, startTransition] = useTransition();
-
-  function change(qty: number) {
-    if (qty < 1 || qty > 9999) return;
-    setQtyOptimistic(line.variantId, qty);
-    startTransition(() => setCartQty(line.variantId, qty));
-  }
-
-  const button = "flex size-11 items-center justify-center rounded-full text-foreground transition-transform active:scale-90 disabled:opacity-30";
-  return (
-    <div className="flex items-center rounded-full bg-subtle">
-      <button type="button" className={button} onClick={() => change(line.qty - 1)} disabled={line.qty <= 1} aria-label="הפחתה">
-        <Minus size={16} strokeWidth={2} aria-hidden />
-      </button>
-      <span className="min-w-6 text-center text-[15px] font-medium tabular-nums" aria-live="polite">
-        {line.qty}
-      </span>
-      <button type="button" className={button} onClick={() => change(line.qty + 1)} aria-label="הוספה">
-        <Plus size={16} strokeWidth={2} aria-hidden />
-      </button>
-    </div>
-  );
 }
 
 /**
@@ -46,6 +21,13 @@ export function CartPill() {
   const sheet = useRef<HTMLDialogElement>(null);
   const { count, totalIls } = cartTotals(lines);
 
+  // Other parts of the page (the family page's buy bar on phones) open the sheet with this event.
+  useEffect(() => {
+    const open = () => sheet.current?.showModal();
+    window.addEventListener("cart:open", open);
+    return () => window.removeEventListener("cart:open", open);
+  }, []);
+
   if (mode !== "ordering" || count === 0) return null;
 
   const close = () => sheet.current?.close();
@@ -54,6 +36,7 @@ export function CartPill() {
     <>
       <button
         type="button"
+        data-cart-pill
         onClick={() => sheet.current?.showModal()}
         className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-12 w-max items-center gap-3 rounded-full bg-foreground ps-5 pe-6 text-background shadow-lift transition-transform duration-300 ease-spring starting:scale-75 active:scale-95 md:inset-x-auto md:end-8 md:bottom-8 md:mx-0 print:hidden"
       >
@@ -113,7 +96,7 @@ export function CartPill() {
                     )}
                   </span>
                   <div className="flex items-center justify-between gap-2">
-                    <Stepper line={line} />
+                    <QtyStepper variantId={line.variantId} qty={line.qty} label={line.title} />
                     <span className="text-[15px] font-semibold">
                       {line.unitPriceIls === null ? (
                         <span className="text-caption font-normal text-muted">ייבדק בהצעה</span>

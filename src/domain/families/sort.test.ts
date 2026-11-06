@@ -30,8 +30,8 @@ describe("sortByOptions", () => {
 });
 
 describe("optionLabel", () => {
-  it("names known keys in Hebrew and passes others through", () => {
+  it("names known keys in Hebrew and turns supplier option names into words", () => {
     expect(optionLabel("bore")).toBe("קדח");
-    expect(optionLabel("color-finish")).toBe("color-finish");
+    expect(optionLabel("color-finish")).toBe("color finish");
   });
 });

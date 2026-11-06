@@ -62,6 +62,13 @@ export function setQtyOptimistic(variantId: string, qty: number) {
   set({ ...state, lines: state.lines.map((l) => (l.variantId === variantId ? { ...l, qty } : l)) });
 }
 
+/** Takes a line out right away and hands it back, for Undo. */
+export function removeOptimistic(variantId: string): CartSheetLine | null {
+  const line = state.lines.find((l) => l.variantId === variantId) ?? null;
+  if (line) set({ ...state, lines: state.lines.filter((l) => l !== line) });
+  return line;
+}
+
 export function cartTotals(lines: CartSheetLine[]) {
   return {
     count: lines.reduce((sum, l) => sum + l.qty, 0),

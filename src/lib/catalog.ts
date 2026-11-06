@@ -1,8 +1,10 @@
 import "server-only";
-import { and, asc, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { db, schema } from "@/db";
-import { PAGE_SIZE, searchPatterns, type CatalogFilters } from "./catalog-filters";
+import type { CompanionRule } from "@/domain/families/companions";
+import { priceIls } from "@/domain/pricing";
+import { searchPatterns, type CatalogFilters } from "./catalog-filters";
 
 const { categories, productFamilies: families, products, suppliers, variants } = schema;
 
@@ -21,7 +23,17 @@ function catalogCache() {
   cacheTag("catalog");
 }
 
-function searchQuery(filters: CatalogFilters) {
+/** Families with a spec value among `values` for `key`. */
+function hasSpec(key: string, values: string[]) {
+  const sv = schema.specValues;
+  return sql`EXISTS (SELECT 1 FROM ${sv} WHERE ${sv.familyId} = ${families.id} AND ${sv.key} = ${key} AND ${sv.value} IN (${sql.join(
+    values.map((v) => sql`${v}`),
+    sql`, `,
+  )}))`;
+}
+
+/** `withSpecs: false` leaves out the spec filters, for counting the values each spec could take. */
+function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
   const conditions: (SQL | undefined)[] = [visible];
   for (const pattern of searchPatterns(filters.q)) {
     conditions.push(sql`${families.searchText} ILIKE ${pattern}`);
@@ -30,6 +42,7 @@ function searchQuery(filters: CatalogFilters) {
   if (filters.supplier) conditions.push(sql`${filters.supplier} = ANY(${families.supplierCodes})`);
   if (filters.program) conditions.push(sql`${filters.program}::program = ANY(${families.programs})`);
   if (filters.availableOnly) conditions.push(eq(families.available, true));
+  if (withSpecs) for (const [key, values] of Object.entries(filters.specs)) conditions.push(hasSpec(key, values));
   const where = and(...conditions);
 
   const order: SQL[] = [];
@@ -53,46 +66,203 @@ async function supplierNames() {
   return new Map(rows.map((r) => [r.code, r.name]));
 }
 
-export async function searchProducts(filters: CatalogFilters) {
+/** Families with more variants than this open their page instead of showing chips on the card. */
+const CARD_VARIANT_LIMIT = 200;
+
+export type CardVariant = {
+  id: string;
+  sku: string | null;
+  options: Record<string, string>;
+  priceIls: number | null;
+  available: boolean | null;
+  supplierName: string;
+  image: string | null;
+};
+
+export type CardFamily = {
+  id: string;
+  slug: string;
+  title: string;
+  image: string | null;
+  supplierNames: string[];
+  minPriceIls: number | null;
+  maxPriceIls: number | null;
+  available: boolean | null;
+  checkedAt: string;
+  variantCount: number;
+  optionKeys: string[];
+  /** Orderable variants, cheapest in stock first, or empty when there are too many for a card. */
+  variants: CardVariant[];
+};
+
+const cardColumns = {
+  id: families.id,
+  slug: families.slug,
+  title: families.title,
+  images: families.images,
+  minPriceUsd: families.minPriceUsd,
+  maxPriceUsd: families.maxPriceUsd,
+  available: families.available,
+  lastSeenAt: families.lastSeenAt,
+  supplierCodes: families.supplierCodes,
+  variantCount: families.variantCount,
+  optionKeys: families.optionKeys,
+};
+
+type CardRow = {
+  id: string;
+  slug: string;
+  title: string;
+  images: string[];
+  minPriceUsd: string | null;
+  maxPriceUsd: string | null;
+  available: boolean | null;
+  lastSeenAt: Date;
+  supplierCodes: string[];
+  variantCount: number;
+  optionKeys: string[];
+};
+
+/** What family cards need, their variants included, keeping the rows' order. */
+async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
+  if (rows.length === 0) return [];
+  const names = await supplierNames();
+  const small = rows.filter((r) => r.variantCount <= CARD_VARIANT_LIMIT).map((r) => r.id);
+  const variantRows = small.length
+    ? await db
+        .select({
+          familyId: variants.familyId,
+          id: variants.id,
+          sku: variants.supplierSku,
+          options: variants.familyOptions,
+          priceUsd: variants.priceUsd,
+          available: variants.available,
+          supplierName: suppliers.name,
+          image: sql<string | null>`${products.images}[1]`,
+        })
+        .from(variants)
+        .innerJoin(products, eq(products.id, variants.productId))
+        .innerJoin(suppliers, eq(suppliers.id, variants.supplierId))
+        .where(
+          and(
+            inArray(variants.familyId, small),
+            eq(products.status, "published"),
+            isNull(products.missingSince),
+            isNull(variants.missingSince),
+            sql`${variants.priceUsd} > 0`,
+          ),
+        )
+        .orderBy(sql`${variants.available} IS TRUE DESC`, asc(variants.priceUsd))
+    : [];
+
+  const byFamily = new Map<string, CardVariant[]>();
+  for (const v of variantRows) {
+    const list = byFamily.get(v.familyId!) ?? [];
+    list.push({
+      id: v.id,
+      sku: v.sku,
+      options: v.options,
+      priceIls: priceIls(v.priceUsd),
+      available: v.available,
+      supplierName: v.supplierName,
+      image: v.image,
+    });
+    byFamily.set(v.familyId!, list);
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    image: r.images[0] ?? null,
+    supplierNames: r.supplierCodes.map((c) => names.get(c) ?? c),
+    minPriceIls: priceIls(r.minPriceUsd),
+    maxPriceIls: priceIls(r.maxPriceUsd),
+    available: r.available,
+    checkedAt: r.lastSeenAt.toISOString(),
+    variantCount: r.variantCount,
+    optionKeys: r.optionKeys,
+    variants: byFamily.get(r.id) ?? [],
+  }));
+}
+
+/** A slice of the catalog as cards, from `offset`, with the number of families that match. */
+export async function searchCards(filters: CatalogFilters, offset: number, limit: number) {
   "use cache";
   catalogCache();
   const { where, order } = searchQuery(filters);
 
-  const [rows, [{ total }], names] = await Promise.all([
+  const [rows, [{ total }]] = await Promise.all([
     db
-      .select({
-        id: families.id,
-        slug: families.slug,
-        title: families.title,
-        images: families.images,
-        minPriceUsd: families.minPriceUsd,
-        maxPriceUsd: families.maxPriceUsd,
-        available: families.available,
-        lastSeenAt: families.lastSeenAt,
-        supplierCodes: families.supplierCodes,
-        variantCount: families.variantCount,
-      })
+      .select(cardColumns)
       .from(families)
       .leftJoin(categories, eq(categories.id, families.categoryId))
       .where(where)
       .orderBy(...order)
-      .limit(PAGE_SIZE)
-      .offset((filters.page - 1) * PAGE_SIZE),
+      .limit(limit)
+      .offset(offset),
     db
       .select({ total: sql<number>`count(*)::int` })
       .from(families)
       .leftJoin(categories, eq(categories.id, families.categoryId))
       .where(where),
-    supplierNames(),
   ]);
-
-  return {
-    rows: rows.map((r) => ({ ...r, supplierNames: r.supplierCodes.map((c) => names.get(c) ?? c) })),
-    total,
-  };
+  return { cards: await toCards(rows), total };
 }
 
-export type ProductSummary = Awaited<ReturnType<typeof searchProducts>>["rows"][number];
+/** Sizes and specs to filter by, with how many families have each value. */
+export type SpecFacet = { key: string; values: { value: string; count: number }[] };
+
+/** Keys shown first, in this order, when a list has them. */
+const FACET_ORDER = ["dp", "pitch", "teeth", "bore", "width", "id", "od", "length", "cd", "material"];
+const MAX_FACETS = 6;
+
+/**
+ * The spec filters worth offering for the current list: keys whose values
+ * differ between families, the usual ones first. Counted without the spec
+ * filters themselves, so picking one bore doesn't hide the others.
+ */
+export async function getSpecFacets(filters: CatalogFilters): Promise<SpecFacet[]> {
+  "use cache";
+  catalogCache();
+  if (!filters.category && !filters.q) return [];
+  const { where } = searchQuery(filters, { withSpecs: false });
+  const sv = schema.specValues;
+
+  const rows = await db
+    .select({
+      key: sv.key,
+      value: sv.value,
+      num: sql<string | null>`min(${sv.num})`,
+      count: sql<number>`count(DISTINCT ${sv.familyId})::int`,
+    })
+    .from(sv)
+    .innerJoin(families, eq(families.id, sv.familyId))
+    .leftJoin(categories, eq(categories.id, families.categoryId))
+    .where(and(where, sql`length(${sv.key}) <= 24`))
+    .groupBy(sv.key, sv.value);
+
+  const byKey = new Map<string, { value: string; count: number; num: number | null }[]>();
+  for (const r of rows) {
+    byKey.set(r.key, [...(byKey.get(r.key) ?? []), { value: r.value, count: r.count, num: r.num === null ? null : Number(r.num) }]);
+  }
+
+  const rank = (key: string) => (FACET_ORDER.includes(key) ? FACET_ORDER.indexOf(key) : 99);
+  return [...byKey]
+    .filter(([, values]) => values.length >= 2)
+    .map(([key, values]) => ({ key, values, reach: values.reduce((n, v) => n + v.count, 0) }))
+    .sort((a, b) => rank(a.key) - rank(b.key) || b.reach - a.reach)
+    .slice(0, MAX_FACETS)
+    .map(({ key, values }) => ({
+      key,
+      values: values
+        .sort((a, b) =>
+          a.num !== null && b.num !== null && a.num !== b.num ? a.num - b.num : a.value.localeCompare(b.value, "en", { numeric: true }),
+        )
+        .slice(0, 60)
+        .map(({ value, count }) => ({ value, count })),
+    }));
+}
 
 /** Categories and suppliers that have something to show, with family counts. */
 export async function getFacets() {
@@ -144,6 +314,8 @@ export async function getFamily(slug: string) {
       checkedAt: variants.checkedAt,
       productTitle: products.title,
       productUrl: products.url,
+      productDescription: products.descriptionHtml,
+      image: sql<string | null>`${products.images}[1]`,
       supplierCode: suppliers.code,
       supplierName: suppliers.name,
     })
@@ -153,7 +325,47 @@ export async function getFamily(slug: string) {
     .where(sql`${variants.familyId} = ${row.family.id} AND ${products.status} = 'published' AND ${products.missingSince} IS NULL AND ${variants.missingSince} IS NULL`)
     .orderBy(asc(products.title), asc(variants.position));
 
-  return { ...row, variants: familyVariants };
+  const specRows = await db
+    .select({ variantId: schema.specValues.variantId, key: schema.specValues.key, value: schema.specValues.value })
+    .from(schema.specValues)
+    .where(eq(schema.specValues.familyId, row.family.id));
+  const specs: Record<string, { key: string; value: string }[]> = {};
+  for (const r of specRows) if (r.variantId) (specs[r.variantId] ??= []).push({ key: r.key, value: r.value });
+
+  return { ...row, variants: familyVariants, specs };
+}
+
+/** An ILIKE pattern matching `text` anywhere, with wildcards in it taken literally. */
+function likeAnywhere(text: string) {
+  return `%${text.toLowerCase().replace(/[\\%_]/g, "\\$&")}%`;
+}
+
+/**
+ * Families that go with a part ("usually ordered with"), by the rules in
+ * src/domain/families/companions.ts. In-stock and cheaper ones first.
+ */
+export async function getCompanions(familyId: string, rules: CompanionRule[]): Promise<CardFamily[]> {
+  "use cache";
+  catalogCache();
+  const rows: CardRow[] = [];
+  for (const rule of rules) {
+    const conditions: (SQL | undefined)[] = [
+      visible,
+      eq(categories.slug, rule.category),
+      sql`${families.id} <> ${familyId}`,
+      ...rule.terms.map((t) => sql`${families.searchText} ILIKE ${likeAnywhere(t)}`),
+      ...(rule.without ?? []).map((t) => sql`${families.title} NOT ILIKE ${likeAnywhere(t)}`),
+    ];
+    const found = await db
+      .select(cardColumns)
+      .from(families)
+      .leftJoin(categories, eq(categories.id, families.categoryId))
+      .where(and(...conditions))
+      .orderBy(sql`${families.available} IS TRUE DESC`, sql`${families.variantCount} DESC`, asc(families.minPriceUsd))
+      .limit(4);
+    for (const f of found) if (!rows.some((r) => r.id === f.id)) rows.push(f);
+  }
+  return toCards(rows.slice(0, 8));
 }
 
 export type FamilyVariant = NonNullable<Awaited<ReturnType<typeof getFamily>>>["variants"][number];
@@ -202,7 +414,7 @@ const orderable = sql`${memberVariant} AND ${variants.priceUsd} > 0`;
 export async function quickSearch(q: string) {
   "use cache";
   catalogCache();
-  const filters: CatalogFilters = { q, category: "", supplier: "", program: "", availableOnly: false, sort: "relevance", page: 1 };
+  const filters: CatalogFilters = { q, category: "", supplier: "", program: "", availableOnly: false, sort: "relevance", page: 1, specs: {}, view: "grid" };
   const { where, order } = searchQuery(filters);
   const part = sql`coalesce(upper(${variants.supplierSku}), ${variants.id}::text)`;
   const fromFamily = sql`FROM ${variants} JOIN ${products} ON ${products.id} = ${variants.productId} WHERE ${orderable}`;

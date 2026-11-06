@@ -3,16 +3,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense, ViewTransition } from "react";
-import { AddToCart } from "@/components/add-to-cart";
-import { Availability, familyHref, ProductImage, productImageTransition } from "@/components/catalog";
+import { Availability } from "@/components/catalog";
+import { FamilyCard } from "@/components/family-card";
+import { FamilyView, type ViewVariant } from "@/components/family-view";
 import { Ltr } from "@/components/ltr";
-import { Loading, ProductSkeleton } from "@/components/skeleton";
-import { optionLabel, sortByOptions } from "@/domain/families/sort";
-import { canOrder } from "@/domain/orders";
+import { CardGridSkeleton, Loading, ProductSkeleton } from "@/components/skeleton";
+import { companionRules } from "@/domain/families/companions";
+import { measure } from "@/domain/families/parse";
+import { compareOptionValues, optionLabel, sortByOptions } from "@/domain/families/sort";
 import { formatIls, priceIls } from "@/domain/pricing";
-import { activeTeam, getViewer } from "@/lib/auth";
-import { getFamily, type FamilyVariant } from "@/lib/catalog";
+import { getCompanions, getFamily, type FamilyVariant } from "@/lib/catalog";
 import { catalogHref } from "@/lib/catalog-filters";
+import { familyHref } from "@/lib/catalog-links";
 import { descriptionText, isRealDescription, metaDescription } from "@/lib/description";
 
 export async function generateMetadata({ params }: PageProps<"/catalog/p/[slug]">): Promise<Metadata> {
@@ -45,6 +47,46 @@ function selectedVariant(variants: FamilyVariant[], v: string | string[] | undef
   return variants.find((x) => x.id === wanted || x.sku?.toLowerCase() === wanted) ?? null;
 }
 
+/** Per spec, the family's value or its range ("12t – 100t"), for the specifications table. */
+function specSummary(specs: Record<string, { key: string; value: string }[]>) {
+  const values = new Map<string, Set<string>>();
+  for (const list of Object.values(specs)) for (const s of list) values.set(s.key, (values.get(s.key) ?? new Set()).add(s.value));
+  return [...values].map(([key, set]) => {
+    const sorted = [...set].sort(compareOptionValues);
+    const numeric = sorted.every((v) => measure(v).num !== null) && new Set(sorted.map((v) => measure(v).unit)).size === 1;
+    const value = sorted.length === 1 ? sorted[0] : numeric && sorted.length > 4 ? `${sorted[0]} – ${sorted.at(-1)}` : sorted.slice(0, 8).join(", ") + (sorted.length > 8 ? "…" : "");
+    return { key, value };
+  });
+}
+
+/** CAD, STEP, drawings and manuals linked from the supplier's description. */
+function documentLinks(html: string | null): { href: string; text: string }[] {
+  if (!html) return [];
+  const links: { href: string; text: string }[] = [];
+  for (const m of html.matchAll(/<a [^>]*href="(https:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
+    const text = m[2].replace(/<[^>]+>/g, "").trim();
+    if (/\b(step|cad|onshape|drawing|manual|pdf|docs?|guide|datasheet|instructions?)\b/i.test(`${text} ${m[1]}`)) {
+      if (!links.some((l) => l.href === m[1])) links.push({ href: m[1], text: text || m[1] });
+    }
+  }
+  return links.slice(0, 8);
+}
+
+async function Companions({ familyId, rules }: { familyId: string; rules: ReturnType<typeof companionRules> }) {
+  const cards = await getCompanions(familyId, rules);
+  if (cards.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-section font-semibold">בדרך כלל מוזמן יחד עם</h2>
+      <ul className="-mx-6 grid auto-cols-[44%] grid-flow-col gap-4 overflow-x-auto px-6 pb-2 sm:auto-cols-[30%] md:-mx-0 md:grid-flow-row md:grid-cols-4 md:px-0">
+        {cards.map((c) => (
+          <FamilyCard key={c.id} family={c} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) {
   const { slug } = await params;
   const result = await getFamily(decodeURIComponent(slug));
@@ -53,18 +95,37 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
   await connection();
 
   const { family } = result;
-  const variants = sortByOptions(result.variants, family.optionKeys);
-  const selected = selectedVariant(variants, (await searchParams).v);
-  const suppliers = [...new Map(variants.map((v) => [v.supplierCode, v])).values()];
-  const manySuppliers = suppliers.length > 1;
-  const viewer = await getViewer();
-  const team = viewer && activeTeam(viewer);
-  const canAdd = !!team && canOrder(team.role);
-  const path = familyHref(family.slug);
+  const selected = selectedVariant(result.variants, (await searchParams).v);
+  const byOffer = [...result.variants].sort(
+    (a, b) => Number(b.available === true) - Number(a.available === true) || (priceIls(a.priceUsd) ?? Infinity) - (priceIls(b.priceUsd) ?? Infinity),
+  );
+  const viewVariants: ViewVariant[] = byOffer.map((v) => ({
+    id: v.id,
+    sku: v.sku,
+    options: v.familyOptions,
+    priceIls: priceIls(v.priceUsd),
+    available: v.available,
+    checkedAt: v.checkedAt.toISOString(),
+    supplierName: v.supplierName,
+    supplierCode: v.supplierCode,
+    productUrl: v.productUrl,
+    image: v.image,
+  }));
+  const tableVariants = sortByOptions(result.variants, family.optionKeys);
+  const manySuppliers = new Set(result.variants.map((v) => v.supplierCode)).size > 1;
+  const specs = specSummary(result.specs);
+  const docs = [...new Map(result.variants.flatMap((v) => documentLinks(v.productDescription)).map((d) => [d.href, d])).values()].slice(0, 8);
+  // Suggestions follow the variant in the link; without one, the first that has any (a keyed
+  // 8mm bore matches no bearing, a 1/2" hex one does).
+  const rulesFor = (v: FamilyVariant | undefined) =>
+    companionRules({ categorySlug: result.categorySlug, title: family.title, options: v?.familyOptions ?? {} });
+  const rules = selected
+    ? rulesFor(selected)
+    : (byOffer.map(rulesFor).find((r) => r.length > 0) ?? rulesFor(undefined));
 
   return (
-    <article className="flex flex-col gap-8">
-      <nav className="flex flex-wrap gap-2 text-sm text-muted" aria-label="ניווט">
+    <article className="flex flex-col gap-10">
+      <nav className="flex flex-wrap gap-2 text-caption text-muted" aria-label="ניווט">
         <Link href="/catalog" className="hover:text-brand">
           קטלוג
         </Link>
@@ -78,51 +139,64 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
         )}
       </nav>
 
+      <FamilyView
+        family={{ id: family.id, slug: family.slug, title: family.title, images: family.images, optionKeys: family.optionKeys }}
+        variants={viewVariants}
+        initialVariantId={selected?.id ?? (viewVariants.length === 1 ? viewVariants[0].id : null)}
+      />
+
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
-            <ProductImage src={family.images[0]} alt={family.title} width={800} className="aspect-square w-full rounded-card p-6" />
-          </ViewTransition>
-          {family.images.length > 1 && (
-            <ul className="grid grid-cols-5 gap-2">
-              {family.images.slice(1, 6).map((src, i) => (
-                <li key={src}>
-                  <ProductImage src={src} alt={`${family.title}, תמונה ${i + 2}`} width={160} className="aspect-square w-full rounded-xl p-1" />
-                </li>
+        {specs.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <h2 className="text-section font-semibold">מפרט</h2>
+            <dl className="divide-y divide-line rounded-card bg-surface text-[15px]">
+              {specs.map((s) => (
+                <div key={s.key} className="flex justify-between gap-4 px-4 py-3">
+                  <dt className="text-muted">{optionLabel(s.key)}</dt>
+                  <dd className="text-end">
+                    <Ltr>{s.value}</Ltr>
+                  </dd>
+                </div>
               ))}
-            </ul>
-          )}
-        </div>
+            </dl>
+          </section>
+        )}
+        <section className="flex flex-col gap-3">
+          <h2 className="text-section font-semibold">תיעוד</h2>
+          <ul className="flex flex-col divide-y divide-line rounded-card bg-surface text-[15px]">
+            {docs.map((d) => (
+              <li key={d.href}>
+                <a href={d.href} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center px-4 py-2 text-brand hover:underline">
+                  <Ltr>{d.text}</Ltr>
+                </a>
+              </li>
+            ))}
+            {[...new Map(result.variants.map((v) => [v.supplierCode, v])).values()].map((v) => (
+              <li key={v.supplierCode}>
+                <a href={v.productUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center px-4 py-2 text-brand hover:underline">
+                  עמוד המוצר, CAD ותיעוד באתר <Ltr className="ms-1">{v.supplierName}</Ltr>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
 
-        <div className="flex min-w-0 flex-col gap-4">
-          <div>
-            <p className="text-caption text-muted">
-              {suppliers.map((s, i) => (
-                <span key={s.supplierCode}>
-                  {i > 0 && " · "}
-                  <Link href={catalogHref({ supplier: s.supplierCode })} className="hover:text-brand">
-                    <Ltr>{s.supplierName}</Ltr>
-                  </Link>
-                </span>
-              ))}
-            </p>
-            <h1 dir="ltr" className="text-start text-title font-semibold">
-              {family.title}
-            </h1>
-            {variants.length > 1 && (
-              <p className="text-caption text-muted">{variants.length.toLocaleString("he-IL")} אפשרויות</p>
-            )}
-          </div>
+      {/* Some suppliers leave a placeholder ("This Page is for Reference Only") instead of a description. */}
+      {family.descriptionHtml && isRealDescription(family.descriptionHtml) && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-section font-semibold">תיאור הספק</h2>
+          {/* Sanitized by sanitizeDescription when it was synced. */}
+          <div dir="ltr" className="rich-text rounded-card bg-surface p-6 text-[15px]" dangerouslySetInnerHTML={{ __html: family.descriptionHtml }} />
+        </section>
+      )}
 
-          {selected && (
-            <div className="flex flex-col gap-2 rounded-card bg-surface p-4 shadow-lift">
-              <span className="text-caption text-muted">נבחר</span>
-              <VariantSummary variant={selected} optionKeys={family.optionKeys} showSupplier={manySuppliers} />
-              {canAdd && priceIls(selected.priceUsd) !== null && <AddToCart variantId={selected.id} />}
-            </div>
-          )}
-
-          <div className="max-h-[32rem] overflow-auto rounded-card border border-line bg-surface">
+      {tableVariants.length > 1 && (
+        <details className="group rounded-card bg-surface">
+          <summary className="flex min-h-11 cursor-pointer items-center justify-between px-4 py-3 font-semibold">
+            כל האפשרויות ({tableVariants.length.toLocaleString("he-IL")})
+          </summary>
+          <div className="max-h-[32rem] overflow-auto border-t border-line">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-subtle text-muted">
                 <tr>
@@ -137,17 +211,19 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
                 </tr>
               </thead>
               <tbody>
-                {variants.map((variant) => {
+                {tableVariants.map((variant) => {
                   const price = priceIls(variant.priceUsd);
                   return (
-                    <tr
-                      key={variant.id}
-                      aria-current={variant === selected ? "true" : undefined}
-                      className={`border-t border-line align-top ${variant === selected ? "bg-subtle" : ""}`}
-                    >
+                    <tr key={variant.id} className="border-t border-line align-top">
                       {family.optionKeys.map((k) => (
                         <td key={k} className="p-3 whitespace-nowrap">
-                          {variant.familyOptions[k] ? <Ltr>{variant.familyOptions[k]}</Ltr> : <span className="text-muted">—</span>}
+                          {variant.familyOptions[k] ? (
+                            <Link href={familyHref(family.slug, variant.sku ?? variant.id)} className="hover:text-brand">
+                              <Ltr>{variant.familyOptions[k]}</Ltr>
+                            </Link>
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
                         </td>
                       ))}
                       {manySuppliers && (
@@ -159,15 +235,8 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
                         {variant.sku ? <Ltr className="font-mono">{variant.sku}</Ltr> : <span className="text-muted">ללא מק״ט ספק</span>}
                       </td>
                       <td className="p-3">
-                        <div className="font-semibold">
-                          {price === null ? <span className="font-normal text-muted">ייבדק בהצעה</span> : formatIls(price)}
-                        </div>
+                        <div className="font-semibold">{price === null ? <span className="font-normal text-muted">ייבדק בהצעה</span> : formatIls(price)}</div>
                         <Availability available={variant.available} checkedAt={variant.checkedAt} />
-                        {canAdd && price !== null && (
-                          <div className="mt-2">
-                            <AddToCart variantId={variant.id} />
-                          </div>
-                        )}
                       </td>
                     </tr>
                   );
@@ -175,72 +244,15 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
               </tbody>
             </table>
           </div>
+        </details>
+      )}
 
-          <p className="text-sm text-muted">
-            המחירים כוללים מע״מ. משלוח בישראל מתומחר בהצעת המחיר, והמחיר הסופי נקבע בהצעה שהספק הישראלי שולח.
-          </p>
-
-          {!viewer && (
-            <div className="rounded-card border border-dashed border-line bg-surface p-4 text-sm">
-              כדי להזמין צריך חשבון קבוצה:{" "}
-              <Link href={`/login?next=${encodeURIComponent(path)}`} className="text-brand hover:underline">
-                כניסה
-              </Link>{" "}
-              או{" "}
-              <Link href="/signup" className="text-brand hover:underline">
-                הרשמת קבוצה
-              </Link>
-              .
-            </div>
-          )}
-          {viewer && !team && !viewer.isAdmin && (
-            <div className="rounded-card border border-dashed border-line bg-surface p-4 text-sm">
-              אפשר להזמין אחרי שהספק הישראלי יאשר את הקבוצה.
-            </div>
-          )}
-
-          <ul className="flex flex-col gap-1 text-sm">
-            {suppliers.map((s) => (
-              <li key={s.supplierCode}>
-                <a href={(selected?.supplierCode === s.supplierCode ? selected : s).productUrl} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">
-                  לעמוד המוצר באתר <Ltr>{s.supplierName}</Ltr>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Some suppliers leave a placeholder ("This Page is for Reference Only") instead of a description. */}
-      {family.descriptionHtml && isRealDescription(family.descriptionHtml) && (
-        <section className="rounded-card bg-surface p-6">
-          <h2 className="mb-3 text-section font-semibold">תיאור הספק</h2>
-          {/* Sanitized by sanitizeDescription when it was synced. */}
-          <div dir="ltr" className="rich-text text-sm" dangerouslySetInnerHTML={{ __html: family.descriptionHtml }} />
-        </section>
+      {rules.length > 0 && (
+        <Suspense fallback={<CardGridSkeleton count={4} />}>
+          <Companions familyId={family.id} rules={rules} />
+        </Suspense>
       )}
     </article>
-  );
-}
-
-function VariantSummary({ variant, optionKeys, showSupplier }: { variant: FamilyVariant; optionKeys: string[]; showSupplier: boolean }) {
-  const price = priceIls(variant.priceUsd);
-  return (
-    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-      {optionKeys.map(
-        (k) =>
-          variant.familyOptions[k] && (
-            <span key={k}>
-              <span className="text-caption text-muted">{optionLabel(k)} </span>
-              <Ltr className="font-medium">{variant.familyOptions[k]}</Ltr>
-            </span>
-          ),
-      )}
-      {showSupplier && <Ltr className="text-caption text-muted">{variant.supplierName}</Ltr>}
-      {variant.sku && <Ltr className="font-mono text-caption text-muted">{variant.sku}</Ltr>}
-      <span className="font-semibold">{price === null ? "ייבדק בהצעה" : formatIls(price)}</span>
-      <Availability available={variant.available} checkedAt={variant.checkedAt} />
-    </div>
   );
 }
 

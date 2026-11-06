@@ -95,3 +95,11 @@ None of these block Phase 1. Each one has to be decided before the phase listed.
 ## Business facts still needed (Phase 5)
 
 Handling fee, typical lead time for each supplier, the Israeli supplier's legal name and contact details (email, WhatsApp), the return policy, the pickup address, and which domain emails are sent from.
+
+## Progress
+
+| Phase | Commit | Audit items closed |
+|---|---|---|
+| 1 | `385073f` | 4 (titles and OG), 5 (skeletons, cached catalog), 10 (alt text), 11 (Hebrew 404); 3 (placeholder descriptions) early |
+| 2 | `237459e` | 1 (product families) |
+| 3 | this phase | 8 (spec filter chips), 9 (infinite scroll with the page in the URL) |
