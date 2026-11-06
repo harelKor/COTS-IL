@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm"
 import { cacheLife, cacheTag } from "next/cache";
 import { db, schema } from "@/db";
 import { ACCESSORY_TITLE_PATTERN, HARDWARE_CATEGORIES, MAIN_ITEM_MIN_USD } from "@/domain/catalog-rank";
+import { isRelevantFacet } from "@/domain/facets";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
 import { searchPatterns, type CatalogFilters } from "./catalog-filters";
@@ -240,28 +241,47 @@ export async function getSpecFacets(filters: CatalogFilters): Promise<SpecFacet[
   const { where } = searchQuery(filters, { withSpecs: false });
   const sv = schema.specValues;
 
-  const rows = await db
-    .select({
-      key: sv.key,
-      value: sv.value,
-      num: sql<string | null>`min(${sv.num})`,
-      count: sql<number>`count(DISTINCT ${sv.familyId})::int`,
-    })
-    .from(sv)
-    .innerJoin(families, eq(families.id, sv.familyId))
-    .leftJoin(categories, eq(categories.id, families.categoryId))
-    .where(and(where, sql`length(${sv.key}) <= 24`))
-    .groupBy(sv.key, sv.value);
+  const specRows = and(where, sql`length(${sv.key}) <= 24`);
+
+  const [rows, keyRows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        key: sv.key,
+        value: sv.value,
+        num: sql<string | null>`min(${sv.num})`,
+        count: sql<number>`count(DISTINCT ${sv.familyId})::int`,
+      })
+      .from(sv)
+      .innerJoin(families, eq(families.id, sv.familyId))
+      .leftJoin(categories, eq(categories.id, families.categoryId))
+      .where(specRows)
+      .groupBy(sv.key, sv.value),
+    // How many of the products in view have each spec at all.
+    db
+      .select({ key: sv.key, families: sql<number>`count(DISTINCT ${sv.familyId})::int` })
+      .from(sv)
+      .innerJoin(families, eq(families.id, sv.familyId))
+      .leftJoin(categories, eq(categories.id, families.categoryId))
+      .where(specRows)
+      .groupBy(sv.key),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(families)
+      .leftJoin(categories, eq(categories.id, families.categoryId))
+      .where(where),
+  ]);
 
   const byKey = new Map<string, { value: string; count: number; num: number | null }[]>();
   for (const r of rows) {
     byKey.set(r.key, [...(byKey.get(r.key) ?? []), { value: r.value, count: r.count, num: r.num === null ? null : Number(r.num) }]);
   }
+  const reach = new Map(keyRows.map((r) => [r.key, r.families]));
+  const selected = Object.keys(filters.specs);
 
   const rank = (key: string) => (FACET_ORDER.includes(key) ? FACET_ORDER.indexOf(key) : 99);
   return [...byKey]
-    .filter(([, values]) => values.length >= 2)
-    .map(([key, values]) => ({ key, values, reach: values.reduce((n, v) => n + v.count, 0) }))
+    .filter(([key, values]) => isRelevantFacet({ key, families: reach.get(key) ?? 0, values: values.length }, total, selected))
+    .map(([key, values]) => ({ key, values, reach: reach.get(key) ?? 0 }))
     .sort((a, b) => rank(a.key) - rank(b.key) || b.reach - a.reach)
     .slice(0, MAX_FACETS)
     .map(({ key, values }) => ({
@@ -273,6 +293,25 @@ export async function getSpecFacets(filters: CatalogFilters): Promise<SpecFacet[
         .slice(0, 60)
         .map(({ value, count }) => ({ value, count })),
     }));
+}
+
+/**
+ * Suppliers that sell something in view (the category and search, any supplier), with how
+ * many products each has there. The chosen supplier stays even when it has none.
+ */
+export async function getSupplierCounts(filters: CatalogFilters) {
+  "use cache";
+  catalogCache();
+  const { where } = searchQuery({ ...filters, supplier: "" });
+  const count = sql<number>`count(DISTINCT ${families.id})::int`;
+  return db
+    .select({ code: suppliers.code, name: suppliers.name, count })
+    .from(families)
+    .leftJoin(categories, eq(categories.id, families.categoryId))
+    .innerJoin(suppliers, sql`${suppliers.code} = ANY(${families.supplierCodes})`)
+    .where(and(where, eq(suppliers.active, true)))
+    .groupBy(suppliers.code, suppliers.name)
+    .orderBy(desc(count));
 }
 
 /** Categories and suppliers that have something to show, with family counts. */

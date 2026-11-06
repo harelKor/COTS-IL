@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
 import { CardGridSkeleton, Loading } from "@/components/skeleton";
-import { getFacets, getSpecFacets, searchCards } from "@/lib/catalog";
+import { getFacets, getSpecFacets, getSupplierCounts, searchCards } from "@/lib/catalog";
 import { catalogHref, catalogQuery, PAGE_SIZE, parseFilters } from "@/lib/catalog-filters";
 
 export const metadata: Metadata = { title: "קטלוג" };
@@ -35,12 +35,16 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
   const filters = parseFilters(await searchParams);
   // Availability compares the check date with today, so this part renders per request.
   await connection();
-  const [{ cards, total }, facets, { suppliers }] = await Promise.all([
+  const [{ cards, total }, facets, suppliers, { suppliers: allSuppliers }] = await Promise.all([
     // Everything up to the page in the URL, so "back" from a family page lands where it was.
     searchCards(filters, 0, filters.page * PAGE_SIZE),
     getSpecFacets(filters),
+    getSupplierCounts(filters),
     getFacets(),
   ]);
+  // A chosen supplier with nothing here still shows, so it can be cleared.
+  const chosen = allSuppliers.find((s) => s.code === filters.supplier);
+  const shownSuppliers = chosen && !suppliers.some((s) => s.code === chosen.code) ? [...suppliers, { ...chosen, count: 0 }] : suppliers;
 
   return (
     <CatalogBrowser
@@ -50,7 +54,7 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
       total={total}
       cards={cards}
       facets={facets}
-      suppliers={suppliers.map((s) => ({ code: s.code, name: s.name, count: s.count }))}
+      suppliers={shownSuppliers.map((s) => ({ code: s.code, name: s.name, count: s.count }))}
     />
   );
 }

@@ -29,7 +29,7 @@ type Props = {
 };
 
 const SORT_LABELS: Record<Sort, string> = {
-  relevance: "רלוונטיות",
+  relevance: "מומלץ",
   "price-asc": "מחיר: מהנמוך",
   "price-desc": "מחיר: מהגבוה",
   title: "שם",
@@ -154,7 +154,6 @@ function FacetValues({ facet, chosen, onToggle }: { facet: SpecFacet; chosen: st
             }`}
           >
             <Ltr>{v.value}</Ltr>
-            <span className="opacity-60 tabular-nums">{v.count}</span>
           </button>
         );
       })}
@@ -229,7 +228,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
       ? [{ label: <Ltr>{suppliers.find((s) => s.code === filters.supplier)?.name ?? filters.supplier}</Ltr>, clear: { ...filters, supplier: "" } }]
       : []),
     ...(filters.program ? [{ label: <Ltr>{filters.program}</Ltr>, clear: { ...filters, program: "" as const } }] : []),
-    ...(filters.availableOnly ? [{ label: "זמינים בלבד", clear: { ...filters, availableOnly: false } }] : []),
+    ...(filters.availableOnly ? [{ label: "זמינים אצל הספק", clear: { ...filters, availableOnly: false } }] : []),
   ];
 
   return (
@@ -239,7 +238,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
         className="card-surface no-scrollbar hidden max-h-[calc(100dvh-96px)] flex-col gap-5 overflow-y-auto p-4 lg:sticky lg:top-[72px] lg:flex"
       >
         <Toggle on={filters.availableOnly} onChange={(on) => go({ ...filters, availableOnly: on })}>
-          זמינים במלאי בלבד
+          רק מה שזמין אצל הספק
         </Toggle>
         <section>
           <h2 className={sidebarHeading}>תוכנית</h2>
@@ -297,7 +296,6 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                         className={chip(chosen.includes(v.value))}
                       >
                         <Ltr>{v.value}</Ltr>
-                        <span className="text-caption opacity-60 tabular-nums">{v.count}</span>
                       </button>
                     ))}
                   </div>
@@ -361,9 +359,20 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
         </div>
 
         {cards.length === 0 ? (
-          <p className="rounded-card border border-dashed border-line bg-surface p-8 text-center text-muted">
-            לא מצאנו מוצרים. נסו מילה אחרת או הסירו חלק מהסינונים.
-          </p>
+          <div className="flex flex-col items-center gap-3 rounded-card border border-dashed border-line bg-surface p-8 text-center">
+            <p className="text-muted">
+              {hasFilters(filters) ? "אין מוצרים שמתאימים לכל הסינונים יחד." : "לא מצאנו מוצרים. נסו מילה אחרת או מק״ט."}
+            </p>
+            {hasFilters(filters) && (
+              <button
+                type="button"
+                onClick={() => go({ ...filters, supplier: "", program: "", availableOnly: false, specs: {} })}
+                className="flex h-11 items-center rounded-full bg-foreground px-5 font-medium text-background"
+              >
+                ניקוי הסינונים
+              </button>
+            )}
+          </div>
         ) : filters.view === "list" ? (
           <ul className="card-surface px-4">
             {cards.map((c) => (
@@ -405,7 +414,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
           </div>
           <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-5">
             <Toggle on={filters.availableOnly} onChange={(on) => go({ ...filters, availableOnly: on })}>
-              זמינים במלאי בלבד
+              רק מה שזמין אצל הספק
             </Toggle>
             <section className="flex flex-col gap-2">
               <h3 className="font-semibold">תוכנית</h3>
