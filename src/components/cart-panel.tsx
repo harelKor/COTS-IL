@@ -357,7 +357,7 @@ function StudentSend({ shareUrl }: { shareUrl: string }) {
  * sharing, and the one primary action for whoever is looking (a guest signs in,
  * a mentor sends, a student passes it to the mentor).
  */
-export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
+export function CartPanel({ onNavigate, pasteSignal = 0 }: { onNavigate?: () => void; pasteSignal?: number }) {
   const cart = useCart();
   const { lines, mode } = cart;
   const { count, totalIls } = cartTotals(lines);
@@ -365,6 +365,12 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
   const [costOpen, setCostOpen] = useState(false);
   const [sent, setSent] = useState<{ orderId: string; number: number } | null>(null);
   const [dropped, setDropped] = useState<string | undefined>();
+  // "הדבקת BOM" elsewhere on the site opens the sheet with the paste box open.
+  const [seenPasteSignal, setSeenPasteSignal] = useState(pasteSignal);
+  if (pasteSignal !== seenPasteSignal) {
+    setSeenPasteSignal(pasteSignal);
+    setPasting(true);
+  }
   const shareUrl = typeof window === "undefined" ? "" : `${window.location.origin}/cart/shared?items=${encodeCart(lines)}`;
 
   async function copyShare() {

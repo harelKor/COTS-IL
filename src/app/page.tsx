@@ -1,6 +1,8 @@
-import Form from "next/form";
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
+import { CategoryIcon } from "@/components/category-icon";
+import { HomeCommandBar } from "@/components/home-command-bar";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
 import { ReorderButton } from "@/components/reorder-button";
@@ -57,16 +59,27 @@ async function Browse() {
   return (
     <>
       <section>
-        <h2 className="mb-3 text-section font-semibold">קטגוריות</h2>
+        <h2 className="mb-4 text-section font-semibold">קטגוריות</h2>
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {categories.map((c) => (
             <li key={c.slug}>
               <Link
                 href={catalogHref({ category: c.slug })}
-                className="flex h-full flex-col rounded-card bg-surface p-4 transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift"
+                className="group card-surface flex h-full flex-col gap-4 p-5 transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift"
               >
-                <span className="font-medium">{c.name}</span>
-                <span className="text-caption text-muted">{c.count.toLocaleString("he-IL")} מוצרים</span>
+                <span className="flex items-start justify-between gap-2">
+                  <CategoryIcon slug={c.slug} />
+                  <ChevronLeft
+                    size={20}
+                    strokeWidth={1.75}
+                    aria-hidden
+                    className="text-muted transition duration-200 ease-out group-hover:-translate-x-1 group-hover:text-brand"
+                  />
+                </span>
+                <span className="flex flex-col">
+                  <span className="text-[17px] leading-snug font-semibold">{c.name}</span>
+                  <span className="text-caption text-muted">{c.count.toLocaleString("he-IL")} מוצרים</span>
+                </span>
               </Link>
             </li>
           ))}
@@ -74,16 +87,18 @@ async function Browse() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-section font-semibold">ספקים</h2>
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <h2 className="mb-4 text-section font-semibold">ספקים</h2>
+        <ul className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 lg:grid-cols-4">
           {suppliers.map((s) => (
             <li key={s.code}>
               <Link
                 href={catalogHref({ supplier: s.code })}
-                className="flex h-full flex-col rounded-card bg-surface p-4 transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift"
+                className="card-surface flex h-full min-h-16 items-center justify-between gap-3 px-5 py-4 transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift"
               >
-                <Ltr className="font-medium">{s.name}</Ltr>
-                <span className="text-caption text-muted">{s.count.toLocaleString("he-IL")} מוצרים</span>
+                <Ltr className="truncate text-[16px] font-semibold tracking-tight">{s.name}</Ltr>
+                <span className="shrink-0 rounded-full bg-subtle px-2.5 py-1 text-caption text-muted tabular-nums">
+                  {s.count.toLocaleString("he-IL")} מוצרים
+                </span>
               </Link>
             </li>
           ))}
@@ -101,24 +116,20 @@ export default function HomePage() {
           <TeamNotice />
         </Suspense>
 
-        <section className="py-10 text-center sm:py-16">
-          <h1 className="mb-4 text-hero-sm font-semibold sm:text-hero">
+        <section className="flex flex-col items-center gap-6 py-10 text-center sm:py-16">
+          <p className="card-surface rounded-full px-4 py-1.5 text-caption text-muted">
+            פורטל הרכש המרכזי לקבוצות <Ltr>FIRST</Ltr> בישראל · מחירים בש״ח כולל מע״מ
+          </p>
+          <h1 className="max-w-3xl text-hero-sm font-semibold sm:text-hero">
             ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים, בהזמנה אחת
           </h1>
-          <p className="mx-auto mb-8 max-w-xl text-muted">
-            מחפשים מוצרים, רואים מחיר בשקלים כולל מע״מ, ושולחים סל לספק הישראלי. הספק הישראלי מזמין מהספקים, מרכז ומוסר לקבוצה.
-            ההרשמה נדרשת רק כשמזמינים.
+          <p className="max-w-xl text-muted">
+            בונים סל מ-<Ltr>AndyMark</Ltr>, <Ltr>WCP</Ltr>, <Ltr>CTRE</Ltr> ו-<Ltr>The Thrifty Bot</Ltr>, והספק הישראלי מזמין, מרכז
+            ומוסר לקבוצה. הרשמה רק כשמזמינים.
           </p>
-          <Form action="/catalog" className="mx-auto flex max-w-xl gap-2">
-            <input
-              type="search"
-              name="q"
-              placeholder="חיפוש לפי שם או מק״ט"
-              aria-label="חיפוש"
-              className="h-12 min-w-0 flex-1 rounded-full bg-surface px-5 shadow-lift"
-            />
-            <button className="h-12 rounded-full bg-brand px-6 text-white hover:bg-brand-strong">חיפוש</button>
-          </Form>
+          <div className="w-full pt-2">
+            <HomeCommandBar />
+          </div>
         </section>
 
         <Suspense

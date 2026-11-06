@@ -13,6 +13,9 @@ import { canEditCart, useCart } from "./cart-store";
 import { Ltr } from "./ltr";
 import { showToast } from "./toast";
 
+/** Opens the search panel from anywhere on the site. */
+export const openSearch = () => window.dispatchEvent(new Event("search:open"));
+
 /** Typing in a field shouldn't open the panel when "/" is pressed. */
 function isEditable(target: EventTarget | null) {
   return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
@@ -67,7 +70,12 @@ export function SearchPanel() {
       }
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Other search triggers (the home page's command bar) open the panel with this event.
+    window.addEventListener("search:open", open);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("search:open", open);
+    };
   }, []);
 
   useEffect(() => {
@@ -143,10 +151,11 @@ export function SearchPanel() {
       <button
         type="button"
         onClick={open}
-        className="flex h-9 w-full max-w-md items-center gap-2 rounded-full bg-subtle px-4 text-caption text-muted transition-colors hover:text-foreground"
+        aria-label="חיפוש מוצר או מק״ט"
+        className="flex size-11 items-center justify-center gap-2 rounded-full text-muted transition-colors hover:text-foreground sm:h-9 sm:w-full sm:max-w-md sm:justify-start sm:bg-subtle sm:px-4 sm:text-caption"
       >
-        <Search size={16} strokeWidth={1.75} aria-hidden />
-        <span className="flex-1 truncate text-start">חיפוש מוצר או מק״ט</span>
+        <Search size={16} strokeWidth={1.75} aria-hidden className="max-sm:size-5" />
+        <span className="hidden flex-1 truncate text-start sm:block">חיפוש מוצר או מק״ט</span>
         <kbd className="hidden font-sans text-[11px] text-muted sm:inline" dir="ltr">
           Ctrl K
         </kbd>

@@ -6,6 +6,37 @@ import { formatIls } from "@/domain/pricing";
 import { CartPanel, CloseButton } from "./cart-panel";
 import { canEditCart, cartTotals, useCart } from "./cart-store";
 
+/** Opens the cart sheet from anywhere on the site. */
+export const openCart = () => window.dispatchEvent(new Event("cart:open"));
+
+/** Opens the cart sheet with the SKU/BOM paste box already open. */
+export const openCartPaste = () => window.dispatchEvent(new Event("cart:open-paste"));
+
+/**
+ * The header's cart button, so the cart (and pasting a BOM) can be found while it's still empty.
+ * Hidden for those who can't change a cart, such as the admin.
+ */
+export function CartButton() {
+  const { mode, lines } = useCart();
+  if (mode !== "loading" && !canEditCart(mode)) return null;
+  const { count } = cartTotals(lines);
+  return (
+    <button
+      type="button"
+      onClick={openCart}
+      aria-label={count > 0 ? `הסל, ${count} פריטים` : "הסל"}
+      className="relative flex size-11 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-subtle"
+    >
+      <ShoppingBag size={20} strokeWidth={1.75} aria-hidden />
+      {count > 0 && (
+        <span className="absolute end-0.5 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[11px] font-semibold text-white tabular-nums">
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </button>
+  );
+}
+
 /**
  * The cart, always under the thumb: a pill with the count and ₪ total that opens
  * the cart as a sheet, where the request is sent too. There's no checkout page.
@@ -13,14 +44,21 @@ import { canEditCart, cartTotals, useCart } from "./cart-store";
 export function CartPill() {
   const { mode, lines } = useCart();
   const sheet = useRef<HTMLDialogElement>(null);
-  const [wantOpen, setWantOpen] = useState(false);
+  const [wantOpen, setWantOpen] = useState<false | "cart" | "paste">(false);
+  // Bumped by "cart:open-paste"; the panel opens its paste box whenever it changes.
+  const [pasteSignal, setPasteSignal] = useState(0);
   const { count, totalIls } = cartTotals(lines);
   const editable = canEditCart(mode);
 
   useEffect(() => {
     // Other parts of the page (the family page's buy bar on phones) open the sheet with this event.
-    const open = () => setWantOpen(true);
+    const open = () => setWantOpen("cart");
+    const openPaste = () => {
+      setPasteSignal((n) => n + 1);
+      setWantOpen("paste");
+    };
     window.addEventListener("cart:open", open);
+    window.addEventListener("cart:open-paste", openPaste);
     // A sign-in link comes back with ?cart=open, so the sheet is waiting where the guest left it.
     const url = new URL(window.location.href);
     if (url.searchParams.get("cart") === "open") {
@@ -28,13 +66,18 @@ export function CartPill() {
       window.history.replaceState(window.history.state, "", url);
       open();
     }
-    return () => window.removeEventListener("cart:open", open);
+    return () => {
+      window.removeEventListener("cart:open", open);
+      window.removeEventListener("cart:open-paste", openPaste);
+    };
   }, []);
 
   // The sheet only exists once the cart has loaded, so an early request waits for it.
   useEffect(() => {
     if (!wantOpen || !editable || !sheet.current) return;
     if (!sheet.current.open) sheet.current.showModal();
+    // showModal focuses the close button; a paste request goes straight to the paste box.
+    if (wantOpen === "paste") sheet.current.querySelector("textarea")?.focus();
     setWantOpen(false);
   }, [wantOpen, editable]);
 
@@ -66,7 +109,7 @@ export function CartPill() {
             <CloseButton onClick={close} />
           </div>
           <div className="flex-1 overflow-y-auto px-6 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-            <CartPanel onNavigate={close} />
+            <CartPanel onNavigate={close} pasteSignal={pasteSignal} />
           </div>
         </div>
       </dialog>

@@ -131,13 +131,18 @@ h3 {
   mask-image: linear-gradient(to left, transparent, black 24px, black calc(100% - 24px), transparent);
 }
 
-/* A card on the surface color with a hairline drawn inside, plus a top highlight in dark mode. */
+/*
+ * A card on the surface color with a hairline drawn inside, plus a top highlight in dark mode.
+ * The two sit in Tailwind's inset-shadow slots, so shadow-lift or hover:shadow-lift adds to them instead of replacing them.
+ */
 @utility card-surface {
   background: var(--surface);
   border-radius: var(--radius-card);
+  --tw-inset-shadow: var(--card-highlight);
+  --tw-inset-ring-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
   box-shadow:
-    var(--card-highlight),
-    inset 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
 }
 
 /* SKUs, emails and team numbers stay left-to-right inside Hebrew text. New code uses <Ltr>. */

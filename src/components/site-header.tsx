@@ -7,6 +7,7 @@ import { getViewer, orderingTeam } from "@/lib/auth";
 import { googleSignInEnabled } from "@/lib/auth-providers";
 import { getCart, getCheckoutDefaults } from "@/lib/orders";
 import type { CartState } from "./cart-store";
+import { CartButton } from "./cart-pill";
 import { CartSync } from "./cart-sync";
 import { productHref } from "./catalog";
 import { Ltr } from "./ltr";
@@ -121,7 +122,7 @@ async function Account() {
   );
 }
 
-/** Slim frosted bar: logo, search, account. The cart is the floating pill, not a header link. */
+/** Slim frosted bar: logo, search, cart, account. The floating pill shows the cart's total once it has items. */
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-line/70 bg-glass backdrop-blur-xl backdrop-saturate-150 print:hidden">
@@ -129,9 +130,10 @@ export function SiteHeader() {
         <Link href="/" className="shrink-0 text-[17px] font-semibold tracking-tight">
           פורטל רכש <Ltr>FIRST</Ltr>
         </Link>
-        <div className="flex min-w-0 flex-1 justify-center">
+        <div className="flex min-w-0 flex-1 justify-end sm:justify-center">
           <SearchPanel />
         </div>
+        <CartButton />
         <Suspense fallback={<span className="skeleton size-8 shrink-0 rounded-full" aria-hidden />}>
           <Account />
         </Suspense>
