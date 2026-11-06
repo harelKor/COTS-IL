@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, Plus } from "lucide-react";
+import { ChevronLeft, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, ViewTransition } from "react";
 import { choose, NONE, pick } from "@/domain/families/pick";
@@ -39,9 +39,9 @@ function AvailabilityDot({ available, checkedAt }: { available: boolean | null; 
   const [color, text] =
     available === null || !fresh ? ["bg-muted", "זמינות לא אומתה"] : available ? ["bg-success", "זמין אצל הספק"] : ["bg-warning", "לא זמין כרגע"];
   return (
-    <span className="flex items-center gap-1.5 text-caption text-muted" title={text}>
+    <span className="flex min-w-0 items-center gap-1.5 text-caption text-muted" title={text}>
       <span className={`size-2 shrink-0 rounded-full ${color}`} aria-hidden />
-      <span>{text}</span>
+      <span className="truncate">{text}</span>
     </span>
   );
 }
@@ -119,56 +119,59 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
     </button>
   );
 
-  const picker = open && !singlePart && (
-    <div className="flex flex-col gap-3 rounded-xl bg-subtle p-3" role="group" aria-label="בחירת אפשרות">
-      {keys.map((key) => (
-        <div key={key} className="flex flex-col gap-1.5">
-          <span className="text-caption text-muted">{optionLabel(key)}</span>
-          <div className="flex max-h-36 flex-wrap gap-1.5 overflow-y-auto">
-            {picked.chips[key].map((chip) => (
-              <button
-                key={chip.value}
-                type="button"
-                disabled={!chip.enabled && !chip.selected}
-                aria-pressed={chip.selected}
-                onClick={() => onChip(key, chip.value)}
-                className={`min-h-11 rounded-full px-3 text-caption transition-colors ${
-                  chip.selected
-                    ? "bg-foreground text-background"
-                    : chip.enabled
-                      ? "bg-surface text-foreground hover:bg-background"
-                      : "bg-surface text-muted line-through opacity-50"
-                }`}
-              >
-                {chip.value === NONE ? "ללא" : <Ltr>{chip.value}</Ltr>}
-              </button>
-            ))}
-          </div>
+  const showPicker = open && !singlePart;
+
+  /** The option chips, one group per option. `scroll` caps each group's height, for the inline (list) picker. */
+  const optionGroups = (scroll: boolean) =>
+    keys.map((key) => (
+      <div key={key} className="flex flex-col gap-1.5">
+        <span className="text-caption text-muted">{optionLabel(key)}</span>
+        <div className={`flex flex-wrap gap-1.5 ${scroll ? "max-h-36 overflow-y-auto" : ""}`}>
+          {picked.chips[key].map((chip) => (
+            <button
+              key={chip.value}
+              type="button"
+              disabled={!chip.enabled && !chip.selected}
+              aria-pressed={chip.selected}
+              onClick={() => onChip(key, chip.value)}
+              className={`min-h-11 rounded-full px-3 text-caption transition-colors ${
+                chip.selected
+                  ? "bg-foreground text-background"
+                  : chip.enabled
+                    ? "bg-surface text-foreground shadow-[inset_0_0_0_1px_var(--line)] hover:bg-background"
+                    : "bg-surface text-muted line-through opacity-50"
+              }`}
+            >
+              {chip.value === NONE ? "ללא" : <Ltr>{chip.value}</Ltr>}
+            </button>
+          ))}
         </div>
-      ))}
-      <Link href={href} className="flex items-center gap-1 text-caption text-brand hover:underline">
-        כל הפרטים והאפשרויות
-        <ChevronLeft size={14} aria-hidden className="rtl:rotate-0 ltr:rotate-180" />
-      </Link>
-    </div>
+      </div>
+    ));
+
+  const detailsLink = (
+    <Link href={href} className="flex min-h-11 items-center gap-1 text-caption text-brand hover:underline">
+      כל הפרטים והאפשרויות
+      <ChevronLeft size={14} aria-hidden className="rtl:rotate-0 ltr:rotate-180" />
+    </Link>
   );
 
-  const photoTile = (
-    <div ref={image} className={`overflow-hidden bg-tile ${layout === "row" ? "size-16 rounded-xl p-1" : "aspect-square w-full rounded-card p-4"}`}>
-      {photo && (
-        // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={photo} alt={family.title} loading="lazy" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
-      )}
-    </div>
+  const photo_ = photo && (
+    // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={photo} alt={family.title} loading="lazy" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
   );
+
+  const availability = <AvailabilityDot available={current?.available ?? family.available} checkedAt={family.checkedAt} />;
 
   if (layout === "row") {
     return (
       <li className="flex flex-col gap-2 border-b border-line py-3 last:border-b-0">
         <div className="flex items-center gap-3">
           <Link href={href} className="shrink-0">
-            {photoTile}
+            <div ref={image} className="size-16 overflow-hidden rounded-xl bg-tile p-1">
+              {photo_}
+            </div>
           </Link>
           <Link href={href} className="min-w-0 flex-1 hover:text-brand">
             <Ltr className="line-clamp-2 text-start text-[15px] font-medium">{family.title}</Ltr>
@@ -183,47 +186,77 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
               {!current && family.variantCount > 1 && ` · ${family.variantCount.toLocaleString("he-IL")} אפשרויות`}
             </span>
           </Link>
-          <div className="hidden w-32 sm:block">
-            <AvailabilityDot available={current?.available ?? family.available} checkedAt={family.checkedAt} />
-          </div>
+          <div className="hidden w-32 sm:block">{availability}</div>
           <span className="w-20 shrink-0 text-end text-[15px] font-semibold">{price}</span>
           <div className="flex w-28 shrink-0 justify-end">{action}</div>
         </div>
-        {picker}
+        {showPicker && (
+          <div className="flex flex-col gap-3 rounded-xl bg-subtle p-3" role="group" aria-label="בחירת אפשרות">
+            {optionGroups(true)}
+            {detailsLink}
+          </div>
+        )}
       </li>
     );
   }
 
   return (
-    <li className="flex flex-col gap-2">
-      <Link href={href} className="group flex flex-col gap-3 rounded-card p-1 transition-transform duration-200 ease-out hover:-translate-y-0.5">
+    <li className="card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift">
+      <Link href={href} className="flex flex-col gap-3">
         <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
-          <div className="rounded-card transition-shadow duration-200 group-hover:shadow-lift">{photoTile}</div>
+          <div ref={image} className="relative aspect-square w-full overflow-hidden rounded-xl bg-tile p-3 ring-1 ring-black/5">
+            {photo_}
+            {familyInCart > 0 && (
+              <span className="absolute end-2 top-2 rounded-full bg-foreground px-2 py-0.5 text-[12px] font-medium text-background tabular-nums">
+                בסל: {familyInCart}
+              </span>
+            )}
+          </div>
         </ViewTransition>
-        <div className="flex flex-col gap-1 px-1">
-          <span className="flex items-center justify-between gap-2 text-caption text-muted">
-            <Ltr className="truncate">{family.supplierNames.join(" · ")}</Ltr>
-            {familyInCart > 0 && <span className="shrink-0 rounded-full bg-subtle px-2 text-foreground">בסל: {familyInCart}</span>}
-          </span>
-          <h2 dir="ltr" className="line-clamp-2 text-start text-[15px] font-medium tracking-normal">
+        <div className="flex flex-col gap-1">
+          <Ltr className="truncate text-start text-caption text-muted">{family.supplierNames.join(" · ")}</Ltr>
+          <h2 dir="ltr" className="line-clamp-2 text-start text-[15px] leading-snug font-medium tracking-normal">
             {family.title}
           </h2>
           {current && keys.length > 0 && (
-            <Ltr className="truncate text-caption text-muted">{keys.flatMap((k) => (current.options[k] ? [current.options[k]] : [])).join(" · ")}</Ltr>
+            <Ltr className="truncate text-start text-caption text-muted">
+              {keys.flatMap((k) => (current.options[k] ? [current.options[k]] : [])).join(" · ")}
+            </Ltr>
           )}
+          {availability}
         </div>
       </Link>
-      <div className="flex items-end justify-between gap-2 px-1">
+
+      <div className="flex items-end justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-[15px] font-semibold">{price}</span>
           {!current && family.variantCount > 1 && (
             <span className="text-caption text-muted">{family.variantCount.toLocaleString("he-IL")} אפשרויות</span>
           )}
-          <AvailabilityDot available={current?.available ?? family.available} checkedAt={family.checkedAt} />
         </div>
         {action}
       </div>
-      {picker}
+
+      {/* The picker covers the card above its "+" instead of growing it, so every card in the row keeps its height. */}
+      {showPicker && (
+        <div
+          role="group"
+          aria-label="בחירת אפשרות"
+          onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+          className="absolute inset-x-2 top-2 bottom-16 z-20 flex flex-col gap-2 rounded-xl border border-line bg-glass p-3 shadow-lift backdrop-blur-xl transition duration-150 ease-out starting:scale-95 starting:opacity-0"
+        >
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="סגירה"
+            className="absolute end-0.5 top-0.5 z-10 flex size-11 items-center justify-center rounded-full text-muted hover:text-foreground"
+          >
+            <X size={18} strokeWidth={1.75} aria-hidden />
+          </button>
+          <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">{optionGroups(false)}</div>
+          {detailsLink}
+        </div>
+      )}
     </li>
   );
 }

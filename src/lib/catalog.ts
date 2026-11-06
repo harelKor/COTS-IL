@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { db, schema } from "@/db";
+import { ACCESSORY_TITLE_PATTERN, HARDWARE_CATEGORIES, MAIN_ITEM_MIN_USD } from "@/domain/catalog-rank";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
 import { searchPatterns, type CatalogFilters } from "./catalog-filters";
@@ -56,6 +57,15 @@ function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
       sql`${categories.slug} = 'other' ASC NULLS LAST`,
       sql`extensions.similarity(${families.title}, ${filters.q}) DESC`,
     );
+  } else if (filters.sort === "relevance") {
+    // Browsing with no search: what a team came for first, the screws and spacers filed with it after.
+    // The same steps as rankKey in src/domain/catalog-rank.ts.
+    order.push(
+      sql`${families.available} IS TRUE DESC`,
+      sql`(${families.title} ~* ${ACCESSORY_TITLE_PATTERN} AND coalesce(${categories.slug}, '') NOT IN (${sql.join(HARDWARE_CATEGORIES.map((c) => sql`${c}`), sql`, `)})) ASC`,
+      sql`(coalesce(${families.minPriceUsd}, 0) >= ${MAIN_ITEM_MIN_USD} OR ${families.variantCount} >= 3) DESC`,
+    );
+    if (!filters.category) order.push(sql`${categories.slug} = 'other' ASC NULLS LAST`);
   }
   order.push(asc(families.title));
   return { where, order };

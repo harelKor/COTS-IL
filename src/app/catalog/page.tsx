@@ -18,7 +18,7 @@ async function CategoryChips({ searchParams }: PageProps<"/catalog">) {
       on ? "bg-foreground text-background" : "bg-subtle text-foreground hover:bg-line/60"
     }`;
   return (
-    <nav aria-label="קטגוריות" className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 md:-mx-12 md:px-12">
+    <nav aria-label="קטגוריות" className="no-scrollbar scroll-fade-x -mx-6 flex gap-2 overflow-x-auto px-6 pb-1 md:-mx-12 md:px-12">
       <Link href={catalogHref({ q: filters.q })} className={chip(!filters.category)}>
         הכל
       </Link>
@@ -50,7 +50,7 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
       total={total}
       cards={cards}
       facets={facets}
-      suppliers={suppliers.map((s) => ({ code: s.code, name: s.name }))}
+      suppliers={suppliers.map((s) => ({ code: s.code, name: s.name, count: s.count }))}
     />
   );
 }
