@@ -13,7 +13,7 @@ export function DeliveryNote({ delivery, team, items }: Delivery) {
         <div>
           <h1 className="text-2xl font-bold">תעודת משלוח {delivery.number}</h1>
           <p className="text-sm text-muted">
-            {team.name} · <span className="ltr">{`${team.program} ${team.number}`}</span>
+            {team.name}, <span className="ltr">{`${team.program} ${team.number}`}</span>
           </p>
         </div>
         <div className="text-sm">
@@ -56,7 +56,7 @@ export function DeliveryNote({ delivery, team, items }: Delivery) {
         <p className="text-sm">
           נמסר ל{delivery.recipientName} בתאריך{" "}
           <span className="ltr">{delivery.deliveredAt && date.format(delivery.deliveredAt)}</span>
-          {delivery.proofNote && ` · ${delivery.proofNote}`}
+          {delivery.proofNote && `, ${delivery.proofNote}`}
         </p>
       ) : (
         <p className="mt-6 hidden text-sm print:block">שם המקבל: _______________ חתימה: _______________ תאריך: __________</p>

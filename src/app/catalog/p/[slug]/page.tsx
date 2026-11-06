@@ -26,10 +26,10 @@ export async function generateMetadata({ params }: PageProps<"/catalog/p/[slug]"
   const { family } = result;
   const suppliers = [...new Set(result.variants.map((v) => v.supplierName))].join(", ");
   const low = priceIls(family.minPriceUsd);
-  const price = low === null ? "" : `${family.variantCount > 1 ? "החל מ-" : ""}${formatIls(low)} כולל מע״מ · `;
+  const price = low === null ? "" : `${family.variantCount > 1 ? "החל מ-" : ""}${formatIls(low)} כולל מע״מ, `;
   const text = isRealDescription(family.descriptionHtml) ? descriptionText(family.descriptionHtml) : "";
-  const description = metaDescription(`${price}${suppliers}${text ? ` · ${text}` : ""}`);
-  const title = `${family.title} · ${suppliers}`;
+  const description = metaDescription(`${price}${suppliers}${text ? `, ${text}` : ""}`);
+  const title = `${family.title}, ${suppliers}`;
   const images = family.images[0] ? [{ url: family.images[0], alt: family.title }] : undefined;
 
   return {

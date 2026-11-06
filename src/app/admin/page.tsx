@@ -112,10 +112,10 @@ async function TeamsTable() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <div className="font-medium">
-                      {team.name} · <span className="ltr">{`${team.program} ${team.number}`}</span>
+                      {team.name}, <span className="ltr">{`${team.program} ${team.number}`}</span>
                     </div>
                     <div className="text-sm text-muted">
-                      {team.contactName} · <span className="ltr">{team.contactPhone}</span> ·{" "}
+                      {team.contactName}, <span className="ltr">{team.contactPhone}</span>,{" "}
                       <span className="ltr">{email}</span>
                     </div>
                     {team.address && <div className="text-sm text-muted">{team.address}</div>}

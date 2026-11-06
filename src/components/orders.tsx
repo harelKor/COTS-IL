@@ -41,7 +41,7 @@ export function ItemDescription({ item }: { item: Pick<OrderItem, "title" | "sup
       <div className="font-medium">{item.title}</div>
       {item.options.length > 0 && <div className="text-xs">{item.options.map((o) => o.value).join(" / ")}</div>}
       <div className="text-xs text-muted">
-        {item.supplierName} · {item.supplierSku ?? "no supplier SKU"}
+        {item.supplierName}, {item.supplierSku ?? "no supplier SKU"}
       </div>
     </div>
   );
@@ -93,7 +93,7 @@ function ProgressNote({ progress }: { progress?: LineProgress }) {
   return (
     <div className="mt-1 text-xs text-success">
       {LINE_STAGE_LABELS[stage]}
-      {progress.delivered > 0 && stage !== "delivered" && ` · נמסרו ${progress.delivered} מתוך ${progress.quoted}`}
+      {progress.delivered > 0 && stage !== "delivered" && `, נמסרו ${progress.delivered} מתוך ${progress.quoted}`}
     </div>
   );
 }

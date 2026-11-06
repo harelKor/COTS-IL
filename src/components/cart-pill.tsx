@@ -95,7 +95,7 @@ export function CartPill() {
         >
           <ShoppingBag size={20} strokeWidth={1.75} aria-hidden />
           <span className="text-[15px] font-medium">
-            סל · <span className="tabular-nums">{count}</span>
+            סל <span className="rounded-full bg-background/20 px-2 py-0.5 text-[13px] tabular-nums">{count}</span>
           </span>
           <span className="h-4 w-px bg-current opacity-30" aria-hidden />
           <span className="text-[15px] font-semibold tabular-nums">{formatIls(totalIls)}</span>

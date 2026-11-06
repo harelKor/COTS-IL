@@ -85,7 +85,7 @@ async function Shortages() {
                   <tr key={`${line.poId}-${line.supplierSku}-${line.title}`} className="border-t border-line align-top">
                     <td className="whitespace-nowrap p-2">
                       <Link href={`/admin/purchasing/${line.poId}`} className="hover:text-brand">
-                        {line.poNumber} · <span className="ltr">{line.supplierName}</span>
+                        {line.poNumber}, <span className="ltr">{line.supplierName}</span>
                       </Link>
                     </td>
                     <td dir="ltr" className="p-2 text-start">

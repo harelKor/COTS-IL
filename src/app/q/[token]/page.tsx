@@ -34,7 +34,7 @@ async function Approval({ params }: PageProps<"/q/[token]">) {
     <div className="flex flex-col gap-5">
       <div>
         <p className="text-caption text-muted">
-          {link.team.name} · <Ltr>{`${link.team.program} ${link.team.number}`}</Ltr> · עבור {link.mentor}
+          {link.team.name}, <Ltr>{`${link.team.program} ${link.team.number}`}</Ltr>, עבור {link.mentor}
         </p>
         <h1 className="text-title font-semibold">
           הצעת מחיר להזמנה {link.orderNumber}, גרסה {link.quote.version}

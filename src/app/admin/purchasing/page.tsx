@@ -37,14 +37,14 @@ function SupplierBoard({ demand }: { demand: SupplierDemand }) {
                 <td dir="ltr" className="p-3 text-start">
                   <div className="font-medium">{line.title}</div>
                   <div className="text-xs text-muted">
-                    {[describeOptions(line.options), line.supplierSku ?? "no supplier SKU"].filter(Boolean).join(" · ")}
+                    {[describeOptions(line.options), line.supplierSku ?? "no supplier SKU"].filter(Boolean).join(", ")}
                   </div>
                 </td>
                 <td className="p-3 font-semibold">{line.qty}</td>
                 <td className="p-3 text-xs">
                   {line.allocations.map((a) => (
                     <div key={a.orderItemId}>
-                      <span className="ltr">{a.teamLabel}</span> · הזמנה {a.orderNumber}: {a.qty}
+                      <span className="ltr">{a.teamLabel}</span>, הזמנה {a.orderNumber}: {a.qty}
                     </div>
                   ))}
                 </td>

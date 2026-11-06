@@ -65,7 +65,7 @@ async function AdminOrder({ params }: PageProps<"/admin/orders/[id]">) {
         <div>
           <h1 className="text-2xl font-bold">הזמנה {order.number}</h1>
           <p className="text-sm text-muted">
-            {team.name} · <span className="ltr">{`${team.program} ${team.number}`}</span> · נשלחה{" "}
+            {team.name}, <span className="ltr">{`${team.program} ${team.number}`}</span>, נשלחה{" "}
             <span className="ltr">{formatDateTime(order.submittedAt)}</span>
           </p>
         </div>
@@ -79,7 +79,7 @@ async function AdminOrder({ params }: PageProps<"/admin/orders/[id]">) {
         </div>
         <div>
           <span className="text-muted">איש קשר: </span>
-          {order.contactName} · <span className="ltr">{order.contactPhone}</span>
+          {order.contactName}, <span className="ltr">{order.contactPhone}</span>
         </div>
         {order.notes && (
           <div className="whitespace-pre-wrap">

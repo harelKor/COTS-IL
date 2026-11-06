@@ -242,8 +242,8 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
       <p className="print:hidden">
         <Link href="/admin/shortages" className="text-sm text-brand hover:underline">
           לדוח החוסרים
-        </Link>{" "}
-        · <ExportLink type="shortages" query={suffix} />
+        </Link>
+        ,{" "}<ExportLink type="shortages" query={suffix} />
       </p>
     </div>
   );

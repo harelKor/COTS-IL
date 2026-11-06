@@ -46,7 +46,7 @@ async function Shared({ searchParams }: PageProps<"/cart/shared">) {
             <Link href={l.href} className="min-w-0 flex-1 hover:text-brand">
               <Ltr className="line-clamp-2 text-start text-[15px] font-medium">{l.title}</Ltr>
               <span className="block truncate text-caption text-muted">
-                <Ltr>{[l.supplierName, l.options, l.sku].filter(Boolean).join(" · ")}</Ltr>
+                <Ltr>{[l.supplierName, l.options, l.sku].filter(Boolean).join(", ")}</Ltr>
               </span>
             </Link>
             <span className="shrink-0 text-caption text-muted tabular-nums">×{l.qty}</span>

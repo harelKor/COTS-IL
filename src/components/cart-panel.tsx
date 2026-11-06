@@ -63,7 +63,7 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
             <Ltr className="line-clamp-2 text-start text-[15px] font-medium">{line.title}</Ltr>
           </Link>
           <span className="truncate text-caption text-muted">
-            <Ltr>{[line.supplierName, line.options, line.sku].filter(Boolean).join(" · ")}</Ltr>
+            <Ltr>{[line.supplierName, line.options, line.sku].filter(Boolean).join(", ")}</Ltr>
           </span>
           <div className="flex items-center justify-between gap-2">
             <QtyStepper variantId={line.variantId} qty={line.qty} label={line.title} />
@@ -119,10 +119,10 @@ function PasteList({ initial, onDone }: { initial?: string; onDone: () => void }
             נמצאו {found.length} מתוך {matches.length}
             {matches.length - found.length > 0 && (
               <>
-                {" "}· לא נמצאו: <Ltr className="font-mono">{matches.filter((m) => !m.line).map((m) => m.sku).join(", ")}</Ltr>
+                , לא נמצאו: <Ltr className="font-mono">{matches.filter((m) => !m.line).map((m) => m.sku).join(", ")}</Ltr>
               </>
             )}
-            {skipped.length > 0 && ` · ${skipped.length} שורות לא נקראו`}
+            {skipped.length > 0 && `, ${skipped.length} שורות לא נקראו`}
           </p>
           {found.length > 0 && (
             <button
@@ -170,7 +170,7 @@ function MentorSend({ checkout, isNew, onSent }: { checkout: Checkout; isNew: bo
     changes.contactPhone,
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(", ");
   const err = (k: string) => errors[k]?.map((e) => <span key={e} className="text-caption text-danger">{e}</span>);
 
   return (

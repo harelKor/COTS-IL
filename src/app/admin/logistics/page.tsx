@@ -46,7 +46,7 @@ async function Shipments() {
               </td>
               <td className="px-4 py-2">
                 <Link href={`/admin/purchasing/${s.poId}`} className="hover:text-brand">
-                  {s.poNumber} · <span className="ltr">{s.supplierName}</span>
+                  {s.poNumber}, <span className="ltr">{s.supplierName}</span>
                 </Link>
               </td>
               <td className="ltr px-4 py-2">{[s.carrier, s.tracking].filter(Boolean).join(" ")}</td>

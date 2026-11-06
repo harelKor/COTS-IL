@@ -41,7 +41,7 @@ async function Orders() {
             <div>
               <div className="font-medium">הזמנה {order.number}</div>
               <div className="text-xs text-muted">
-                {formatDateTime(order.submittedAt)} · {order.lineCount} שורות
+                {formatDateTime(order.submittedAt)}, {order.lineCount} שורות
               </div>
             </div>
             <div className="flex items-center gap-3">

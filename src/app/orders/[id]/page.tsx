@@ -38,7 +38,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
         <div>
           <h1 className="text-2xl font-bold">הזמנה {order.number}</h1>
           <p className="text-sm text-muted">
-            {team.name} · <span className="ltr">{`${team.program} ${team.number}`}</span> · נשלחה{" "}
+            {team.name}, <span className="ltr">{`${team.program} ${team.number}`}</span>, נשלחה{" "}
             <span className="ltr">{formatDateTime(order.submittedAt)}</span>
           </p>
         </div>
@@ -60,7 +60,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
         </div>
         <div>
           <span className="text-muted">איש קשר: </span>
-          {order.contactName} · <span className="ltr">{order.contactPhone}</span>
+          {order.contactName}, <span className="ltr">{order.contactPhone}</span>
         </div>
         {order.notes && (
           <div className="whitespace-pre-wrap">
@@ -107,7 +107,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           <h2 className="font-semibold">תעודות משלוח</h2>
           {deliveries.map((d) => (
             <Link key={d.id} href={`/deliveries/${d.id}`} className="text-brand hover:underline">
-              תעודה {d.number} · {d.status === "delivered" ? "נמסרה" : "בהכנה"}
+              תעודה {d.number}, {d.status === "delivered" ? "נמסרה" : "בהכנה"}
             </Link>
           ))}
         </section>
@@ -120,7 +120,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
             {quotes.slice(1).map((quote, i) => (
               <div key={quote.id}>
                 <h3 className="mb-2 font-medium">
-                  גרסה {quote.version} · <span className="ltr">{formatDateTime(quote.sentAt)}</span>
+                  גרסה {quote.version}, <span className="ltr">{formatDateTime(quote.sentAt)}</span>
                 </h3>
                 <QuoteTable quote={quote} previous={quotes[i + 2]} items={items} />
               </div>

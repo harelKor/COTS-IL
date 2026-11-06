@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       href: familyHref(r.slug),
       title: r.title,
       image: r.image,
-      supplierName: r.supplierNames.join(" · "),
+      supplierName: r.supplierNames.join(", "),
       priceIls: low,
       fromPrice: high !== null && high !== low,
       available: r.available,

@@ -309,7 +309,7 @@ export function FamilyView({ family, variants, initialVariantId }: Props) {
                 className="flex h-9 items-center gap-2 rounded-full bg-foreground px-3 text-caption font-medium text-background"
               >
                 <ShoppingBag size={16} strokeWidth={1.75} aria-hidden />
-                סל · <span className="tabular-nums">{cartCount}</span>
+                סל <span className="rounded-full bg-background/20 px-1.5 tabular-nums">{cartCount}</span>
               </button>
             )}
           </div>

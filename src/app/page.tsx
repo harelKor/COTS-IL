@@ -43,7 +43,7 @@ async function TeamNotice() {
           <Link href={`/orders/${last.id}`} className="min-w-0 hover:text-brand">
             <span className="block font-medium">ההזמנה האחרונה: מס׳ {last.number}</span>
             <span className="block text-caption text-muted">
-              {last.lineCount} שורות · {formatIls(last.quoteTotal ?? last.requestTotal)}
+              {last.lineCount} שורות, {formatIls(last.quoteTotal ?? last.requestTotal)}
             </span>
           </Link>
           <ReorderButton orderId={last.id} />
@@ -118,7 +118,7 @@ export default function HomePage() {
 
         <section className="flex flex-col items-center gap-6 py-10 text-center sm:py-16">
           <p className="card-surface rounded-full px-4 py-1.5 text-caption text-muted">
-            פורטל הרכש המרכזי לקבוצות <Ltr>FIRST</Ltr> בישראל · מחירים בש״ח כולל מע״מ
+            פורטל הרכש המרכזי לקבוצות <Ltr>FIRST</Ltr> בישראל, מחירים בש״ח כולל מע״מ
           </p>
           <h1 className="max-w-3xl text-hero-sm font-semibold sm:text-hero">
             ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים, בהזמנה אחת

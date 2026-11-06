@@ -49,7 +49,7 @@ async function Team() {
   return (
     <div className="flex flex-col gap-6">
       <p className="text-sm text-muted">
-        {details.name} · <span className="ltr">{`${details.program} ${details.number}`}</span> · ההרשאה שלכם:{" "}
+        {details.name}, <span className="ltr">{`${details.program} ${details.number}`}</span>, ההרשאה שלכם:{" "}
         {ROLE_LABELS[team.role]}
       </p>
 
@@ -103,7 +103,7 @@ async function Team() {
               {invitations.map((invitation) => (
                 <li key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-2">
                   <span>
-                    <span className="ltr">{invitation.email}</span> · {ROLE_LABELS[invitation.role]} · ממתין להצטרפות
+                    <span className="ltr">{invitation.email}</span>, {ROLE_LABELS[invitation.role]}, ממתין להצטרפות
                   </span>
                   <form action={revokeInvitation}>
                     <input type="hidden" name="id" value={invitation.id} />

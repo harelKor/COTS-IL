@@ -20,7 +20,7 @@ function TeamBoard({ rows }: { rows: Ready[] }) {
   return (
     <ActionForm action={createDelivery} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
       <h3 className="font-semibold">
-        {first.teamName} · <span className="ltr">{`${first.teamProgram} ${first.teamNumber}`}</span>
+        {first.teamName}, <span className="ltr">{`${first.teamProgram} ${first.teamNumber}`}</span>
       </h3>
       <input type="hidden" name="teamId" value={first.teamId} />
       <ul className="flex flex-col">
@@ -33,7 +33,7 @@ function TeamBoard({ rows }: { rows: Ready[] }) {
                 <div className="text-xs text-muted">
                   {[describeOptions(row.options), row.supplierSku ?? "no supplier SKU", `#${row.orderNumber}`, row.location]
                     .filter(Boolean)
-                    .join(" · ")}
+                    .join(", ")}
                 </div>
               </div>
               <label className="flex items-center gap-1 text-xs">
@@ -109,7 +109,7 @@ async function Deliveries() {
                       </Link>
                     </td>
                     <td className="px-4 py-2">
-                      {teamName} · <span className="ltr">{`${teamProgram} ${teamNumber}`}</span>
+                      {teamName}, <span className="ltr">{`${teamProgram} ${teamNumber}`}</span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-2">
                       <span className="ltr">{formatDateTime(delivery.createdAt)}</span>

@@ -176,14 +176,14 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
           <Link href={href} className="min-w-0 flex-1 hover:text-brand">
             <Ltr className="line-clamp-2 text-start text-[15px] font-medium">{family.title}</Ltr>
             <span className="block truncate text-caption text-muted">
-              <Ltr>{family.supplierNames.join(" · ")}</Ltr>
+              <Ltr>{family.supplierNames.join(", ")}</Ltr>
               {current?.sku && (
                 <>
-                  {" · "}
+                  {", "}
                   <Ltr className="font-mono">{current.sku}</Ltr>
                 </>
               )}
-              {!current && family.variantCount > 1 && ` · ${family.variantCount.toLocaleString("he-IL")} אפשרויות`}
+              {!current && family.variantCount > 1 && `, ${family.variantCount.toLocaleString("he-IL")} אפשרויות`}
             </span>
           </Link>
           <div className="hidden w-32 sm:block">{availability}</div>
@@ -214,13 +214,13 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
           </div>
         </ViewTransition>
         <div className="flex flex-col gap-1">
-          <Ltr className="truncate text-start text-caption text-muted">{family.supplierNames.join(" · ")}</Ltr>
+          <Ltr className="truncate text-start text-caption text-muted">{family.supplierNames.join(", ")}</Ltr>
           <h2 dir="ltr" className="line-clamp-2 text-start text-[15px] leading-snug font-medium tracking-normal">
             {family.title}
           </h2>
           {current && keys.length > 0 && (
             <Ltr className="truncate text-start text-caption text-muted">
-              {keys.flatMap((k) => (current.options[k] ? [current.options[k]] : [])).join(" · ")}
+              {keys.flatMap((k) => (current.options[k] ? [current.options[k]] : [])).join(", ")}
             </Ltr>
           )}
           {availability}

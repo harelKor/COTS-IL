@@ -41,12 +41,11 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
         <h1 className="text-2xl font-bold">משלוח {shipment.number}</h1>
         <p className="text-sm text-muted">
           <Link href={`/admin/purchasing/${po.id}`} className="hover:text-brand">
-            הזמנת ספק {po.number} · <span className="ltr">{supplierName}</span>
+            הזמנת ספק {po.number}, <span className="ltr">{supplierName}</span>
           </Link>
           {(shipment.carrier || shipment.tracking) && (
             <>
-              {" "}
-              · <span className="ltr">{[shipment.carrier, shipment.tracking].filter(Boolean).join(" ")}</span>
+              , <span className="ltr">{[shipment.carrier, shipment.tracking].filter(Boolean).join(" ")}</span>
             </>
           )}
         </p>
@@ -65,7 +64,7 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
               <div dir="ltr" className="text-start text-sm">
                 <div className="font-medium">{item.title}</div>
                 <div className="text-xs text-muted">
-                  {[describeOptions(item.options), item.supplierSku ?? "no supplier SKU"].filter(Boolean).join(" · ")}
+                  {[describeOptions(item.options), item.supplierSku ?? "no supplier SKU"].filter(Boolean).join(", ")}
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -109,7 +108,7 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
         <section key={receiptId} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-semibold">
-              קליטה · <span className="ltr">{formatDateTime(rows[0].receivedAt)}</span>
+              קליטה, <span className="ltr">{formatDateTime(rows[0].receivedAt)}</span>
             </h2>
             <ActionForm action={reverseReceipt}>
               <input type="hidden" name="receiptId" value={receiptId} />

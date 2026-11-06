@@ -223,11 +223,11 @@ export function SearchPanel() {
                       <Ltr>{r.supplierName}</Ltr>
                       {r.sku && (
                         <>
-                          {" · "}
+                          {", "}
                           <Ltr className="font-mono">{r.sku}</Ltr>
                         </>
                       )}
-                      {r.variantCount > 1 && ` · ${r.variantCount} אפשרויות`}
+                      {r.variantCount > 1 && `, ${r.variantCount} אפשרויות`}
                     </span>
                   </span>
                   <span className="shrink-0 text-[15px] font-semibold">
