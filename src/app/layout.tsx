@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
 import { CartPill } from "@/components/cart-pill";
+import { CAPTURE_INSTALL_PROMPT } from "@/lib/install-prompt";
 import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/toast";
 import "./globals.css";
@@ -18,6 +19,9 @@ export const metadata: Metadata = {
   title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
   description: "ציוד FRC ו-FTC מכל הספקים בהזמנה אחת, במחירים בשקלים כולל מע״מ",
   openGraph: { siteName: SITE_NAME, locale: "he_IL", type: "website" },
+  // Installed from Safari, the app opens full screen with its own name and icon.
+  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "default" },
+  icons: { apple: "/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
@@ -30,6 +34,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="he" dir="rtl" className={`${heebo.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
+        {/* Before hydration, so the browser's install prompt isn't missed (src/components/install-app.tsx). */}
+        <script dangerouslySetInnerHTML={{ __html: CAPTURE_INSTALL_PROMPT }} />
         <SiteHeader />
         <main className="mx-auto w-full max-w-[1200px] flex-1 px-6 pt-8 pb-28 md:px-12">{children}</main>
         <CartPill />

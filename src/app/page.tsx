@@ -3,6 +3,7 @@ import { Suspense, ViewTransition } from "react";
 import { sized } from "@/components/catalog";
 import { CategoryIcon } from "@/components/category-icon";
 import { HomeCommandBar } from "@/components/home-command-bar";
+import { InstallAppButton } from "@/components/install-app";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
 import { ReorderButton } from "@/components/reorder-button";
@@ -210,6 +211,7 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
+            <InstallAppButton />
           </div>
         </section>
 
