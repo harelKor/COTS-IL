@@ -85,21 +85,32 @@ Rules that keep the budget:
 - Optimistic UI: the cart updates instantly and syncs in the background. Page changes use view transitions, never a blank reload.
 - Sheets, not pages, for sign-in, options and the cart, so the shopper never loses their place.
 
-### Visual language (Apple-like)
+### Visual language (COTS-IL Blue & White Fade)
 
-Calm, spacious chrome with the product photo as the hero; dense data appears only where engineers look for it (spec table, list view).
+Calm, spacious chrome with the product photo as the hero; dense data appears only where engineers look for it (spec table, list view). Since Nov 6, 2026 the look is the **COTS-IL** brand on a light-only **Blue & White Fade** palette, after FRC Team 1690's royal cobalt blue and crisp white: soft atmospheric fades from ice blue to white, cobalt hairlines, and tactile buttons that press like a social app's. It replaces the earlier Apple-like greys and the dark theme.
+
+Why light only: supplier product photos are shot on white. On a white and ice-blue page they look native; on a black page they turn into glowing white boxes. So there is no `prefers-color-scheme: dark` override, `color-scheme` is always `light`, and no component uses Tailwind's `dark:` variant.
 
 | Element | Spec |
 | --- | --- |
 | Font | System stack first: `-apple-system, "SF Pro Text", "SF Hebrew", "Segoe UI", Heebo, sans-serif` (real SF on Apple devices, Heebo fallback). Mono for SKUs: `ui-monospace, "SF Mono", "JetBrains Mono"` |
 | Type scale | 48/40 hero, 28 page title, 20 section, 17 body, 13 caption; headlines weight 600, tight tracking (−0.02em) |
-| Colour | Background #FBFBFD, surface #FFFFFF, text #1D1D1F, secondary #6E6E73, hairline #D2D2D7, one accent blue #0071E3; status green #1E8E3E / amber #B26A00 / red #D70015. Dark: #000 / #1C1C1E / #F5F5F7 |
-| Cards | No border; image on a #F5F5F7 tile; radius 18; on hover lift 2px + soft shadow |
-| Buttons | Pill shape (radius 980), 44px tall, accent fill for the primary, plain text for everything else |
-| Header | Sticky, translucent with `backdrop-blur` (frosted glass), 52px tall, hairline bottom border |
+| Brand | The name is **COTS-IL** everywhere: `<title>`, metadata, header, emails, pages. Never "פורטל רכש FIRST". The header mark is a royal-blue `.btn-brand` badge (`size-9 rounded-xl`), the word COTS-IL in an 19px extrabold navy-to-cobalt gradient inside `<Ltr>`, and a small "FRC / FTC" pill from `sm` up |
+| Colour (light only) | Background #F6F9FF, surface #FFFFFF, subtle #ECF3FF (hover #DCE8FF), text #0B1528 (deep navy-slate), secondary #52658A (cool cobalt-slate, never a dead grey), hairline #D8E4FA, brand #1D4ED8 (Orbit royal cobalt; strong #1E3A8A, soft #DBEAFE), photo tile #F2F7FF; status green #1E8E3E / amber #B26A00 / red #D70015. No dark theme |
+| Page backdrop | `body` fades from ice blue at the top to the background: `radial-gradient(110% 520px at 50% 0%, #D6E6FF, #EBF3FF 48%, transparent)` over #F6F9FF. Browser `theme-color` #EBF3FF |
+| Cards | `.card-surface`: a white-to-#F9FBFF vertical fade, radius 18, a 1px blue hairline drawn inside plus a soft cobalt-tinted shadow; on hover lift 2px + `shadow-lift` |
+| Photo tiles | `.tile-fade`: a white-to-#EEF4FF radial fade with a #E3EDFF inner hairline. Show the real product thumbnail wherever one exists |
+| Buttons | Pill shape (radius 980), 44px tall. The one primary action uses `.btn-brand`: a #2563EB→#1D4ED8 fade, white text, a top highlight and a blue glow, brightens on hover and springs to 96% on press. Everything else is plain text or a soft white pill (`bg-white/90 hover:bg-subtle border border-line shadow-2xs`) |
+| Header | Sticky, translucent white with `backdrop-blur` (frosted glass), 52px tall, hairline bottom border. Search, cart and account sit in soft white pills |
 | Motion | 200–300 ms ease-out for fades, spring for sheets and the stepper; all motion off under `prefers-reduced-motion` |
 | Icons | Thin line icons (Lucide), 20px, never as the only label on a primary action |
 | Spacing | 8px grid; generous page margins (24 mobile, 48+ desktop); max content width 1200 |
+
+Anti-"AI slop" guardrails:
+
+- Never join metadata with middle dots (`·`). Use commas (`, `) or separate pill badges.
+- Never render a dark grey empty box with a tiny icon in its corner. Placeholders and empty states use soft blue-to-white vertical or radial fades, a subtle cobalt hairline and, where there is one, a real product thumbnail.
+- No pure black surfaces and no dead greys: secondary text and lines are tinted blue.
 
 RTL rules: logical CSS properties only (`ms-`/`me-`, `ps-`/`pe-`, `start`/`end`); every part name, SKU, unit and price inside `<bdi>`; mirror arrows and sheets, not product photos; test every component at 360px.
 
@@ -244,7 +255,8 @@ Run these on the Vercel preview after each phase; a phase merges only when its b
 - [ ] Filtered catalog URL opens the same view in a new tab
 - [ ] Each product page has its own title, description and OG image
 - [ ] Hebrew 404, and every footer link resolves
-- [ ] Dark mode has no unreadable text or white flashes
+- [ ] Light only: no dark surfaces, even with the OS in dark mode; product photos sit on white or ice-blue tiles
+- [ ] No middle dots (`·`) joining metadata, and no grey empty boxes
 
 Click budget and feel checks:
 

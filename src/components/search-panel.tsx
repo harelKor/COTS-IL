@@ -152,7 +152,7 @@ export function SearchPanel() {
         type="button"
         onClick={open}
         aria-label="חיפוש מוצר או מק״ט"
-        className="flex size-11 items-center justify-center gap-2 rounded-full text-muted transition-colors hover:text-foreground sm:h-9 sm:w-full sm:max-w-md sm:justify-start sm:bg-subtle sm:px-4 sm:text-caption"
+        className="flex size-11 items-center justify-center gap-2 rounded-full border border-line bg-white/90 shadow-2xs hover:bg-subtle text-muted transition-colors hover:text-foreground sm:h-11 sm:w-full sm:max-w-md sm:justify-start sm:px-4 sm:text-caption"
       >
         <Search size={16} strokeWidth={1.75} aria-hidden className="max-sm:size-5" />
         <span className="hidden flex-1 truncate text-start sm:block">חיפוש מוצר או מק״ט</span>

@@ -1,54 +1,35 @@
 @import "tailwindcss";
 
 /*
- * Design tokens from docs/REDESIGN.md ("Visual language"). The names stay the
- * ones the existing pages already use, so every page picks up the new look.
+ * Design tokens from docs/REDESIGN.md ("Visual language"): the COTS-IL Blue & White Fade palette.
+ * Light only, on purpose: supplier product photos are shot on white, so a dark page turns them
+ * into glowing boxes. There is no dark colour-scheme override.
  */
 :root {
-  --background: #fbfbfd;
+  --background: #f6f9ff;
   --surface: #ffffff;
-  --subtle: #f5f5f7;
-  --foreground: #1d1d1f;
-  --muted: #6e6e73;
-  --line: #d2d2d7;
-  --brand: #0071e3;
-  --brand-strong: #0062c4;
+  --subtle: #ecf3ff;
+  --subtle-hover: #dce8ff;
+  /* Deep navy-slate text and a cool cobalt-slate secondary, never a dead grey. */
+  --foreground: #0b1528;
+  --muted: #52658a;
+  --line: #d8e4fa;
+  /* Orbit royal cobalt. */
+  --brand: #1d4ed8;
+  --brand-strong: #1e3a8a;
+  --brand-soft: #dbeafe;
   --danger: #d70015;
   --success: #1e8e3e;
   --warning: #b26a00;
-  --glass: rgb(251 251 253 / 0.72);
-  /* Product photos sit on a light tile in both themes: supplier photos are shot on white. */
-  --tile: #f5f5f7;
-  --shadow-lift: 0 8px 24px rgb(0 0 0 / 0.08), 0 2px 6px rgb(0 0 0 / 0.04);
+  --glass: rgb(255 255 255 / 0.86);
+  /* Product photos sit on a near-white ice-blue tile. */
+  --tile: #f2f7ff;
+  --shadow-lift: 0 14px 34px -8px rgb(29 78 216 / 0.14), 0 4px 12px -2px rgb(11 21 40 / 0.05);
+  --shadow-card: 0 4px 18px -4px rgb(29 78 216 / 0.07), 0 1px 3px 0 rgb(11 21 40 / 0.03);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   /* Close to a spring with no overshoot, for sheets and the stepper. */
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
-  /* The top specular edge on .card-surface; only dark mode has one. */
-  --card-highlight: 0 0 #0000;
   color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Near-black layers instead of pure black, so surfaces have depth and text doesn't glare. */
-    --background: #09090b;
-    --surface: #131316;
-    --subtle: #1e1e24;
-    --foreground: #f5f5f7;
-    --muted: #98989d;
-    --line: #27272f;
-    --brand: #2997ff;
-    --brand-strong: #5eb0ff;
-    --danger: #ff453a;
-    --success: #30d158;
-    --warning: #ff9f0a;
-    --glass: rgb(19 19 22 / 0.78);
-    /* A slightly softer studio backdrop, so mix-blend-multiply photos don't glow against the dark page. */
-    --tile: #ededf0;
-    --shadow-lift: 0 8px 24px rgb(0 0 0 / 0.5);
-    --card-highlight: inset 0 1px 0 0 rgb(255 255 255 / 0.07);
-    color-scheme: dark;
-  }
 }
 
 /* Printed quotes are always black on white, whatever the screen's theme. */
@@ -62,8 +43,11 @@
     --line: #999999;
     --warning: #7a4a00;
     --tile: #f5f5f7;
-    --card-highlight: 0 0 #0000;
+    --shadow-card: 0 0 #0000;
     color-scheme: light;
+  }
+  body {
+    background-image: none;
   }
 }
 
@@ -71,11 +55,13 @@
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-subtle: var(--subtle);
+  --color-subtle-hover: var(--subtle-hover);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-brand: var(--brand);
   --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
   --color-danger: var(--danger);
   --color-success: var(--success);
   --color-warning: var(--warning);
@@ -98,12 +84,16 @@
   --text-caption--line-height: 1.38;
   --radius-card: 18px;
   --shadow-lift: var(--shadow-lift);
+  --shadow-card: var(--shadow-card);
   --ease-out: var(--ease-out);
   --ease-spring: var(--ease-spring);
 }
 
+/* An ice-blue atmospheric fade at the top of every page, settling into the background. */
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image: radial-gradient(110% 520px at 50% 0%, #d6e6ff 0%, #ebf3ff 48%, transparent 100%);
+  background-repeat: no-repeat;
   color: var(--foreground);
   font-size: 1.0625rem;
   line-height: 1.47;
@@ -132,17 +122,45 @@ h3 {
 }
 
 /*
- * A card on the surface color with a hairline drawn inside, plus a top highlight in dark mode.
- * The two sit in Tailwind's inset-shadow slots, so shadow-lift or hover:shadow-lift adds to them instead of replacing them.
+ * A card with a white-to-ice vertical fade, a blue hairline drawn inside and a soft cobalt shadow.
+ * Tailwind's ring and shadow slots come after them, so shadow-lift or hover:shadow-lift adds to the card instead of replacing it.
  */
 @utility card-surface {
-  background: var(--surface);
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
   border-radius: var(--radius-card);
-  --tw-inset-shadow: var(--card-highlight);
-  --tw-inset-ring-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
   box-shadow:
-    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow, 0 0 #0000),
+    inset 0 0 0 1px var(--line), var(--shadow-card), var(--tw-ring-offset-shadow, 0 0 #0000),
     var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
+}
+
+/* The one primary action: a royal-blue fade that brightens on hover and springs down on press. */
+@utility btn-brand {
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.28),
+    0 4px 14px 0 rgb(29 78 216 / 0.28);
+  transition:
+    transform 150ms var(--ease-spring),
+    box-shadow 200ms var(--ease-out),
+    filter 150ms ease;
+
+  &:hover {
+    filter: brightness(1.06);
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.35),
+      0 6px 20px 0 rgb(29 78 216 / 0.36);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+/* Product photo tiles: a soft white-to-ice radial fade with a faint blue hairline. */
+@utility tile-fade {
+  background: radial-gradient(circle at 50% 35%, #ffffff 0%, #eef4ff 100%);
+  box-shadow: inset 0 0 0 1px #e3edff;
 }
 
 /* SKUs, emails and team numbers stay left-to-right inside Hebrew text. New code uses <Ltr>. */

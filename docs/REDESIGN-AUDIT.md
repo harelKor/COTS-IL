@@ -58,7 +58,7 @@ There is no `not-found.tsx`, `loading.tsx` or `error.tsx` anywhere.
 | `auto-submit.tsx` | A select and a checkbox that submit their form when changed (used by the catalog filters) |
 | `orders.tsx`, `delivery-note.tsx`, `form.tsx`, `action-form.tsx`, `print-button.tsx` | Order tables, a printable delivery note, form helpers |
 
-Styling: Tailwind 4 with color tokens in `src/app/globals.css` (light, dark and print). Heebo loads through `next/font`. A `.ltr` class keeps text left to right. There is no icon library and no UI kit.
+Styling: Tailwind 4 with color tokens in `src/app/globals.css` (light and print; the dark theme was removed on Nov 6, 2026, see D10). Heebo loads through `next/font`. A `.ltr` class keeps text left to right. There is no icon library and no UI kit.
 
 ## Audit items mapped to files
 
@@ -67,7 +67,7 @@ Styling: Tailwind 4 with color tokens in `src/app/globals.css` (light, dark and 
 | 1 | Each size is its own card | Yes: gears show 17 pages (24 per page, about 405 cards). WCP lists every size as its own product (e.g. `/catalog/wcp/wcp-0749`). AndyMark and CTRE already put sizes inside one product as options | `src/db/schema.ts` + new migration, `src/suppliers/shopify.ts`, `src/suppliers/sync.ts`, new `src/suppliers/families.ts` (grouping and spec parsers), `src/lib/catalog.ts`, `src/components/catalog.tsx`, `src/app/catalog/[supplier]/[handle]/page.tsx` | 2, 3 |
 | 2 | Guests can't add to cart | Yes: the "need a team account" box is at `[handle]/page.tsx:116`, and adding is gated by `canAdd` at :99 | `src/components/add-to-cart.tsx`, `src/app/cart/actions.ts`, `src/app/cart/page.tsx` and `checkout-form.tsx`, `src/lib/orders.ts`, `src/proxy.ts` (`/cart` is private), `src/components/site-header.tsx`. The cart lives in the database per team (`cart_items`), so a guest cart needs browser storage plus a merge into the team cart at sign-in | 1 (pill), 4 |
 | 3 | Junk descriptions | Yes: "Reference Only" appears on `/catalog/wcp/wcp-0749` | `src/suppliers/shopify.ts` (`sanitizeDescription`: drop placeholder text at sync time), `[handle]/page.tsx:146-152` | 3 |
-| 4 | Product pages use the site name as their title | Yes: the `<title>` is "פורטל רכש FIRST" and there are no `og:` tags. The catalog page has a fixed title | `[handle]/page.tsx` (add `generateMetadata`), `src/app/layout.tsx` (`metadataBase`, title template, default OG image), `src/app/catalog/page.tsx` | 1 |
+| 4 | Product pages use the site name as their title | Yes: the `<title>` was the old site name (now COTS-IL, see D10) and there are no `og:` tags. The catalog page has a fixed title | `[handle]/page.tsx` (add `generateMetadata`), `src/app/layout.tsx` (`metadataBase`, title template, default OG image), `src/app/catalog/page.tsx` | 1 |
 | 5 | Content loads behind "טוען…" | Yes: the live home and catalog pages both show it. The text fallback is in 21 pages | `src/app/page.tsx:90`, `src/app/catalog/page.tsx:126`, `[handle]/page.tsx:159`, plus the admin, orders, cart, team and pending pages. With `cacheComponents: true` (`next.config.ts`), dynamic data has to sit inside `<Suspense>`, so the fix is skeleton fallbacks plus caching the public catalog queries in `src/lib/catalog.ts` (instead of `connection()`) | 1 |
 | 6 | Header has no cart icon or search | Yes | `src/components/site-header.tsx`, `src/app/layout.tsx`, new search and cart-pill client components | 1 |
 | 7 | Fees, lead times and the Israeli supplier are never explained | Yes: there's only one line about VAT and shipping | New info routes, a footer in `layout.tsx`, `src/app/page.tsx` | 5 |
@@ -91,6 +91,7 @@ None of these block Phase 1. Each one has to be decided before the phase listed.
 | D7 | 4 suppliers, 4,163 products | The code and PLAN.md also plan for REV and goBILDA (CSV import, not built) | Leave them out of the redesign until the CSV import exists | Phase 2 |
 | D8 | Phone haptic tap on add | `navigator.vibrate` does nothing on iOS Safari | Use it where it's supported. On iOS the visual feedback is enough | Phase 3 |
 | D9 | Order flow diagram | The diagram was embedded in the plan and isn't in the Markdown copy | Add it as an image if it matters | Phase 4 |
+| D10 | Visual direction | Apple-like greys, accent #0071E3, a dark theme on `prefers-color-scheme`, and the site called "פורטל רכש FIRST" | The COTS-IL brand on the light-only Blue & White Fade palette (Team 1690 cobalt and white). Supplier photos are shot on white, so the dark theme is gone. Guardrails: no `·` between metadata (commas or pill badges instead), no grey empty boxes (blue-to-white fades, real thumbnails, cobalt hairlines). Tokens and rules in `docs/REDESIGN.md` → "Visual language" | Visual refresh (Nov 6, 2026) |
 
 ## Business facts still needed (Phase 5)
 

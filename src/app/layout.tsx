@@ -11,7 +11,7 @@ const heebo = Heebo({
   subsets: ["hebrew", "latin"],
 });
 
-const SITE_NAME = "פורטל רכש FIRST";
+const SITE_NAME = "COTS-IL";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://cots-il.vercel.app"),
@@ -21,10 +21,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbfbfd" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
+  // Light only (docs/REDESIGN.md, "Visual language"): the top of the page's ice-blue fade.
+  themeColor: "#EBF3FF",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

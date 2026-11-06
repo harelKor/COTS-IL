@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { Boxes } from "lucide-react";
 import { signout } from "@/app/auth/actions";
 import { canOrder, canSendRequest } from "@/domain/orders";
 import { priceIls } from "@/domain/pricing";
@@ -68,9 +69,9 @@ async function Account() {
         type="button"
         popoverTarget="account-menu"
         aria-label="החשבון שלי"
-        className="flex size-11 shrink-0 items-center justify-center"
+        className="group flex size-11 shrink-0 items-center justify-center"
       >
-        <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-subtle px-1.5 text-[12px] font-semibold tabular-nums">
+        <span className="flex h-9 min-w-9 items-center justify-center rounded-full border border-line bg-white/90 px-1.5 text-[12px] font-semibold tabular-nums shadow-2xs transition-colors group-hover:bg-subtle">
           {initial}
         </span>
       </button>
@@ -82,7 +83,7 @@ async function Account() {
         <div className="border-b border-line px-3 pt-1 pb-2 text-caption text-muted">
           {shown ? (
             <>
-              {shown.name} · <Ltr>{`${shown.program} ${shown.number}`}</Ltr>
+              {shown.name}, <Ltr>{`${shown.program} ${shown.number}`}</Ltr>
             </>
           ) : (
             <Ltr>{viewer.email}</Ltr>
@@ -127,14 +128,22 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-line/70 bg-glass backdrop-blur-xl backdrop-saturate-150 print:hidden">
       <div className="mx-auto flex h-[52px] max-w-[1200px] items-center gap-3 px-4 md:px-12">
-        <Link href="/" className="shrink-0 text-[17px] font-semibold tracking-tight">
-          פורטל רכש <Ltr>FIRST</Ltr>
+        <Link href="/" aria-label="COTS-IL, דף הבית" className="flex h-11 shrink-0 items-center gap-2">
+          <span aria-hidden className="btn-brand flex size-9 items-center justify-center rounded-xl">
+            <Boxes size={20} strokeWidth={1.75} />
+          </span>
+          <Ltr className="bg-gradient-to-r from-[#1E3A8A] to-[#2563EB] bg-clip-text text-[19px] font-extrabold tracking-tight text-transparent">
+            COTS-IL
+          </Ltr>
+          <span className="hidden rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-semibold text-brand sm:inline-flex">
+            <Ltr>FRC / FTC</Ltr>
+          </span>
         </Link>
         <div className="flex min-w-0 flex-1 justify-end sm:justify-center">
           <SearchPanel />
         </div>
         <CartButton />
-        <Suspense fallback={<span className="skeleton size-8 shrink-0 rounded-full" aria-hidden />}>
+        <Suspense fallback={<span className="skeleton size-9 shrink-0 rounded-full" aria-hidden />}>
           <Account />
         </Suspense>
       </div>
