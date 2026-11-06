@@ -31,7 +31,7 @@ export function PriceRange({ min, max }: { min: string | null; max: string | nul
 }
 
 /** Some supplier originals are 6000px wide, and Shopify's CDN can resize on request. */
-function sized(src: string, width: number) {
+export function sized(src: string, width: number) {
   if (!src.startsWith("https://cdn.shopify.com/")) return src;
   return `${src}${src.includes("?") ? "&" : "?"}width=${width}`;
 }

@@ -35,6 +35,22 @@ function hasSpec(key: string, values: string[]) {
   )}))`;
 }
 
+/**
+ * What a team came for first (available, not an accessory, a main item), the screws and
+ * spacers filed with it after. The same steps as rankKey in src/domain/catalog-rank.ts.
+ * Needs `categories` joined.
+ */
+function mainItemsFirst(): SQL[] {
+  return [
+    sql`${families.available} IS TRUE DESC`,
+    sql`(${families.title} ~* ${ACCESSORY_TITLE_PATTERN} AND coalesce(${categories.slug}, '') NOT IN (${sql.join(HARDWARE_CATEGORIES.map((c) => sql`${c}`), sql`, `)})) ASC`,
+    sql`(coalesce(${families.minPriceUsd}, 0) >= ${MAIN_ITEM_MIN_USD} OR ${families.variantCount} >= 3) DESC`,
+  ];
+}
+
+/** How many product photos each category shows on the home page. */
+const CATEGORY_IMAGES = 3;
+
 /** `withSpecs: false` leaves out the spec filters, for counting the values each spec could take. */
 function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
   const conditions: (SQL | undefined)[] = [visible];
@@ -60,12 +76,7 @@ function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
     );
   } else if (filters.sort === "relevance") {
     // Browsing with no search: what a team came for first, the screws and spacers filed with it after.
-    // The same steps as rankKey in src/domain/catalog-rank.ts.
-    order.push(
-      sql`${families.available} IS TRUE DESC`,
-      sql`(${families.title} ~* ${ACCESSORY_TITLE_PATTERN} AND coalesce(${categories.slug}, '') NOT IN (${sql.join(HARDWARE_CATEGORIES.map((c) => sql`${c}`), sql`, `)})) ASC`,
-      sql`(coalesce(${families.minPriceUsd}, 0) >= ${MAIN_ITEM_MIN_USD} OR ${families.variantCount} >= 3) DESC`,
-    );
+    order.push(...mainItemsFirst());
     if (!filters.category) order.push(sql`${categories.slug} = 'other' ASC NULLS LAST`);
   }
   order.push(asc(families.title));
@@ -314,13 +325,31 @@ export async function getSupplierCounts(filters: CatalogFilters) {
     .orderBy(desc(count));
 }
 
-/** Categories and suppliers that have something to show, with family counts. */
+/**
+ * Categories and suppliers that have something to show, with family counts. Each category
+ * also carries up to three photos of its main items (motors, not the screws filed next to them).
+ */
 export async function getFacets() {
   "use cache";
   catalogCache();
   const count = sql<number>`count(*)::int`;
 
-  const [categoryRows, supplierRows] = await Promise.all([
+  // The top families with a photo in each category, in the catalog's default order.
+  const ranked = db
+    .select({
+      slug: sql<string>`${categories.slug}`.as("slug"),
+      image: sql<string>`${families.images}[1]`.as("image"),
+      rank: sql<number>`row_number() OVER (PARTITION BY ${families.categoryId} ORDER BY ${sql.join(
+        [...mainItemsFirst(), sql`${families.minPriceUsd} DESC NULLS LAST`, sql`${families.title} ASC`],
+        sql`, `,
+      )})`.as("rank"),
+    })
+    .from(families)
+    .innerJoin(categories, eq(categories.id, families.categoryId))
+    .where(and(visible, sql`cardinality(${families.images}) > 0`))
+    .as("ranked");
+
+  const [categoryRows, supplierRows, imageRows] = await Promise.all([
     db
       .select({ slug: categories.slug, name: categories.name, count })
       .from(families)
@@ -335,9 +364,20 @@ export async function getFacets() {
       .where(and(visible, eq(suppliers.active, true)))
       .groupBy(suppliers.code, suppliers.name, suppliers.programs)
       .orderBy(desc(count)),
+    db
+      .select({ slug: ranked.slug, image: ranked.image })
+      .from(ranked)
+      .where(sql`${ranked.rank} <= ${CATEGORY_IMAGES}`)
+      .orderBy(ranked.slug, ranked.rank),
   ]);
 
-  return { categories: categoryRows, suppliers: supplierRows };
+  const images = new Map<string, string[]>();
+  for (const { slug, image } of imageRows) images.set(slug, [...(images.get(slug) ?? []), image]);
+
+  return {
+    categories: categoryRows.map((c) => ({ ...c, images: images.get(c.slug) ?? [] })),
+    suppliers: supplierRows,
+  };
 }
 
 /** A family with every listed variant, from every supplier that sells it. */
