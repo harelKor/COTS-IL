@@ -40,13 +40,15 @@ function sized(src: string | null | undefined, width: number) {
   return src.startsWith("https://cdn.shopify.com/") ? `${src}${src.includes("?") ? "&" : "?"}width=${width}` : src;
 }
 
+/** Availability in words, short and with its check date, and the dot's color. */
 function availabilityText(v: ViewVariant) {
   const checked = new Date(v.checkedAt);
-  if (v.available === null || !isAvailabilityFresh(checked, new Date())) return { text: "זמינות לא אומתה", tone: "text-muted" };
+  if (v.available === null || !isAvailabilityFresh(checked, new Date()))
+    return { text: "זמינות לא אומתה", short: "לא אומת", tone: "text-muted", dot: "bg-muted" };
   const date = dayMonth.format(checked);
   return v.available
-    ? { text: `זמין אצל הספק (נבדק ${date})`, tone: "text-success" }
-    : { text: `לא זמין כרגע (נבדק ${date})`, tone: "text-warning" };
+    ? { text: `זמין אצל הספק (נבדק ${date})`, short: "זמין", tone: "text-success", dot: "bg-success" }
+    : { text: `לא זמין כרגע (נבדק ${date})`, short: "לא זמין", tone: "text-warning", dot: "bg-warning" };
 }
 
 /**
@@ -116,6 +118,10 @@ export function FamilyView({ family, variants, initialVariantId }: Props) {
   const priceText = chosen ? (price === null ? "ייבדק בהצעה" : formatIls(price)) : Number.isFinite(lowest) ? `החל מ-${formatIls(lowest)}` : "ייבדק בהצעה";
   const availability = chosen ? availabilityText(chosen) : null;
   const missing = keys.filter((k) => picked.selected[k] === undefined);
+  const lineQty = inCart?.qty ?? qty;
+  // A "best price" badge only when the offers' prices differ.
+  const offerPrices = offers.flatMap((o) => (o.priceIls === null ? [] : [o.priceIls]));
+  const cheapest = offerPrices.length > 1 && Math.min(...offerPrices) < Math.max(...offerPrices) ? Math.min(...offerPrices) : null;
 
   const addControls = !canAdd ? null : inCart ? (
     <div className="flex items-center gap-3">
@@ -148,11 +154,24 @@ export function FamilyView({ family, variants, initialVariantId }: Props) {
     <div className="grid gap-8 md:grid-cols-2">
       <div className="flex flex-col gap-2">
         <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
-          <div ref={mainImage} className="aspect-square w-full overflow-hidden rounded-card bg-tile p-6">
+          <div ref={mainImage} className="relative aspect-square w-full overflow-hidden rounded-card bg-tile p-8 ring-1 ring-black/5">
             {shown && (
               // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
               // eslint-disable-next-line @next/next/no-img-element
               <img src={sized(shown, 900)!} alt={family.title} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
+            )}
+            {chosen?.sku && (
+              <button
+                type="button"
+                onClick={() => navigator.clipboard?.writeText(chosen.sku!).then(() => showToast("המק״ט הועתק"))}
+                aria-label={`העתקת המק״ט ${chosen.sku}`}
+                className="group absolute start-2 top-2 flex min-h-11 items-center"
+              >
+                <span className="flex h-8 items-center gap-1.5 rounded-full bg-surface/85 px-3 text-[12px] text-foreground shadow-sm backdrop-blur transition-colors group-hover:bg-surface">
+                  <Ltr className="font-mono">{chosen.sku}</Ltr>
+                  <Copy size={13} strokeWidth={1.75} aria-hidden className="text-muted" />
+                </span>
+              </button>
             )}
           </div>
         </ViewTransition>
@@ -165,7 +184,7 @@ export function FamilyView({ family, variants, initialVariantId }: Props) {
                   onClick={() => setPhoto(src)}
                   aria-label={`תמונה ${i + 1}`}
                   aria-pressed={src === shown}
-                  className={`aspect-square w-full overflow-hidden rounded-xl bg-tile p-1 ${src === shown ? "ring-2 ring-foreground" : ""}`}
+                  className={`aspect-square w-full overflow-hidden rounded-xl bg-tile p-1 ${src === shown ? "ring-2 ring-foreground" : "ring-1 ring-black/5"}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={sized(src, 160)!} alt="" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
@@ -179,81 +198,101 @@ export function FamilyView({ family, variants, initialVariantId }: Props) {
       <div className="flex min-w-0 flex-col gap-5 md:sticky md:top-[68px] md:self-start">
         <div>
           <p className="text-caption text-muted">
-            <Ltr>{[...new Set(variants.map((v) => v.supplierName))].join(" · ")}</Ltr>
+            <Ltr>{[...new Set(variants.map((v) => v.supplierName))].join(", ")}</Ltr>
           </p>
-          <h1 dir="ltr" className="text-start text-title font-semibold">
+          <h1 dir="ltr" className="text-start text-title font-semibold text-balance">
             {family.title}
           </h1>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <span className="text-section font-semibold">{priceText}</span>
-          {availability && <span className={`text-caption ${availability.tone}`}>{availability.text}</span>}
-          {chosen?.sku && (
-            <button
-              type="button"
-              onClick={() => navigator.clipboard?.writeText(chosen.sku!).then(() => showToast("המק״ט הועתק"))}
-              className="flex items-center gap-1.5 self-start text-caption text-muted hover:text-foreground"
-              aria-label={`העתקת המק״ט ${chosen.sku}`}
-            >
-              <Ltr className="font-mono">{chosen.sku}</Ltr>
-              <Copy size={14} strokeWidth={1.75} aria-hidden />
-            </button>
-          )}
-        </div>
-
-        {keys.map((key) => (
-          <div key={key} className="flex flex-col gap-2">
-            <span className="text-caption text-muted">{optionLabel(key)}</span>
-            <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
-              {picked.chips[key].map((chip) => (
-                <button
-                  key={chip.value}
-                  type="button"
-                  aria-pressed={chip.selected}
-                  onClick={() => onChip(key, chip.value)}
-                  className={`min-h-11 rounded-full px-4 text-[15px] transition-colors ${
-                    chip.selected
-                      ? "bg-foreground text-background"
-                      : chip.enabled
-                        ? "bg-surface shadow-[inset_0_0_0_1px_var(--line)] hover:bg-subtle"
-                        : "bg-surface text-muted opacity-50 shadow-[inset_0_0_0_1px_var(--line)]"
-                  }`}
-                >
-                  {chip.value === NONE ? "ללא" : <Ltr>{chip.value}</Ltr>}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+        {keys.map((key) => {
+          const value = picked.selected[key];
+          return (
+            <section key={key} className="flex flex-col gap-3 rounded-2xl border border-line/80 bg-surface p-4">
+              <header className="flex items-baseline justify-between gap-3">
+                <h2 className="text-[15px] text-muted">{optionLabel(key)}</h2>
+                {value === undefined ? (
+                  <span className="text-[15px] text-brand">בחרו אפשרות</span>
+                ) : (
+                  <span className="min-w-0 truncate text-[15px] font-semibold">{value === NONE ? "ללא" : <Ltr>{value}</Ltr>}</span>
+                )}
+              </header>
+              <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
+                {picked.chips[key].map((chip) => (
+                  <button
+                    key={chip.value}
+                    type="button"
+                    aria-pressed={chip.selected}
+                    onClick={() => onChip(key, chip.value)}
+                    className={`min-h-11 rounded-full px-4 text-[15px] transition-[color,background-color,scale] duration-150 active:scale-95 ${
+                      chip.selected
+                        ? "bg-foreground font-medium text-background shadow-sm"
+                        : chip.enabled
+                          ? "bg-subtle/70 hover:bg-subtle"
+                          : "bg-subtle/70 line-through opacity-35 hover:opacity-60"
+                    }`}
+                  >
+                    {chip.value === NONE ? "ללא" : <Ltr>{chip.value}</Ltr>}
+                  </button>
+                ))}
+              </div>
+            </section>
+          );
+        })}
 
         {manySuppliers && offers.length > 1 && (
-          <div className="flex flex-col gap-2">
-            <span className="text-caption text-muted">ספק</span>
-            <div className="flex flex-wrap gap-2">
-              {offers.map((offer) => (
-                <button
-                  key={offer.id}
-                  type="button"
-                  aria-pressed={offer === chosen}
-                  onClick={() => onSupplier(offer.supplierName)}
-                  className={`flex min-h-11 items-center gap-2 rounded-full px-4 text-[15px] transition-colors ${
-                    offer === chosen ? "bg-foreground text-background" : "bg-surface shadow-[inset_0_0_0_1px_var(--line)] hover:bg-subtle"
-                  }`}
-                >
-                  <Ltr>{offer.supplierName}</Ltr>
-                  <span className="text-caption opacity-70">{offer.priceIls === null ? "—" : formatIls(offer.priceIls)}</span>
-                </button>
-              ))}
+          <section className="flex flex-col gap-2">
+            <h2 className="text-[15px] text-muted">ספק</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {offers.map((offer) => {
+                const on = offer === chosen;
+                const status = availabilityText(offer);
+                return (
+                  <button
+                    key={offer.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => onSupplier(offer.supplierName)}
+                    className={`flex min-h-11 flex-col items-start gap-1.5 rounded-2xl border p-3 text-start transition-[border-color,box-shadow] duration-150 ${
+                      on ? "border-foreground shadow-[inset_0_0_0_1px_var(--foreground)]" : "border-line/80 bg-surface hover:border-muted"
+                    }`}
+                  >
+                    <span className="flex w-full items-center justify-between gap-2">
+                      <Ltr className="truncate font-semibold">{offer.supplierName}</Ltr>
+                      {cheapest !== null && offer.priceIls === cheapest && (
+                        <span className="shrink-0 rounded-full bg-success/12 px-2 py-0.5 text-[11px] font-medium text-success">המשתלם ביותר</span>
+                      )}
+                    </span>
+                    <span className="text-[17px] font-semibold">{offer.priceIls === null ? <span className="text-caption font-normal text-muted">ייבדק בהצעה</span> : formatIls(offer.priceIls)}</span>
+                    <span className="flex items-center gap-1.5 text-caption text-muted">
+                      <span className={`size-2 rounded-full ${status.dot}`} aria-hidden />
+                      {status.short}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          </section>
         )}
 
-        <div className="hidden md:block">{addControls}</div>
-        <p className="text-caption text-muted">המחירים כוללים מע״מ. משלוח בישראל מתומחר בהצעת המחיר.</p>
+        <section aria-label="רכישה" className="card-surface flex flex-col gap-4 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <span className="text-title font-semibold">{priceText}</span>
+            {price !== null && lineQty > 1 && <span className="text-[15px] text-muted">סה״כ: {formatIls(price * lineQty)}</span>}
+          </div>
+          {availability && (
+            <p className={`flex items-center gap-2 text-caption ${availability.tone}`}>
+              <span className={`size-2 shrink-0 rounded-full ${availability.dot}`} aria-hidden />
+              {availability.text}
+            </p>
+          )}
+          <div className="hidden md:block">{addControls}</div>
+          <p className="border-t border-line pt-3 text-caption text-muted">המחירים כוללים מע״מ. משלוח בישראל מתומחר בהצעת המחיר.</p>
+        </section>
+
         {chosen && (
-          <a href={chosen.productUrl} target="_blank" rel="noopener noreferrer" className="self-start text-caption text-brand hover:underline">
-            לעמוד המוצר באתר <Ltr>{chosen.supplierName}</Ltr>
+          <a href={chosen.productUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center self-start text-caption text-brand hover:underline">
+            לעמוד המוצר באתר <Ltr className="ms-1">{chosen.supplierName}</Ltr>
           </a>
         )}
       </div>

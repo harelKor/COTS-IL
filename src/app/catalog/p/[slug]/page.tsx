@@ -1,3 +1,4 @@
+import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -125,18 +126,28 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
 
   return (
     <article className="flex flex-col gap-10">
-      <nav className="flex flex-wrap gap-2 text-caption text-muted" aria-label="ניווט">
-        <Link href="/catalog" className="hover:text-brand">
-          קטלוג
-        </Link>
-        {result.categorySlug && (
-          <>
-            <span aria-hidden>/</span>
-            <Link href={catalogHref({ category: result.categorySlug })} className="hover:text-brand">
-              {result.categoryName}
+      <nav aria-label="ניווט" className="-mb-4 text-caption text-muted">
+        <ol className="flex min-w-0 items-center gap-1">
+          <li className="shrink-0">
+            <Link href="/catalog" className="flex min-h-11 items-center hover:text-brand">
+              קטלוג
             </Link>
-          </>
-        )}
+          </li>
+          {result.categorySlug && (
+            <li className="flex shrink-0 items-center gap-1">
+              <ChevronLeft size={14} aria-hidden />
+              <Link href={catalogHref({ category: result.categorySlug })} className="flex min-h-11 items-center hover:text-brand">
+                {result.categoryName}
+              </Link>
+            </li>
+          )}
+          <li className="flex min-w-0 items-center gap-1">
+            <ChevronLeft size={14} aria-hidden className="shrink-0" />
+            <span aria-current="page" className="truncate text-foreground">
+              <Ltr>{family.title}</Ltr>
+            </span>
+          </li>
+        </ol>
       </nav>
 
       <FamilyView
