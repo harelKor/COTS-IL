@@ -5,11 +5,10 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import type { PastedLine, SharedLine } from "@/domain/cart-share";
+import type { SharedLine } from "@/domain/cart-share";
 import { canOrder, canSendRequest } from "@/domain/orders";
 import { DEFAULT_MULTIPLIER, priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam, type Viewer } from "@/lib/auth";
-import { familyHref } from "@/lib/catalog-links";
 import { getCheckoutDefaults } from "@/lib/orders";
 
 const { cartItems, products, suppliers, teamOrderItems, teamOrders, variants } = schema;
@@ -230,63 +229,4 @@ export async function reorder(orderId: string): Promise<{ added: number; skipped
   for (const item of items) if (!(await addLine(team.id, viewer.id, item.variantId, item.qty))) added++;
   refresh();
   return { added, skipped: items.length - added };
-}
-
-export type SkuMatch = {
-  sku: string;
-  qty: number;
-  line: { variantId: string; title: string; options: string; sku: string | null; image: string | null; href: string; supplierName: string; unitPriceIls: number | null } | null;
-};
-
-/**
- * Finds pasted SKUs in the catalog. A SKU two suppliers sell goes to the one in
- * stock and cheaper. Public, like the catalog: guests paste lists too.
- */
-export async function lookupSkus(lines: PastedLine[]): Promise<SkuMatch[]> {
-  const wanted = lines.slice(0, 200).filter((l) => typeof l.sku === "string" && l.sku.length <= 40);
-  if (wanted.length === 0) return [];
-  const rows = await db
-    .select({
-      variantId: variants.id,
-      sku: variants.supplierSku,
-      options: variants.familyOptions,
-      priceUsd: variants.priceUsd,
-      available: variants.available,
-      title: products.title,
-      image: sql<string | null>`${products.images}[1]`,
-      supplierName: suppliers.name,
-      familySlug: schema.productFamilies.slug,
-      familyTitle: schema.productFamilies.title,
-    })
-    .from(variants)
-    .innerJoin(products, eq(products.id, variants.productId))
-    .innerJoin(suppliers, eq(suppliers.id, variants.supplierId))
-    .leftJoin(schema.productFamilies, eq(schema.productFamilies.id, variants.familyId))
-    .where(
-      sql`upper(${variants.supplierSku}) IN (${sql.join(
-        wanted.map((l) => sql`${l.sku.toUpperCase()}`),
-        sql`, `,
-      )}) AND ${variants.missingSince} IS NULL AND ${products.missingSince} IS NULL AND ${products.status} = 'published' AND ${variants.priceUsd} > 0`,
-    )
-    .orderBy(sql`${variants.available} IS TRUE DESC`, variants.priceUsd);
-
-  return wanted.map(({ sku, qty: count }) => {
-    const v = rows.find((r) => r.sku?.toUpperCase() === sku.toUpperCase());
-    return {
-      sku,
-      qty: count,
-      line: v
-        ? {
-            variantId: v.variantId,
-            title: v.familyTitle ?? v.title,
-            options: Object.values(v.options).join(" / "),
-            sku: v.sku,
-            image: v.image,
-            href: v.familySlug ? familyHref(v.familySlug, v.sku ?? v.variantId) : "/catalog",
-            supplierName: v.supplierName,
-            unitPriceIls: priceIls(v.priceUsd),
-          }
-        : null,
-    };
-  });
 }

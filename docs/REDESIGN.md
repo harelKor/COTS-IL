@@ -29,7 +29,6 @@ The suppliers win on navigation depth, variant grouping and ordering speed; cots
 | Product page | Description, Specifications and Documentation tabs, SKU | Specs, docs links, CAD on GitHub | Description, docs site | One image, SKU/price table, scraped description ("This Page is for Reference Only") | Gallery, spec table, CAD/STEP + docs links, related parts |
 | Season content | Current-game collections (REBUILT 2026, BIOBUZZ FTC) | Best sellers, bundles | Kitbot + field items for 2026 | None | "Season 2027 picks" + kickoff bundles |
 | Support / trust | FAQ, purchasing, warranty, returns, shipping, contact | Shipping, warranty, international orders, FAQ, phone + address | Purchase orders, stock status, return policy | One line on VAT and shipping | How-it-works, FAQ, lead times, fees, contact/WhatsApp, policy pages |
-| Bulk ordering | Quick Order page | — | — | — | Paste SKUs / upload BOM CSV → cart |
 
 WCP was not read directly (it blocks automated access); CTRE's store sells the WCP range and shows the same pattern. Sources: [AndyMark](https://andymark.com), [CTRE store](https://store.ctr-electronics.com), [The Thrifty Bot](https://www.thethriftybot.com), [cots-il](https://cots-il.vercel.app), all read 2026-11-05.
 
@@ -66,7 +65,6 @@ The fewest clicks wins: a known part goes from search to a sent order in 3 click
 | Send the order (returning team) | 1 click | "Send quote request" in the cart sheet; team, contact and delivery are remembered |
 | Send the order (first time) | 1 click + one short sheet | Team number auto-fills the team name; sign-in by email magic link or Google, no password |
 | Order again | 1 click | "Order again" on the home page and in the order list |
-| Whole BOM | 1 click | Paste or drop a CSV anywhere; "Add all 23 parts" |
 | Approve the quote | 1 click | Approve button inside the email/WhatsApp message, no login screen |
 
 Rules that keep the budget:
@@ -130,11 +128,10 @@ Each page below lists what it must contain. Build them in the order of section 7
 
 1. Hero: one large headline (every FRC/FTC supplier, one order, prices in ₪ with VAT) and the search field, centred, nothing else above the fold. Three example chips under it ("Kraken X60", "HTD 9mm", "1/2 hex bearing") that run the search on tap.
 2. Signed-in teams see "Order again" (last order, one tap) and "Your cart" first, above everything else.
-3. Drop zone: "Drop your BOM here" (CSV/paste), turning a whole robot into a cart in one click.
-4. How it works: 4 steps in one row, short text, line icons.
-5. Categories as large photo tiles (Apple Store-style), each opening the catalog pre-filtered.
-6. Season picks: a horizontal scroller of kickoff essentials with "+" on every card.
-7. Trust strip: lead time, last price update date, supplier logos.
+3. How it works: 4 steps in one row, short text, line icons.
+4. Categories as large photo tiles (Apple Store-style), each opening the catalog pre-filtered.
+5. Season picks: a horizontal scroller of kickoff essentials with "+" on every card.
+6. Trust strip: lead time, last price update date, supplier logos.
 
 ### Catalog (listing)
 
@@ -158,7 +155,6 @@ Each page below lists what it must contain. Build them in the order of section 7
 - Returning team: that button sends immediately and the sheet shows "Sent — quote within N business days". First-time: the same sheet asks only for team number and email (magic link or Google); the team name fills in automatically.
 - Cost line, one tap to expand: items, VAT, handling fee, shipping "priced in the quote".
 - "Share cart" copies a link, so a student builds the cart and a mentor sends it in one tap.
-- Paste `SKU, qty` lines or drop a CSV straight into the sheet to bulk-add.
 
 &#91;embedded content: order flow · 6 steps, team and supplier\]
 
@@ -231,7 +227,7 @@ Rebuild the catalog and product page per "Page-by-page specs" in docs/REDESIGN.m
 ### Phase 4 — Cart, quote request, accounts
 
 ```
-Plan first, then build the cart and ordering flow from docs/REDESIGN.md. The cart is a sheet with one primary button, "Send quote request" — no checkout pages. Optimistic updates, swipe-to-remove with an Undo toast, no confirm dialogs. Returning teams send in 1 click (team, contact, delivery remembered). First-time teams fill only team number + email in the same sheet; sign-in by email magic link or Google; look up the team name from the number. Add share-cart links, paste/drop CSV bulk add, "Order again" on home and the order list, roles (student builds, mentor sends/approves), the order status enum, and email/WhatsApp messages with a one-click signed "Approve quote" link that needs no login. Report the click count for every task in the click budget table.
+Plan first, then build the cart and ordering flow from docs/REDESIGN.md. The cart is a sheet with one primary button, "Send quote request" — no checkout pages. Optimistic updates, swipe-to-remove with an Undo toast, no confirm dialogs. Returning teams send in 1 click (team, contact, delivery remembered). First-time teams fill only team number + email in the same sheet; sign-in by email magic link or Google; look up the team name from the number. Add share-cart links, "Order again" on home and the order list, roles (student builds, mentor sends/approves), the order status enum, and email/WhatsApp messages with a one-click signed "Approve quote" link that needs no login. Report the click count for every task in the click budget table.
 ```
 
 ### Phase 5 — Home, trust pages, admin

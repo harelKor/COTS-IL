@@ -1,15 +1,15 @@
 "use client";
 
-import { Check, ChevronDown, ClipboardPaste, MessageCircle, Share2, X } from "lucide-react";
+import { Check, ChevronDown, MessageCircle, Share2, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { sendEmailLink, setUpTeam, signInWithGoogle } from "@/app/auth/actions";
-import { lookupSkus, sendQuoteRequest, type SkuMatch } from "@/app/cart/actions";
+import { sendQuoteRequest } from "@/app/cart/actions";
 import type { TeamNameResponse } from "@/app/api/team-name/route";
-import { encodeCart, parsePastedList } from "@/domain/cart-share";
+import { encodeCart } from "@/domain/cart-share";
 import { formatIls } from "@/domain/pricing";
-import { addToCartNow, removeNow } from "./cart-actions";
+import { removeNow } from "./cart-actions";
 import { cartTotals, useCart, type CartSheetLine, type Checkout } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
@@ -74,74 +74,6 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
         </div>
       </div>
     </li>
-  );
-}
-
-/** Paste a list of SKUs (or drop a BOM CSV) and add everything that's found, in one tap. */
-function PasteList({ initial, onDone }: { initial?: string; onDone: () => void }) {
-  const [text, setText] = useState(initial ?? "");
-  const [matches, setMatches] = useState<SkuMatch[] | null>(null);
-  const [skipped, setSkipped] = useState<string[]>([]);
-  const [pending, startTransition] = useTransition();
-
-  function look(value = text) {
-    const { lines, skipped } = parsePastedList(value);
-    setSkipped(skipped);
-    if (lines.length === 0) {
-      setMatches([]);
-      return;
-    }
-    startTransition(async () => setMatches(await lookupSkus(lines)));
-  }
-
-  const found = (matches ?? []).filter((m) => m.line);
-  return (
-    <div className="flex flex-col gap-3 rounded-xl bg-subtle p-3">
-      <textarea
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          setMatches(null);
-        }}
-        rows={4}
-        dir="ltr"
-        placeholder={"WCP-0749, 4\nam-1594, 2\n3 x WCP-0543"}
-        aria-label="רשימת מק״טים וכמויות"
-        className="rounded-xl bg-surface p-3 font-mono text-caption outline-none focus:ring-2 focus:ring-brand"
-      />
-      {matches === null ? (
-        <button type="button" onClick={() => look()} disabled={!text.trim() || pending} className={primary}>
-          {pending ? "מחפש…" : "חיפוש המק״טים"}
-        </button>
-      ) : (
-        <>
-          <p className="text-caption text-muted">
-            נמצאו {found.length} מתוך {matches.length}
-            {matches.length - found.length > 0 && (
-              <>
-                , לא נמצאו: <Ltr className="font-mono">{matches.filter((m) => !m.line).map((m) => m.sku).join(", ")}</Ltr>
-              </>
-            )}
-            {skipped.length > 0 && `, ${skipped.length} שורות לא נקראו`}
-          </p>
-          {found.length > 0 && (
-            <button
-              type="button"
-              className={primary}
-              onClick={() => {
-                for (const m of found) addToCartNow(m.line!, m.qty);
-                showToast(`נוספו ${found.length} פריטים לסל`);
-                setText("");
-                setMatches(null);
-                onDone();
-              }}
-            >
-              הוספת כל {found.length} הפריטים
-            </button>
-          )}
-        </>
-      )}
-    </div>
   );
 }
 
@@ -353,24 +285,16 @@ function StudentSend({ shareUrl }: { shareUrl: string }) {
 }
 
 /**
- * The cart and its checkout, in one place: the lines, pasting a list, the cost,
+ * The cart and its checkout, in one place: the lines, the cost,
  * sharing, and the one primary action for whoever is looking (a guest signs in,
  * a mentor sends, a student passes it to the mentor).
  */
-export function CartPanel({ onNavigate, pasteSignal = 0 }: { onNavigate?: () => void; pasteSignal?: number }) {
+export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
   const cart = useCart();
   const { lines, mode } = cart;
   const { count, totalIls } = cartTotals(lines);
-  const [pasting, setPasting] = useState(false);
   const [costOpen, setCostOpen] = useState(false);
   const [sent, setSent] = useState<{ orderId: string; number: number } | null>(null);
-  const [dropped, setDropped] = useState<string | undefined>();
-  // "הדבקת BOM" elsewhere on the site opens the sheet with the paste box open.
-  const [seenPasteSignal, setSeenPasteSignal] = useState(pasteSignal);
-  if (pasteSignal !== seenPasteSignal) {
-    setSeenPasteSignal(pasteSignal);
-    setPasting(true);
-  }
   const shareUrl = typeof window === "undefined" ? "" : `${window.location.origin}/cart/shared?items=${encodeCart(lines)}`;
 
   async function copyShare() {
@@ -400,19 +324,18 @@ export function CartPanel({ onNavigate, pasteSignal = 0 }: { onNavigate?: () => 
   }
 
   return (
-    <div
-      className="flex flex-col gap-4"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={async (e) => {
-        const file = e.dataTransfer.files[0];
-        if (!file) return;
-        e.preventDefault();
-        setDropped(await file.text());
-        setPasting(true);
-      }}
-    >
+    <div className="flex flex-col gap-4">
       {lines.length === 0 ? (
-        <p className="py-6 text-center text-muted">הסל ריק. אפשר להדביק רשימת מק״טים או לגרור קובץ BOM לכאן.</p>
+        <div className="flex flex-col items-center gap-4 py-8 text-center">
+          <p className="text-section font-semibold">הסל ריק</p>
+          <Link
+            href="/catalog"
+            onClick={onNavigate}
+            className="flex h-11 items-center rounded-full border border-line bg-white/90 px-5 text-[15px] font-medium text-brand shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle"
+          >
+            לקטלוג
+          </Link>
+        </div>
       ) : (
         <ul>
           {lines.map((line) => (
@@ -421,19 +344,14 @@ export function CartPanel({ onNavigate, pasteSignal = 0 }: { onNavigate?: () => 
         </ul>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setPasting((p) => !p)} aria-expanded={pasting} className="flex min-h-11 items-center gap-2 rounded-full bg-subtle px-4 text-caption">
-          <ClipboardPaste size={16} aria-hidden />
-          הדבקת רשימה או BOM
-        </button>
-        {lines.length > 0 && (
+      {lines.length > 0 && (
+        <div className="flex flex-wrap gap-2">
           <button type="button" onClick={copyShare} className="flex min-h-11 items-center gap-2 rounded-full bg-subtle px-4 text-caption">
             <Share2 size={16} aria-hidden />
             שיתוף הסל
           </button>
-        )}
-      </div>
-      {pasting && <PasteList key={dropped} initial={dropped} onDone={() => setPasting(false)} />}
+        </div>
+      )}
 
       {lines.length > 0 && (
         <>

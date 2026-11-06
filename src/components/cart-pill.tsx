@@ -9,11 +9,8 @@ import { canEditCart, cartTotals, useCart } from "./cart-store";
 /** Opens the cart sheet from anywhere on the site. */
 export const openCart = () => window.dispatchEvent(new Event("cart:open"));
 
-/** Opens the cart sheet with the SKU/BOM paste box already open. */
-export const openCartPaste = () => window.dispatchEvent(new Event("cart:open-paste"));
-
 /**
- * The header's cart button, so the cart (and pasting a BOM) can be found while it's still empty.
+ * The header's cart button, so the cart can be found while it's still empty.
  * Hidden for those who can't change a cart, such as the admin.
  */
 export function CartButton() {
@@ -44,21 +41,14 @@ export function CartButton() {
 export function CartPill() {
   const { mode, lines } = useCart();
   const sheet = useRef<HTMLDialogElement>(null);
-  const [wantOpen, setWantOpen] = useState<false | "cart" | "paste">(false);
-  // Bumped by "cart:open-paste"; the panel opens its paste box whenever it changes.
-  const [pasteSignal, setPasteSignal] = useState(0);
+  const [wantOpen, setWantOpen] = useState(false);
   const { count, totalIls } = cartTotals(lines);
   const editable = canEditCart(mode);
 
   useEffect(() => {
     // Other parts of the page (the family page's buy bar on phones) open the sheet with this event.
-    const open = () => setWantOpen("cart");
-    const openPaste = () => {
-      setPasteSignal((n) => n + 1);
-      setWantOpen("paste");
-    };
+    const open = () => setWantOpen(true);
     window.addEventListener("cart:open", open);
-    window.addEventListener("cart:open-paste", openPaste);
     // A sign-in link comes back with ?cart=open, so the sheet is waiting where the guest left it.
     const url = new URL(window.location.href);
     if (url.searchParams.get("cart") === "open") {
@@ -66,18 +56,13 @@ export function CartPill() {
       window.history.replaceState(window.history.state, "", url);
       open();
     }
-    return () => {
-      window.removeEventListener("cart:open", open);
-      window.removeEventListener("cart:open-paste", openPaste);
-    };
+    return () => window.removeEventListener("cart:open", open);
   }, []);
 
   // The sheet only exists once the cart has loaded, so an early request waits for it.
   useEffect(() => {
     if (!wantOpen || !editable || !sheet.current) return;
     if (!sheet.current.open) sheet.current.showModal();
-    // showModal focuses the close button; a paste request goes straight to the paste box.
-    if (wantOpen === "paste") sheet.current.querySelector("textarea")?.focus();
     setWantOpen(false);
   }, [wantOpen, editable]);
 
@@ -109,7 +94,7 @@ export function CartPill() {
             <CloseButton onClick={close} />
           </div>
           <div className="flex-1 overflow-y-auto px-6 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-            <CartPanel onNavigate={close} pasteSignal={pasteSignal} />
+            <CartPanel onNavigate={close} />
           </div>
         </div>
       </dialog>

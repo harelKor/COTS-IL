@@ -1,8 +1,7 @@
 "use client";
 
-import { ClipboardPaste, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useSyncExternalStore } from "react";
-import { openCartPaste } from "./cart-pill";
 import { Ltr } from "./ltr";
 import { openSearch } from "./search-panel";
 
@@ -12,7 +11,7 @@ const shortcut = () => (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "C
 
 /**
  * The home page's command bar: a big search trigger that opens the same search panel
- * as the header (no page reload), and pasting a SKU list or BOM straight into the cart.
+ * as the header (no page reload).
  */
 export function HomeCommandBar() {
   const keys = useSyncExternalStore(noSubscribe, shortcut, () => "⌘K");
@@ -32,14 +31,6 @@ export function HomeCommandBar() {
         <kbd className="hidden shrink-0 rounded-md bg-subtle px-2 py-0.5 font-sans text-[12px] text-muted sm:inline" dir="ltr">
           {keys}
         </kbd>
-      </button>
-      <button
-        type="button"
-        onClick={openCartPaste}
-        className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-full border border-line bg-white/90 px-5 shadow-card hover:border-brand/40 text-[15px] font-medium transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift"
-      >
-        <ClipboardPaste size={20} strokeWidth={1.75} className="text-brand" aria-hidden />
-        הדבקת רשימת מק״טים / <Ltr>BOM</Ltr>
       </button>
     </div>
   );
