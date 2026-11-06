@@ -23,24 +23,30 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   /* Close to a spring with no overshoot, for sheets and the stepper. */
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  /* The top specular edge on .card-surface; only dark mode has one. */
+  --card-highlight: 0 0 #0000;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #000000;
-    --surface: #1c1c1e;
-    --subtle: #2c2c2e;
+    /* Near-black layers instead of pure black, so surfaces have depth and text doesn't glare. */
+    --background: #09090b;
+    --surface: #131316;
+    --subtle: #1e1e24;
     --foreground: #f5f5f7;
     --muted: #98989d;
-    --line: #38383a;
+    --line: #27272f;
     --brand: #2997ff;
     --brand-strong: #5eb0ff;
     --danger: #ff453a;
     --success: #30d158;
     --warning: #ff9f0a;
-    --glass: rgb(22 22 23 / 0.72);
+    --glass: rgb(19 19 22 / 0.78);
+    /* A slightly softer studio backdrop, so mix-blend-multiply photos don't glow against the dark page. */
+    --tile: #ededf0;
     --shadow-lift: 0 8px 24px rgb(0 0 0 / 0.5);
+    --card-highlight: inset 0 1px 0 0 rgb(255 255 255 / 0.07);
     color-scheme: dark;
   }
 }
@@ -55,6 +61,8 @@
     --muted: #444444;
     --line: #999999;
     --warning: #7a4a00;
+    --tile: #f5f5f7;
+    --card-highlight: 0 0 #0000;
     color-scheme: light;
   }
 }
@@ -105,6 +113,31 @@ h1,
 h2,
 h3 {
   letter-spacing: -0.02em;
+}
+
+/* Horizontal pill bars and carousels scroll without a visible scrollbar. */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Fades both ends of a horizontal pill bar, so it reads as scrollable. Symmetric, so it needs no RTL flip. */
+@utility scroll-fade-x {
+  -webkit-mask-image: linear-gradient(to left, transparent, black 24px, black calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to left, transparent, black 24px, black calc(100% - 24px), transparent);
+}
+
+/* A card on the surface color with a hairline drawn inside, plus a top highlight in dark mode. */
+@utility card-surface {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow:
+    var(--card-highlight),
+    inset 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
 }
 
 /* SKUs, emails and team numbers stay left-to-right inside Hebrew text. New code uses <Ltr>. */
