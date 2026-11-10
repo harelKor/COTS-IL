@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
 import { CartPill } from "@/components/cart-pill";
@@ -40,10 +41,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: CAPTURE_INSTALL_PROMPT }} />
         <SiteHeader />
         <main className="mx-auto w-full max-w-[1200px] flex-1 px-6 pt-8 pb-16 md:px-12">{children}</main>
-        <FooterGate>
-          <SiteFooter />
-          <CartPill />
-        </FooterGate>
+        {/* Reads the path, so it waits in Suspense (cacheComponents). */}
+        <Suspense>
+          <FooterGate>
+            <SiteFooter />
+            <CartPill />
+          </FooterGate>
+        </Suspense>
         <Toaster />
       </body>
     </html>

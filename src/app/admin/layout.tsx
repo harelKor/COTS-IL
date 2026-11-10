@@ -26,7 +26,7 @@ async function Tabs() {
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
     <>
-      <Suspense fallback={<AdminTabs counts={{ orders: 0, vendor: 0 }} />}>
+      <Suspense fallback={<div className="mb-6 h-[52px] rounded-full bg-subtle print:hidden" />}>
         <Tabs />
       </Suspense>
       {children}
