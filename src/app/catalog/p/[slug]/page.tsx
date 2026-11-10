@@ -1,3 +1,4 @@
+import { BackToList } from "@/components/back-to-list";
 import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -155,16 +156,23 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
       <nav aria-label="ניווט" className="-mb-4 text-caption text-muted">
         <ol className="flex min-w-0 items-center gap-1">
           <li className="shrink-0">
-            <Link href="/catalog" className="flex min-h-11 items-center hover:text-brand">
-              קטלוג
-            </Link>
+            {result.categorySlug ? (
+              <Link href="/catalog" className="flex min-h-11 items-center hover:text-brand">
+                קטלוג
+              </Link>
+            ) : (
+              <BackToList href="/catalog" category={null} className="flex min-h-11 items-center hover:text-brand">
+                קטלוג
+              </BackToList>
+            )}
           </li>
           {result.categorySlug && (
             <li className="flex shrink-0 items-center gap-1">
               <ChevronLeft size={14} aria-hidden />
-              <Link href={catalogHref({ category: result.categorySlug })} className="flex min-h-11 items-center hover:text-brand">
+              {/* Back to the list it came from, filters and all, when that was this category. */}
+              <BackToList href={catalogHref({ category: result.categorySlug })} category={result.categorySlug} className="flex min-h-11 items-center hover:text-brand">
                 {result.categoryName}
-              </Link>
+              </BackToList>
             </li>
           )}
           <li className="flex min-w-0 items-center gap-1">

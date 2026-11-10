@@ -1,8 +1,9 @@
 "use client";
 
 import { Check, ChevronDown, LayoutGrid, List, SlidersHorizontal, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { CatalogPage } from "@/app/api/catalog/route";
 import { optionLabel } from "@/domain/families/sort";
 import type { CardFamily, SpecFacet } from "@/lib/catalog";
@@ -18,6 +19,8 @@ import {
 import { EAGER_CARDS } from "@/lib/images";
 import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
+import { rememberCatalogList } from "./back-to-list";
+import { ScrollRow } from "./scroll-row";
 
 type Supplier = { code: string; name: string; count: number };
 
@@ -27,6 +30,8 @@ type Props = {
   cards: CardFamily[];
   facets: SpecFacet[];
   suppliers: Supplier[];
+  /** For the empty state: categories to try instead. */
+  categories: { slug: string; name: string }[];
 };
 
 const SORT_LABELS: Record<Sort, string> = {
@@ -187,7 +192,7 @@ const sidebarHeading = "mb-2 text-caption font-semibold text-muted";
  *
  * From 1024px the filters sit in a sticky sidebar; below it, in a chip bar and a sheet.
  */
-export function CatalogBrowser({ filters, total, cards: first, facets, suppliers }: Props) {
+export function CatalogBrowser({ filters, total, cards: first, facets, suppliers, categories }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [cards, setCards] = useState(first);
@@ -226,6 +231,10 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
   // A button loads the next page (no endless scroll, so the footer stays reachable).
   /** Pages loaded so far. */
   const pages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE));
+
+  // The product page's breadcrumb leads back to this list, filters and all.
+  const here = catalogHref({ ...filters, page: pages });
+  useEffect(() => rememberCatalogList(here), [here]);
 
   async function loadMore() {
     if (loading) return;
@@ -305,7 +314,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
       </aside>
 
       <div ref={top} className={`flex min-w-0 scroll-mt-[72px] flex-col gap-5 transition-opacity duration-200 ${pending ? "opacity-60" : ""}`} aria-busy={pending}>
-        <div className="no-scrollbar scroll-fade-x -mx-6 flex gap-2 overflow-x-auto px-6 pb-1 md:-mx-12 md:px-12 lg:hidden">
+        <ScrollRow className="lg:hidden">
           {facets.map((facet) => {
             const chosen = filters.specs[facet.key] ?? [];
             const id = `facet-${facet.key}`;
@@ -342,7 +351,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
             <SlidersHorizontal size={16} strokeWidth={1.75} aria-hidden />
             סינונים נוספים
           </button>
-        </div>
+        </ScrollRow>
 
         {active.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
@@ -390,18 +399,38 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
         </div>
 
         {cards.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-card border border-dashed border-line bg-surface p-8 text-center">
-            <p className="text-muted">
-              {hasFilters(filters) ? "אין מוצרים שמתאימים לכל הסינונים יחד." : "לא מצאנו מוצרים. נסו מילה אחרת או מק״ט."}
+          <div className="card-surface flex flex-col items-center gap-4 p-8 text-center">
+            <p className="text-section font-semibold">
+              {hasFilters(filters) ? "אין מוצרים שמתאימים לכל הסינונים יחד" : "לא מצאנו מוצרים"}
             </p>
-            {hasFilters(filters) && (
-              <button
-                type="button"
-                onClick={() => go({ ...filters, supplier: "", program: "", availableOnly: false, specs: {} })}
-                className="flex h-11 items-center rounded-full bg-foreground px-5 font-medium text-background"
-              >
-                ניקוי הסינונים
-              </button>
+            <p className="text-muted">{hasFilters(filters) ? "אפשר להסיר סינון או לנקות את כולם." : "נסו מילה אחרת, באנגלית או בעברית, או מק״ט של הספק."}</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {hasFilters(filters) && (
+                <button
+                  type="button"
+                  onClick={() => go({ ...filters, supplier: "", program: "", availableOnly: false, specs: {} })}
+                  className="flex h-11 items-center rounded-full bg-brand px-5 font-medium text-white"
+                >
+                  ניקוי הסינונים
+                </button>
+              )}
+              {filters.q && filters.category && (
+                <button type="button" onClick={() => go({ ...filters, category: "" })} className={chip(false)}>
+                  חיפוש בכל הקטגוריות
+                </button>
+              )}
+            </div>
+            {!hasFilters(filters) && categories.length > 0 && (
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-caption text-muted">או לעבור לקטגוריה</span>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {categories.slice(0, 8).map((c) => (
+                    <Link key={c.slug} href={catalogHref({ category: c.slug })} className={chip(false)}>
+                      {c.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         ) : filters.view === "list" ? (
@@ -411,7 +440,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
             ))}
           </ul>
         ) : (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4">
             {cards.map((c, i) => (
               <FamilyCard key={c.id} family={c} preset={{ ...preset, ...c.skuPreset }} eager={i < EAGER_CARDS} />
             ))}

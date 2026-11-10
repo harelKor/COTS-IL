@@ -2,11 +2,38 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
+import { ScrollRow } from "@/components/scroll-row";
 import { CardGridSkeleton, Loading } from "@/components/skeleton";
 import { getFacets, getSpecFacets, getSupplierCounts, resolveSearch, searchCards } from "@/lib/catalog";
-import { catalogHref, PAGE_SIZE, parseFilters } from "@/lib/catalog-filters";
+import { Ltr } from "@/components/ltr";
+import { catalogHref, hasFilters, PAGE_SIZE, parseFilters } from "@/lib/catalog-filters";
 
-export const metadata: Metadata = { title: "קטלוג" };
+/** The page's name: the category, or the search. */
+async function catalogTitle(filters: ReturnType<typeof parseFilters>) {
+  if (filters.q) return `חיפוש: ${filters.q}`;
+  if (!filters.category) return "קטלוג";
+  const { categories } = await getFacets();
+  return categories.find((c) => c.slug === filters.category)?.name ?? "קטלוג";
+}
+
+/**
+ * Titled by category or search. Only /catalog and /catalog?category=… are pages for search
+ * engines: a search, spec filter, supplier, sort or view is a variation of one of them.
+ */
+export async function generateMetadata({ searchParams }: PageProps<"/catalog">): Promise<Metadata> {
+  const filters = parseFilters(await searchParams);
+  const variation = !!(filters.q || hasFilters(filters) || filters.sort !== "relevance" || filters.view !== "grid" || filters.page > 1);
+  return {
+    title: await catalogTitle(filters),
+    alternates: { canonical: catalogHref({ category: filters.category }) },
+    ...(variation ? { robots: { index: false, follow: true } } : {}),
+  };
+}
+
+async function CatalogTitle({ searchParams }: PageProps<"/catalog">) {
+  const filters = parseFilters(await searchParams);
+  return <h1 className="text-title font-semibold">{filters.q ? <>חיפוש: <Ltr>{filters.q}</Ltr></> : await catalogTitle(filters)}</h1>;
+}
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
 export const maxDuration = 30;
@@ -20,7 +47,7 @@ async function CategoryChips({ searchParams }: PageProps<"/catalog">) {
       on ? "bg-foreground text-background" : "bg-subtle text-foreground hover:bg-line/60"
     }`;
   return (
-    <nav aria-label="קטגוריות" className="no-scrollbar scroll-fade-x -mx-6 flex gap-2 overflow-x-auto px-6 pb-1 md:-mx-12 md:px-12">
+    <ScrollRow label="קטגוריות">
       <Link href={catalogHref({ q: filters.q })} className={chip(!filters.category)}>
         הכל
       </Link>
@@ -29,7 +56,7 @@ async function CategoryChips({ searchParams }: PageProps<"/catalog">) {
           {c.name}
         </Link>
       ))}
-    </nav>
+    </ScrollRow>
   );
 }
 
@@ -41,7 +68,7 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
   // A typo ("beraing") searches the closest catalog word instead; the box keeps what was typed.
   const query = await resolveSearch(filters.q);
   const searched = { ...filters, q: query };
-  const [{ cards, total }, facets, suppliers, { suppliers: allSuppliers }] = await Promise.all([
+  const [{ cards, total }, facets, suppliers, { suppliers: allSuppliers, categories }] = await Promise.all([
     // Up to the page in the URL, so "back" from a family page lands near where it was, but
     // never more than two pages on the server: scrolling loads the rest from /api/catalog.
     searchCards(searched, 0, Math.min(filters.page, MAX_SERVER_PAGES) * PAGE_SIZE),
@@ -60,17 +87,18 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
       cards={cards}
       facets={facets}
       suppliers={shownSuppliers.map((s) => ({ code: s.code, name: s.name, count: s.count }))}
+      categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
     />
   );
 }
 
 export default function CatalogPage(props: PageProps<"/catalog">) {
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-title font-semibold">קטלוג</h1>
-        <p className="text-caption text-muted">מחיר הספק בדולרים לפי השער היציג של בנק ישראל, בלי תוספת. משלוח בישראל מתומחר בהצעת המחיר.</p>
-      </div>
+    // A little wider than other pages on a desktop, for four columns beside the filters.
+    <div className="flex flex-col gap-4 xl:-mx-10 2xl:-mx-24">
+      <Suspense fallback={<h1 className="text-title font-semibold">קטלוג</h1>}>
+        <CatalogTitle {...props} />
+      </Suspense>
       <Suspense fallback={<div className="skeleton h-11 w-full rounded-full" aria-hidden />}>
         <CategoryChips {...props} />
       </Suspense>
@@ -90,6 +118,7 @@ export default function CatalogPage(props: PageProps<"/catalog">) {
           <Results {...props} />
         </ViewTransition>
       </Suspense>
+      <p className="text-center text-caption text-muted">מחיר הספק בדולרים לפי השער היציג של בנק ישראל, בלי תוספת. משלוח בישראל מתומחר בהצעת המחיר.</p>
     </div>
   );
 }

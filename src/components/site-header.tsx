@@ -96,6 +96,9 @@ async function Account() {
           </div>
         )}
         <nav className="flex flex-col pt-1">
+          <Link href="/catalog" className={`${menuLink} sm:hidden`}>
+            קטלוג
+          </Link>
           {team ? (
             <>
               <Link href="/orders" className={menuLink}>
@@ -144,6 +147,9 @@ export function SiteHeader() {
           <span className="hidden rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-semibold text-brand sm:inline-flex">
             <Ltr>FRC / FTC</Ltr>
           </span>
+        </Link>
+        <Link href="/catalog" className="hidden h-11 shrink-0 items-center px-2 text-[15px] text-foreground hover:text-brand sm:flex">
+          קטלוג
         </Link>
         <div className="flex min-w-0 flex-1 justify-end sm:justify-center">
           <SearchPanel />

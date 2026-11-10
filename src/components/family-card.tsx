@@ -346,8 +346,11 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-[15px] font-semibold">{price}</span>
+          {/* What tells the options apart (teeth, bore), since the title is the same for all of them. */}
           {!current && family.variantCount > 1 && (
-            <span className="text-caption text-muted">{family.variantCount.toLocaleString("he-IL")} אפשרויות</span>
+            <span className="truncate text-caption text-muted">
+              {family.variantCount.toLocaleString("he-IL")} אפשרויות{keys.length > 0 && `: ${keys.map(optionLabel).join(", ")}`}
+            </span>
           )}
         </div>
         {action}
