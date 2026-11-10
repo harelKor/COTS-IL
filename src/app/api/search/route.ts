@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { familyHref } from "@/components/catalog";
+import { usdIlsRate } from "@/lib/fx";
 import { priceIls } from "@/domain/pricing";
 import { quickSearch } from "@/lib/catalog";
 import { parseQuickQuery, tokenIsPartName } from "@/lib/quick-query";
@@ -38,9 +39,10 @@ export async function GET(request: NextRequest) {
     rows = await quickSearch(parsed.text);
     qty = 1;
   }
+  const rate = await usdIlsRate();
   const results: SearchResult[] = rows.map((r) => {
-    const low = priceIls(r.minPriceUsd);
-    const high = priceIls(r.maxPriceUsd);
+    const low = priceIls(r.minPriceUsd, rate);
+    const high = priceIls(r.maxPriceUsd, rate);
     return {
       id: r.id,
       href: familyHref(r.slug),

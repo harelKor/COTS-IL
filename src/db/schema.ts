@@ -2,6 +2,7 @@ import {
   type AnyPgColumn,
   bigserial,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -283,7 +284,25 @@ export const syncJobs = pgTable("sync_jobs", {
   finishedAt: timestamp("finished_at", { withTimezone: true }),
   counts: jsonb("counts"),
   error: text("error"),
+  /** The USD→ILS rate in force when this job ran (exchange_rates), for the admin dashboard. */
+  usdIlsRate: numeric("usd_ils_rate", { precision: 10, scale: 4 }),
 });
+
+/**
+ * Bank of Israel representative rates, one row per currency and rate date, fetched
+ * by the daily sync. Prices use the latest row (src/lib/fx.ts); a failed fetch keeps it.
+ */
+export const exchangeRates = pgTable(
+  "exchange_rates",
+  {
+    currency: text("currency").notNull(),
+    rateDate: date("rate_date").notNull(),
+    /** ILS per one unit of `currency`. */
+    rate: numeric("rate", { precision: 10, scale: 4 }).notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.currency, t.rateDate] })],
+);
 
 /** A team's shared cart. Prices are read live from the catalog until the order is submitted. */
 export const cartItems = pgTable(
@@ -345,6 +364,8 @@ export const teamOrderItems = pgTable(
     productUrl: text("product_url").notNull(),
     priceUsd: numeric("price_usd", { precision: 10, scale: 2 }).notNull(),
     multiplier: numeric("multiplier", { precision: 6, scale: 3 }).notNull(),
+    /** The USD→ILS rate behind unitPriceIls. Null on orders sent before the rate was applied (Nov 2026). */
+    usdIlsRate: numeric("usd_ils_rate", { precision: 10, scale: 4 }),
     unitPriceIls: integer("unit_price_ils").notNull(),
     pricedAt: timestamp("priced_at", { withTimezone: true }).notNull(),
   },

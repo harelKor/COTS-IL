@@ -1,7 +1,8 @@
-import { and, eq, isNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../db/schema";
 import { regroupCatalog } from "./families";
+import { fetchBoiUsdRate, type UsdRate } from "./boi";
 import type { FetchResult } from "./shopify";
 import type { NormalizedProduct } from "./types";
 
@@ -50,12 +51,48 @@ export function describeError(error: unknown): string {
   return error.cause instanceof Error ? error.cause.message : error.message;
 }
 
+/** The latest stored USD→ILS rate, or null when none has ever been stored. */
+export async function latestUsdRate(db: Db): Promise<UsdRate | null> {
+  const [row] = await db
+    .select()
+    .from(schema.exchangeRates)
+    .where(eq(schema.exchangeRates.currency, "USD"))
+    .orderBy(desc(schema.exchangeRates.rateDate))
+    .limit(1);
+  return row ? { rate: Number(row.rate), rateDate: row.rateDate } : null;
+}
+
+/**
+ * Fetches today's Bank of Israel rate and stores it. If the fetch fails, the last
+ * stored rate stays in force; with no rate at all, the sync must not run.
+ */
+export async function refreshUsdRate(db: Db, fetchRate: () => Promise<UsdRate> = fetchBoiUsdRate) {
+  try {
+    const fresh = await fetchRate();
+    await db
+      .insert(schema.exchangeRates)
+      .values({ currency: "USD", rateDate: fresh.rateDate, rate: String(fresh.rate) })
+      .onConflictDoUpdate({
+        target: [schema.exchangeRates.currency, schema.exchangeRates.rateDate],
+        set: { rate: String(fresh.rate), fetchedAt: new Date() },
+      });
+    return { ...fresh, fetched: true as const };
+  } catch (error) {
+    const last = await latestUsdRate(db);
+    if (!last) throw new Error(`No USD→ILS rate stored and the fetch failed: ${describeError(error)}`);
+    return { ...last, fetched: false as const, error: describeError(error) };
+  }
+}
+
 /**
  * Writes a supplier's catalog in one transaction. If fetching fails or the result
  * looks wrong, the job is marked failed and the existing catalog stays as it was.
  */
-export async function syncSupplier(db: Db, supplier: Supplier, fetchCatalog: () => Promise<FetchResult>) {
-  const [job] = await db.insert(schema.syncJobs).values({ supplierId: supplier.id }).returning();
+export async function syncSupplier(db: Db, supplier: Supplier, fetchCatalog: () => Promise<FetchResult>, usdIlsRate?: number) {
+  const [job] = await db
+    .insert(schema.syncJobs)
+    .values({ supplierId: supplier.id, usdIlsRate: usdIlsRate === undefined ? null : String(usdIlsRate) })
+    .returning();
 
   try {
     const { products, skipped } = await fetchCatalog();

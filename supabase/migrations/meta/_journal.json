@@ -106,6 +106,13 @@
       "when": 1794300533790,
       "tag": "20261110084853_team_role_legacy",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794310288000,
+      "tag": "20261110113127_usd_ils_rate",
+      "breakpoints": true
     }
   ]
 }

@@ -8,7 +8,7 @@ export type ImportCost = { amountIls: number; vatReclaimable: boolean };
 /**
  * Profit = revenue without VAT − purchases − import costs. Reclaimable VAT comes
  * back from the tax authority, so it isn't a cost (spec §8, AT-10). The rate is
- * passed in because the spec's 1.6 multiplier isn't a currency conversion.
+ * passed in: purchases are paid at the actual rate, not the catalog's rate (src/lib/fx.ts).
  */
 export function profitSummary(input: {
   revenueInclVat: number;

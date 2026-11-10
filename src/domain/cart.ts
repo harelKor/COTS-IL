@@ -3,7 +3,7 @@
  * carts combine, and the fingerprint that tells a sender the cart changed.
  */
 
-import { priceIls } from "./pricing";
+import { hasUsdPrice } from "./pricing";
 
 export const MAX_LINE_QTY = 9999;
 
@@ -22,7 +22,7 @@ export type LineFacts = {
  * else stops the whole request, so the sheet names it with a Remove button.
  */
 export function isOrderable(l: LineFacts): boolean {
-  return !l.variantMissing && !l.productMissing && l.productStatus === "published" && priceIls(l.priceUsd) !== null;
+  return !l.variantMissing && !l.productMissing && l.productStatus === "published" && hasUsdPrice(l.priceUsd);
 }
 
 export type QtyLine = { variantId: string; qty: number };

@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Alert, Button, Field, Input } from "@/components/form";
 import { ItemDescription } from "@/components/orders";
-import { formatIls, priceIls } from "@/domain/pricing";
+import { formatIls } from "@/domain/pricing";
 import { rejectOrder, sendQuote, type QuoteFormState } from "../actions";
 
 export type EditorLine = {
@@ -18,12 +18,13 @@ export type EditorLine = {
   qty: number;
   unitPriceIls: number;
   changeReason: string;
-  livePriceUsd: string | null;
+  /** Today's catalog price (USD × rate × 1.6), to compare with what the team saw. */
+  livePriceIls: number | null;
   liveAvailable: boolean | null;
 };
 
 function LiveCheck({ line }: { line: EditorLine }) {
-  const live = priceIls(line.livePriceUsd);
+  const live = line.livePriceIls;
   return (
     <div className="mt-1 flex flex-wrap gap-x-3 text-xs">
       <span className="text-muted">ביקשו: {line.requestedQty} × {formatIls(line.requestedPrice)}</span>

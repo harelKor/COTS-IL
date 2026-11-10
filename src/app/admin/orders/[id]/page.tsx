@@ -7,7 +7,9 @@ import { db, schema } from "@/db";
 import { Alert } from "@/components/form";
 import { OrderStatusBadge, formatDateTime } from "@/components/orders";
 import { canRejectOrder, canSendQuote } from "@/domain/orders";
+import { priceIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
+import { usdIlsRate } from "@/lib/fx";
 import { getOrderForViewer } from "@/lib/orders";
 import { getApproveLinks } from "@/lib/quote-links";
 import { ApproveLinks } from "./approve-links";
@@ -39,6 +41,7 @@ async function AdminOrder({ params }: PageProps<"/admin/orders/[id]">) {
     );
   const liveById = new Map(live.map((v) => [v.id, v]));
 
+  const rate = await usdIlsRate();
   const lines: EditorLine[] = items.map((item) => {
     const line = latestLines.get(item.id);
     const variant = liveById.get(item.variantId);
@@ -54,7 +57,7 @@ async function AdminOrder({ params }: PageProps<"/admin/orders/[id]">) {
       qty: line?.qty ?? item.qty,
       unitPriceIls: line?.unitPriceIls ?? item.unitPriceIls,
       changeReason: line?.changeReason ?? "",
-      livePriceUsd: variant?.priceUsd ?? null,
+      livePriceIls: priceIls(variant?.priceUsd, rate),
       liveAvailable: variant?.available ?? null,
     };
   });

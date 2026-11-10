@@ -1,4 +1,3 @@
-import { formatIls, priceIls } from "@/domain/pricing";
 import { isAvailabilityFresh } from "@/domain/reports";
 
 const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
@@ -15,18 +14,6 @@ export function Availability({ available, checkedAt }: { available: boolean | nu
     <span className="text-caption text-success">זמין אצל הספק (נבדק {date})</span>
   ) : (
     <span className="text-caption text-warning">לא זמין כרגע (נבדק {date})</span>
-  );
-}
-
-export function PriceRange({ min, max }: { min: string | null; max: string | null }) {
-  const low = priceIls(min);
-  const high = priceIls(max);
-  if (low === null) return <span className="text-sm text-muted">המחיר ייבדק בהצעה</span>;
-  return (
-    <span className="font-semibold">
-      {high !== null && high !== low && <span className="text-xs font-normal text-muted">החל מ-</span>}
-      {formatIls(low)}
-    </span>
   );
 }
 
