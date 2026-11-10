@@ -3,6 +3,7 @@
 import { RotateCcw } from "lucide-react";
 import { useTransition } from "react";
 import { reorder } from "@/app/cart/actions";
+import { replaceLines } from "./cart-store";
 import { showToast } from "./toast";
 
 /** "Order again": one tap puts an earlier order's parts back in the cart and opens it. */
@@ -14,8 +15,9 @@ export function ReorderButton({ orderId, className = "" }: { orderId: string; cl
       disabled={pending}
       onClick={() =>
         startTransition(async () => {
-          const { added, skipped, error } = await reorder(orderId);
+          const { added, skipped, error, lines } = await reorder(orderId);
           if (error) return showToast(error, "error");
+          if (lines) replaceLines(lines);
           showToast(skipped > 0 ? `נוספו ${added} פריטים; ${skipped} כבר לא נמכרים` : `נוספו ${added} פריטים לסל`);
           if (added > 0) window.dispatchEvent(new Event("cart:open"));
         })

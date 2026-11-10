@@ -283,7 +283,7 @@ export async function mergeCart(lines: SharedLine[]): Promise<MergeResult> {
 }
 
 /** Adds an earlier order's parts to the cart again, skipping any that can't be ordered now. */
-export async function reorder(orderId: string): Promise<{ added: number; skipped: number; error?: string }> {
+export async function reorder(orderId: string): Promise<{ added: number; skipped: number; error?: string; lines?: CartSheetLine[] }> {
   const { viewer, team } = await requireOrderingTeam();
   const id = z.uuid().safeParse(orderId);
   if (!id.success) return { added: 0, skipped: 0, error: "ההזמנה לא נמצאה" };
@@ -292,8 +292,9 @@ export async function reorder(orderId: string): Promise<{ added: number; skipped
   const items = await db.select({ variantId: teamOrderItems.variantId, qty: teamOrderItems.qty }).from(teamOrderItems).where(eq(teamOrderItems.orderId, order.id));
   let added = 0;
   for (const item of items) if (!(await addLine(team.id, viewer.id, item.variantId, item.qty))) added++;
-  refresh();
-  return { added, skipped: items.length - added };
+  // The cart as it now is, for the client store: no page re-render.
+  const lines = (await getCart(team.id)).map(toSheetLine(await usdIlsRate()));
+  return { added, skipped: items.length - added, lines };
 }
 
 /** The team switcher, for users in more than one team: which team's cart and orders they act for. */

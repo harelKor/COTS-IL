@@ -2,6 +2,7 @@ import "server-only";
 import { asc, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
 import { teamCanOrder } from "@/domain/orders";
@@ -27,8 +28,8 @@ export type Viewer = {
 /** The team switcher's cookie (switchTeam in src/app/cart/actions.ts). */
 export const TEAM_COOKIE = "cots-il-team";
 
-/** The signed-in user, verified with the Auth server, or null. */
-export async function getViewer(): Promise<Viewer | null> {
+/** The signed-in user, verified with the Auth server, or null. Once per request: the header, page and actions share it. */
+export const getViewer = cache(async function getViewer(): Promise<Viewer | null> {
   // Session checks depend on the clock and the request, so never prerender them.
   await connection();
   const supabase = await createClient();
@@ -64,7 +65,7 @@ export async function getViewer(): Promise<Viewer | null> {
     })),
     preferredTeamId: preferred,
   };
-}
+});
 
 /** Signed in, and either an admin or a member of an approved team. */
 export async function requireActiveViewer(): Promise<Viewer> {
