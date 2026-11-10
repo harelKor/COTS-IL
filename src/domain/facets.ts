@@ -26,3 +26,27 @@ export function isRelevantFacet(facet: FacetCandidate, total: number, selected: 
   if (facet.values < MIN_FACET_VALUES) return false;
   return facet.families >= MIN_FACET_FAMILIES && facet.families >= total * MIN_FACET_SHARE;
 }
+
+/** Which spec values are counted, under which of the chosen spec filters. */
+export type FacetCountPlan = {
+  /** Count these keys' values… */
+  keys: { only: string } | { except: string[] };
+  /** …among the products that pass these spec filters. */
+  specs: Record<string, string[]>;
+};
+
+/**
+ * Counts that say what a tap would give (disjunctive facets): a spec's values are counted
+ * under every chosen filter except its own, so choosing 1/2" Hex keeps the other bores'
+ * counts and narrows the teeth counts to hex-bore gears.
+ */
+export function facetCountPlans(specs: Record<string, string[]>): FacetCountPlan[] {
+  const chosen = Object.keys(specs).filter((k) => specs[k].length > 0);
+  return [
+    { keys: { except: chosen }, specs: Object.fromEntries(chosen.map((k) => [k, specs[k]])) },
+    ...chosen.map((key) => ({
+      keys: { only: key },
+      specs: Object.fromEntries(chosen.filter((k) => k !== key).map((k) => [k, specs[k]])),
+    })),
+  ];
+}

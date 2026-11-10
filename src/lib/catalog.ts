@@ -3,7 +3,7 @@ import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm"
 import { cacheLife, cacheTag } from "next/cache";
 import { db, schema } from "@/db";
 import { ACCESSORY_TITLE_PATTERN, HARDWARE_CATEGORIES, MAIN_ITEM_MIN_USD } from "@/domain/catalog-rank";
-import { isRelevantFacet } from "@/domain/facets";
+import { facetCountPlans, isRelevantFacet } from "@/domain/facets";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
 import { usdIlsRate } from "./fx";
@@ -28,13 +28,25 @@ function catalogCache() {
   cacheTag("catalog");
 }
 
-/** Families with a spec value among `values` for `key`. */
-function hasSpec(key: string, values: string[]) {
+/**
+ * Variants that have, for every spec filter, one of its values: one part that is both
+ * 1/2" Hex and 24 teeth, not a family with a 1/2" Hex 20T and a 3/8" Hex 24T. Null with no filters.
+ */
+function specVariants(specs: Record<string, string[]>): SQL | null {
   const sv = schema.specValues;
-  return sql`EXISTS (SELECT 1 FROM ${sv} WHERE ${sv.familyId} = ${families.id} AND ${sv.key} = ${key} AND ${sv.value} IN (${sql.join(
-    values.map((v) => sql`${v}`),
-    sql`, `,
-  )}))`;
+  const entries = Object.entries(specs).filter(([, values]) => values.length > 0);
+  if (entries.length === 0) return null;
+  const any = sql.join(
+    entries.map(([key, values]) => sql`(${sv.key} = ${key} AND ${sv.value} IN (${sql.join(values.map((v) => sql`${v}`), sql`, `)}))`),
+    sql` OR `,
+  );
+  return sql`SELECT ${sv.variantId} FROM ${sv} WHERE ${any} GROUP BY ${sv.variantId} HAVING count(DISTINCT ${sv.key}) = ${entries.length}`;
+}
+
+/** Families with a listed variant that passes every spec filter. */
+function hasSpecs(specs: Record<string, string[]>) {
+  const ids = specVariants(specs);
+  return ids && sql`EXISTS (SELECT 1 FROM ${variants} WHERE ${variants.familyId} = ${families.id} AND ${variants.missingSince} IS NULL AND ${variants.id} IN (${ids}))`;
 }
 
 /**
@@ -84,7 +96,7 @@ function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
   if (filters.supplier) conditions.push(sql`${filters.supplier} = ANY(${families.supplierCodes})`);
   if (filters.program) conditions.push(sql`${filters.program}::program = ANY(${families.programs})`);
   if (filters.availableOnly) conditions.push(eq(families.available, true));
-  if (withSpecs) for (const [key, values] of Object.entries(filters.specs)) conditions.push(hasSpec(key, values));
+  if (withSpecs) conditions.push(hasSpecs(filters.specs) ?? undefined);
   const where = and(...conditions);
 
   const order: SQL[] = [];
@@ -312,7 +324,7 @@ export async function resolveSearch(q: string): Promise<string> {
   return fixed && (await count(fixed)) > strict ? fixed : q;
 }
 
-/** Sizes and specs to filter by, with how many families have each value. */
+/** Sizes and specs to filter by, with how many families a tap on each value would show (0: none). */
 export type SpecFacet = { key: string; values: { value: string; count: number }[] };
 
 /** Keys shown first, in this order, when a list has them. */
@@ -321,8 +333,9 @@ const MAX_FACETS = 6;
 
 /**
  * The spec filters worth offering for the current list: keys whose values
- * differ between families, the usual ones first. Counted without the spec
- * filters themselves, so picking one bore doesn't hide the others.
+ * differ between families, the usual ones first. Which keys and values show is
+ * worked out without the spec filters, so picking one bore doesn't hide the others;
+ * each value's count is under the other chosen filters (see facetCountPlans).
  */
 export async function getSpecFacets(filters: CatalogFilters): Promise<SpecFacet[]> {
   "use cache";
@@ -361,9 +374,35 @@ export async function getSpecFacets(filters: CatalogFilters): Promise<SpecFacet[
       .where(where),
   ]);
 
+  // With spec filters chosen, count again: each key under the other keys' filters.
+  const counts = new Map<string, number>();
+  const id = (key: string, value: string) => `${key}\u0000${value}`;
+  if (Object.keys(filters.specs).length > 0) {
+    const counted = await Promise.all(
+      facetCountPlans(filters.specs).map((plan) => {
+        const ids = specVariants(plan.specs);
+        const keys =
+          "only" in plan.keys
+            ? eq(sv.key, plan.keys.only)
+            : plan.keys.except.length > 0
+              ? sql`${sv.key} NOT IN (${sql.join(plan.keys.except.map((k) => sql`${k}`), sql`, `)})`
+              : undefined;
+        return db
+          .select({ key: sv.key, value: sv.value, count: sql<number>`count(DISTINCT ${sv.familyId})::int` })
+          .from(sv)
+          .innerJoin(families, eq(families.id, sv.familyId))
+          .leftJoin(categories, eq(categories.id, families.categoryId))
+          .where(and(specRows, keys, ids ? sql`${sv.variantId} IN (${ids})` : undefined))
+          .groupBy(sv.key, sv.value);
+      }),
+    );
+    for (const r of counted.flat()) counts.set(id(r.key, r.value), r.count);
+  } else for (const r of rows) counts.set(id(r.key, r.value), r.count);
+
   const byKey = new Map<string, { value: string; count: number; num: number | null }[]>();
   for (const r of rows) {
-    byKey.set(r.key, [...(byKey.get(r.key) ?? []), { value: r.value, count: r.count, num: r.num === null ? null : Number(r.num) }]);
+    const value = { value: r.value, count: counts.get(id(r.key, r.value)) ?? 0, num: r.num === null ? null : Number(r.num) };
+    byKey.set(r.key, [...(byKey.get(r.key) ?? []), value]);
   }
   const reach = new Map(keyRows.map((r) => [r.key, r.families]));
   const selected = Object.keys(filters.specs);

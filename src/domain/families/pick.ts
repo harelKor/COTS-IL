@@ -79,3 +79,22 @@ export function choose(variants: Pickable[], keys: string[], selected: Record<st
   if (variants.some((v) => fits(v, next))) return next;
   return { [key]: value };
 }
+
+/**
+ * The lowest price a chip leads to, given the other choices: what a tap on it would cost
+ * at least. Null when nothing it leads to has a price.
+ */
+export function chipPrice(
+  variants: (Pickable & { priceIls: number | null })[],
+  selected: Record<string, string>,
+  key: string,
+  value: string,
+): number | null {
+  const others = Object.fromEntries(Object.entries(selected).filter(([k]) => k !== key));
+  let min: number | null = null;
+  for (const v of variants) {
+    if (valueOf(v, key) !== value || !fits(v, others) || v.priceIls === null) continue;
+    if (min === null || v.priceIls < min) min = v.priceIls;
+  }
+  return min;
+}

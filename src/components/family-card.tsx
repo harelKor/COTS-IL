@@ -104,10 +104,16 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       </>
     );
 
+  /** Adds the part the card has settled on (one part, or the filters chose every option), or opens the chips. */
+  function plusWith(list: CardVariant[]) {
+    const settled = singlePart ? family.onlyVariant : pick(list, keys, { ...preset, ...choices }).chosen;
+    if (settled && !open) addToCartNow(lineFor(family, settled), 1, image.current);
+    else if (list.length > 0) setOpen((o) => !o);
+  }
+
   function onPlus() {
-    if (singlePart && family.onlyVariant) addToCartNow(lineFor(family, family.onlyVariant), 1, image.current);
-    else if (variants) setOpen((o) => !o);
-    else void loadVariants().then((list) => list.length > 0 && setOpen(true));
+    if (singlePart || variants) plusWith(variants ?? []);
+    else void loadVariants().then(plusWith);
   }
 
   function onChip(key: string, value: string) {

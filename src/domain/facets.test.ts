@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isRelevantFacet } from "./facets";
+import { facetCountPlans, isRelevantFacet } from "./facets";
 
 describe("isRelevantFacet", () => {
   it("drops a spec only a couple of products have", () => {
@@ -25,5 +25,24 @@ describe("isRelevantFacet", () => {
 
   it("keeps a spec the user already filtered by", () => {
     expect(isRelevantFacet({ key: "od", families: 1, values: 1 }, 94, ["od"])).toBe(true);
+  });
+});
+
+describe("facetCountPlans", () => {
+  it("counts everything under no filters when nothing is chosen", () => {
+    expect(facetCountPlans({})).toEqual([{ keys: { except: [] }, specs: {} }]);
+  });
+
+  it("counts a chosen spec under the other filters only", () => {
+    const plans = facetCountPlans({ bore: ['1/2" Hex'], teeth: ["20", "24"] });
+    expect(plans).toEqual([
+      { keys: { except: ["bore", "teeth"] }, specs: { bore: ['1/2" Hex'], teeth: ["20", "24"] } },
+      { keys: { only: "bore" }, specs: { teeth: ["20", "24"] } },
+      { keys: { only: "teeth" }, specs: { bore: ['1/2" Hex'] } },
+    ]);
+  });
+
+  it("ignores a key with no values", () => {
+    expect(facetCountPlans({ bore: [] })).toEqual([{ keys: { except: [] }, specs: {} }]);
   });
 });

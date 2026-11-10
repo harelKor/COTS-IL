@@ -4,7 +4,7 @@ import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
 import { CardGridSkeleton, Loading } from "@/components/skeleton";
 import { getFacets, getSpecFacets, getSupplierCounts, resolveSearch, searchCards } from "@/lib/catalog";
-import { catalogHref, catalogQuery, PAGE_SIZE, parseFilters } from "@/lib/catalog-filters";
+import { catalogHref, PAGE_SIZE, parseFilters } from "@/lib/catalog-filters";
 
 export const metadata: Metadata = { title: "קטלוג" };
 
@@ -55,8 +55,6 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
 
   return (
     <CatalogBrowser
-      // Changing a filter starts the list again; switching view or loading more doesn't.
-      key={catalogQuery({ ...filters, page: 1, view: "grid" })}
       filters={filters}
       total={total}
       cards={cards}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { choose, pick } from "./pick";
+import { chipPrice, choose, pick } from "./pick";
 
 const gears = [
   { id: "a", options: { teeth: "12t", bore: "8mm SplineXS" } },
@@ -69,5 +69,28 @@ describe("choose", () => {
     expect(choose(gears, keys, {}, "teeth", "36t")).toEqual({ teeth: "36t" });
     expect(choose(gears, keys, { teeth: "36t" }, "teeth", "36t")).toEqual({});
     expect(choose(gears, keys, { teeth: "12t", bore: "8mm SplineXS" }, "teeth", "100t")).toEqual({ teeth: "100t" });
+  });
+});
+
+describe("chipPrice", () => {
+  const priced = [
+    { id: "a", priceIls: 40, options: { teeth: "36t", bore: '1/2" Hex' } },
+    { id: "b", priceIls: 30, options: { teeth: "36t", bore: '3/8" Hex' } },
+    { id: "c", priceIls: 55, options: { teeth: "60t", bore: '1/2" Hex' } },
+    { id: "d", priceIls: null, options: { teeth: "84t", bore: '1/2" Hex' } },
+  ];
+
+  it("is the cheapest part a chip leads to", () => {
+    expect(chipPrice(priced, {}, "teeth", "36t")).toBe(30);
+  });
+
+  it("follows the other choices, not the chip's own key", () => {
+    expect(chipPrice(priced, { bore: '1/2" Hex' }, "teeth", "36t")).toBe(40);
+    expect(chipPrice(priced, { teeth: "60t", bore: '1/2" Hex' }, "teeth", "36t")).toBe(40);
+  });
+
+  it("is null when nothing it leads to has a price", () => {
+    expect(chipPrice(priced, {}, "teeth", "84t")).toBeNull();
+    expect(chipPrice(priced, { bore: '3/8" Hex' }, "teeth", "60t")).toBeNull();
   });
 });

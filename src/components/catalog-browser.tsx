@@ -2,7 +2,7 @@
 
 import { Check, ChevronDown, LayoutGrid, List, SlidersHorizontal, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import type { CatalogPage } from "@/app/api/catalog/route";
 import { optionLabel } from "@/domain/families/sort";
 import type { CardFamily, SpecFacet } from "@/lib/catalog";
@@ -15,9 +15,6 @@ import {
   type CatalogFilters,
   type Sort,
 } from "@/lib/catalog-filters";
-
-/** Pages that load by scrolling before a "load more" button takes over (the footer must stay reachable). */
-const AUTO_PAGES = 3;
 import { EAGER_CARDS } from "@/lib/images";
 import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
@@ -141,29 +138,44 @@ function SupplierList({ suppliers, value, onChange }: { suppliers: Supplier[]; v
   );
 }
 
-/** A spec's values as small chips with their counts. */
-function FacetValues({ facet, chosen, onToggle }: { facet: SpecFacet; chosen: string[]; onToggle: (value: string) => void }) {
+/**
+ * A spec's values as chips with how many products a tap would show. A value that would
+ * show nothing is dimmed and can't be tapped, unless it's already chosen (so it can be cleared).
+ */
+function FacetValues({ facet, chosen, onToggle, large = false }: { facet: SpecFacet; chosen: string[]; onToggle: (value: string) => void; large?: boolean }) {
   return (
-    <div className="no-scrollbar flex max-h-52 flex-wrap gap-1.5 overflow-y-auto pt-1">
+    <div className={large ? "flex flex-wrap gap-2" : "no-scrollbar flex max-h-52 flex-wrap gap-1.5 overflow-y-auto pt-1"}>
       {facet.values.map((v) => {
         const on = chosen.includes(v.value);
+        const empty = v.count === 0 && !on;
         return (
           <button
             key={v.value}
             type="button"
             aria-pressed={on}
+            disabled={empty}
             onClick={() => onToggle(v.value)}
-            className={`flex min-h-9 items-center gap-1 rounded-full px-3 text-caption transition-colors ${
-              on ? "bg-foreground text-background" : "bg-subtle text-foreground hover:bg-line/60"
+            className={`flex items-center gap-1.5 rounded-full px-3 transition-colors ${large ? "min-h-11 text-[15px]" : "min-h-9 text-caption"} ${
+              on
+                ? "bg-foreground text-background"
+                : empty
+                  ? "bg-subtle text-muted opacity-50"
+                  : large
+                    ? "bg-surface text-foreground shadow-[inset_0_0_0_1px_var(--line)] hover:bg-subtle"
+                    : "bg-subtle text-foreground hover:bg-line/60"
             }`}
           >
             <Ltr>{v.value}</Ltr>
+            <span className={`text-[12px] tabular-nums ${on ? "text-background/70" : "text-muted"}`}>{v.count.toLocaleString("he-IL")}</span>
           </button>
         );
       })}
     </div>
   );
 }
+
+const moreButton =
+  "flex h-11 items-center rounded-full border border-line bg-white px-6 text-[15px] font-medium text-foreground shadow-card hover:border-brand/40 hover:text-brand disabled:opacity-60";
 
 const sidebarHeading = "mb-2 text-caption font-semibold text-muted";
 
@@ -180,42 +192,60 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
   const [pending, startTransition] = useTransition();
   const [cards, setCards] = useState(first);
   const [loading, setLoading] = useState(false);
-  const pages = useRef(Math.max(1, Math.ceil(first.length / PAGE_SIZE)));
-  const sentinel = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
+  const top = useRef<HTMLDivElement>(null);
   const more = useRef<HTMLDialogElement>(null);
 
-  const go = (next: CatalogFilters) => startTransition(() => router.replace(catalogHref({ ...next, page: 1 }), { scroll: false }));
+  // A new filter starts the list again. The component stays mounted, so the filters sheet,
+  // a facet popover and the sidebar's scroll stay as they were; switching view keeps the list.
+  const listKey = catalogQuery({ ...filters, page: 1, view: "grid" });
+  const [shownKey, setShownKey] = useState(listKey);
+  const [shownFirst, setShownFirst] = useState(first);
+  if (listKey !== shownKey || first !== shownFirst) {
+    setShownKey(listKey);
+    setShownFirst(first);
+    if (listKey !== shownKey) {
+      setCards(first);
+      setFailed(false);
+    }
+  }
+
+  /** A filter change is a history entry, so Back undoes it; the results scroll into view if they were left behind. */
+  const go = (next: CatalogFilters) =>
+    startTransition(() => {
+      router.push(catalogHref({ ...next, page: 1 }), { scroll: false });
+      const el = top.current;
+      if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: "start" });
+    });
 
   // A filter that picks one value presets that choice on every card.
   const preset = Object.fromEntries(
     Object.entries(filters.specs).flatMap(([k, values]) => (values.length === 1 ? [[k, values[0]]] : [])),
   );
 
-  // Scrolling loads the first pages; after that a button does, so the footer stays reachable.
-  const loadMore = useCallback(async () => {
+  // A button loads the next page (no endless scroll, so the footer stays reachable).
+  /** Pages loaded so far. */
+  const pages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE));
+
+  async function loadMore() {
     if (loading) return;
     setLoading(true);
-    const nextPage = pages.current + 1;
+    setFailed(false);
+    const nextPage = pages + 1;
     try {
       const res = await fetch(`/api/catalog?${catalogQuery({ ...filters, page: nextPage })}`);
+      if (!res.ok) throw new Error(String(res.status));
       const body = (await res.json()) as CatalogPage;
-      pages.current = nextPage;
       setCards((prev) => [...prev, ...body.cards.filter((c) => !prev.some((p) => p.id === c.id))]);
       // Keeps the place in the URL without a navigation, so "back" returns here.
       window.history.replaceState(window.history.state, "", catalogHref({ ...filters, page: nextPage }));
+    } catch {
+      // No automatic retry: "נסו שוב" asks for it.
+      setFailed(true);
     } finally {
       setLoading(false);
     }
-  }, [filters, loading]);
-  const autoLoad = Math.ceil(cards.length / PAGE_SIZE) < AUTO_PAGES;
-
-  useEffect(() => {
-    const el = sentinel.current;
-    if (!el || cards.length >= total || !autoLoad) return;
-    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && void loadMore(), { rootMargin: "800px 0px" });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [cards.length, total, autoLoad, loadMore]);
+  }
 
   const active: { label: React.ReactNode; clear: CatalogFilters }[] = [
     ...(filters.q ? [{ label: <>חיפוש: <Ltr>{filters.q}</Ltr></>, clear: { ...filters, q: "" } }] : []),
@@ -274,7 +304,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
         })}
       </aside>
 
-      <div className={`flex min-w-0 flex-col gap-5 transition-opacity duration-200 ${pending ? "opacity-60" : ""}`} aria-busy={pending}>
+      <div ref={top} className={`flex min-w-0 scroll-mt-[72px] flex-col gap-5 transition-opacity duration-200 ${pending ? "opacity-60" : ""}`} aria-busy={pending}>
         <div className="no-scrollbar scroll-fade-x -mx-6 flex gap-2 overflow-x-auto px-6 pb-1 md:-mx-12 md:px-12 lg:hidden">
           {facets.map((facet) => {
             const chosen = filters.specs[facet.key] ?? [];
@@ -291,19 +321,15 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                   className="fixed inset-x-4 top-[120px] m-0 mx-auto max-h-[60dvh] w-auto max-w-md overflow-y-auto rounded-card border border-line bg-surface p-4 text-foreground shadow-lift"
                 >
                   <p className="mb-3 text-section font-semibold">{optionLabel(facet.key)}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {facet.values.map((v) => (
-                      <button
-                        key={v.value}
-                        type="button"
-                        aria-pressed={chosen.includes(v.value)}
-                        onClick={() => go(toggleSpec(filters, facet.key, v.value))}
-                        className={chip(chosen.includes(v.value))}
-                      >
-                        <Ltr>{v.value}</Ltr>
-                      </button>
-                    ))}
-                  </div>
+                  <FacetValues facet={facet} chosen={chosen} onToggle={(value) => go(toggleSpec(filters, facet.key, value))} large />
+                  <button
+                    type="button"
+                    popoverTarget={id}
+                    popoverTargetAction="hide"
+                    className="mt-4 flex h-11 w-full items-center justify-center rounded-full bg-brand font-medium text-white"
+                  >
+                    הצגת {total.toLocaleString("he-IL")} מוצרים
+                  </button>
                 </div>
               </div>
             );
@@ -353,7 +379,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                 key={view}
                 type="button"
                 aria-pressed={filters.view === view}
-                onClick={() => startTransition(() => router.replace(catalogHref({ ...filters, view, page: pages.current }), { scroll: false }))}
+                onClick={() => startTransition(() => router.replace(catalogHref({ ...filters, view, page: pages }), { scroll: false }))}
                 className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-caption ${filters.view === view ? "bg-surface shadow-sm" : "text-muted"}`}
               >
                 <Icon size={16} strokeWidth={1.75} aria-hidden />
@@ -381,32 +407,34 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
         ) : filters.view === "list" ? (
           <ul className="card-surface px-4">
             {cards.map((c, i) => (
-              <FamilyCard key={c.id} family={c} preset={preset} layout="row" eager={i < EAGER_CARDS} />
+              <FamilyCard key={c.id} family={c} preset={{ ...preset, ...c.skuPreset }} layout="row" eager={i < EAGER_CARDS} />
             ))}
           </ul>
         ) : (
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
             {cards.map((c, i) => (
-              <FamilyCard key={c.id} family={c} preset={preset} eager={i < EAGER_CARDS} />
+              <FamilyCard key={c.id} family={c} preset={{ ...preset, ...c.skuPreset }} eager={i < EAGER_CARDS} />
             ))}
           </ul>
         )}
 
-        <div ref={sentinel} className="flex flex-col items-center gap-2 py-6 text-caption text-muted">
-          {cards.length < total && (
-            <>
-              <span>
-                מוצגים {cards.length.toLocaleString("he-IL")} מתוך {total.toLocaleString("he-IL")}
-              </span>
-              {loading && <span className="skeleton h-2 w-24" aria-hidden />}
-              {!autoLoad && !loading && (
-                <button type="button" onClick={() => void loadMore()} className="flex h-11 items-center rounded-full border border-line bg-white px-6 text-[15px] font-medium text-foreground shadow-card hover:border-brand/40 hover:text-brand">
-                  טעינת עוד מוצרים
+        {cards.length > 0 && (
+          <div className="flex flex-col items-center gap-3 py-6 text-caption text-muted">
+            <span className="tabular-nums" aria-live="polite">
+              {cards.length.toLocaleString("he-IL")} מתוך {total.toLocaleString("he-IL")}
+            </span>
+            {cards.length < total &&
+              (failed ? (
+                <button type="button" onClick={() => void loadMore()} className={moreButton}>
+                  הטעינה נכשלה. נסו שוב
                 </button>
-              )}
-            </>
-          )}
-        </div>
+              ) : (
+                <button type="button" onClick={() => void loadMore()} disabled={loading} aria-busy={loading} className={moreButton}>
+                  {loading ? "טוען…" : "טעינת עוד מוצרים"}
+                </button>
+              ))}
+          </div>
+        )}
       </div>
 
       <dialog ref={more} aria-label="סינונים נוספים" className="sheet sheet-side" onClick={(e) => e.target === more.current && more.current?.close()}>
