@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CartPill } from "@/components/cart-pill";
 import { CAPTURE_INSTALL_PROMPT } from "@/lib/install-prompt";
 import { SiteFooter } from "@/components/site-footer";
@@ -49,6 +50,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </FooterGate>
         </Suspense>
         <Toaster />
+        {/* Real-user Core Web Vitals on Vercel. Reads the route, so it waits in Suspense. */}
+        <Suspense>
+          <SpeedInsights />
+        </Suspense>
       </body>
     </html>
   );
