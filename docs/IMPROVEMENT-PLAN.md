@@ -74,7 +74,8 @@ The admin side has well-prefilled forms but no inbox, no notifications and hard-
 | S7 | Product page | E | S4 (lead times) | P1 | no |
 | S8 | Quote, approval, tracking, team | B | S3 | P1 | yes |
 | S9 | Performance, reliability, SEO, observability | F | none (do the DB timeouts first) | P1 | no |
-| S10 | Admin inbox and notifications | B | S3 | P1 | yes |
+| S10A | Admin: linked order → PO → shipment → delivery, path bar, no footer | B | none | P1 (user request) | yes |
+| S10 | Admin inbox and notifications | B | S3, S10A | P1 | yes |
 | S11 | Design system and accessibility pass | G | after S1, S6, S7 merge | P2 | no |
 | S12 | Beyond parity: lists, season kits, budgets | H | S1–S8 | growth | yes |
 
@@ -383,6 +384,43 @@ Prompt:
 Read CLAUDE.md and docs/IMPROVEMENT-PLAN.md (Rules, S9). Read the caching, connection(), metadata-route and error-handling guides in node_modules/next/dist/docs first. Implement S9 tasks 1–11 in order, one commit each. For anything that needs the Vercel or Supabase dashboard (env vars, firewall, Sentry DSN), write exact steps for me instead of guessing. Report Lighthouse mobile scores before and after.
 ```
 
+## S10A. Admin: one linked chain from team order to delivery, and a path bar (Plan first)
+
+**Goal (user request, Nov 10, 2026):** the admin always sees how things connect: a team order, the supplier orders (POs) its lines went into, the shipments and receipts of those POs, and the deliveries that brought the parts to the team. From any of them, one tap reaches the others. A path bar ("ניהול › רכש › הזמנת ספק 12 › משלוח 3") is always at the top. The site footer doesn't appear in admin. Simple: no new concepts, the same pages, linked.
+
+How the data links (already in the schema, never shown together):
+`team_orders` → `team_order_items` → `po_allocations` (per-team share of a PO line) → `po_lines` → `supplier_pos` → `shipment_items` / `shipments` → `receipt_lines` / `receipts` → `stock_allocations` (received units tied to an order line) → `delivery_items` → `deliveries`. A PO line serves many teams' orders; one delivery covers several orders of one team; an order can span several POs and deliveries. Nothing stores order ↔ delivery directly; it's always four joins.
+
+What's wrong today:
+- `/admin/orders/[id]` shows no POs, shipments or deliveries. `getOrderForViewer` (`src/lib/orders.ts:145-152`) already returns per-line `progress` and the order's `deliveries`, but the page drops them (`src/app/admin/orders/[id]/page.tsx:25`).
+- `/admin/orders` shows status only, not how far each order got (`getOrderStages` is used only by the team's `/orders`).
+- PO page links to orders only as small text per line (`purchasing/[id]/page.tsx:96-105`); shipments appear only when status is `ordered` (`:170`); no deliveries.
+- Shipment page shows team shares as plain text, not links (`logistics/[id]/page.tsx:82`; `getShares` lacks `orderId`, `src/lib/logistics.ts:134-141`); no deliveries.
+- Deliveries board and delivery note show `#orderNumber` as plain text (`deliveries/page.tsx:34`, `src/components/delivery-note.tsx:45`; `getReadyToDeliver` lacks `orderId`); no PO.
+- Shortages shows order items and PO lines in two unlinked tables.
+- Navigation: no `src/app/admin/layout.tsx`, no breadcrumbs; each page has its own back link in a different place (orders:62, purchasing:124, purchasing/[id]:41, logistics:74, logistics/[id]:43 and 217-222, deliveries:134, deliveries/[id]:27, orders/[id]:130-137).
+- The site footer (`src/components/site-footer.tsx`, rendered in `src/app/layout.tsx:42`) shows under every admin page.
+
+Tasks:
+1. **Admin shell.** `src/app/admin/layout.tsx` with: the path bar (sticky under the site header, `print:hidden`) and the section tabs from S10 task 1 (Inbox, Orders, Purchasing, Shipments, Deliveries, Reports, Catalog). Hide the site footer under `/admin` with a small client `FooterGate` (`usePathname().startsWith("/admin")` → null) around `<SiteFooter/>` in the root layout; the cart pill is hidden there too. Remove every per-page back link listed above.
+2. **Path bar.** `src/components/admin/breadcrumbs.tsx`: each page passes its trail (`[{label, href}]`), the last item is the current page (not a link). Trails: Order: ניהול › הזמנות › הזמנה N (קבוצה X). PO: ניהול › רכש › הזמנת ספק N (ספק). Shipment: ניהול › רכש › הזמנת ספק N › משלוח M (shipments belong to a PO). Delivery: ניהול › מסירות › תעודה N (קבוצה X). Mobile: the bar scrolls sideways and shows the last two items; `aria-label="מיקום"`, `aria-current="page"`, chevrons mirrored for RTL.
+3. **One query for the chain**, `src/lib/order-chain.ts`, used by all pages below: given an order id, PO id, shipment id or delivery id, return the linked orders, POs (number, supplier, status), shipments (number, status), deliveries (number, status), and per order line the counts quoted / on PO / shipped / received / delivered. Build on `getItemProgress`, `getShares`, `getPo`, `getPoShipping`, `getOrderDeliveries`; add `orderId` to `getShares` and `getReadyToDeliver`. Pure grouping and stage logic in `src/domain/order-chain.ts` with tests (an order split over two POs, a PO serving three teams, a partial receipt, one delivery covering two orders).
+4. **"מעקב" (tracking) panel**, the same component on every page, showing the chain as linked chips:
+   - Order page: under the quote, a per-line table: part, qty, then PO chip (e.g. "WCP #12, הוזמן"), shipment chip, delivery chip, and the line's stage. Lines not yet on a PO show "טרם הוזמן מהספק" with "הוספה להזמנת ספק" (the existing purchasing action).
+   - PO page: per line, the team orders it serves as chips ("1690 #57, 2 יח׳") linking to the order; a shipments section in every status; a deliveries section.
+   - Shipment page: team shares as links; per share whether it was received, allocated and delivered, with the delivery chip.
+   - Delivery note (admin view): order and PO chips per line.
+5. **Progress on the lists.** `/admin/orders`: a stage column (the same stage the team sees) and a small "PO 2/3, נמסר 1/3" summary. `/admin/purchasing` PO list: teams served and shipped/received counts. `/admin/deliveries` board: order numbers as links.
+6. **Shortages** in one table: order line → its PO line → what's missing and where (not ordered / not shipped / damaged / not received).
+7. Keep it simple: no new tables, no new statuses, nothing the admin has to maintain by hand; every link is derived from records that already exist. Admin print views keep their layout (path bar and chips `print:hidden`).
+
+Acceptance: from any order, PO, shipment or delivery, the related ones are one tap away and the path bar leads back up; with seeded data (one order over two suppliers, partly delivered) the order page shows each line's PO, shipment and delivery; no footer on any `/admin` page; 360px without horizontal scroll; Vitest for `order-chain`.
+
+Prompt:
+```
+Read CLAUDE.md, docs/admin-guide.md and docs/IMPROVEMENT-PLAN.md (Rules, S10A). Plan first: the order-chain query shape (show the SQL), the tracking panel per page, and the breadcrumb trails. After my OK, implement S10A tasks 1–7. Seed a local order split across two POs with a partial delivery to test it. Update docs/admin-guide.md. Screenshots of the order, PO, shipment and delivery pages at 360px and 1280px.
+```
+
 ## S10. Admin inbox and notifications (Plan first)
 
 **Goal:** the reseller sees "what needs me now" on one screen and turns a request into a sent quote in under 2 minutes.
@@ -390,7 +428,7 @@ Read CLAUDE.md and docs/IMPROVEMENT-PLAN.md (Rules, S9). Read the caching, conne
 Findings: no admin layout or navigation (every page has its own back link; entry only through the account menu); `/admin` shows one count; the orders list has no status tabs, age or search (`src/app/admin/orders/page.tsx`); team approval isn't on the order page; quote lines need a typed reason even when only adopting the synced price (`src/domain/orders.ts:219`); shipping has no default; sale prices (`compareAtUsd`) and weight (`grams`) are stored but never shown; destructive actions (`removePoLine`, `reverseReceipt`, `deleteShipment`, `cancelPo`, `cancelDelivery`, `removeImportCost`) are single taps on `text-xs` links; `ActionForm` has no pending state and many actions throw on bad input; sync errors and counts aren't shown and nobody hears when a part in an open order disappears or changes price; pricing is hard-coded USD × 1.6 and the report FX rate is a URL parameter; `/admin` lists a team once per member email (duplicate React key); English "no supplier SKU" in the Hebrew UI; history scans load every approved line ever (`getDemand`, `getReadyToDeliver`, `getItemProgress`).
 
 Tasks:
-1. `src/app/admin/layout.tsx` with a sticky tab bar (Inbox, Orders, Purchasing, Shipments, Deliveries, Reports, Catalog) and badge counts, scrollable at 360px.
+1. Badge counts on the admin tabs that S10A adds.
 2. Inbox (`/admin`): 7 queues with count and oldest age (new requests, quotes waiting for teams > 3 days, approved not on a PO, PO drafts not ordered, ordered without shipment, shipments not received, ready to deliver) plus failed syncs and "open orders affected by the last sync".
 3. Orders list: status tabs, oldest first in "new", age badge, search by team or order number.
 4. Order page: approve/reject team inline when pending; quote editor with "use catalog price" per line and for all (auto reason), default shipping from settings, live totals, sale and heavy-item flags, sticky Send bar on mobile, 44px inputs.
@@ -479,6 +517,7 @@ Ideas that make COTS-IL better than ordering direct, in order of value. Each is 
 | S7 | | | |
 | S8 | | | |
 | S9 | `claude/kind-joliot-2ebc0d` | task 1 | Task 1 done with S1: DB pool 5, idle 20 s, connect and queue 10 s, `statement_timeout` 8 s, `maxDuration` 30 on catalog pages and 15 on the catalog/search APIs. Watch `get_runtime_errors` for `QUEUE_TIMEOUT` or statement timeouts after deploy. Tasks 2–8 open |
+| S10A | | | |
 | S10 | | | |
 | S11 | | | |
 | S12 | | | |
