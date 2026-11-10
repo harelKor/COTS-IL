@@ -1,5 +1,6 @@
 import { ItemDescription } from "@/components/orders";
 import type { getDeliveryForViewer } from "@/lib/logistics";
+import { TeamName } from "@/components/team-name";
 
 const date = new Intl.DateTimeFormat("en-GB", { dateStyle: "short", timeZone: "Asia/Jerusalem" });
 
@@ -13,7 +14,7 @@ export function DeliveryNote({ delivery, team, items }: Delivery) {
         <div>
           <h1 className="text-2xl font-bold">תעודת משלוח {delivery.number}</h1>
           <p className="text-sm text-muted">
-            {team.name}, <span className="ltr">{`${team.program} ${team.number}`}</span>
+            <TeamName team={team} />
           </p>
         </div>
         <div className="text-sm">

@@ -82,10 +82,26 @@ export async function listPos() {
       orderedAt: supplierPos.orderedAt,
       createdAt: supplierPos.createdAt,
       lineCount: sql<number>`(SELECT count(*)::int FROM ${poLines} WHERE ${poLines.poId} = ${supplierPos.id})`,
+      unitCount: sql<number>`(SELECT coalesce(sum(a.qty), 0)::int FROM ${poAllocations} a JOIN ${poLines} l ON l.id = a.po_line_id WHERE l.po_id = ${supplierPos.id})`,
+      linesUsd: sql<number>`(SELECT coalesce(sum(a.qty * coalesce(l.unit_cost_usd, 0)), 0)::float FROM ${poAllocations} a JOIN ${poLines} l ON l.id = a.po_line_id WHERE l.po_id = ${supplierPos.id})`,
+      /** The last change on record (lines added or removed, ordered, record fields), or creation. */
+      updatedAt: sql<Date>`greatest(${supplierPos.createdAt}, ${supplierPos.orderedAt}, (SELECT max(at) FROM audit_log WHERE entity = 'supplier_po' AND entity_id = ${supplierPos.id}::text))`.mapWith(
+        (v: string | Date) => new Date(v),
+      ),
     })
     .from(supplierPos)
     .innerJoin(suppliers, eq(suppliers.id, supplierPos.supplierId))
     .orderBy(desc(supplierPos.number));
+}
+
+/** The last change on record for one supplier order (see `updatedAt` in listPos). */
+export async function getPoUpdatedAt(po: { id: string; createdAt: Date; orderedAt: Date | null }): Promise<Date> {
+  const [row] = await db
+    .select({ at: sql<string | null>`max(${schema.auditLog.at})` })
+    .from(schema.auditLog)
+    .where(and(eq(schema.auditLog.entity, "supplier_po"), eq(schema.auditLog.entityId, po.id)));
+  const times = [po.createdAt, po.orderedAt, row?.at ? new Date(row.at) : null].filter((d): d is Date => !!d);
+  return new Date(Math.max(...times.map((d) => d.getTime())));
 }
 
 export async function getPo(id: string) {

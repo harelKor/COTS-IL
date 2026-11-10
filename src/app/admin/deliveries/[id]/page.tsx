@@ -42,7 +42,7 @@ async function AdminDelivery({ params }: PageProps<"/admin/deliveries/[id]">) {
                 <Input name="recipientName" required maxLength={100} />
               </Field>
               <Field label="תאריך" name="deliveredAt">
-                <Input name="deliveredAt" type="date" required defaultValue={isoDay.format(new Date())} />
+                <Input name="deliveredAt" type="date" lang="he-IL" required defaultValue={isoDay.format(new Date())} />
               </Field>
             </div>
             <Field label="אסמכתא (מספר שילוח, הערה)" name="proofNote">

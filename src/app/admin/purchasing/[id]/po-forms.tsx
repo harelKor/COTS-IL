@@ -53,7 +53,7 @@ export function RecordOrderedForm({ poId, lines, today }: { poId: string; lines:
           <Input name="supplierOrderRef" dir="ltr" required maxLength={100} value={ref} onChange={(e) => setRef(e.target.value)} />
         </Field>
         <Field label="תאריך ההזמנה" name="orderedAt">
-          <Input name="orderedAt" type="date" required defaultValue={today} />
+          <Input name="orderedAt" type="date" lang="he-IL" required defaultValue={today} />
         </Field>
       </div>
       <fieldset className="flex flex-col gap-2">

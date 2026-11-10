@@ -7,6 +7,7 @@ import { getViewer } from "@/lib/auth";
 import { findInvitation } from "@/lib/invitations";
 import { joinInvited, signupInvited } from "../actions";
 import { Loading, PageSkeleton } from "@/components/skeleton";
+import { TeamName } from "@/components/team-name";
 
 export const metadata: Metadata = { title: "הזמנה לקבוצה", robots: { index: false } };
 
@@ -30,7 +31,7 @@ async function Invite({ params }: PageProps<"/invite/[token]">) {
   const { invitation, team } = found;
   const intro = (
     <p>
-      הוזמנתם להצטרף לחשבון של {team.name} (<span className="ltr">{`${team.program} ${team.number}`}</span>) עם הכתובת{" "}
+      הוזמנתם להצטרף לחשבון של <TeamName team={team} /> עם הכתובת{" "}
       <span className="ltr">{invitation.email}</span>. אחרי ההצטרפות אפשר להזמין, לשלוח בקשות ולאשר הצעות בשם הקבוצה.
     </p>
   );

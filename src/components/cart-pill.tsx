@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatIls } from "@/domain/pricing";
 import { CartPanel, CloseButton } from "./cart-panel";
 import { canEditCart, cartTotals, useCart } from "./cart-store";
-import { Ltr } from "./ltr";
+import { TeamName } from "@/components/team-name";
 
 /** Opens the cart sheet from anywhere on the site. */
 export const openCart = () => window.dispatchEvent(new Event("cart:open"));
@@ -103,7 +103,7 @@ export function CartPill() {
               <h2 className="truncate text-section font-semibold">
                 {team ? (
                   <>
-                    סל הקבוצה, {team.name} <Ltr>{`${team.program} ${team.number}`}</Ltr>
+                    סל הקבוצה, <TeamName team={team} />
                   </>
                 ) : (
                   "הסל"

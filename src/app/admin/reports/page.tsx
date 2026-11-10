@@ -59,10 +59,10 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
     <div className="flex flex-col gap-8">
       <Form action="/admin/reports" className="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-surface p-4 print:hidden">
         <Field label="מתאריך" name="from">
-          <Input name="from" type="date" defaultValue={period.from} />
+          <Input name="from" type="date" lang="he-IL" defaultValue={period.from} />
         </Field>
         <Field label="עד תאריך" name="to">
-          <Input name="to" type="date" defaultValue={period.to} />
+          <Input name="to" type="date" lang="he-IL" defaultValue={period.to} />
         </Field>
         <Field label="שער דולר לרווחיות" name="rate">
           <Input name="rate" type="number" min={0} step="0.001" dir="ltr" defaultValue={usdIlsRate ?? undefined} />

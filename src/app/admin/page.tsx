@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Search } from "lucide-react";
 import { Ltr } from "@/components/ltr";
-import { formatDateTime } from "@/components/orders";
+import { TeamName } from "@/components/team-name";
+import { groupInbox, INBOX_SORTS, NEEDS_ADMIN, parseInboxSort } from "@/domain/admin-orders";
+import { formatDay } from "@/domain/display";
 import { isFinished, ORDER_STEPS, STATUS_LABELS, type OrderStatusKey } from "@/domain/order-status";
 import { formatIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
@@ -11,10 +12,11 @@ import { countByStatus, getOrderSummaries, type AdminOrderSummary } from "@/lib/
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { OrderPanel } from "./order-panel";
 import { STATUS_STYLE } from "./status-style";
+import { BULK_FORM, BulkOrdered, InboxSearch } from "./inbox-controls";
 
 export const metadata: Metadata = { title: "כל ההזמנות" };
 
-type Params = { status?: string; q?: string; open?: string; finished?: string; edit?: string };
+type Params = { status?: string; q?: string; open?: string; finished?: string; edit?: string; sort?: string };
 
 const OPEN_STATUSES = ORDER_STEPS.filter((s) => !isFinished(s));
 
@@ -30,6 +32,8 @@ const MAIN_ACTION: Record<OrderStatusKey, string> = {
   rejected: "סיכום",
   cancelled: "סיכום",
 };
+
+const clean = (params: Params) => Object.fromEntries(Object.entries(params).filter(([, v]) => v)) as Record<string, string>;
 
 /** Builds this page's URL with some parameters changed, so filters, search and the open card all survive. */
 function href(params: Params, change: Partial<Params>) {
@@ -49,7 +53,7 @@ function age(date: Date, now: number) {
 function matches(order: AdminOrderSummary, q: string) {
   const term = q.trim().replace(/^#/, "");
   if (!term) return true;
-  return String(order.number) === term || order.teamLabel.includes(term) || order.teamLabel.split(" ")[1] === term || order.teamName.includes(term);
+  return String(order.number) === term || String(order.teamNumber).startsWith(term) || order.teamDisplay.toLowerCase().includes(term.toLowerCase());
 }
 
 function Filters({ params, counts, total }: { params: Params; counts: Record<OrderStatusKey, number>; total: number }) {
@@ -86,21 +90,30 @@ function Filters({ params, counts, total }: { params: Params; counts: Record<Ord
           );
         })}
       </ul>
-      <form action="/admin" className="flex gap-2" role="search">
-        {params.status && <input type="hidden" name="status" value={params.status} />}
-        <label className="flex min-h-11 flex-1 items-center gap-2 rounded-full border border-line bg-surface px-4">
-          <Search size={18} aria-hidden className="text-muted" />
-          <input
-            name="q"
-            defaultValue={params.q}
-            placeholder="מספר קבוצה או מספר הזמנה"
-            aria-label="חיפוש לפי מספר קבוצה או מספר הזמנה"
-            inputMode="search"
-            className="h-11 min-w-0 flex-1 bg-transparent text-base outline-none"
-          />
-        </label>
-        <button className="min-h-11 rounded-full bg-subtle px-5 text-sm font-medium hover:bg-subtle-hover">חיפוש</button>
-      </form>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
+          <InboxSearch q={params.q ?? ""} base={new URLSearchParams(clean({ ...params, q: undefined, open: undefined })).toString()} />
+        </div>
+        <nav aria-label="מיון" className="flex shrink-0 items-center gap-1 overflow-x-auto rounded-full bg-subtle p-1">
+          <span className="ps-3 pe-1 text-sm text-muted">מיון:</span>
+          {INBOX_SORTS.map((o) => {
+            const active = parseInboxSort(params.sort) === o.key;
+            return (
+              <Link
+                key={o.key}
+                href={href(params, { sort: o.key === "action" ? undefined : o.key, open: undefined })}
+                scroll={false}
+                aria-current={active ? "true" : undefined}
+                className={`flex min-h-11 items-center rounded-full px-4 text-sm whitespace-nowrap ${
+                  active ? "bg-surface font-semibold text-brand-strong shadow-sm" : "text-muted hover:bg-subtle-hover"
+                }`}
+              >
+                {o.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
     </div>
   );
 }
@@ -109,42 +122,52 @@ function OrderCard({ order, params, now }: { order: AdminOrderSummary; params: P
   const open = params.open === order.id;
   const style = STATUS_STYLE[order.view.status];
   const label = STATUS_LABELS[order.view.status].admin;
+  const mine = NEEDS_ADMIN.has(order.view.status);
+  const selectable = order.view.status === "to_order" && order.vendorsToOrder.length > 0;
   return (
-    <li id={`o-${order.id}`} className={`card-surface scroll-mt-20 rounded-[18px] border-s-4 ${style.edge}`}>
-      <Link
-        href={href(params, { open: open ? undefined : order.id, edit: undefined })}
-        scroll={false}
-        aria-expanded={open}
-        className="flex flex-col gap-2 p-4"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="font-semibold">
-              <Ltr>{order.teamLabel}</Ltr> {order.teamName}
-            </div>
-            <div className="text-sm text-muted">
-              הזמנה <Ltr>#{order.number}</Ltr>, <Ltr>{formatDateTime(order.submittedAt).slice(0, 10)}</Ltr>, {age(order.submittedAt, now)}
-            </div>
-          </div>
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${style.chip}`}>{label}</span>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span className="text-muted">
-            {order.itemCount} פריטים, {formatIls(order.totalIls)}
-          </span>
-          {!open && (
-            <span className="flex min-h-11 items-center rounded-full bg-subtle px-4 text-sm font-medium text-brand-strong">
-              {MAIN_ACTION[order.view.status]}
-            </span>
-          )}
-        </div>
-        {(order.view.progress || order.view.vendors) && (
-          <div className="flex flex-wrap gap-2 text-xs">
-            {order.view.progress && <span className="rounded-full bg-subtle px-3 py-1">{order.view.progress}</span>}
-            {order.view.vendors && <span className="rounded-full bg-subtle px-3 py-1">{order.view.vendors}</span>}
-          </div>
+    <li id={`o-${order.id}`} className={`card-surface flex scroll-mt-20 flex-col rounded-[18px] border-s-4 ${style.edge}`}>
+      <div className="flex">
+        {selectable && (
+          <label className="flex w-11 shrink-0 cursor-pointer items-start justify-center pt-4 ps-2" title="בחירה לסימון מרוכז">
+            <input type="checkbox" form={BULK_FORM} name="orderId" value={order.id} className="size-5 accent-brand" aria-label={`בחירת הזמנה #${order.number} לסימון מרוכז`} />
+          </label>
         )}
-      </Link>
+        <Link
+          href={href(params, { open: open ? undefined : order.id, edit: undefined })}
+          scroll={false}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 flex-col gap-2 p-4"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="font-semibold">
+                <TeamName team={{ name: order.teamName, program: order.teamProgram, number: order.teamNumber }} />
+              </div>
+              <div className="text-sm text-muted">
+                הזמנה <Ltr>#{order.number}</Ltr>, <Ltr>{formatDay(order.submittedAt, new Date(now))}</Ltr>, {age(order.submittedAt, now)}
+              </div>
+            </div>
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${style.chip}`}>{label}</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="text-muted">
+              {order.itemCount} פריטים, {formatIls(order.totalIls)}
+            </span>
+            {!open &&
+              (mine ? (
+                <span className="btn-brand flex min-h-11 items-center rounded-full px-5 text-sm font-medium">{MAIN_ACTION[order.view.status]}</span>
+              ) : (
+                <span className="flex min-h-11 items-center text-sm text-brand">{MAIN_ACTION[order.view.status]}</span>
+              ))}
+          </div>
+          {(order.view.progress || order.view.vendors) && (
+            <div className="flex flex-wrap gap-2 text-xs">
+              {order.view.progress && <span className="rounded-full bg-subtle px-3 py-1">{order.view.progress}</span>}
+              {order.view.vendors && <span className="rounded-full bg-subtle px-3 py-1">{order.view.vendors}</span>}
+            </div>
+          )}
+        </Link>
+      </div>
       {open && (
         <div className="border-t border-line p-4">
           <Suspense fallback={<p className="text-sm text-muted">טוען…</p>}>
@@ -169,6 +192,15 @@ async function AllOrders({ searchParams }: { searchParams: Promise<Params> }) {
     (o) => o.id === params.open || ((!params.status || o.view.status === params.status) && matches(o, params.q ?? "")),
   );
   const finishedOpen = params.finished === "1";
+  const groups = groupInbox(shown, parseInboxSort(params.sort));
+  const vendors = new Map<string, { id: string; name: string; orderIds: string[] }>();
+  for (const o of all.filter((o) => o.view.status === "to_order"))
+    for (const v of o.vendorsToOrder) {
+      const entry = vendors.get(v.id) ?? { ...v, orderIds: [] };
+      entry.orderIds.push(o.id);
+      vendors.set(v.id, entry);
+    }
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
 
   return (
     <div className="flex flex-col gap-6">
@@ -177,12 +209,21 @@ async function AllOrders({ searchParams }: { searchParams: Promise<Params> }) {
       {shown.length === 0 ? (
         <p className="text-muted">{params.status || params.q ? "אין הזמנות שמתאימות לסינון." : "אין הזמנות פתוחות."}</p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {shown.map((o) => (
-            <OrderCard key={o.id} order={o} params={params} now={now} />
-          ))}
-        </ul>
+        groups.map((g) => (
+          <section key={g.heading} className="flex flex-col gap-3" aria-label={g.heading}>
+            <h2 className="text-xl font-semibold tracking-[-0.02em]">
+              {g.heading} <span className="text-base font-normal text-muted tabular-nums">({g.orders.length})</span>
+            </h2>
+            <ul className="flex flex-col gap-3">
+              {g.orders.map((o) => (
+                <OrderCard key={o.id} order={o} params={params} now={now} />
+              ))}
+            </ul>
+          </section>
+        ))
       )}
+
+      <BulkOrdered vendors={[...vendors.values()]} today={today} />
 
       <section className="flex flex-col gap-3">
         <Link

@@ -9,6 +9,8 @@ import { quoteTotals } from "@/domain/orders";
 import { formatIls } from "@/domain/pricing";
 import { readApproveLink } from "@/lib/quote-links";
 import { ApproveForm } from "./approve-form";
+import { TeamName } from "@/components/team-name";
+import { PaymentTerms } from "@/components/payment-terms";
 
 export const metadata: Metadata = { title: "אישור הצעת מחיר", robots: { index: false, follow: false } };
 
@@ -35,7 +37,7 @@ async function Approval({ params }: PageProps<"/q/[token]">) {
     <div className="flex flex-col gap-5">
       <div>
         <p className="text-caption text-muted">
-          {link.team.name}, <Ltr>{`${link.team.program} ${link.team.number}`}</Ltr>, עבור {link.member}
+          <TeamName team={link.team} />, עבור {link.member}
         </p>
         <h1 className="text-title font-semibold">
           הצעת מחיר להזמנה {link.orderNumber}, גרסה {link.quote.version}
@@ -67,6 +69,7 @@ async function Approval({ params }: PageProps<"/q/[token]">) {
           <dd className="tabular-nums">{formatIls(totals.total)}</dd>
         </div>
       </dl>
+      <PaymentTerms />
       {link.quote.notes && <p className="whitespace-pre-wrap text-caption">הערות הספק הישראלי: {link.quote.notes}</p>}
       <ApproveForm token={token} />
       <p className="text-caption text-muted">

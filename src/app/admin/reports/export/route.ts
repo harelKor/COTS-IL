@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { teamDisplay } from "@/domain/display";
 import type { NextRequest } from "next/server";
 import { LINE_LABELS, lineStatus } from "@/domain/order-status";
 import { profitSummary } from "@/domain/reports";
@@ -31,7 +32,7 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
       ],
       rows: rows.map((s) => [
         s.number,
-        `${s.teamProgram} ${s.teamNumber} ${s.teamName}`,
+        teamDisplay({ name: s.teamName, program: s.teamProgram, number: s.teamNumber }),
         s.submittedAt,
         s.firstQuoteAt,
         s.approvedAt,
@@ -101,7 +102,7 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
         { header: "מצב", width: 22 },
       ],
       rows: rows.map((i) => [
-        `${i.teamProgram} ${i.teamNumber} ${i.teamName}`,
+        teamDisplay({ name: i.teamName, program: i.teamProgram, number: i.teamNumber }),
         i.orderNumber,
         i.title,
         i.supplierSku,

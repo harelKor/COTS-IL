@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { sortForAdmin } from "@/domain/admin-orders";
+import { teamDisplay } from "@/domain/display";
 import { ORDER_STATUS_KEYS, orderStatus, type LineFacts, type OrderStatusKey, type OrderView } from "@/domain/order-status";
 import { getOrderLines } from "@/lib/order-status";
 import type { OrderStatus } from "@/domain/orders";
@@ -32,7 +33,13 @@ export type AdminOrderSummary = {
   teamId: string;
   teamName: string;
   teamLabel: string;
+  /** "<name> <program> <number>" (teamDisplay). */
+  teamDisplay: string;
+  teamNumber: number;
+  teamProgram: string;
   teamStatus: string;
+  /** Suppliers with lines in the approved quote that aren't on an ordered supplier order yet. */
+  vendorsToOrder: { id: string; name: string }[];
   itemCount: number;
   totalIls: number;
   view: OrderView;
@@ -65,14 +72,22 @@ export async function getOrderSummaries(): Promise<AdminOrderSummary[]> {
 
   const approved = rows.filter((r) => r.status === "approved").map((r) => r.id);
   const lines = await getOrderLines(approved);
-  const byOrder = new Map<string, LineFacts[]>();
+  const byOrder = new Map<string, typeof lines>();
   for (const l of lines) byOrder.set(l.orderId, [...(byOrder.get(l.orderId) ?? []), l]);
 
-  const all = rows.map(({ teamProgram, teamNumber, ...r }) => ({
-    ...r,
-    teamLabel: `${teamProgram} ${teamNumber}`,
-    view: orderStatus(r.status, byOrder.get(r.id) ?? []),
-  }));
+  const all = rows.map(({ teamProgram, teamNumber, ...r }) => {
+    const facts = byOrder.get(r.id) ?? [];
+    const vendors = new Map(facts.filter((l) => l.quoted > l.ordered).map((l) => [l.supplierId, l.supplierName]));
+    return {
+      ...r,
+      teamLabel: `${teamProgram} ${teamNumber}`,
+      teamDisplay: teamDisplay({ name: r.teamName, program: teamProgram, number: teamNumber }),
+      teamNumber,
+      teamProgram,
+      vendorsToOrder: [...vendors].map(([id, name]) => ({ id, name })),
+      view: orderStatus(r.status, facts as LineFacts[]),
+    };
+  });
   return sortForAdmin(all);
 }
 

@@ -18,6 +18,7 @@ import { cartSnapshot, cartTotals, markBlocked, replaceLines, setMergeSkipped, u
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
 import { showToast } from "./toast";
+import { formatAddress, missingAddressParts, parseAddress, type AddressParts } from "@/domain/display";
 
 const VAT = 0.18;
 const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
@@ -147,6 +148,13 @@ function TeamSend({
 }) {
   const [editing, setEditing] = useState(!checkout.contactName || !checkout.contactPhone);
   const [changes, setChanges] = useState<Checkout & { notes: string }>({ ...checkout, notes: "" });
+  const [address, setAddress] = useState<AddressParts>(() => parseAddress(checkout.address));
+  const setPart = (part: Partial<AddressParts>) => {
+    const next = { ...address, ...part };
+    setAddress(next);
+    setChanges((c) => ({ ...c, address: formatAddress(next) }));
+  };
+  const missing = changes.deliveryMethod === "ship" ? missingAddressParts(address) : [];
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -206,7 +214,11 @@ function TeamSend({
           </div>
           {changes.deliveryMethod === "ship" && (
             <>
-              <input className={field} placeholder="כתובת למשלוח" aria-label="כתובת למשלוח" value={changes.address} onChange={(e) => setChanges({ ...changes, address: e.target.value })} />
+              <div className="grid grid-cols-[1fr_5.5rem] gap-2">
+                <input className={field} placeholder="רחוב" aria-label="רחוב" autoComplete="address-line1" required aria-invalid={!!errors.address && missing.includes("street")} value={address.street} onChange={(e) => setPart({ street: e.target.value.replace(/,/g, " ") })} />
+                <input className={field} placeholder="מספר" aria-label="מספר בית" inputMode="numeric" dir="ltr" required aria-invalid={!!errors.address && missing.includes("houseNumber")} value={address.houseNumber} onChange={(e) => setPart({ houseNumber: e.target.value.trim() })} />
+              </div>
+              <input className={field} placeholder="עיר" aria-label="עיר" autoComplete="address-level2" required aria-invalid={!!errors.address && missing.includes("city")} value={address.city} onChange={(e) => setPart({ city: e.target.value.replace(/,/g, " ") })} />
               {err("address")}
             </>
           )}

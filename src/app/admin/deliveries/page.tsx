@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getReadyToDeliver, listDeliveries } from "@/lib/logistics";
 import { createDelivery } from "./actions";
 import { Loading, PageSkeleton } from "@/components/skeleton";
+import { TeamName } from "@/components/team-name";
 
 export const metadata: Metadata = { title: "מסירות" };
 
@@ -20,7 +21,7 @@ function TeamBoard({ rows }: { rows: Ready[] }) {
   return (
     <ActionForm action={createDelivery} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
       <h3 className="font-semibold">
-        {first.teamName}, <span className="ltr">{`${first.teamProgram} ${first.teamNumber}`}</span>
+        <TeamName team={{ name: first.teamName, program: first.teamProgram, number: first.teamNumber }} />
       </h3>
       <input type="hidden" name="teamId" value={first.teamId} />
       <ul className="flex flex-col">
@@ -109,7 +110,7 @@ async function Deliveries() {
                       </Link>
                     </td>
                     <td className="px-4 py-2">
-                      {teamName}, <span className="ltr">{`${teamProgram} ${teamNumber}`}</span>
+                      <TeamName team={{ name: teamName, program: teamProgram, number: teamNumber }} />
                     </td>
                     <td className="whitespace-nowrap px-4 py-2">
                       <span className="ltr">{formatDateTime(delivery.createdAt)}</span>

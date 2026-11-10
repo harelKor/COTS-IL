@@ -15,6 +15,8 @@ import { getOrderForViewer } from "@/lib/orders";
 import { cancelOrder } from "../actions";
 import { QuoteDecision } from "./quote-decision";
 import { Loading, PageSkeleton } from "@/components/skeleton";
+import { TeamName } from "@/components/team-name";
+import { PaymentTerms } from "@/components/payment-terms";
 
 export const metadata: Metadata = { title: "הזמנה" };
 
@@ -40,7 +42,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
         <div>
           <h1 className="text-2xl font-bold">הזמנה {order.number}</h1>
           <p className="text-sm text-muted">
-            {team.name}, <span className="ltr">{`${team.program} ${team.number}`}</span>, נשלחה{" "}
+            <TeamName team={team} />, נשלחה{" "}
             <span className="ltr">{formatDateTime(order.submittedAt)}</span>
           </p>
         </div>
@@ -88,6 +90,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
             <Alert tone="info">ההצעה עודכנה מאז הגרסה הקודמת. השינויים מסומנים בטבלה, וצריך לאשר מחדש.</Alert>
           )}
           <QuoteTable quote={latest} previous={previous} items={items} progress={progress} />
+          <PaymentTerms />
           {latest.notes && <p className="whitespace-pre-wrap text-sm">הערות הספק הישראלי: {latest.notes}</p>}
           {waitingForDecision &&
             (onTeam ? (

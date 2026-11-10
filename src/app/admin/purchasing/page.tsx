@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { db, schema } from "@/db";
 import { Ltr } from "@/components/ltr";
-import { formatDateTime } from "@/components/orders";
+import { formatDay } from "@/domain/display";
 import { consolidateDemand } from "@/domain/purchasing";
 import { requireAdmin } from "@/lib/auth";
 import { getDemand, listPos } from "@/lib/purchasing";
@@ -13,6 +13,8 @@ import { PO_STATUS_LABELS } from "./status";
 import { VendorBatch } from "./vendor-batch";
 
 export const metadata: Metadata = { title: "הזמנות ספקים" };
+
+const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 const { poAllocations, poLines, receiptLines, shipmentItems, supplierPos, suppliers, teamOrderItems, teamOrders, teams } = schema;
 
@@ -25,6 +27,7 @@ async function poProgress() {
         orderId: teamOrders.id,
         orderNumber: teamOrders.number,
         teamNumber: teams.number,
+        teamProgram: teams.program,
       })
       .from(poAllocations)
       .innerJoin(poLines, eq(poLines.id, poAllocations.poLineId))
@@ -64,8 +67,10 @@ async function Purchasing() {
     return !!c && c.ordered > 0 && c.received >= c.ordered;
   };
 
+  const nowDate = new Date(now);
   const PoRow = ({ po }: { po: (typeof pos)[number] }) => {
     const c = progress.counts.get(po.id);
+    const changed = po.updatedAt.getTime() - po.createdAt.getTime() > 60_000;
     return (
       <li id={`po-${po.id}`} className="card-surface flex flex-col gap-2 rounded-[18px] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -81,22 +86,33 @@ async function Purchasing() {
             )}
             {po.orderedAt && (
               <>
-                , <Ltr>{formatDateTime(po.orderedAt).slice(0, 10)}</Ltr>
+                , הוזמנה <Ltr>{formatDay(po.orderedAt, nowDate)}</Ltr>
               </>
             )}
           </span>
         </div>
-        {c && (
-          <div className="text-sm text-muted">
-            נשלחו מהספק {c.shipped} מתוך {c.ordered}, הגיעו {c.received}
-          </div>
-        )}
+        <div className="text-sm">
+          {po.lineCount} שורות, {po.unitCount} יחידות, <Ltr>{usd.format(po.linesUsd)}</Ltr>
+          {po.status === "ordered" && c && (
+            <span className="text-muted">
+              , נשלחו מהספק {c.shipped} מתוך {c.ordered}, הגיעו {c.received}
+            </span>
+          )}
+        </div>
+        <div className="text-xs text-muted">
+          נוצרה <Ltr>{formatDay(po.createdAt, nowDate)}</Ltr>
+          {changed && (
+            <>
+              , עודכנה <Ltr>{formatDay(po.updatedAt, nowDate)}</Ltr>
+            </>
+          )}
+        </div>
         <div className="flex flex-wrap gap-2">
           {progress.served
             .filter((s) => s.poId === po.id)
             .map((s) => (
               <Link key={s.orderId} href={`/admin?open=${s.orderId}`} className="inline-flex min-h-8 items-center rounded-full bg-brand-soft px-3 text-xs font-medium text-brand-strong">
-                <Ltr>{`${s.teamNumber} #${s.orderNumber}`}</Ltr>
+                <Ltr>{`${s.teamProgram} ${s.teamNumber} #${s.orderNumber}`}</Ltr>
               </Link>
             ))}
         </div>

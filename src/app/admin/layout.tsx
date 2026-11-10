@@ -7,23 +7,48 @@ import { AdminTabs, TabsNav } from "./admin-tabs";
 /** Every admin page gives up after 30 s and shows `error.tsx`, instead of streaming for 300 s. */
 export const maxDuration = 30;
 
-/** What waits on the admin: requests to quote, and approved lines not yet on any vendor order. One query per request. */
+/**
+ * What waits on the admin, and nothing else (S14). Orders: a request to quote, or an approved
+ * order with something the admin can do now (lines to order, stock to put on a delivery note,
+ * a note to deliver). Vendors: suppliers with lines to buy, i.e. the batches on "הזמנות ספקים".
+ * One query per request.
+ */
 const waitingCounts = cache(async () => {
   await requireAdmin();
   const {
     rows: [row],
   } = await db.execute<{ orders: number; vendor: number }>(sql`
-    SELECT
-      (SELECT count(*)::int FROM team_orders WHERE status = 'submitted') AS orders,
-      (SELECT count(DISTINCT i.order_id)::int
-         FROM quote_lines ql
-         JOIN quotes q ON q.id = ql.quote_id AND q.status = 'approved'
-         JOIN team_orders o ON o.id = q.order_id AND o.status = 'approved'
-         JOIN team_order_items i ON i.id = ql.item_id
-        WHERE ql.qty > coalesce((
-          SELECT sum(a.qty) FROM po_allocations a JOIN po_lines l ON l.id = a.po_line_id
-          JOIN supplier_pos p ON p.id = l.po_id WHERE a.order_item_id = i.id AND p.status = 'ordered'
-        ), 0)) AS vendor
+      WITH to_buy AS (
+        SELECT i.order_id, v.supplier_id
+          FROM quote_lines ql
+          JOIN quotes q ON q.id = ql.quote_id AND q.status = 'approved'
+          JOIN team_orders o ON o.id = q.order_id AND o.status = 'approved'
+          JOIN team_order_items i ON i.id = ql.item_id
+          JOIN variants v ON v.id = i.variant_id
+         WHERE ql.qty > coalesce((
+           SELECT sum(a.qty) FROM po_allocations a JOIN po_lines l ON l.id = a.po_line_id
+           JOIN supplier_pos p ON p.id = l.po_id WHERE a.order_item_id = i.id AND p.status = 'ordered'
+         ), 0)
+      ),
+      to_deliver AS (
+        SELECT i.order_id
+          FROM stock_allocations sa
+          JOIN team_order_items i ON i.id = sa.order_item_id
+         WHERE sa.qty > coalesce((SELECT sum(di.qty) FROM delivery_items di WHERE di.allocation_id = sa.id), 0)
+        UNION
+        SELECT i.order_id
+          FROM deliveries d
+          JOIN delivery_items di ON di.delivery_id = d.id
+          JOIN stock_allocations sa ON sa.id = di.allocation_id
+          JOIN team_order_items i ON i.id = sa.order_item_id
+         WHERE d.status = 'prepared'
+      )
+      SELECT
+        (SELECT count(*)::int FROM team_orders o
+          WHERE o.status = 'submitted'
+             OR (o.status = 'approved' AND (o.id IN (SELECT order_id FROM to_buy) OR o.id IN (SELECT order_id FROM to_deliver)))
+        ) AS orders,
+        (SELECT count(DISTINCT supplier_id)::int FROM to_buy) AS vendor
   `);
   return { orders: row?.orders ?? 0, vendor: row?.vendor ?? 0 };
 });

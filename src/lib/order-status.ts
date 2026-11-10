@@ -36,6 +36,7 @@ export async function getOrderLines(orderIds?: string[]) {
       teamNumber: teams.number,
       title: teamOrderItems.title,
       supplierName: teamOrderItems.supplierName,
+      supplierId: sql<string>`(SELECT v.supplier_id FROM variants v WHERE v.id = ${teamOrderItems.variantId})`,
       supplierSku: teamOrderItems.supplierSku,
       options: teamOrderItems.options,
       quoted: quoteLines.qty,

@@ -10,7 +10,9 @@ import { formatIls } from "@/domain/pricing";
 import { usdIlsRate } from "@/lib/fx";
 import { requireAdmin } from "@/lib/auth";
 import { getPoShipping } from "@/lib/logistics";
-import { getPo, getPoRevenueIls } from "@/lib/purchasing";
+import { getPo, getPoRevenueIls, getPoUpdatedAt } from "@/lib/purchasing";
+import { formatDay } from "@/domain/display";
+import { Ltr } from "@/components/ltr";
 import { createShipment } from "../../logistics/actions";
 import { PO_STATUS_LABELS } from "../status";
 import { CancelPoForm, PoRecordForm, RecordOrderedForm, RemoveLineButton } from "./po-forms";
@@ -51,7 +53,7 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
 
   const { po, supplier, lines } = result;
   const isDraft = po.status === "draft";
-  const shipping = await getPoShipping(po.id);
+  const [shipping, updatedAt] = await Promise.all([getPoShipping(po.id), getPoUpdatedAt(po)]);
   const unshipped = lines
     .map((line) => ({ ...line, open: line.qty - (shipping.shipped.get(line.id) ?? 0) }))
     .filter((line) => line.open > 0);
@@ -99,7 +101,6 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
                 <th className="p-2 text-start font-medium">Qty</th>
                 <th className="p-2 text-start font-medium">Unit</th>
                 <th className="p-2 text-start font-medium">Total</th>
-                <th className="p-2 text-start font-medium print:hidden">Teams</th>
                 {isDraft && <th className="p-2 print:hidden" />}
               </tr>
             </thead>
@@ -116,16 +117,6 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
                   <td className="p-2 font-semibold">{line.qty}</td>
                   <td className="whitespace-nowrap p-2">{usd.format(Number(line.unitCostUsd ?? 0))}</td>
                   <td className="whitespace-nowrap p-2">{usd.format(line.qty * Number(line.unitCostUsd ?? 0))}</td>
-                  <td className="p-2 text-xs print:hidden">
-                    {line.allocations.map((a) => (
-                      <div key={`${a.orderId}`}>
-                        <Link href={`/admin?open=${a.orderId}`} className="hover:text-brand">
-                          {a.teamProgram} {a.teamNumber} #{a.orderNumber}
-                        </Link>
-                        : {a.qty}
-                      </div>
-                    ))}
-                  </td>
                   {isDraft && (
                     <td className="p-2 print:hidden">
                       <RemoveLineButton lineId={line.id} label={line.supplierSku ?? line.title} />
@@ -145,6 +136,32 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
           </table>
         </div>
         {po.notes && <p className="whitespace-pre-wrap text-sm">{po.notes}</p>}
+      </section>
+
+      {/* Which team orders each line serves: for the admin only, never on the supplier's copy. */}
+      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 print:hidden">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold">שיוך לקבוצות</h2>
+          <span className="text-xs text-muted">
+            נוצרה <Ltr>{formatDay(po.createdAt)}</Ltr>, עודכנה <Ltr>{formatDay(updatedAt)}</Ltr>
+          </span>
+        </div>
+        <ul className="flex flex-col gap-2 text-sm">
+          {lines.map((line) => (
+            <li key={line.id} className="flex flex-wrap items-center gap-2">
+              <Ltr className="min-w-0 font-medium">{line.supplierSku ?? line.title}</Ltr>
+              {line.allocations.map((a) => (
+                <Link
+                  key={a.orderId}
+                  href={`/admin?open=${a.orderId}`}
+                  className="inline-flex min-h-8 items-center rounded-full bg-brand-soft px-3 text-xs font-medium text-brand-strong"
+                >
+                  <Ltr>{`${a.teamProgram} ${a.teamNumber} #${a.orderNumber} ×${a.qty}`}</Ltr>
+                </Link>
+              ))}
+            </li>
+          ))}
+        </ul>
       </section>
 
       {isDraft && lines.length > 0 && (

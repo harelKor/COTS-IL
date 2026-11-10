@@ -13,6 +13,7 @@ import { cookies } from "next/headers";
 import { usdIlsRate } from "@/lib/fx";
 import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
 import type { CartSheetLine } from "@/components/cart-store";
+import { missingAddressParts, parseAddress } from "@/domain/display";
 
 const { cartItems, products, suppliers, teamOrderItems, teamOrders, variants } = schema;
 
@@ -110,8 +111,10 @@ const deliveryFields = {
   contactPhone: z.string().trim().regex(/^[0-9+\-() ]{7,20}$/, "מספר טלפון לא תקין"),
   notes: z.string().trim().max(2000).default(""),
 };
-const needsAddress = (v: { deliveryMethod: string; address: string }) => v.deliveryMethod === "pickup" || v.address.length >= 5;
-const addressError = { path: ["address"], message: "למשלוח צריך כתובת" };
+/** A delivery needs street, house number and city (S14); the phone is required for every order. */
+const needsAddress = (v: { deliveryMethod: string; address: string }) =>
+  v.deliveryMethod === "pickup" || missingAddressParts(parseAddress(v.address)).length === 0;
+const addressError = { path: ["address"], message: "למשלוח צריך רחוב, מספר בית ועיר" };
 
 const deliverySchema = z.object(deliveryFields).refine(needsAddress, addressError);
 type Delivery = z.infer<typeof deliverySchema>;

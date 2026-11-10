@@ -126,7 +126,7 @@ export function VendorBatch({
                         />
                       </label>
                       <Link href={`/admin?open=${a.orderId}`} className="flex min-h-11 items-center px-3 text-xs font-medium text-brand-strong">
-                        <Ltr>{`${a.teamLabel.split(" ")[1]} #${a.orderNumber} ×${a.qty}`}</Ltr>
+                        <Ltr>{`${a.teamLabel} #${a.orderNumber} ×${a.qty}`}</Ltr>
                       </Link>
                     </li>
                   );
@@ -157,7 +157,7 @@ export function VendorBatch({
           />
           <input
             name="orderedAt"
-            type="date"
+            type="date" lang="he-IL"
             required
             defaultValue={today}
             aria-label="תאריך ההזמנה"

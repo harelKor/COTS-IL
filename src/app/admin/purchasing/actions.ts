@@ -136,6 +136,46 @@ export async function sendVendorBatch(_prev: PoFormState, formData: FormData): P
   return {};
 }
 
+/**
+ * The inbox's bulk action: everything the selected orders still need from one supplier goes
+ * onto its draft, and the draft is marked ordered (lines other orders already had on it go too).
+ */
+export async function markOrdersOrdered(_prev: PoFormState, formData: FormData): Promise<PoFormState & { done?: number }> {
+  const admin = await requireAdmin();
+  const parsed = batchSchema.safeParse({
+    supplierId: formData.get("supplierId"),
+    supplierOrderRef: formData.get("supplierOrderRef"),
+    orderedAt: formData.get("orderedAt"),
+  });
+  if (!parsed.success) return { error: "נא למלא מספר הזמנה אצל הספק ותאריך" };
+  const orderIds = idsSchema.safeParse(formData.getAll("orderId"));
+  if (!orderIds.success) return { error: "צריך לבחור לפחות הזמנה אחת" };
+  const { supplierId, supplierOrderRef, orderedAt } = parsed.data;
+  const selected = new Set(orderIds.data);
+
+  const result = await db.transaction(async (tx): Promise<PoFormState & { poId?: string }> => {
+    const demand = consolidateDemand(await getDemandForUpdate(tx)).find((s) => s.supplierId === supplierId);
+    const itemIds = new Set(
+      demand?.lines.flatMap((l) => l.allocations.filter((a) => !!a.orderId && selected.has(a.orderId)).map((a) => a.orderItemId)) ?? [],
+    );
+    const added = itemIds.size > 0 ? await addToDraft(tx, admin.id, supplierId, itemIds) : null;
+    const [draft] = added
+      ? [{ id: added }]
+      : await tx
+          .select({ id: supplierPos.id })
+          .from(supplierPos)
+          .where(and(eq(supplierPos.supplierId, supplierId), eq(supplierPos.status, "draft")));
+    const poId = draft?.id;
+    if (!poId) return { error: "אין מה לסמן: ההזמנות שנבחרו כבר הוזמנו מהספק הזה" };
+    const marked = await markOrdered(tx, admin.id, poId, { supplierOrderRef, orderedAt, notes: "" });
+    return marked.error ? marked : { poId };
+  });
+
+  if (result.error) return { error: result.error };
+  refresh(result.poId);
+  return { done: selected.size };
+}
+
 /** Marks a supplier's open draft as ordered, from an order card: the draft's own costs stand. */
 export async function sendDraft(_prev: PoFormState, formData: FormData): Promise<PoFormState> {
   const admin = await requireAdmin();

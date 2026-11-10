@@ -9,6 +9,7 @@ import { getUsdIlsRate } from "@/lib/fx";
 import { getSyncStatus } from "@/lib/reports";
 import { reviewTeam } from "../actions";
 import { Loading, PageSkeleton } from "@/components/skeleton";
+import { TeamName } from "@/components/team-name";
 
 const statusLabels = {
   pending: { text: "ממתינה", className: "bg-warning/10 text-warning" },
@@ -90,7 +91,7 @@ async function TeamsTable() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <div className="font-medium">
-                      {team.name}, <span className="ltr">{`${team.program} ${team.number}`}</span>
+                      <TeamName team={team} />
                     </div>
                     <div className="text-sm text-muted">
                       {team.contactName}, <span className="ltr">{team.contactPhone}</span>

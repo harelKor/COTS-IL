@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { TeamStep } from "@/components/cart-panel";
 import { getViewer } from "@/lib/auth";
 import { Loading, PageSkeleton } from "@/components/skeleton";
+import { TeamName } from "@/components/team-name";
 
 async function PendingStatus() {
   const viewer = await getViewer();
@@ -23,7 +24,7 @@ async function PendingStatus() {
     return (
       <>
         <p>
-          בקשת ההרשמה של {team.name} (<span className="ltr">{`${team.program} ${team.number}`}</span>) לא אושרה.
+          בקשת ההרשמה של <TeamName team={team} /> לא אושרה.
         </p>
         {team.rejectionReason && <p className="mt-2 text-muted">סיבה: {team.rejectionReason}</p>}
       </>
@@ -32,7 +33,7 @@ async function PendingStatus() {
 
   return (
     <p>
-      {team.name} (<span className="ltr">{`${team.program} ${team.number}`}</span>) ממתינה לאישור הספק הישראלי. אפשר כבר
+      <TeamName team={team} /> ממתינה לאישור הספק הישראלי. אפשר כבר
       לבנות סל ולשלוח בקשה ראשונה: היא תיבדק יחד עם הקבוצה.
     </p>
   );

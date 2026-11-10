@@ -1,9 +1,11 @@
-import { inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db, schema } from "@/db";
 import { ActionForm } from "@/components/action-form";
 import { Alert, Button } from "@/components/form";
 import { Ltr } from "@/components/ltr";
+import { formatDay } from "@/domain/display";
+import { business } from "@/lib/business";
 import { ItemDescription, QuoteTable, formatDateTime } from "@/components/orders";
 import { isFinished, LINE_LABELS, lineStatus, type OrderStatusKey } from "@/domain/order-status";
 import { canRejectOrder } from "@/domain/orders";
@@ -19,7 +21,7 @@ import { getApproveLinks } from "@/lib/quote-links";
 import { reviewTeam } from "./actions";
 import { confirmDelivery, createDelivery } from "./deliveries/actions";
 import { ApproveLinks } from "./orders/[id]/approve-links";
-import { QuoteEditor, RejectOrderForm, type EditorLine } from "./orders/[id]/quote-editor";
+import { OrderMenu, QuoteEditor, type EditorLine } from "./orders/[id]/quote-editor";
 import { addLinesToDraft, sendDraft, sendVendorBatch } from "./purchasing/actions";
 import { LINE_STYLE } from "./status-style";
 
@@ -51,8 +53,15 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
   const latestLines = new Map(latest?.lines.map((line) => [line.itemId, line]));
   const live = detail.items.length
     ? await db
-        .select({ id: schema.variants.id, priceUsd: schema.variants.priceUsd, available: schema.variants.available })
+        .select({
+          id: schema.variants.id,
+          priceUsd: schema.variants.priceUsd,
+          available: schema.variants.available,
+          checkedAt: schema.variants.checkedAt,
+          image: sql<string | null>`${schema.products.images}[1]`,
+        })
         .from(schema.variants)
+        .innerJoin(schema.products, eq(schema.products.id, schema.variants.productId))
         .where(inArray(schema.variants.id, detail.items.map((i) => i.variantId)))
     : [];
   const liveById = new Map(live.map((v) => [v.id, v]));
@@ -72,8 +81,10 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
       qty: line?.qty ?? item.qty,
       unitPriceIls: line?.unitPriceIls ?? item.unitPriceIls,
       changeReason: line?.changeReason ?? "",
+      image: variant?.image ?? null,
       livePriceIls: priceIls(variant?.priceUsd, rate),
       liveAvailable: variant?.available ?? null,
+      checkedAt: variant?.checkedAt.toISOString() ?? null,
     };
   });
 }
@@ -118,6 +129,7 @@ async function Editor({ detail }: { detail: Detail }) {
       shippingIls={latest?.shippingIls ?? (detail.order.deliveryMethod === "pickup" ? 0 : null)}
       notes={latest?.notes ?? ""}
       version={(latest?.version ?? 0) + 1}
+      paymentTerms={business.paymentTerms}
     />
   );
 }
@@ -245,7 +257,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
                 ))}
                 <div className="flex flex-wrap gap-2">
                   <input name="supplierOrderRef" required placeholder="מספר הזמנה אצל הספק" aria-label="מספר הזמנה אצל הספק" className={`${fieldClass} flex-1`} />
-                  <input name="orderedAt" type="date" required defaultValue={today()} aria-label="תאריך ההזמנה" className={fieldClass} />
+                  <input name="orderedAt" type="date" lang="he-IL" required defaultValue={today()} aria-label="תאריך ההזמנה" className={fieldClass} />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <Button>סימון כהוזמן מהספק</Button>
@@ -333,7 +345,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
               <li key={d.id} className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>
-                    תעודה <Ltr>#{d.number}</Ltr>, {d.status === "delivered" ? `נמסרה${d.deliveredAt ? ` ${formatDateTime(d.deliveredAt).slice(0, 10)}` : ""}` : "מוכנה, עוד לא נמסרה"}
+                    תעודה <Ltr>#{d.number}</Ltr>, {d.status === "delivered" ? `נמסרה${d.deliveredAt ? ` ${formatDay(d.deliveredAt)}` : ""}` : "מוכנה, עוד לא נמסרה"}
                   </span>
                   <Link href={`/admin/deliveries/${d.id}`} className="flex min-h-11 items-center rounded-full bg-subtle px-4 text-sm font-medium hover:bg-subtle-hover">
                     תעודה והדפסה
@@ -343,7 +355,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
                   <ActionForm action={confirmDelivery} className="flex flex-wrap gap-2">
                     <input type="hidden" name="deliveryId" value={d.id} />
                     <input name="recipientName" required minLength={2} defaultValue={detail.order.contactName} aria-label="שם המקבל" className={`${fieldClass} flex-1`} />
-                    <input name="deliveredAt" type="date" required defaultValue={today()} aria-label="תאריך המסירה" className={fieldClass} />
+                    <input name="deliveredAt" type="date" lang="he-IL" required defaultValue={today()} aria-label="תאריך המסירה" className={fieldClass} />
                     <Button>סימון כנמסר</Button>
                   </ActionForm>
                 )}
@@ -397,7 +409,12 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
 
   return (
     <div className="flex flex-col gap-5">
-      <Contact detail={detail} />
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <Contact detail={detail} />
+        </div>
+        {canRejectOrder(detail.order.status) && !isFinished(status) && <OrderMenu orderId={orderId} />}
+      </div>
       {status === "awaiting_quote" || (edit && !finished && !ordered) ? (
         <Editor detail={detail} />
       ) : (
@@ -406,7 +423,6 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
       {status === "quote_sent" && <Links orderId={orderId} />}
       {detail.order.status === "approved" && <Logistics detail={detail} status={status} />}
       {isFinished(status) && <Summary detail={detail} />}
-      {canRejectOrder(detail.order.status) && !isFinished(status) && <RejectOrderForm orderId={orderId} />}
       <Link href={`/orders/${orderId}`} className="text-sm text-brand hover:underline">
         תצוגת הקבוצה והדפסה
       </Link>

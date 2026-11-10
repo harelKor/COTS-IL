@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { batchOrderCount, selectBatch, sortForAdmin } from "./admin-orders";
+import { batchOrderCount, groupInbox, parseInboxSort, selectBatch, sortForAdmin } from "./admin-orders";
 import type { ConsolidatedLine } from "./purchasing";
 
 describe("sortForAdmin", () => {
@@ -45,5 +45,39 @@ describe("selectBatch", () => {
     expect(kept.qty).toBe(3);
     expect(kept.allocations.map((a) => a.orderItemId)).toEqual(["a", "c"]);
     expect(selectBatch([wcp], new Set(["a", "b", "c"]))).toEqual([]);
+  });
+});
+
+describe("groupInbox", () => {
+  const o = (status: "awaiting_quote" | "quote_sent" | "to_order" | "ordered", day: number, team: number) => ({
+    view: { status, progress: null, vendors: null },
+    submittedAt: new Date(2026, 10, day),
+    teamNumber: team,
+    teamDisplay: `T FRC ${team}`,
+  });
+  const orders = [o("quote_sent", 1, 20), o("to_order", 2, 10), o("awaiting_quote", 5, 20), o("ordered", 4, 10)];
+
+  it("puts what waits on the admin under its own heading", () => {
+    const groups = groupInbox(orders, "action");
+    expect(groups.map((g) => g.heading)).toEqual(["מחכה לך", "מחכה לקבוצה או לספק"]);
+    expect(groups[0].orders.map((x) => x.view.status)).toEqual(["awaiting_quote", "to_order"]);
+  });
+
+  it("sorts newest first in one group", () => {
+    const [group] = groupInbox(orders, "newest");
+    expect(group.orders.map((x) => x.submittedAt.getDate())).toEqual([5, 4, 2, 1]);
+  });
+
+  it("groups by team number", () => {
+    const groups = groupInbox(orders, "team");
+    expect(groups.map((g) => [g.heading, g.orders.length])).toEqual([
+      ["T FRC 10", 2],
+      ["T FRC 20", 2],
+    ]);
+  });
+
+  it("falls back to the action sort", () => {
+    expect(parseInboxSort("bogus")).toBe("action");
+    expect(parseInboxSort("team")).toBe("team");
   });
 });
