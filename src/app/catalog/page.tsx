@@ -34,13 +34,17 @@ async function CategoryChips({ searchParams }: PageProps<"/catalog">) {
   );
 }
 
+/** Pages of cards the server renders at most. */
+const MAX_SERVER_PAGES = 2;
+
 async function Results({ searchParams }: PageProps<"/catalog">) {
   const filters = parseFilters(await searchParams);
   // Availability compares the check date with today, so this part renders per request.
   await connection();
   const [{ cards, total }, facets, suppliers, { suppliers: allSuppliers }] = await Promise.all([
-    // Everything up to the page in the URL, so "back" from a family page lands where it was.
-    searchCards(filters, 0, filters.page * PAGE_SIZE),
+    // Up to the page in the URL, so "back" from a family page lands near where it was, but
+    // never more than two pages on the server: scrolling loads the rest from /api/catalog.
+    searchCards(filters, 0, Math.min(filters.page, MAX_SERVER_PAGES) * PAGE_SIZE),
     getSpecFacets(filters),
     getSupplierCounts(filters),
     getFacets(),

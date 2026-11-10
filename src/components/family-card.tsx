@@ -7,6 +7,7 @@ import { choose, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
 import { formatIls } from "@/domain/pricing";
 import { isAvailabilityFresh } from "@/domain/reports";
+import type { FamilyVariants } from "@/app/api/family/[id]/variants/route";
 import type { CardFamily, CardVariant } from "@/lib/catalog";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
 import { addToCartNow, type AddableLine } from "./cart-actions";
@@ -62,15 +63,34 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
   const { mode, lines } = useCart();
   const [open, setOpen] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
+  // Only a single part comes with its variant; the others load theirs on the first "+".
+  const [variants, setVariants] = useState<CardVariant[] | null>(family.onlyVariant ? [family.onlyVariant] : null);
+  const loading = useRef<Promise<CardVariant[]> | null>(null);
   const image = useRef<HTMLDivElement>(null);
 
   const keys = family.optionKeys;
-  const picked = pick(family.variants, keys, { ...preset, ...choices });
-  const singlePart = family.variants.length > 0 && pick(family.variants, keys, {}).chosen !== null;
-  const current = singlePart ? family.variants[0] : picked.chosen;
+  const picked = pick(variants ?? [], keys, { ...preset, ...choices });
+  const singlePart = family.onlyVariant !== null;
+  const current = singlePart ? family.onlyVariant : variants ? picked.chosen : null;
   const inCart = current ? lines.find((l) => l.variantId === current.id) : undefined;
-  const familyInCart = lines.filter((l) => family.variants.some((v) => v.id === l.variantId)).reduce((n, l) => n + l.qty, 0);
-  const canAdd = canEditCart(mode) && family.variants.length > 0;
+  const page = familyHref(family.slug);
+  const familyInCart = lines.filter((l) => l.href === page || l.href.startsWith(`${page}?`)).reduce((n, l) => n + l.qty, 0);
+  const canAdd = canEditCart(mode) && family.orderable;
+
+  /** Starts loading the variants (on hover or focus, so the chips are usually ready by the tap). */
+  function loadVariants() {
+    loading.current ??= fetch(`/api/family/${family.id}/variants`)
+      .then((r) => r.json() as Promise<FamilyVariants>)
+      .then((body) => {
+        setVariants(body.variants);
+        return body.variants;
+      })
+      .catch(() => {
+        loading.current = null;
+        return [];
+      });
+    return loading.current;
+  }
   const href = familyHref(family.slug, current?.sku ?? current?.id ?? null);
   const photo = sized(current?.image ?? family.image, layout === "row" ? 160 : 400);
 
@@ -87,14 +107,16 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
     );
 
   function onPlus() {
-    if (singlePart) addToCartNow(lineFor(family, family.variants[0]), 1, image.current);
-    else setOpen((o) => !o);
+    if (singlePart && family.onlyVariant) addToCartNow(lineFor(family, family.onlyVariant), 1, image.current);
+    else if (variants) setOpen((o) => !o);
+    else void loadVariants().then((list) => list.length > 0 && setOpen(true));
   }
 
   function onChip(key: string, value: string) {
-    const next = choose(family.variants, keys, { ...preset, ...choices }, key, value);
+    const list = variants ?? [];
+    const next = choose(list, keys, { ...preset, ...choices }, key, value);
     setChoices(next);
-    const settled = pick(family.variants, keys, next).chosen;
+    const settled = pick(list, keys, next).chosen;
     // Picking the last size adds it: two taps for a part with one option. A size that's
     // already in the cart isn't added again; its stepper shows instead.
     if (settled) {
@@ -109,6 +131,8 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
     <button
       type="button"
       onClick={onPlus}
+      onPointerEnter={singlePart ? undefined : () => void loadVariants()}
+      onFocus={singlePart ? undefined : () => void loadVariants()}
       aria-expanded={singlePart ? undefined : open}
       aria-label={singlePart ? `הוספה לסל: ${family.title}` : `בחירת אפשרות והוספה לסל: ${family.title}`}
       className={`flex size-11 shrink-0 items-center justify-center rounded-full transition duration-200 active:scale-90 ${
@@ -119,7 +143,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
     </button>
   );
 
-  const showPicker = open && !singlePart;
+  const showPicker = open && !singlePart && variants !== null;
 
   /** The option chips, one group per option. `scroll` caps each group's height, for the inline (list) picker. */
   const optionGroups = (scroll: boolean) =>
