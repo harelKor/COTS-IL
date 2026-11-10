@@ -16,6 +16,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { authUsers } from "drizzle-orm/supabase";
+import { sql } from "drizzle-orm";
 
 export const program = pgEnum("program", ["FRC", "FTC"]);
 export const teamStatus = pgEnum("team_status", ["pending", "active", "rejected", "suspended"]);
@@ -185,6 +186,8 @@ export const variants = pgTable(
     unique("variants_supplier_variant_key").on(t.supplierId, t.supplierVariantId),
     index("variants_product_id_idx").on(t.productId),
     index("variants_family_id_idx").on(t.familyId),
+    // The search panel puts an exact SKU first (quickSearch in src/lib/catalog.ts).
+    index("variants_lower_sku_idx").on(sql`lower(${t.supplierSku})`),
   ],
 );
 

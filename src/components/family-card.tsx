@@ -6,19 +6,15 @@ import { useRef, useState, ViewTransition } from "react";
 import { choose, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
 import { formatIls } from "@/domain/pricing";
-import { isAvailabilityFresh } from "@/domain/reports";
+import { availabilityStatus, isFresh, useNow } from "./availability";
+import type { FamilyVariants } from "@/app/api/family/[id]/variants/route";
 import type { CardFamily, CardVariant } from "@/lib/catalog";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
+import { imageLoading, shopifyImage } from "@/lib/images";
 import { addToCartNow, type AddableLine } from "./cart-actions";
 import { canEditCart, useCart } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
-
-/** Shopify's CDN resizes on request; cards only need a few hundred pixels. */
-function sized(src: string | null, width: number) {
-  if (!src) return null;
-  return src.startsWith("https://cdn.shopify.com/") ? `${src}${src.includes("?") ? "&" : "?"}width=${width}` : src;
-}
 
 function lineFor(family: CardFamily, v: CardVariant): AddableLine {
   return {
@@ -35,9 +31,9 @@ function lineFor(family: CardFamily, v: CardVariant): AddableLine {
 
 /** A dot for availability, with the words for screen readers and on hover. */
 function AvailabilityDot({ available, checkedAt }: { available: boolean | null; checkedAt: string }) {
-  const fresh = isAvailabilityFresh(new Date(checkedAt), new Date());
-  const [color, text] =
-    available === null || !fresh ? ["bg-muted", "זמינות לא אומתה"] : available ? ["bg-success", "זמין אצל הספק"] : ["bg-warning", "לא זמין כרגע"];
+  const fresh = isFresh(checkedAt, useNow());
+  const { dot: color } = availabilityStatus(available, checkedAt, fresh);
+  const text = available === null || !fresh ? "זמינות לא אומתה" : available ? "זמין אצל הספק" : "לא זמין כרגע";
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-caption text-muted" title={text}>
       <span className={`size-2 shrink-0 rounded-full ${color}`} aria-hidden />
@@ -51,6 +47,8 @@ type Props = {
   /** Choices already made by the catalog's filters, e.g. { bore: '1/2" Hex' }. */
   preset?: Record<string, string>;
   layout?: "grid" | "row";
+  /** One of the first cards on screen: its photo loads at once. */
+  eager?: boolean;
 };
 
 /**
@@ -58,21 +56,41 @@ type Props = {
  * sizes it opens chips on the card, and picking the last one adds it. Once in
  * the cart, "+" becomes a stepper. Nothing here leaves the page.
  */
-export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
+export function FamilyCard({ family, preset = {}, layout = "grid", eager = false }: Props) {
   const { mode, lines } = useCart();
   const [open, setOpen] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
+  // Only a single part comes with its variant; the others load theirs on the first "+".
+  const [variants, setVariants] = useState<CardVariant[] | null>(family.onlyVariant ? [family.onlyVariant] : null);
+  const loading = useRef<Promise<CardVariant[]> | null>(null);
   const image = useRef<HTMLDivElement>(null);
 
   const keys = family.optionKeys;
-  const picked = pick(family.variants, keys, { ...preset, ...choices });
-  const singlePart = family.variants.length > 0 && pick(family.variants, keys, {}).chosen !== null;
-  const current = singlePart ? family.variants[0] : picked.chosen;
+  const picked = pick(variants ?? [], keys, { ...preset, ...choices });
+  const singlePart = family.onlyVariant !== null;
+  const current = singlePart ? family.onlyVariant : variants ? picked.chosen : null;
   const inCart = current ? lines.find((l) => l.variantId === current.id) : undefined;
-  const familyInCart = lines.filter((l) => family.variants.some((v) => v.id === l.variantId)).reduce((n, l) => n + l.qty, 0);
-  const canAdd = canEditCart(mode) && family.variants.length > 0;
+  const page = familyHref(family.slug);
+  const familyInCart = lines.filter((l) => l.href === page || l.href.startsWith(`${page}?`)).reduce((n, l) => n + l.qty, 0);
+  const canAdd = canEditCart(mode) && family.orderable;
+
+  /** Starts loading the variants (on hover or focus, so the chips are usually ready by the tap). */
+  function loadVariants() {
+    loading.current ??= fetch(`/api/family/${family.id}/variants`)
+      .then((r) => r.json() as Promise<FamilyVariants>)
+      .then((body) => {
+        setVariants(body.variants);
+        return body.variants;
+      })
+      .catch(() => {
+        loading.current = null;
+        return [];
+      });
+    return loading.current;
+  }
   const href = familyHref(family.slug, current?.sku ?? current?.id ?? null);
-  const photo = sized(current?.image ?? family.image, layout === "row" ? 160 : 400);
+  const photoSrc = current?.image ?? family.image;
+  const photo = photoSrc ? shopifyImage(photoSrc, layout === "row" ? 64 : 240) : null;
 
   const price =
     current?.priceIls != null ? (
@@ -87,14 +105,16 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
     );
 
   function onPlus() {
-    if (singlePart) addToCartNow(lineFor(family, family.variants[0]), 1, image.current);
-    else setOpen((o) => !o);
+    if (singlePart && family.onlyVariant) addToCartNow(lineFor(family, family.onlyVariant), 1, image.current);
+    else if (variants) setOpen((o) => !o);
+    else void loadVariants().then((list) => list.length > 0 && setOpen(true));
   }
 
   function onChip(key: string, value: string) {
-    const next = choose(family.variants, keys, { ...preset, ...choices }, key, value);
+    const list = variants ?? [];
+    const next = choose(list, keys, { ...preset, ...choices }, key, value);
     setChoices(next);
-    const settled = pick(family.variants, keys, next).chosen;
+    const settled = pick(list, keys, next).chosen;
     // Picking the last size adds it: two taps for a part with one option. A size that's
     // already in the cart isn't added again; its stepper shows instead.
     if (settled) {
@@ -109,6 +129,8 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
     <button
       type="button"
       onClick={onPlus}
+      onPointerEnter={singlePart ? undefined : () => void loadVariants()}
+      onFocus={singlePart ? undefined : () => void loadVariants()}
       aria-expanded={singlePart ? undefined : open}
       aria-label={singlePart ? `הוספה לסל: ${family.title}` : `בחירת אפשרות והוספה לסל: ${family.title}`}
       className={`flex size-11 shrink-0 items-center justify-center rounded-full transition duration-200 active:scale-90 ${
@@ -119,7 +141,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
     </button>
   );
 
-  const showPicker = open && !singlePart;
+  const showPicker = open && !singlePart && variants !== null;
 
   /** The option chips, one group per option. `scroll` caps each group's height, for the inline (list) picker. */
   const optionGroups = (scroll: boolean) =>
@@ -159,7 +181,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
   const photo_ = photo && (
     // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={photo} alt={family.title} loading="lazy" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
+    <img src={photo.src} srcSet={photo.srcSet} alt={family.title} {...imageLoading(eager)} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
   );
 
   const availability = <AvailabilityDot available={current?.available ?? family.available} checkedAt={family.checkedAt} />;

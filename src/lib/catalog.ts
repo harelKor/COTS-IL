@@ -90,9 +90,6 @@ async function supplierNames() {
   return new Map(rows.map((r) => [r.code, r.name]));
 }
 
-/** Families with more variants than this open their page instead of showing chips on the card. */
-const CARD_VARIANT_LIMIT = 200;
-
 export type CardVariant = {
   id: string;
   sku: string | null;
@@ -103,6 +100,10 @@ export type CardVariant = {
   image: string | null;
 };
 
+/**
+ * A family in the catalog, light enough to send by the dozen: no variant list.
+ * A card with options loads its variants on the first "+" (/api/family/[id]/variants).
+ */
 export type CardFamily = {
   id: string;
   slug: string;
@@ -115,8 +116,10 @@ export type CardFamily = {
   checkedAt: string;
   variantCount: number;
   optionKeys: string[];
-  /** Orderable variants, cheapest in stock first, or empty when there are too many for a card. */
-  variants: CardVariant[];
+  /** Whether anything in the family can be added (listed, with a price). */
+  orderable: boolean;
+  /** Set when the family is one part (one set of options): the offer to add, cheapest in stock. */
+  onlyVariant: CardVariant | null;
 };
 
 const cardColumns = {
@@ -147,53 +150,67 @@ type CardRow = {
   optionKeys: string[];
 };
 
-/** What family cards need, their variants included, keeping the rows' order. */
-async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
-  const rate = await usdIlsRate();
-  if (rows.length === 0) return [];
-  const names = await supplierNames();
-  const small = rows.filter((r) => r.variantCount <= CARD_VARIANT_LIMIT).map((r) => r.id);
-  const variantRows = small.length
-    ? await db
-        .select({
-          familyId: variants.familyId,
-          id: variants.id,
-          sku: variants.supplierSku,
-          options: variants.familyOptions,
-          priceUsd: variants.priceUsd,
-          available: variants.available,
-          supplierName: suppliers.name,
-          image: sql<string | null>`${products.images}[1]`,
-        })
-        .from(variants)
-        .innerJoin(products, eq(products.id, variants.productId))
-        .innerJoin(suppliers, eq(suppliers.id, variants.supplierId))
-        .where(
-          and(
-            inArray(variants.familyId, small),
-            eq(products.status, "published"),
-            isNull(products.missingSince),
-            isNull(variants.missingSince),
-            sql`${variants.priceUsd} > 0`,
-          ),
-        )
-        .orderBy(sql`${variants.available} IS TRUE DESC`, asc(variants.priceUsd))
-    : [];
+/** Orderable variants of these families, cheapest in stock first. */
+async function variantsOf(familyIds: string[], rate: number) {
+  if (familyIds.length === 0) return [];
+  const rows = await db
+    .select({
+      familyId: variants.familyId,
+      id: variants.id,
+      sku: variants.supplierSku,
+      options: variants.familyOptions,
+      priceUsd: variants.priceUsd,
+      available: variants.available,
+      supplierName: suppliers.name,
+      image: sql<string | null>`${products.images}[1]`,
+    })
+    .from(variants)
+    .innerJoin(products, eq(products.id, variants.productId))
+    .innerJoin(suppliers, eq(suppliers.id, variants.supplierId))
+    .where(
+      and(
+        inArray(variants.familyId, familyIds),
+        eq(products.status, "published"),
+        isNull(products.missingSince),
+        isNull(variants.missingSince),
+        sql`${variants.priceUsd} > 0`,
+      ),
+    )
+    .orderBy(sql`${variants.available} IS TRUE DESC`, asc(variants.priceUsd));
+  return rows.map((v) => ({
+    familyId: v.familyId!,
+    variant: { id: v.id, sku: v.sku, options: v.options, priceIls: priceIls(v.priceUsd, rate), available: v.available, supplierName: v.supplierName, image: v.image } satisfies CardVariant,
+  }));
+}
 
-  const byFamily = new Map<string, CardVariant[]>();
-  for (const v of variantRows) {
-    const list = byFamily.get(v.familyId!) ?? [];
-    list.push({
-      id: v.id,
-      sku: v.sku,
-      options: v.options,
-      priceIls: priceIls(v.priceUsd, rate),
-      available: v.available,
-      supplierName: v.supplierName,
-      image: v.image,
-    });
-    byFamily.set(v.familyId!, list);
-  }
+/** A card's variants, for its option chips. Cached: the catalog changes once a day. */
+export async function getCardVariants(familyId: string): Promise<CardVariant[]> {
+  "use cache";
+  catalogCache();
+  const rate = await usdIlsRate();
+  return (await variantsOf([familyId], rate)).map((r) => r.variant);
+}
+
+/** What family cards need, keeping the rows' order. Only single-part families carry their variant. */
+async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
+  if (rows.length === 0) return [];
+  const rate = await usdIlsRate();
+  const names = await supplierNames();
+  const ids = rows.map((r) => r.id);
+  // Per family: how many option sets can be ordered, and the best offer.
+  const shape = await db
+    .select({
+      familyId: variants.familyId,
+      sets: sql<number>`count(DISTINCT ${variants.familyOptions})::int`,
+    })
+    .from(variants)
+    .innerJoin(products, eq(products.id, variants.productId))
+    .where(and(inArray(variants.familyId, ids), eq(products.status, "published"), isNull(products.missingSince), isNull(variants.missingSince), sql`${variants.priceUsd} > 0`))
+    .groupBy(variants.familyId);
+  const sets = new Map(shape.map((r) => [r.familyId!, r.sets]));
+  const single = ids.filter((id) => sets.get(id) === 1);
+  const only = new Map<string, CardVariant>();
+  for (const { familyId, variant } of await variantsOf(single, rate)) if (!only.has(familyId)) only.set(familyId, variant);
 
   return rows.map((r) => ({
     id: r.id,
@@ -207,7 +224,8 @@ async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
     checkedAt: r.lastSeenAt.toISOString(),
     variantCount: r.variantCount,
     optionKeys: r.optionKeys,
-    variants: byFamily.get(r.id) ?? [],
+    orderable: (sets.get(r.id) ?? 0) > 0,
+    onlyVariant: only.get(r.id) ?? null,
   }));
 }
 

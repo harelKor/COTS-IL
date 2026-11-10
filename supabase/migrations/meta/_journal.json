@@ -113,6 +113,13 @@
       "when": 1794310288000,
       "tag": "20261110113127_usd_ils_rate",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794314120315,
+      "tag": "20261110123520_variants_lower_sku",
+      "breakpoints": true
     }
   ]
 }

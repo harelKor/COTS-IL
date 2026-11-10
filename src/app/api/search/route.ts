@@ -3,7 +3,8 @@ import { familyHref } from "@/components/catalog";
 import { usdIlsRate } from "@/lib/fx";
 import { priceIls } from "@/domain/pricing";
 import { quickSearch } from "@/lib/catalog";
-import { parseQuickQuery, tokenIsPartName } from "@/lib/quick-query";
+import { cachedJson } from "@/lib/cache-headers";
+import { normalizeSearch, parseQuickQuery, tokenIsPartName } from "@/lib/quick-query";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
 export const maxDuration = 15;
@@ -30,8 +31,8 @@ export type SearchResponse = { results: SearchResult[]; qty: number };
  * "x4" is a quantity, unless the results show it's part of a name ("Kraken X60").
  */
 export async function GET(request: NextRequest) {
-  const parsed = parseQuickQuery(request.nextUrl.searchParams.get("q")?.slice(0, 100) ?? "");
-  if (parsed.q.length < 2) return Response.json({ results: [], qty: 1 } satisfies SearchResponse);
+  const parsed = parseQuickQuery(normalizeSearch(request.nextUrl.searchParams.get("q") ?? ""));
+  if (parsed.q.length < 2) return cachedJson({ results: [], qty: 1 } satisfies SearchResponse);
 
   let rows = await quickSearch(parsed.q);
   let qty = parsed.qty;
@@ -57,5 +58,5 @@ export async function GET(request: NextRequest) {
       sku: r.onlyVariant?.sku ?? null,
     };
   });
-  return Response.json({ results, qty } satisfies SearchResponse);
+  return cachedJson({ results, qty } satisfies SearchResponse);
 }

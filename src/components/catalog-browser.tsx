@@ -18,6 +18,7 @@ import {
 
 /** Pages that load by scrolling before a "load more" button takes over (the footer must stay reachable). */
 const AUTO_PAGES = 3;
+import { EAGER_CARDS } from "@/lib/images";
 import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
 
@@ -379,14 +380,14 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
           </div>
         ) : filters.view === "list" ? (
           <ul className="card-surface px-4">
-            {cards.map((c) => (
-              <FamilyCard key={c.id} family={c} preset={preset} layout="row" />
+            {cards.map((c, i) => (
+              <FamilyCard key={c.id} family={c} preset={preset} layout="row" eager={i < EAGER_CARDS} />
             ))}
           </ul>
         ) : (
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-            {cards.map((c) => (
-              <FamilyCard key={c.id} family={c} preset={preset} />
+            {cards.map((c, i) => (
+              <FamilyCard key={c.id} family={c} preset={preset} eager={i < EAGER_CARDS} />
             ))}
           </ul>
         )}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
-import { sized } from "@/components/catalog";
+import { shopifyImage } from "@/lib/images";
 import { CategoryIcon } from "@/components/category-icon";
 import { HomeCommandBar } from "@/components/home-command-bar";
 import { InstallAppButton } from "@/components/install-app";
@@ -100,7 +100,7 @@ function CategoryShowcase({ slug, name, images }: { slug: string; name: string; 
           {/* Hot-linked from the supplier's CDN, like every catalog photo. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={sized(src, 200)}
+            {...shopifyImage(src, 100)}
             alt={i === 0 ? name : ""}
             loading="lazy"
             referrerPolicy="no-referrer"

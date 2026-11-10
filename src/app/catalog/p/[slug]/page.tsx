@@ -2,16 +2,15 @@ import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { connection } from "next/server";
 import { Suspense, ViewTransition } from "react";
-import { Availability } from "@/components/catalog";
+import { OptionsTable } from "@/components/options-table";
 import { FamilyCard } from "@/components/family-card";
 import { FamilyView, type ViewVariant } from "@/components/family-view";
 import { Ltr } from "@/components/ltr";
 import { CardGridSkeleton, Loading, ProductSkeleton } from "@/components/skeleton";
 import { companionRules } from "@/domain/families/companions";
 import { measure } from "@/domain/families/parse";
-import { compareOptionValues, optionLabel, sortByOptions } from "@/domain/families/sort";
+import { compareOptionValues, optionLabel } from "@/domain/families/sort";
 import { formatIls, priceIls } from "@/domain/pricing";
 import { getCompanions, getFamily, type FamilyVariant } from "@/lib/catalog";
 import { usdIlsRate } from "@/lib/fx";
@@ -78,8 +77,30 @@ function documentLinks(html: string | null): { href: string; text: string }[] {
   return links.slice(0, 8);
 }
 
-async function Companions({ familyId, rules }: { familyId: string; rules: ReturnType<typeof companionRules> }) {
-  const cards = await getCompanions(familyId, rules);
+/** Offers cheapest in stock first, so a settled choice picks the best one. */
+function byOffer(variants: FamilyVariant[], rate: number) {
+  return [...variants].sort(
+    (a, b) => Number(b.available === true) - Number(a.available === true) || (priceIls(a.priceUsd, rate) ?? Infinity) - (priceIls(b.priceUsd, rate) ?? Infinity),
+  );
+}
+
+/**
+ * "Usually ordered with". The one part of the page that reads `?v=`: suggestions follow the
+ * variant in the link; without one, the first that has any (a keyed 8mm bore matches no
+ * bearing, a 1/2" hex one does).
+ */
+async function Companions({ slug, searchParams }: { slug: string; searchParams: PageProps<"/catalog/p/[slug]">["searchParams"] }) {
+  const result = await getFamily(slug);
+  if (!result) return null;
+  const { family } = result;
+  const selected = selectedVariant(result.variants, (await searchParams).v);
+  const rulesFor = (v: FamilyVariant | undefined) =>
+    companionRules({ categorySlug: result.categorySlug, title: family.title, options: v?.familyOptions ?? {} });
+  const rules = selected
+    ? rulesFor(selected)
+    : (byOffer(result.variants, await usdIlsRate()).map(rulesFor).find((r) => r.length > 0) ?? rulesFor(undefined));
+  if (rules.length === 0) return null;
+  const cards = await getCompanions(family.id, rules);
   if (cards.length === 0) return null;
   return (
     <section className="flex flex-col gap-4">
@@ -94,19 +115,27 @@ async function Companions({ familyId, rules }: { familyId: string; rules: Return
 }
 
 async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) {
-  const { slug } = await params;
-  const result = await getFamily(decodeURIComponent(slug));
+  const slug = decodeURIComponent((await params).slug);
+  return (
+    <FamilyBody slug={slug}>
+      <Suspense fallback={<CardGridSkeleton count={4} />}>
+        <Companions slug={slug} searchParams={searchParams} />
+      </Suspense>
+    </FamilyBody>
+  );
+}
+
+/**
+ * Everything but the suggestions: the same for every visitor and every `?v=` (FamilyView
+ * reads the selected variant in the browser), from the cached getFamily. `children` is the suggestions.
+ */
+async function FamilyBody({ slug, children }: { slug: string; children: React.ReactNode }) {
+  const result = await getFamily(slug);
   if (!result) notFound();
-  // Availability compares the check date with today, so this part renders per request.
-  await connection();
   const rate = await usdIlsRate();
 
   const { family } = result;
-  const selected = selectedVariant(result.variants, (await searchParams).v);
-  const byOffer = [...result.variants].sort(
-    (a, b) => Number(b.available === true) - Number(a.available === true) || (priceIls(a.priceUsd, rate) ?? Infinity) - (priceIls(b.priceUsd, rate) ?? Infinity),
-  );
-  const viewVariants: ViewVariant[] = byOffer.map((v) => ({
+  const viewVariants: ViewVariant[] = byOffer(result.variants, rate).map((v) => ({
     id: v.id,
     sku: v.sku,
     options: v.familyOptions,
@@ -118,17 +147,8 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
     productUrl: v.productUrl,
     image: v.image,
   }));
-  const tableVariants = sortByOptions(result.variants, family.optionKeys);
-  const manySuppliers = new Set(result.variants.map((v) => v.supplierCode)).size > 1;
   const specs = specSummary(result.specs);
   const docs = [...new Map(result.variants.flatMap((v) => documentLinks(v.productDescription)).map((d) => [d.href, d])).values()].slice(0, 8);
-  // Suggestions follow the variant in the link; without one, the first that has any (a keyed
-  // 8mm bore matches no bearing, a 1/2" hex one does).
-  const rulesFor = (v: FamilyVariant | undefined) =>
-    companionRules({ categorySlug: result.categorySlug, title: family.title, options: v?.familyOptions ?? {} });
-  const rules = selected
-    ? rulesFor(selected)
-    : (byOffer.map(rulesFor).find((r) => r.length > 0) ?? rulesFor(undefined));
 
   return (
     <article className="flex flex-col gap-10">
@@ -159,7 +179,6 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
       <FamilyView
         family={{ id: family.id, slug: family.slug, title: family.title, images: family.images, optionKeys: family.optionKeys }}
         variants={viewVariants}
-        initialVariantId={selected?.id ?? (viewVariants.length === 1 ? viewVariants[0].id : null)}
       />
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -208,67 +227,15 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
         </section>
       )}
 
-      {tableVariants.length > 1 && (
-        <details className="group rounded-card bg-surface">
+      {result.variants.length > 1 && (
+        <OptionsTable slug={family.slug}>
           <summary className="flex min-h-11 cursor-pointer items-center justify-between px-4 py-3 font-semibold">
-            כל האפשרויות ({tableVariants.length.toLocaleString("he-IL")})
+            כל האפשרויות ({result.variants.length.toLocaleString("he-IL")})
           </summary>
-          <div className="max-h-[32rem] overflow-auto border-t border-line">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-subtle text-muted">
-                <tr>
-                  {family.optionKeys.map((k) => (
-                    <th key={k} className="p-3 text-start font-medium whitespace-nowrap">
-                      {optionLabel(k)}
-                    </th>
-                  ))}
-                  {manySuppliers && <th className="p-3 text-start font-medium">ספק</th>}
-                  <th className="p-3 text-start font-medium">מק״ט</th>
-                  <th className="p-3 text-start font-medium">מחיר</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tableVariants.map((variant) => {
-                  const price = priceIls(variant.priceUsd, rate);
-                  return (
-                    <tr key={variant.id} className="border-t border-line align-top">
-                      {family.optionKeys.map((k) => (
-                        <td key={k} className="p-3 whitespace-nowrap">
-                          {variant.familyOptions[k] ? (
-                            <Link href={familyHref(family.slug, variant.sku ?? variant.id)} className="hover:text-brand">
-                              <Ltr>{variant.familyOptions[k]}</Ltr>
-                            </Link>
-                          ) : (
-                            <span className="text-muted">—</span>
-                          )}
-                        </td>
-                      ))}
-                      {manySuppliers && (
-                        <td className="p-3">
-                          <Ltr>{variant.supplierName}</Ltr>
-                        </td>
-                      )}
-                      <td className="p-3 text-xs whitespace-nowrap">
-                        {variant.sku ? <Ltr className="font-mono">{variant.sku}</Ltr> : <span className="text-muted">ללא מק״ט ספק</span>}
-                      </td>
-                      <td className="p-3">
-                        <div className="font-semibold">{price === null ? <span className="font-normal text-muted">ייבדק בהצעה</span> : formatIls(price)}</div>
-                        <Availability available={variant.available} checkedAt={variant.checkedAt} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </details>
+        </OptionsTable>
       )}
 
-      {rules.length > 0 && (
-        <Suspense fallback={<CardGridSkeleton count={4} />}>
-          <Companions familyId={family.id} rules={rules} />
-        </Suspense>
-      )}
+      {children}
     </article>
   );
 }

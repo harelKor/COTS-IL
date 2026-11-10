@@ -31,3 +31,8 @@ export function tokenIsPartName(token: string, titles: string[]): boolean {
   const pattern = new RegExp(`(^|[^a-z0-9])${token.replace(/[×*]/, "x")}($|[^a-z0-9])`, "i");
   return titles.some((t) => pattern.test(t));
 }
+
+/** One spelling per search, so "Falcon  500" and "falcon 500" share a cache entry. */
+export function normalizeSearch(input: string): string {
+  return input.trim().replace(/\s+/g, " ").toLowerCase().slice(0, 100);
+}
