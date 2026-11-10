@@ -21,6 +21,7 @@ const AUTO_PAGES = 3;
 import { EAGER_CARDS } from "@/lib/images";
 import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
+import { ZeroResults } from "./zero-results";
 
 type Supplier = { code: string; name: string; count: number };
 
@@ -376,6 +377,11 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
               >
                 ניקוי הסינונים
               </button>
+            )}
+            {!hasFilters(filters) && filters.q && (
+              <div className="w-full max-w-xl">
+                <ZeroResults q={filters.q} />
+              </div>
             )}
           </div>
         ) : filters.view === "list" ? (

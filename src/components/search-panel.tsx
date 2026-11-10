@@ -23,6 +23,7 @@ import { CategoryIcon } from "./category-icon";
 import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
 import { showToast } from "./toast";
+import { ZeroResults } from "./zero-results";
 
 /** Opens the search panel from anywhere on the site. */
 export const openSearch = () => window.dispatchEvent(new Event("search:open"));
@@ -117,6 +118,7 @@ export function SearchPanel() {
     q: "",
     qty: 1,
     corrected: null,
+    suggestions: [],
   });
   // The row the user picked with the arrows or the mouse; null until they do.
   const [active, setActive] = useState<number | null>(null);
@@ -183,7 +185,14 @@ export function SearchPanel() {
         setExpanded(null);
       } catch (error) {
         if ((error as Error).name !== "AbortError")
-          setFound({ text: query, results: [], q, qty: 1, corrected: null });
+          setFound({
+            text: query,
+            results: [],
+            q,
+            qty: 1,
+            corrected: null,
+            suggestions: [],
+          });
       }
     }, 120);
     return () => {
@@ -371,6 +380,15 @@ export function SearchPanel() {
                   ))}
                 </ul>
               </section>
+            </div>
+          ) : ready && results.length === 0 ? (
+            <div className="flex-1 overflow-y-auto p-4">
+              <ZeroResults
+                q={searchText}
+                suggestions={found.suggestions}
+                onSuggest={setText}
+                onNavigate={close}
+              />
             </div>
           ) : (
             <ul

@@ -658,3 +658,23 @@ export const teamInvitations = pgTable(
   },
   (t) => [index("team_invitations_email_idx").on(t.email), index("team_invitations_team_id_idx").on(t.teamId)],
 );
+
+/**
+ * "לא מצאתם? שלחו לנו קישור לחלק" (S5 task 8): one part a team couldn't find in the
+ * catalog, as a link and a note, for the admin to look into. Not an order and not a SKU list.
+ */
+export const partRequests = pgTable(
+  "part_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "set null" }),
+    userId: uuid("user_id").references(() => profiles.id, { onDelete: "set null" }),
+    url: text("url").notNull(),
+    note: text("note"),
+    /** What the team searched for before giving up. */
+    query: text("query"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    handledAt: timestamp("handled_at", { withTimezone: true }),
+  },
+  (t) => [index("part_requests_open_idx").on(t.handledAt, t.createdAt)],
+);

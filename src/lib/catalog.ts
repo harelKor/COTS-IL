@@ -70,7 +70,7 @@ function textMatch(q: string) {
       sql` OR `,
     )})`;
   const words = terms.length > 0 ? and(...terms.map((t) => anyOf(families.searchText, likePatterns(t))))! : sql`false`;
-  const inTitle = terms.length > 0 ? and(...terms.map((t) => anyOf(sql`${families.title}`, likePatterns(t))))! : sql`false`;
+  const inTitle = terms.length > 0 ? and(...terms.map((t) => anyOf(sql`${families.title}`, likePatterns(t))))! : null;
   const sku = looksLikeSku(q) ? sql`${families.id} IN (SELECT ${variants.familyId} FROM ${variants} WHERE ${skuNorm} = ${normalizeSku(q)})` : null;
   return { where: sku ? sql`(${words} OR ${sku})` : words, inTitle, sku, english: englishQuery(q) || q };
 }
@@ -95,7 +95,7 @@ function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
     // its accessories and cheap bits (Kraken X60 before "Kraken Wire Bundle"), in stock, closest title.
     if (text.sku) order.push(sql`${text.sku} DESC`);
     order.push(
-      sql`${text.inTitle} DESC`,
+      ...(text.inTitle ? [sql`${text.inTitle} DESC`] : []),
       sql`${categories.slug} = 'other' ASC NULLS LAST`,
       sql`(${families.title} ~* ${ACCESSORY_TITLE_PATTERN} AND coalesce(${categories.slug}, '') NOT IN (${sql.join(HARDWARE_CATEGORIES.map((c) => sql`${c}`), sql`, `)})) ASC`,
       sql`(coalesce(${families.minPriceUsd}, 0) >= ${MAIN_ITEM_MIN_USD} OR ${families.variantCount} >= 3) DESC`,
@@ -727,4 +727,23 @@ export async function getLastSync(): Promise<Date | null> {
     .from(jobs)
     .where(eq(jobs.status, "succeeded"));
   return row?.at ? new Date(row.at) : null;
+}
+
+/**
+ * "התכוונתם ל…" when a search finds nothing: up to 3 family titles whose words are
+ * closest to it (trigram word similarity), English or the Hebrew word's synonym.
+ */
+export async function searchSuggestions(q: string): Promise<string[]> {
+  "use cache";
+  catalogCache();
+  const english = englishQuery(q) || (/[a-z0-9]/i.test(q) ? q : "");
+  if (english.length < 3) return [];
+  const rows = await db
+    .select({ title: families.title, score: sql<number>`extensions.word_similarity(${english}, ${families.title})` })
+    .from(families)
+    .where(and(visible, sql`extensions.word_similarity(${english}, ${families.title}) > 0.35`))
+    .orderBy(sql`extensions.word_similarity(${english}, ${families.title}) DESC`, asc(families.title))
+    .limit(12);
+  // One suggestion per product: "Electronic Bundles Builder - Processor:…" lists each option set as a family.
+  return [...new Set(rows.map((r) => r.title.replace(/ - .*$/, "")))].slice(0, 3);
 }
