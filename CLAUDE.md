@@ -7,6 +7,7 @@ A Hebrew (RTL) purchasing portal for FRC/FTC teams. Teams build carts from AndyM
 Read first:
 - `docs/REDESIGN.md`: the redesign plan. Work goes one phase per session (its "Roadmap" section).
 - `docs/REDESIGN-AUDIT.md`: routes, schema, the audit items mapped to files, the decisions (D1–D10) and the progress table.
+- `docs/IMPROVEMENT-PLAN.md`: the current work plan (sessions S1–S12) from the Nov 10, 2026 audit.
 - "Where things stand" below: what's done, what's next and what's open.
 - `README.md` (setup, access model) and `PLAN.md` (the original build plan and data model).
 
@@ -42,7 +43,7 @@ npm run icons            # redraw the app icons in public/ (manifest and Apple t
 
 Done, all on `main`: redesign phases 0–4 (families, catalog, cart sheet, quote requests, sign-in, approve links), a UI pass, and the COTS-IL visual refresh: the brand, the light-only Blue & White Fade palette, commas instead of `·`, the home page (category cards with real product photos from `getFacets`, example search chips, supplier pills) and "Install the app" (`src/app/manifest.ts`, `src/components/install-app.tsx`, icons in `public/`). See the Progress table in `docs/REDESIGN-AUDIT.md`.
 
-Next: phase 5 in `docs/REDESIGN.md` ("Roadmap"): how-it-works, FAQ, shipping and lead times, returns, contact and about pages, and the admin side (quote requests, per-supplier consolidation, status updates that notify teams, sync status). The business facts it needs are listed at the end of `docs/REDESIGN-AUDIT.md`; leave TODO placeholders for anything missing.
+Next: `docs/IMPROVEMENT-PLAN.md` (Nov 10, 2026 UX and platform audit). It replaces phase 5 of `docs/REDESIGN.md` with sessions S1–S12, each with findings, tasks, acceptance checks and a ready prompt; run one session at a time in its roadmap order and tick its Progress table. The business facts it needs are listed in its "What the user needs to provide"; leave them `null` in `src/lib/business.ts` until supplied.
 
 Open:
 - On Nov 9, right after the first deploy in the new team (empty cache), three `/catalog` requests hung for the full 300 s and one query hit the database's statement timeout. Nothing since, and the database is healthy (94 MB, ~50 ms for the category count). Not investigated: watch `get_runtime_errors` after the next deploy.
