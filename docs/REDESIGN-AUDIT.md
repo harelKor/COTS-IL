@@ -104,4 +104,9 @@ Handling fee, typical lead time for each supplier, the Israeli supplier's legal 
 | 1 | `385073f` | 4 (titles and OG), 5 (skeletons, cached catalog), 10 (alt text), 11 (Hebrew 404); 3 (placeholder descriptions) early |
 | 2 | `237459e` | 1 (product families) |
 | 3 | `eb4c727` | 8 (spec filter chips), 9 (infinite scroll with the page in the URL) |
-| 4 | this phase | 2 (guest cart). Decisions: D1 email link + Google (passwords kept); D2 mentors send and approve, students build carts; D3 stages derived, nothing stored; D4 signed approve link per mentor; D6 delivery and contact remembered |
+| 4 | `702a868` | 2 (guest cart). Decisions: D1 email link + Google (passwords kept); D2 mentors send and approve, students build carts; D3 stages derived, nothing stored; D4 signed approve link per mentor; D6 delivery and contact remembered |
+| UI pass 1–4 | `14eec14`–`69cdc78` | Header cart button, home command bar, catalog sidebar and overlay picker, product configurator and purchase dock; `afe8a7a` fits the filters to the category |
+| Visual refresh | `3cc78fa`–`ee6ff11` | D10: COTS-IL brand, light-only Blue & White Fade, commas instead of `·`, home page with category photos and example chips, BOM paste removed, "Install the app" (web app manifest and icons) |
+| 5 | not started | Info and trust pages, admin side (see `docs/REDESIGN.md`, Roadmap) |
+
+Hosting moved on Nov 9, 2026 to the Vercel team COTS-IL; see "Production and access" in `CLAUDE.md`.

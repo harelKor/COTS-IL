@@ -1,8 +1,10 @@
-# BeniAdam: FRC / FTC purchasing portal
+# COTS-IL: FRC / FTC purchasing portal
 
-Teams build carts from AndyMark, REV, WCP, CTRE, goBILDA and The Thrifty Bot, then send them to the mentor, who reviews, quotes and orders from each supplier. See [PLAN.md](PLAN.md) for the full plan.
+Teams build carts from AndyMark, WCP, CTRE and The Thrifty Bot (REV and goBILDA wait for a CSV import, see D7), and the Israeli supplier quotes, orders from each supplier, receives and delivers. See [PLAN.md](PLAN.md) for the full plan.
 
 Stack: Next.js 16 (App Router) · Supabase (Postgres, Auth, Storage) · Drizzle ORM · Tailwind (Hebrew RTL) · Vitest.
+
+Live at https://cots-il.vercel.app, hosted on the Vercel team COTS-IL with the database on the Supabase project COTS-IL. Every push to `main` deploys production. Details, and what to work on next, are in [CLAUDE.md](CLAUDE.md).
 
 ## Local setup
 
