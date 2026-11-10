@@ -9,7 +9,8 @@ import type { SharedLine } from "@/domain/cart-share";
 import { isOrderable } from "@/domain/cart";
 import { DEFAULT_MULTIPLIER, priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam, type Viewer } from "@/lib/auth";
-import { getCheckoutDefaults } from "@/lib/orders";
+import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
+import type { CartSheetLine } from "@/components/cart-store";
 
 const { cartItems, products, suppliers, teamOrderItems, teamOrders, variants } = schema;
 
@@ -51,46 +52,54 @@ async function addLine(teamId: string, userId: string, variantId: string, count:
       target: [cartItems.teamId, cartItems.variantId],
       set: { qty: sql`LEAST(${cartItems.qty} + excluded.qty, ${MAX_QTY})` },
     });
-  revalidatePath("/cart");
   return null;
 }
 
+/** The cart line as it now is in the database, for the client store to put in place. Null when it's gone. */
+async function lineNow(teamId: string, variantId: string): Promise<CartSheetLine | null> {
+  const [line] = await getCart(teamId, [variantId]);
+  return line ? toSheetLine(line) : null;
+}
 
-/** For the search panel and the cart sheet, which add without a form and stay on the page. */
-export async function quickAdd(variantId: string, count: number): Promise<{ error?: string }> {
+export type LineResult = { error?: string; line?: CartSheetLine | null };
+
+/**
+ * For the catalog, the search panel and Undo, which add without a form and stay
+ * on the page. Answers with the changed line instead of re-rendering the page,
+ * so taps in flight don't jump back.
+ */
+export async function quickAdd(variantId: string, count: number): Promise<LineResult> {
   const { viewer, team } = await requireOrderingTeam();
   const parsed = z.object({ variantId: z.uuid(), qty }).safeParse({ variantId, qty: count });
   if (!parsed.success) return { error: "כמות לא תקינה" };
 
   const error = await addLine(team.id, viewer.id, parsed.data.variantId, parsed.data.qty);
-  refresh();
-  return error ? { error } : {};
+  if (error) return { error };
+  return { line: await lineNow(team.id, parsed.data.variantId) };
 }
 
-/** Sets a cart line's quantity from the cart sheet's stepper. */
-export async function setCartQty(variantId: string, count: number): Promise<void> {
+/** Sets a cart line's quantity from a stepper (debounced on the client). */
+export async function setCartQty(variantId: string, count: number): Promise<LineResult> {
   const { team } = await requireOrderingTeam();
   const parsed = z.object({ variantId: z.uuid(), qty }).safeParse({ variantId, qty: count });
-  if (!parsed.success) return;
-  await db
+  if (!parsed.success) return { error: "כמות לא תקינה" };
+  const updated = await db
     .update(cartItems)
     .set({ qty: parsed.data.qty })
-    .where(and(eq(cartItems.teamId, team.id), eq(cartItems.variantId, parsed.data.variantId)));
-  revalidatePath("/cart");
-  refresh();
+    .where(and(eq(cartItems.teamId, team.id), eq(cartItems.variantId, parsed.data.variantId)))
+    .returning({ variantId: cartItems.variantId });
+  if (updated.length === 0) return { error: "הפריט כבר לא בסל", line: null };
+  return { line: await lineNow(team.id, parsed.data.variantId) };
 }
 
-/** Takes a line out of the cart from a stepper. Undo adds it back with quickAdd. */
-export async function removeFromCart(variantId: string): Promise<void> {
+/** Takes a line out of the cart. Undo adds it back with quickAdd. */
+export async function removeFromCart(variantId: string): Promise<{ error?: string }> {
   const { team } = await requireOrderingTeam();
   const id = z.uuid().safeParse(variantId);
-  if (!id.success) return;
+  if (!id.success) return { error: "הפריט לא נמצא" };
   await db.delete(cartItems).where(and(eq(cartItems.teamId, team.id), eq(cartItems.variantId, id.data)));
-  revalidatePath("/cart");
-  refresh();
+  return {};
 }
-
-
 
 const deliveryFields = {
   deliveryMethod: z.enum(["pickup", "ship"], { error: "בחרו איסוף או משלוח" }),

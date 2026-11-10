@@ -7,6 +7,7 @@ import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import { sendEmailLink, setUpTeam, signInWithGoogle } from "@/app/auth/actions";
 import { sendQuoteRequest, type SendState } from "@/app/cart/actions";
 import type { TeamNameResponse } from "@/app/api/team-name/route";
+import { groupBySupplier } from "@/domain/cart";
 import { encodeCart } from "@/domain/cart-share";
 import { formatIls } from "@/domain/pricing";
 import { removeNow } from "./cart-actions";
@@ -74,7 +75,7 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
             <Ltr className="line-clamp-2 text-start text-[15px] font-medium">{line.title}</Ltr>
           </Link>
           <span className="truncate text-caption text-muted">
-            <Ltr>{[line.supplierName, line.options, line.sku].filter(Boolean).join(", ")}</Ltr>
+            <Ltr>{[line.options, line.sku].filter(Boolean).join(", ")}</Ltr>
           </span>
           {line.orderable === false ? (
             <div className="flex items-center justify-between gap-2">
@@ -94,9 +95,22 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
                 <span className="text-caption text-warning">לא זמין אצל הספק, נבדק {dayMonth.format(new Date(line.checkedAt))}</span>
               )}
               <div className="flex items-center justify-between gap-2">
-                <QtyStepper variantId={line.variantId} qty={line.qty} label={line.title} />
-                <span className="text-[15px] font-semibold tabular-nums">
+                <div className="flex items-center gap-1">
+                  <QtyStepper variantId={line.variantId} qty={line.qty} label={line.title} />
+                  {line.qty > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeNow(line.variantId)}
+                      aria-label={`הסרה מהסל: ${line.title}`}
+                      className="flex size-11 items-center justify-center rounded-full text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                    >
+                      <Trash2 size={18} strokeWidth={1.75} aria-hidden />
+                    </button>
+                  )}
+                </div>
+                <span className="flex flex-col items-end text-[15px] font-semibold tabular-nums">
                   {line.unitPriceIls === null ? <span className="text-caption font-normal text-muted">אין מחיר</span> : formatIls(line.unitPriceIls * line.qty)}
+                  {line.unitPriceIls !== null && line.qty > 1 && <span className="text-caption font-normal text-muted">{formatIls(line.unitPriceIls)} ליח׳</span>}
                 </span>
               </div>
             </>
@@ -423,11 +437,18 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex flex-1 flex-col gap-4 pb-4">
-        <ul>
-          {lines.map((line) => (
-            <SwipeLine key={line.variantId} line={line} onNavigate={onNavigate} />
-          ))}
-        </ul>
+        {groupBySupplier(lines).map((group) => (
+          <section key={group.supplierName} aria-label={group.supplierName}>
+            <h3 className="pt-2 text-caption font-semibold text-muted">
+              <Ltr>{group.supplierName}</Ltr>
+            </h3>
+            <ul>
+              {group.lines.map((line) => (
+                <SwipeLine key={line.variantId} line={line} onNavigate={onNavigate} />
+              ))}
+            </ul>
+          </section>
+        ))}
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={copyShare} className="flex min-h-11 items-center gap-2 rounded-full bg-subtle px-4 text-caption">
             <Share2 size={16} aria-hidden />

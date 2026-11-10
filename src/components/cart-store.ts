@@ -99,9 +99,32 @@ export function cartSnapshot(): CartState {
   return state;
 }
 
+/**
+ * Cart writes still on their way to the server (waiting out the debounce, or
+ * sent). While any are, a server render is older than what the viewer sees, so
+ * its lines are ignored; otherwise fast taps would jump back (2, 3, 4, 3, 5).
+ */
+let pendingWrites = 0;
+export const writeStarted = () => void pendingWrites++;
+export const writeEnded = () => void (pendingWrites = Math.max(0, pendingWrites - 1));
+
 /** Replaces the cart with what the server rendered. A guest's lines come from the browser. */
 export function syncCart(next: CartState) {
-  set(isLocal(next.mode) ? { ...next, lines: readGuestCart() } : next);
+  if (isLocal(next.mode)) set({ ...next, lines: readGuestCart() });
+  else if (pendingWrites > 0 && next.mode === state.mode) set({ ...next, lines: state.lines });
+  else set(next);
+}
+
+/** Puts the server's copy of one line in place (after a write), or takes it out when `line` is null. */
+export function applyServerLine(variantId: string, line: CartSheetLine | null) {
+  const exists = state.lines.some((l) => l.variantId === variantId);
+  if (!line) set({ ...state, lines: state.lines.filter((l) => l.variantId !== variantId) });
+  else if (exists) set({ ...state, lines: state.lines.map((l) => (l.variantId === variantId ? line : l)) });
+  else set({ ...state, lines: [...state.lines, line] });
+}
+
+export function findLine(variantId: string): CartSheetLine | null {
+  return state.lines.find((l) => l.variantId === variantId) ?? null;
 }
 
 /** Adds `qty` right away. `line` describes it when it isn't in the cart yet. */

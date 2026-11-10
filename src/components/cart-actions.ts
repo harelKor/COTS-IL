@@ -1,13 +1,23 @@
 "use client";
 
 import { quickAdd, removeFromCart, setCartQty } from "@/app/cart/actions";
-import { addOptimistic, cartSnapshot, removeOptimistic, setQtyOptimistic, type CartSheetLine } from "./cart-store";
+import {
+  addOptimistic,
+  applyServerLine,
+  cartSnapshot,
+  findLine,
+  removeOptimistic,
+  setQtyOptimistic,
+  writeEnded,
+  writeStarted,
+  type CartSheetLine,
+} from "./cart-store";
 import { showToast } from "./toast";
 
 /**
  * Cart changes from anywhere on the page: the store moves first, so the pill and
- * steppers answer within a frame, then the server catches up and its render
- * replaces the store. A guest's cart stays in the browser, so it skips the
+ * steppers answer within a frame, then the server answers with the changed line
+ * (no page re-render). A failed write goes back and says so. A guest's cart stays in the browser, so it skips the
  * server. Nothing here asks for confirmation; removals offer Undo.
  */
 
@@ -58,36 +68,108 @@ function flyToCart(from: Element | null) {
 
 export type AddableLine = Omit<CartSheetLine, "qty">;
 
+/**
+ * Each line's latest local change. A server answer only lands when no newer
+ * change to that line was made after it was sent; otherwise it's stale.
+ */
+const versions = new Map<string, number>();
+const bump = (variantId: string) => {
+  const v = (versions.get(variantId) ?? 0) + 1;
+  versions.set(variantId, v);
+  return v;
+};
+const isLatest = (variantId: string, v: number) => versions.get(variantId) === v;
+
+/** Runs a server write, counted so a server render that lands meanwhile can't undo local taps. */
+async function write<T>(run: () => Promise<T>): Promise<T | { error: string }> {
+  writeStarted();
+  try {
+    return await run();
+  } catch {
+    return { error: "אין חיבור לשרת. השינוי לא נשמר." };
+  } finally {
+    writeEnded();
+  }
+}
+
+/** Per-line debounce for quantity writes: five fast taps send one request. */
+const QTY_DEBOUNCE_MS = 300;
+const timers = new Map<string, { timer: ReturnType<typeof setTimeout>; confirmed: number }>();
+
+function cancelQtyWrite(variantId: string) {
+  const pending = timers.get(variantId);
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  timers.delete(variantId);
+  writeEnded();
+}
+
 export function addToCartNow(line: AddableLine, qty = 1, from?: Element | null) {
+  const before = findLine(line.variantId);
   addOptimistic(line.variantId, qty, line);
   haptic();
   flyToCart(from ?? null);
-  if (onServer()) {
-    void quickAdd(line.variantId, qty).then(({ error }) => {
-      if (error) showToast(error, "error");
-    });
-  }
+  if (!onServer()) return;
+  const v = bump(line.variantId);
+  void write(() => quickAdd(line.variantId, qty)).then((result) => {
+    if (!isLatest(line.variantId, v)) return;
+    if (result.error) {
+      applyServerLine(line.variantId, before);
+      showToast(result.error, "error");
+    } else if ("line" in result && result.line !== undefined) applyServerLine(line.variantId, result.line);
+  });
 }
 
 export function changeQtyNow(variantId: string, qty: number) {
   if (qty < 1 || qty > 9999) return;
+  const current = findLine(variantId);
+  if (!current) return;
   setQtyOptimistic(variantId, qty);
   haptic();
-  if (onServer()) void setCartQty(variantId, qty);
+  if (!onServer()) return;
+
+  // The quantity the server last confirmed, to go back to if the write fails.
+  const pending = timers.get(variantId);
+  const confirmed = pending ? pending.confirmed : current.qty;
+  if (pending) clearTimeout(pending.timer);
+  else writeStarted();
+  const v = bump(variantId);
+  const timer = setTimeout(() => {
+    timers.delete(variantId);
+    void write(() => setCartQty(variantId, qty))
+      .then((result) => {
+        if (!isLatest(variantId, v)) return;
+        if (result.error) {
+          if ("line" in result && result.line === null) applyServerLine(variantId, null);
+          else setQtyOptimistic(variantId, confirmed);
+          showToast(result.error, "error");
+        } else if ("line" in result && result.line !== undefined) applyServerLine(variantId, result.line);
+      })
+      .finally(writeEnded);
+  }, QTY_DEBOUNCE_MS);
+  timers.set(variantId, { timer, confirmed });
 }
 
-/** Removes a line at once and offers Undo for 5 seconds. */
+/** Removes a line at once and offers Undo. */
 export function removeNow(variantId: string) {
+  cancelQtyWrite(variantId);
   const line = removeOptimistic(variantId);
   if (!line) return;
   haptic();
-  if (onServer()) void removeFromCart(variantId);
+  if (onServer()) {
+    const v = bump(variantId);
+    void write(() => removeFromCart(variantId)).then((result) => {
+      if (result.error && isLatest(variantId, v)) {
+        applyServerLine(variantId, line);
+        showToast(result.error, "error");
+      }
+    });
+  }
   showToast("הוסר מהסל", "default", {
     label: "ביטול",
     run: () => {
       const { qty, ...rest } = line;
-      addOptimistic(line.variantId, qty, rest);
-      if (onServer()) void quickAdd(line.variantId, qty);
+      addToCartNow(rest, qty);
     },
   });
 }
