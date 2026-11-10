@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { selectBatch } from "@/domain/admin-orders";
-import { consolidateDemand } from "@/domain/purchasing";
+import { consolidateDemand, looksLikeCardNumber } from "@/domain/purchasing";
 import { requireAdmin } from "@/lib/auth";
 import { getDemandForUpdate } from "@/lib/purchasing";
 
@@ -150,34 +150,81 @@ export async function sendDraft(_prev: PoFormState, formData: FormData): Promise
 }
 
 /** Takes a line off a draft. Its units go back to the board, to be bought later. */
-export async function removePoLine(formData: FormData) {
+export async function removePoLine(lineId: string): Promise<{ undoId?: string; error?: string }> {
   const admin = await requireAdmin();
-  const lineId = z.uuid().parse(formData.get("lineId"));
+  const id = z.uuid().parse(lineId);
 
-  const poId = await db.transaction(async (tx) => {
-    const [line] = await tx
-      .select({ poId: poLines.poId, sku: poLines.supplierSku, status: supplierPos.status })
+  const result = await db.transaction(async (tx) => {
+    const [found] = await tx
+      .select({ line: poLines, status: supplierPos.status })
       .from(poLines)
       .innerJoin(supplierPos, eq(supplierPos.id, poLines.poId))
-      .where(eq(poLines.id, lineId))
+      .where(eq(poLines.id, id))
       .for("update", { of: supplierPos });
-    if (!line || line.status !== "draft") return null;
+    if (!found || found.status !== "draft") return null;
 
-    await tx.delete(poLines).where(eq(poLines.id, lineId));
+    // The whole line goes into the log, so Undo can put it back exactly.
+    const allocations = await tx.select().from(poAllocations).where(eq(poAllocations.poLineId, id));
+    await tx.delete(poLines).where(eq(poLines.id, id));
+    const [log] = await tx
+      .insert(auditLog)
+      .values({
+        actorId: admin.id,
+        entity: "supplier_po",
+        entityId: found.line.poId,
+        action: "remove_line",
+        before: { sku: found.line.supplierSku, line: found.line, allocations },
+      })
+      .returning({ id: auditLog.id });
+    return { poId: found.line.poId, undoId: String(log.id) };
+  });
+
+  if (!result) return { error: "אפשר להסיר שורות רק מטיוטה" };
+  refresh(result.poId);
+  return { undoId: result.undoId };
+}
+
+type RemovedLine = {
+  line?: typeof poLines.$inferSelect;
+  allocations?: (typeof poAllocations.$inferSelect)[];
+};
+
+/** Undo for removePoLine: puts the line and its order shares back, while the draft is still a draft. */
+export async function restorePoLine(undoId: string): Promise<{ error?: string }> {
+  const admin = await requireAdmin();
+  const logId = z.coerce.number().int().positive().parse(undoId);
+
+  const result = await db.transaction(async (tx): Promise<{ error?: string; poId?: string }> => {
+    const [log] = await tx.select().from(auditLog).where(eq(auditLog.id, logId));
+    const before = (log?.before ?? null) as RemovedLine | null;
+    if (!log || log.action !== "remove_line" || !before?.line) return { error: "אין מה לשחזר" };
+    const line = before.line;
+    const [po] = await tx.select().from(supplierPos).where(eq(supplierPos.id, line.poId)).for("update");
+    if (po?.status !== "draft") return { error: "ההזמנה כבר לא טיוטה, ולכן אי אפשר להחזיר את השורה" };
+    const [taken] = await tx
+      .select({ id: poLines.id })
+      .from(poLines)
+      .where(and(eq(poLines.poId, line.poId), eq(poLines.variantId, line.variantId)));
+    if (taken) return { error: "הפריט כבר חזר לטיוטה" };
+
+    await tx.insert(poLines).values(line);
+    if (before.allocations?.length) await tx.insert(poAllocations).values(before.allocations);
     await tx.insert(auditLog).values({
       actorId: admin.id,
       entity: "supplier_po",
       entityId: line.poId,
-      action: "remove_line",
-      before: { sku: line.sku },
+      action: "restore_line",
+      after: { sku: line.supplierSku, from: logId },
     });
-    return line.poId;
+    return { poId: line.poId };
   });
 
-  refresh(poId ?? undefined);
+  if (result.error) return { error: result.error };
+  refresh(result.poId);
+  return {};
 }
 
-export type PoFormState = { error?: string };
+export type PoFormState = { error?: string; saved?: boolean };
 
 /**
  * Cancelling keeps the record and returns its units to the board. An order already
@@ -214,23 +261,54 @@ export async function cancelPo(_prev: PoFormState, formData: FormData): Promise<
   return result;
 }
 
-const recordSchema = z.object({
-  poId: z.uuid(),
-  supplierOrderRef: z.string().trim().min(1).max(100),
-  orderedAt: z.iso.date(),
-  notes: z.string().trim().max(2000).default(""),
+/** An optional dollar amount from a form: empty is null. */
+const optionalUsd = z.preprocess(
+  (v) => (v === null || v === undefined || v === "" ? null : v),
+  z.coerce.number().min(0).max(1_000_000).nullable(),
+);
+
+/** What the admin records about the supplier's charge (S13): all optional, editable later. */
+const chargesSchema = z.object({
+  shippingUsd: optionalUsd,
+  taxUsd: optionalUsd,
+  totalChargedUsd: optionalUsd,
+  cardLabel: z.string().trim().max(40).default(""),
+  tracking: z.string().trim().max(100).default(""),
 });
+type Charges = z.infer<typeof chargesSchema>;
+const CARD_NUMBER_ERROR = "בשדה הכרטיס כותבים רק כינוי וארבע ספרות אחרונות, לא מספר כרטיס";
+
+function chargeColumns(c: Charges) {
+  const money = (n: number | null) => (n === null ? null : n.toFixed(2));
+  return {
+    shippingUsd: money(c.shippingUsd),
+    taxUsd: money(c.taxUsd),
+    totalChargedUsd: money(c.totalChargedUsd),
+    cardLabel: c.cardLabel || null,
+    tracking: c.tracking || null,
+  };
+}
+
+const recordSchema = z
+  .object({
+    poId: z.uuid(),
+    supplierOrderRef: z.string().trim().min(1).max(100),
+    orderedAt: z.iso.date(),
+    notes: z.string().trim().max(2000).default(""),
+  })
+  .and(chargesSchema);
 
 /** Records that the Israeli supplier placed this order on the supplier's site (AT-07). */
 export async function recordOrdered(_prev: PoFormState, formData: FormData): Promise<PoFormState> {
   const admin = await requireAdmin();
   const parsed = recordSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "נא למלא מספר הזמנה אצל הספק ותאריך" };
-  const { poId, supplierOrderRef, orderedAt, notes } = parsed.data;
+  if (!parsed.success) return { error: "נא למלא מספר הזמנה אצל הספק ותאריך, וסכומים בדולרים" };
+  const { poId, supplierOrderRef, orderedAt, notes, ...charges } = parsed.data;
+  if (looksLikeCardNumber(charges.cardLabel)) return { error: CARD_NUMBER_ERROR };
 
   const costs = new Map<string, FormDataEntryValue | null>();
   for (const [key, value] of formData) if (key.startsWith("cost:")) costs.set(key.slice(5), value);
-  const result = await db.transaction((tx) => markOrdered(tx, admin.id, poId, { supplierOrderRef, orderedAt, notes }, costs));
+  const result = await db.transaction((tx) => markOrdered(tx, admin.id, poId, { supplierOrderRef, orderedAt, notes, charges }, costs));
 
   refresh(poId);
   return result;
@@ -244,7 +322,12 @@ async function markOrdered(
   tx: Tx,
   adminId: string,
   poId: string,
-  { supplierOrderRef, orderedAt, notes }: { supplierOrderRef: string; orderedAt: string; notes: string },
+  {
+    supplierOrderRef,
+    orderedAt,
+    notes,
+    charges,
+  }: { supplierOrderRef: string; orderedAt: string; notes: string; charges?: Charges },
   costs?: Map<string, FormDataEntryValue | null>,
 ): Promise<PoFormState> {
   const [po] = await tx.select().from(supplierPos).where(eq(supplierPos.id, poId)).for("update");
@@ -266,7 +349,13 @@ async function markOrdered(
 
   await tx
     .update(supplierPos)
-    .set({ status: "ordered", supplierOrderRef, orderedAt: new Date(orderedAt), notes: notes || null })
+    .set({
+      status: "ordered",
+      supplierOrderRef,
+      orderedAt: new Date(orderedAt),
+      notes: notes || null,
+      ...(charges ? chargeColumns(charges) : {}),
+    })
     .where(eq(supplierPos.id, poId));
   await tx.insert(auditLog).values({
     actorId: adminId,
@@ -274,7 +363,44 @@ async function markOrdered(
     entityId: poId,
     action: "record_ordered",
     before: { status: po.status },
-    after: { status: "ordered", supplierOrderRef, orderedAt },
+    after: { status: "ordered", supplierOrderRef, orderedAt, ...(charges ? chargeColumns(charges) : {}) },
   });
   return {};
+}
+
+/** Corrects a placed order's record: the supplier's order number, charges, card and tracking. */
+export async function updatePoRecord(_prev: PoFormState, formData: FormData): Promise<PoFormState> {
+  const admin = await requireAdmin();
+  const parsed = z
+    .object({ poId: z.uuid(), supplierOrderRef: z.string().trim().min(1).max(100) })
+    .and(chargesSchema)
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "נא למלא מספר הזמנה אצל הספק, וסכומים בדולרים" };
+  const { poId, supplierOrderRef, ...charges } = parsed.data;
+  if (looksLikeCardNumber(charges.cardLabel)) return { error: CARD_NUMBER_ERROR };
+
+  const result = await db.transaction(async (tx): Promise<PoFormState> => {
+    const [po] = await tx.select().from(supplierPos).where(eq(supplierPos.id, poId)).for("update");
+    if (po?.status !== "ordered") return { error: "אפשר לעדכן רק הזמנה שבוצעה" };
+    const after = { supplierOrderRef, ...chargeColumns(charges) };
+    await tx.update(supplierPos).set(after).where(eq(supplierPos.id, poId));
+    await tx.insert(auditLog).values({
+      actorId: admin.id,
+      entity: "supplier_po",
+      entityId: poId,
+      action: "update_record",
+      before: {
+        supplierOrderRef: po.supplierOrderRef,
+        shippingUsd: po.shippingUsd,
+        taxUsd: po.taxUsd,
+        totalChargedUsd: po.totalChargedUsd,
+        cardLabel: po.cardLabel,
+        tracking: po.tracking,
+      },
+      after,
+    });
+    return {};
+  });
+  refresh(poId);
+  return result.error ? result : { saved: true };
 }

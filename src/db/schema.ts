@@ -440,6 +440,15 @@ export const supplierPos = pgTable(
     supplierOrderRef: text("supplier_order_ref"),
     notes: text("notes"),
     orderedAt: timestamp("ordered_at", { withTimezone: true }),
+    /** What the supplier charged on top of the lines, in USD (S13). */
+    shippingUsd: numeric("shipping_usd", { precision: 10, scale: 2 }),
+    taxUsd: numeric("tax_usd", { precision: 10, scale: 2 }),
+    /** The card statement's amount, when known. It wins over lines + shipping + tax. */
+    totalChargedUsd: numeric("total_charged_usd", { precision: 10, scale: 2 }),
+    /** Which card paid, as a nickname such as "ויזה 1234". Never a full card number. */
+    cardLabel: text("card_label"),
+    /** The supplier's tracking number for the whole order. */
+    tracking: text("tracking"),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => profiles.id),

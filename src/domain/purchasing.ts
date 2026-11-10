@@ -116,3 +116,31 @@ export function skuList(lines: ListLine[]): string {
 export function poTotalUsd(lines: { qty: number; unitCostUsd: string | null }[]): number {
   return lines.reduce((sum, l) => sum + l.qty * Number(l.unitCostUsd ?? 0), 0);
 }
+
+export type PoCharges = {
+  shippingUsd: string | null;
+  taxUsd: string | null;
+  /** The card statement's amount, when recorded. It wins over the sum. */
+  totalChargedUsd: string | null;
+};
+
+/** What a supplier order cost in USD: the amount charged when known, else lines + shipping + tax. */
+export function poCostUsd(linesUsd: number, charges: PoCharges): number {
+  if (charges.totalChargedUsd !== null && charges.totalChargedUsd !== "") return Number(charges.totalChargedUsd);
+  return linesUsd + Number(charges.shippingUsd ?? 0) + Number(charges.taxUsd ?? 0);
+}
+
+/**
+ * The "עלות / הכנסה" line of a supplier order: its USD cost at `usdIlsRate` against the
+ * shekels quoted to the teams it serves, in whole shekels.
+ */
+export function poMargin(costUsd: number, usdIlsRate: number, revenueIls: number) {
+  const costIls = Math.round(costUsd * usdIlsRate);
+  const marginIls = revenueIls - costIls;
+  return { costIls, revenueIls, marginIls, marginPct: revenueIls > 0 ? Math.round((marginIls / revenueIls) * 100) : null };
+}
+
+/** True when the text holds what could be a card number (9+ digits, spaces and dashes ignored). */
+export function looksLikeCardNumber(text: string): boolean {
+  return /\d{9,}/.test(text.replace(/[\s-]/g, ""));
+}

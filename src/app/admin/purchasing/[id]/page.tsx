@@ -5,14 +5,15 @@ import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { Button, Field, Input } from "@/components/form";
 import { PrintButton } from "@/components/print-button";
-import { describeOptions, poTotalUsd, shopifyCartUrl, skuList } from "@/domain/purchasing";
+import { describeOptions, poCostUsd, poMargin, poTotalUsd, shopifyCartUrl, skuList } from "@/domain/purchasing";
+import { formatIls } from "@/domain/pricing";
+import { usdIlsRate } from "@/lib/fx";
 import { requireAdmin } from "@/lib/auth";
 import { getPoShipping } from "@/lib/logistics";
-import { getPo } from "@/lib/purchasing";
+import { getPo, getPoRevenueIls } from "@/lib/purchasing";
 import { createShipment } from "../../logistics/actions";
-import { removePoLine } from "../actions";
 import { PO_STATUS_LABELS } from "../status";
-import { CancelPoForm, RecordOrderedForm } from "./po-forms";
+import { CancelPoForm, PoRecordForm, RecordOrderedForm, RemoveLineButton } from "./po-forms";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 
 export const metadata: Metadata = { title: "הזמנת ספק" };
@@ -20,6 +21,27 @@ export const metadata: Metadata = { title: "הזמנת ספק" };
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const usDate = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "Asia/Jerusalem" });
 const isoDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" });
+
+/** "עלות / הכנסה": what this order cost in shekels at today's rate, against what its teams were quoted. */
+async function PoMargin({ po, linesUsd }: { po: Parameters<typeof poCostUsd>[1] & { id: string }; linesUsd: number }) {
+  const [rate, revenueIls] = await Promise.all([usdIlsRate(), getPoRevenueIls(po.id)]);
+  const costUsd = poCostUsd(linesUsd, po);
+  const m = poMargin(costUsd, rate, revenueIls);
+  return (
+    <section className="flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-lg border border-line bg-surface p-4 text-sm print:hidden">
+      <h2 className="font-semibold">עלות / הכנסה</h2>
+      <span>
+        עלות {formatIls(m.costIls)} <span className="text-muted">({usd.format(costUsd)})</span>
+      </span>
+      <span>הכנסה מהקבוצות {formatIls(m.revenueIls)}</span>
+      <span className={m.marginIls < 0 ? "font-semibold text-danger" : "font-semibold text-success"}>
+        {m.marginIls < 0 ? "הפסד" : "רווח"} {formatIls(Math.abs(m.marginIls))}
+        {m.marginPct !== null && ` (${m.marginPct}%)`}
+      </span>
+      {po.totalChargedUsd === null && <span className="text-caption text-muted">לפי השורות, המשלוח והמס. סכום החיוב בפועל מדויק יותר.</span>}
+    </section>
+  );
+}
 
 async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
   await requireAdmin();
@@ -65,6 +87,7 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
             <div>Created: {usDate.format(po.createdAt)}</div>
             {po.orderedAt && <div>Ordered: {usDate.format(po.orderedAt)}</div>}
             {po.supplierOrderRef && <div>Supplier order: {po.supplierOrderRef}</div>}
+            {po.tracking && <div>Tracking: {po.tracking}</div>}
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -105,10 +128,7 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
                   </td>
                   {isDraft && (
                     <td className="p-2 print:hidden">
-                      <form action={removePoLine}>
-                        <input type="hidden" name="lineId" value={line.id} />
-                        <button className="text-xs text-danger hover:underline">Remove</button>
-                      </form>
+                      <RemoveLineButton lineId={line.id} label={line.supplierSku ?? line.title} />
                     </td>
                   )}
                 </tr>
@@ -166,6 +186,10 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
           }))}
         />
       )}
+
+      {po.status === "ordered" && <PoMargin po={po} linesUsd={poTotalUsd(lines)} />}
+
+      {po.status === "ordered" && <PoRecordForm poId={po.id} record={po} />}
 
       {po.status === "ordered" && (
         <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 print:hidden">

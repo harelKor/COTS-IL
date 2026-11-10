@@ -142,3 +142,16 @@ export async function orderSupplierLock(reader: Reader, orderId: string): Promis
   if (rows.some((r) => r.status === "ordered")) return "ordered";
   return rows.length > 0 ? "draft" : null;
 }
+
+/** What the teams were quoted, in shekels, for the units this supplier order buys for them. */
+export async function getPoRevenueIls(poId: string): Promise<number> {
+  const [row] = await db.execute<{ ils: number }>(sql`
+    SELECT coalesce(sum(a.qty * ql.unit_price_ils), 0)::int AS ils
+    FROM po_allocations a
+    JOIN po_lines l ON l.id = a.po_line_id
+    JOIN quote_lines ql ON ql.item_id = a.order_item_id
+    JOIN quotes q ON q.id = ql.quote_id AND q.status = 'approved'
+    WHERE l.po_id = ${poId}
+  `);
+  return row?.ils ?? 0;
+}

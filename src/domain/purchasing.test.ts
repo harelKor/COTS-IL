@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consolidateDemand, poTotalUsd, shopifyCartUrl, skuList, type DemandRow } from "./purchasing";
+import { consolidateDemand, looksLikeCardNumber, poCostUsd, poMargin, poTotalUsd, shopifyCartUrl, skuList, type DemandRow } from "./purchasing";
 
 const row = (overrides: Partial<DemandRow>): DemandRow => ({
   orderItemId: "i1",
@@ -86,5 +86,24 @@ describe("poTotalUsd", () => {
         { qty: 1, unitCostUsd: null },
       ]),
     ).toBe(21);
+  });
+});
+
+describe("supplier order cost and margin", () => {
+  it("adds shipping and tax to the lines unless the charged total is known", () => {
+    expect(poCostUsd(100, { shippingUsd: "12.50", taxUsd: "7.50", totalChargedUsd: null })).toBe(120);
+    expect(poCostUsd(100, { shippingUsd: null, taxUsd: null, totalChargedUsd: null })).toBe(100);
+    expect(poCostUsd(100, { shippingUsd: "12.50", taxUsd: "7.50", totalChargedUsd: "131.20" })).toBe(131.2);
+  });
+
+  it("compares the cost in shekels with what the teams were quoted", () => {
+    expect(poMargin(120, 3.7, 700)).toEqual({ costIls: 444, revenueIls: 700, marginIls: 256, marginPct: 37 });
+    expect(poMargin(120, 3.7, 0).marginPct).toBeNull();
+  });
+
+  it("spots a card number but allows a nickname with the last digits", () => {
+    expect(looksLikeCardNumber("ויזה 1234")).toBe(false);
+    expect(looksLikeCardNumber("4580 1234 5678 9012")).toBe(true);
+    expect(looksLikeCardNumber("4580-1234-5678")).toBe(true);
   });
 });
