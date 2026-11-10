@@ -93,6 +93,8 @@ None of these block Phase 1. Each one has to be decided before the phase listed.
 | D9 | Order flow diagram | The diagram was embedded in the plan and isn't in the Markdown copy | Add it as an image if it matters | Phase 4 |
 | D10 | Visual direction | Apple-like greys, accent #0071E3, a dark theme on `prefers-color-scheme`, and the site called "פורטל רכש FIRST" | The COTS-IL brand on the light-only Blue & White Fade palette (Team 1690 cobalt and white). Supplier photos are shot on white, so the dark theme is gone. Guardrails: no `·` between metadata (commas or pill badges instead), no grey empty boxes (blue-to-white fades, real thumbnails, cobalt hairlines). Tokens and rules in `docs/REDESIGN.md` → "Visual language" | Visual refresh (Nov 6, 2026) |
 
+| D11 | (Nov 10, 2026, user decision) No student / mentor / viewer roles | Roles `team_admin`, `buyer`, `viewer` (D2), approve links per mentor (D4) | One kind of team account: everyone signed in to a team can build, send, approve, cancel and manage it. Supersedes D2; D4's signed link goes to every team email. Implemented by session S0 in [IMPROVEMENT-PLAN.md](IMPROVEMENT-PLAN.md) | S0 |
+
 ## Business facts still needed (Phase 5)
 
 Handling fee, typical lead time for each supplier, the Israeli supplier's legal name and contact details (email, WhatsApp), the return policy, the pickup address, and which domain emails are sent from.
