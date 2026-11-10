@@ -46,10 +46,10 @@ async function poProgress() {
 
 /** TEMPORARY (S13 hang hunt): logs each load's time, and which are still pending after 5 s. */
 function traced<T>(label: string, p: Promise<T>): Promise<T> {
-  const t0 = Date.now();
+  const t0 = performance.now();
   const late = setTimeout(() => console.warn(`[purchasing] still waiting: ${label} after 5 s`), 5000);
   return p.then(
-    (v) => (clearTimeout(late), console.log(`[purchasing] ${label} ${Date.now() - t0} ms`), v),
+    (v) => (clearTimeout(late), console.log(`[purchasing] ${label} ${Math.round(performance.now() - t0)} ms`), v),
     (e) => (clearTimeout(late), console.error(`[purchasing] ${label} failed`, e), Promise.reject(e)),
   );
 }
