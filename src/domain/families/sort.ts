@@ -17,7 +17,7 @@ export const OPTION_LABELS: Record<string, string> = {
   sprocket: "גלגל שרשרת",
   belt: "רצועה",
   chain: "שרשרת",
-  cd: "מרחק צירים",
+  cd: "מרחק צירים (שיניים)",
   "center distance": "מרחק צירים",
   dp: "DP",
   "diametral pitch": "DP",

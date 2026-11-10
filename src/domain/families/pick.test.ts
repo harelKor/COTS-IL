@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chipPrice, choose, pick } from "./pick";
+import { changedKeys, chipPrice, choose, linkedKeys, linkedValue, pick } from "./pick";
 
 const gears = [
   { id: "a", options: { teeth: "12t", bore: "8mm SplineXS" } },
@@ -92,5 +92,33 @@ describe("chipPrice", () => {
   it("is null when nothing it leads to has a price", () => {
     expect(chipPrice(priced, {}, "teeth", "84t")).toBeNull();
     expect(chipPrice(priced, { bore: '3/8" Hex' }, "teeth", "60t")).toBeNull();
+  });
+});
+
+
+describe("linkedKeys", () => {
+  const bearings = [
+    { id: "a", options: { id: "8mm", od: "22mm", width: "7mm" } },
+    { id: "b", options: { id: "10mm", od: "26mm", width: "8mm" } },
+    { id: "c", options: { id: "1/2\" Hex", od: "1.125\"", width: "7mm" } },
+  ];
+  it("puts ID and OD that always go together in one picker", () => {
+    expect(linkedKeys(bearings, ["id", "od", "width"])).toEqual([["id", "od"], ["width"]]);
+    expect(linkedValue(bearings, ["id", "od"], "8mm")).toBe("8mm × 22mm");
+  });
+  it("keeps independent keys apart", () => {
+    const gears = [
+      { id: "1", options: { teeth: "12t", bore: "Hex" } },
+      { id: "2", options: { teeth: "12t", bore: "Round" } },
+      { id: "3", options: { teeth: "14t", bore: "Hex" } },
+    ];
+    expect(linkedKeys(gears, ["teeth", "bore"])).toEqual([["teeth"], ["bore"]]);
+  });
+});
+
+describe("changedKeys", () => {
+  it("names the choices a tap changed elsewhere", () => {
+    expect(changedKeys({ teeth: "12t", bore: "Hex" }, { teeth: "14t", bore: "Round" }, "teeth")).toEqual(["bore"]);
+    expect(changedKeys({ teeth: "12t" }, { teeth: "14t" }, "teeth")).toEqual([]);
   });
 });

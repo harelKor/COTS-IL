@@ -98,3 +98,42 @@ export function chipPrice(
   }
   return min;
 }
+
+/**
+ * Option keys that always go together, as groups shown as one picker: when each value
+ * of one key comes with exactly one value of another and back (a bearing's ID and OD),
+ * two pickers would only switch each other. Keys with one value are left alone.
+ */
+export function linkedKeys(variants: Pickable[], keys: string[]): string[][] {
+  const groups: string[][] = [];
+  const bijective = (a: string, b: string) => {
+    const ab = new Map<string, string>();
+    const ba = new Map<string, string>();
+    for (const v of variants) {
+      const x = valueOf(v, a);
+      const y = valueOf(v, b);
+      if ((ab.get(x) ?? y) !== y || (ba.get(y) ?? x) !== x) return false;
+      ab.set(x, y);
+      ba.set(y, x);
+    }
+    return ab.size > 1;
+  };
+  for (const k of keys) {
+    const group = groups.find((g) => g.every((other) => bijective(other, k)));
+    if (group) group.push(k);
+    else groups.push([k]);
+  }
+  return groups;
+}
+
+/** The label of a chip in a linked group: the values of every key in it, "8mm × 22mm". */
+export function linkedValue(variants: Pickable[], group: string[], value: string): string {
+  const v = variants.find((x) => valueOf(x, group[0]) === value);
+  if (!v) return value;
+  return group.map((k) => valueOf(v, k)).filter((x) => x !== NONE).join(" × ");
+}
+
+/** Keys whose choice changed (or was cleared) by a tap on another key: the picker highlights them. */
+export function changedKeys(before: Record<string, string>, after: Record<string, string>, tapped: string): string[] {
+  return Object.keys(before).filter((k) => k !== tapped && after[k] !== undefined && after[k] !== before[k]);
+}

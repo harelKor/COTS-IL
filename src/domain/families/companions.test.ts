@@ -37,3 +37,19 @@ describe("companionRules", () => {
     expect(companionRules({ categorySlug: "electronics", title: "Breaker Panel", options: {} })).toEqual([]);
   });
 });
+
+describe("companionRules beyond gears", () => {
+  it("suggests a motor's spacers, mounts and wiring", () => {
+    const rules = companionRules({ categorySlug: "motors", title: "Kraken X60 Powered by TalonFX", options: {} });
+    expect(rules.map((r) => r.category)).toEqual(["motors", "gearboxes", "electronics"]);
+    expect(rules[0].terms).toEqual(["kraken x60"]);
+  });
+  it("suggests wheels and gears for a swerve module", () => {
+    const rules = companionRules({ categorySlug: "drivetrain", title: "WCP Swerve X2St Base Kit", options: {} });
+    expect(rules.map((r) => r.category)).toEqual(["drivetrain", "gears", "motors"]);
+  });
+  it("suggests wire and connectors for a motor controller", () => {
+    const rules = companionRules({ categorySlug: "electronics", title: "Thrifty Nova Motor Controller", options: {} });
+    expect(rules.map((r) => r.terms[0])).toEqual(["wire", "connector"]);
+  });
+});
