@@ -21,6 +21,7 @@ import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
 import { rememberCatalogList } from "./back-to-list";
 import { ScrollRow } from "./scroll-row";
+import { ZeroResults } from "./zero-results";
 
 type Supplier = { code: string; name: string; count: number };
 
@@ -420,7 +421,8 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                 </button>
               )}
             </div>
-            {!hasFilters(filters) && categories.length > 0 && (
+            {/* A search that found nothing gets ZeroResults' own categories below. */}
+            {!hasFilters(filters) && !filters.q && categories.length > 0 && (
               <div className="flex flex-col items-center gap-2">
                 <span className="text-caption text-muted">או לעבור לקטגוריה</span>
                 <div className="flex flex-wrap justify-center gap-2">
@@ -430,6 +432,11 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                     </Link>
                   ))}
                 </div>
+              </div>
+            )}
+            {!hasFilters(filters) && filters.q && (
+              <div className="w-full max-w-xl">
+                <ZeroResults q={filters.q} />
               </div>
             )}
           </div>

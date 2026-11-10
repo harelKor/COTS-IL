@@ -10,6 +10,7 @@ const TABS = [
   { href: "/admin/deliveries", label: "מסירות" },
   { href: "/admin/reports", label: "דוחות" },
   { href: "/admin/teams", label: "קבוצות" },
+  { href: "/admin/requests", label: "בקשות חלקים" },
   { href: "/admin/catalog/grouping", label: "קטלוג" },
 ] as const;
 

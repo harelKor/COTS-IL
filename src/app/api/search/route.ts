@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { familyHref } from "@/components/catalog";
 import { usdIlsRate } from "@/lib/fx";
 import { priceIls } from "@/domain/pricing";
-import { quickSearch } from "@/lib/catalog";
+import { quickSearch, searchSuggestions } from "@/lib/catalog";
 import { cachedJson } from "@/lib/cache-headers";
 import { normalizeSearch, parseQuickQuery, tokenIsPartName } from "@/lib/quick-query";
 
@@ -38,6 +38,8 @@ export type SearchResponse = {
   qty: number;
   /** Set when a typo was fixed: what was searched instead ("kraken x60" for "krakn x60"). */
   corrected: string | null;
+  /** With no results: titles close to the search, for "התכוונתם ל…". */
+  suggestions: string[];
 };
 
 /**
@@ -46,7 +48,7 @@ export type SearchResponse = {
  */
 export async function GET(request: NextRequest) {
   const parsed = parseQuickQuery(normalizeSearch(request.nextUrl.searchParams.get("q") ?? ""));
-  if (parsed.q.length < 2) return cachedJson({ results: [], q: parsed.q, qty: 1, corrected: null } satisfies SearchResponse);
+  if (parsed.q.length < 2) return cachedJson({ results: [], q: parsed.q, qty: 1, corrected: null, suggestions: [] } satisfies SearchResponse);
 
   let found = await quickSearch(parsed.q);
   let q = parsed.q;
@@ -79,5 +81,6 @@ export async function GET(request: NextRequest) {
       sku: r.matchedVariant?.sku ?? r.onlyVariant?.sku ?? null,
     };
   });
-  return cachedJson({ results, q, qty, corrected: found.query !== q ? found.query : null } satisfies SearchResponse);
+  const suggestions = results.length === 0 ? await searchSuggestions(q) : [];
+  return cachedJson({ results, q, qty, corrected: found.query !== q ? found.query : null, suggestions } satisfies SearchResponse);
 }
