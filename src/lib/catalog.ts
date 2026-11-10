@@ -6,6 +6,7 @@ import { ACCESSORY_TITLE_PATTERN, HARDWARE_CATEGORIES, MAIN_ITEM_MIN_USD } from 
 import { isRelevantFacet } from "@/domain/facets";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
+import { usdIlsRate } from "./fx";
 import { searchPatterns, type CatalogFilters } from "./catalog-filters";
 import { familyHref } from "./catalog-links";
 
@@ -148,6 +149,7 @@ type CardRow = {
 
 /** What family cards need, their variants included, keeping the rows' order. */
 async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
+  const rate = await usdIlsRate();
   if (rows.length === 0) return [];
   const names = await supplierNames();
   const small = rows.filter((r) => r.variantCount <= CARD_VARIANT_LIMIT).map((r) => r.id);
@@ -185,7 +187,7 @@ async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
       id: v.id,
       sku: v.sku,
       options: v.options,
-      priceIls: priceIls(v.priceUsd),
+      priceIls: priceIls(v.priceUsd, rate),
       available: v.available,
       supplierName: v.supplierName,
       image: v.image,
@@ -199,8 +201,8 @@ async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
     title: r.title,
     image: r.images[0] ?? null,
     supplierNames: r.supplierCodes.map((c) => names.get(c) ?? c),
-    minPriceIls: priceIls(r.minPriceUsd),
-    maxPriceIls: priceIls(r.maxPriceUsd),
+    minPriceIls: priceIls(r.minPriceUsd, rate),
+    maxPriceIls: priceIls(r.maxPriceUsd, rate),
     available: r.available,
     checkedAt: r.lastSeenAt.toISOString(),
     variantCount: r.variantCount,
@@ -587,6 +589,7 @@ export async function getSharedLines(variantIds: string[]) {
   "use cache";
   catalogCache();
   if (variantIds.length === 0) return [];
+  const rate = await usdIlsRate();
   const rows = await db
     .select({
       variantId: variants.id,
@@ -612,7 +615,7 @@ export async function getSharedLines(variantIds: string[]) {
     image: r.image,
     href: r.familySlug ? familyHref(r.familySlug, r.sku ?? r.variantId) : "/catalog",
     supplierName: r.supplierName,
-    unitPriceIls: priceIls(r.priceUsd),
+    unitPriceIls: priceIls(r.priceUsd, rate),
   }));
 }
 

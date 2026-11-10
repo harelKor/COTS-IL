@@ -12,7 +12,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../src/db/schema";
 import { fetchShopifyCatalog } from "../src/suppliers/shopify";
-import { describeError, syncSupplier } from "../src/suppliers/sync";
+import { describeError, refreshUsdRate, syncSupplier } from "../src/suppliers/sync";
 
 config({ path: ".env.local" });
 
@@ -28,10 +28,15 @@ async function main() {
   const selected = suppliers.filter((s) => !only || s.code === only);
   if (selected.length === 0) throw new Error(`No supplier to sync${only ? ` matching "${only}"` : ""}`);
 
+  // Prices are USD × this rate × 1.6 (src/domain/pricing.ts), read when pages render.
+  const usd = await refreshUsdRate(db);
+  if (usd.fetched) console.log(`USD rate ${usd.rate} (${usd.rateDate}) from Bank of Israel`);
+  else console.warn(`Bank of Israel fetch failed (${usd.error}), keeping ${usd.rate} from ${usd.rateDate}`);
+
   let failed = 0;
   for (const supplier of selected) {
     try {
-      const counts = await syncSupplier(db, supplier, () => fetchShopifyCatalog(supplier.baseUrl, supplier.programs));
+      const counts = await syncSupplier(db, supplier, () => fetchShopifyCatalog(supplier.baseUrl, supplier.programs), usd.rate);
       console.log(supplier.code, counts);
     } catch (error) {
       failed++;

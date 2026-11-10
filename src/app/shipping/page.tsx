@@ -25,8 +25,8 @@ export default function ShippingPage() {
     <InfoPage title="משלוח וזמני אספקה">
       <InfoSection title="מה כלול במחיר">
         <p>
-          המחיר בקטלוג הוא מחיר הספק בדולרים כפול 1.6, בשקלים וכולל מע״מ{business.priceIncludes ? ` ו${business.priceIncludes}` : ""}. המקדם הוא לא
-          שער המרה: הוא מכסה גם את הדרך לישראל.
+          המחיר בקטלוג הוא מחיר הספק בדולרים, כפול השער היציג של בנק ישראל (מתעדכן כל יום), כפול 1.6. הוא בשקלים וכולל
+          מע״מ{business.priceIncludes ? ` ו${business.priceIncludes}` : ""}. המקדם 1.6 מכסה גם את הדרך לישראל.
         </p>
         <p>משלוח בתוך ישראל מתומחר בנפרד בהצעת המחיר. המחיר המחייב הוא זה שבהצעה שאישרתם.</p>
         {business.handlingFee && <p>{business.handlingFee}.</p>}

@@ -45,8 +45,9 @@ export async function getCart(teamId: string, variantIds?: string[]) {
 export type CartLine = Awaited<ReturnType<typeof getCart>>[number];
 
 /** A cart line as the cart sheet shows it (CartSheetLine in src/components/cart-store.ts). */
-export function toSheetLine(l: CartLine): CartSheetLine {
-  return {
+export const toSheetLine =
+  (usdIlsRate: number) =>
+  (l: CartLine): CartSheetLine => ({
     variantId: l.variantId,
     title: l.title,
     options: l.options.map((o) => o.value).join(" / "),
@@ -55,12 +56,11 @@ export function toSheetLine(l: CartLine): CartSheetLine {
     href: productHref(l.supplierCode, l.handle),
     supplierName: l.supplierName,
     qty: l.qty,
-    unitPriceIls: priceIls(l.priceUsd),
+    unitPriceIls: priceIls(l.priceUsd, usdIlsRate),
     orderable: isOrderable({ variantMissing: l.variantMissing, productMissing: l.productMissing, productStatus: l.productStatus, priceUsd: l.priceUsd }),
     available: l.available,
     checkedAt: l.checkedAt.toISOString(),
-  };
-}
+  });
 
 export async function cartCount(teamId: string) {
   const [{ count }] = await db

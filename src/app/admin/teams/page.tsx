@@ -5,6 +5,7 @@ import { Button } from "@/components/form";
 import { formatDateTime } from "@/components/orders";
 import { isAvailabilityFresh } from "@/domain/reports";
 import { requireAdmin } from "@/lib/auth";
+import { getUsdIlsRate } from "@/lib/fx";
 import { getSyncStatus } from "@/lib/reports";
 import { reviewTeam } from "../actions";
 import { Loading, PageSkeleton } from "@/components/skeleton";
@@ -18,11 +19,14 @@ const statusLabels = {
 
 /** Flags a supplier whose last run failed, or that hasn't updated recently (AT-11). */
 async function SyncStatus() {
-  const rows = await getSyncStatus();
+  const [rows, usd] = await Promise.all([getSyncStatus(), getUsdIlsRate()]);
   const now = new Date();
   return (
     <section>
       <h2 className="mb-3 font-semibold">סנכרון קטלוג</h2>
+      <p className="mb-3 text-sm text-muted">
+        שער הדולר במחירים: <span className="ltr">{usd.rate}</span> (בנק ישראל, <span className="ltr">{usd.rateDate.split("-").reverse().join("/")}</span>)
+      </p>
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {rows.map((row) => {
           const stale = !row.lastSuccessAt || !isAvailabilityFresh(row.lastSuccessAt, now);

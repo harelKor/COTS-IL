@@ -14,6 +14,7 @@ import { measure } from "@/domain/families/parse";
 import { compareOptionValues, optionLabel, sortByOptions } from "@/domain/families/sort";
 import { formatIls, priceIls } from "@/domain/pricing";
 import { getCompanions, getFamily, type FamilyVariant } from "@/lib/catalog";
+import { usdIlsRate } from "@/lib/fx";
 import { catalogHref } from "@/lib/catalog-filters";
 import { familyHref } from "@/lib/catalog-links";
 import { descriptionText, isRealDescription, metaDescription } from "@/lib/description";
@@ -25,10 +26,11 @@ export async function generateMetadata({ params }: PageProps<"/catalog/p/[slug]"
   const { slug } = await params;
   const result = await getFamily(decodeURIComponent(slug));
   if (!result) return { title: "המוצר לא נמצא" };
+  const rate = await usdIlsRate();
 
   const { family } = result;
   const suppliers = [...new Set(result.variants.map((v) => v.supplierName))].join(", ");
-  const low = priceIls(family.minPriceUsd);
+  const low = priceIls(family.minPriceUsd, rate);
   const price = low === null ? "" : `${family.variantCount > 1 ? "החל מ-" : ""}${formatIls(low)} כולל מע״מ, `;
   const text = isRealDescription(family.descriptionHtml) ? descriptionText(family.descriptionHtml) : "";
   const description = metaDescription(`${price}${suppliers}${text ? `, ${text}` : ""}`);
@@ -97,17 +99,18 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
   if (!result) notFound();
   // Availability compares the check date with today, so this part renders per request.
   await connection();
+  const rate = await usdIlsRate();
 
   const { family } = result;
   const selected = selectedVariant(result.variants, (await searchParams).v);
   const byOffer = [...result.variants].sort(
-    (a, b) => Number(b.available === true) - Number(a.available === true) || (priceIls(a.priceUsd) ?? Infinity) - (priceIls(b.priceUsd) ?? Infinity),
+    (a, b) => Number(b.available === true) - Number(a.available === true) || (priceIls(a.priceUsd, rate) ?? Infinity) - (priceIls(b.priceUsd, rate) ?? Infinity),
   );
   const viewVariants: ViewVariant[] = byOffer.map((v) => ({
     id: v.id,
     sku: v.sku,
     options: v.familyOptions,
-    priceIls: priceIls(v.priceUsd),
+    priceIls: priceIls(v.priceUsd, rate),
     available: v.available,
     checkedAt: v.checkedAt.toISOString(),
     supplierName: v.supplierName,
@@ -226,7 +229,7 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
               </thead>
               <tbody>
                 {tableVariants.map((variant) => {
-                  const price = priceIls(variant.priceUsd);
+                  const price = priceIls(variant.priceUsd, rate);
                   return (
                     <tr key={variant.id} className="border-t border-line align-top">
                       {family.optionKeys.map((k) => (

@@ -5,6 +5,7 @@ import { signout } from "@/app/auth/actions";
 import { switchTeam } from "@/app/cart/actions";
 import { getViewer, orderingTeam, orderingTeams } from "@/lib/auth";
 import { googleSignInEnabled } from "@/lib/auth-providers";
+import { usdIlsRate } from "@/lib/fx";
 import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
 import type { CartState } from "./cart-store";
 import { CartButton } from "./cart-pill";
@@ -31,7 +32,7 @@ async function Account() {
       mode: "ordering",
       team: { name: team.name, program: team.program, number: team.number, status: team.status },
       checkout,
-      lines: lines.map(toSheetLine),
+      lines: lines.map(toSheetLine(await usdIlsRate())),
     };
   }
 

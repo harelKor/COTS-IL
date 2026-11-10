@@ -7,6 +7,8 @@ import { Ltr } from "@/components/ltr";
 import { ItemDescription, QuoteTable, formatDateTime } from "@/components/orders";
 import { ADMIN_LINE_STAGE_LABELS, adminLineStage, type AdminStatus } from "@/domain/admin-orders";
 import { canRejectOrder } from "@/domain/orders";
+import { priceIls } from "@/domain/pricing";
+import { usdIlsRate } from "@/lib/fx";
 import { requireAdmin } from "@/lib/auth";
 import { getAdminLines, getOrderDates, getOrderLogistics } from "@/lib/admin-orders";
 import { getOrderDeliveries } from "@/lib/logistics";
@@ -52,6 +54,7 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
         .where(inArray(schema.variants.id, detail.items.map((i) => i.variantId)))
     : [];
   const liveById = new Map(live.map((v) => [v.id, v]));
+  const rate = await usdIlsRate();
   return detail.items.map((item) => {
     const line = latestLines.get(item.id);
     const variant = liveById.get(item.variantId);
@@ -67,7 +70,7 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
       qty: line?.qty ?? item.qty,
       unitPriceIls: line?.unitPriceIls ?? item.unitPriceIls,
       changeReason: line?.changeReason ?? "",
-      livePriceUsd: variant?.priceUsd ?? null,
+      livePriceIls: priceIls(variant?.priceUsd, rate),
       liveAvailable: variant?.available ?? null,
     };
   });
