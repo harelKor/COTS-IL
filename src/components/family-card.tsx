@@ -3,7 +3,7 @@
 import { ChevronLeft, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, ViewTransition } from "react";
-import { choose, NONE, pick } from "@/domain/families/pick";
+import { chipPrice, choose, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
 import { formatIls } from "@/domain/pricing";
 import { availabilityStatus, isFresh, useNow } from "./availability";
@@ -29,17 +29,31 @@ function lineFor(family: CardFamily, v: CardVariant): AddableLine {
   };
 }
 
+type PartialStock = { of: number; available: number };
+
 /** A dot for availability, with the words for screen readers and on hover. */
-function AvailabilityDot({ available, checkedAt }: { available: boolean | null; checkedAt: string }) {
+function AvailabilityDot({ available, checkedAt, partial }: { available: boolean | null; checkedAt: string; partial?: PartialStock }) {
   const fresh = isFresh(checkedAt, useNow());
   const { dot: color } = availabilityStatus(available, checkedAt, fresh);
-  const text = available === null || !fresh ? "זמינות לא אומתה" : available ? "זמין אצל הספק" : "לא זמין כרגע";
+  const text =
+    available === null || !fresh
+      ? "זמינות לא אומתה"
+      : available && partial
+        ? `${partial.available.toLocaleString("he-IL")} מתוך ${partial.of.toLocaleString("he-IL")} אפשרויות זמינות`
+        : available
+          ? "זמין אצל הספק"
+          : "לא זמין כרגע";
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-caption text-muted" title={text}>
       <span className={`size-2 shrink-0 rounded-full ${color}`} aria-hidden />
       <span className="truncate">{text}</span>
     </span>
   );
+}
+
+/** The lowest price a chip leads to, small under its value. */
+function ChipPrice({ value }: { value: number | null }) {
+  return value === null ? null : <span className="text-[12px] opacity-70">{formatIls(value)}</span>;
 }
 
 type Props = {
@@ -51,14 +65,19 @@ type Props = {
   eager?: boolean;
 };
 
+/** Below this width the chips open in a bottom sheet instead of over the card. */
+const SHEET_QUERY = "(max-width: 639px)";
+
 /**
- * A family in the catalog. "+" adds a single part right away; for a part with
- * sizes it opens chips on the card, and picking the last one adds it. Once in
+ * A family in the catalog. "+" adds a single part right away, or the part the
+ * filters already settled; for a part with sizes it opens chips (over the card,
+ * or in a bottom sheet on a phone), and picking the last one adds it. Once in
  * the cart, "+" becomes a stepper. Nothing here leaves the page.
  */
 export function FamilyCard({ family, preset = {}, layout = "grid", eager = false }: Props) {
   const { mode, lines } = useCart();
   const [open, setOpen] = useState(false);
+  const [asSheet, setAsSheet] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
   // Only a single part comes with its variant; the others load theirs on the first "+".
   const [variants, setVariants] = useState<CardVariant[] | null>(family.onlyVariant ? [family.onlyVariant] : null);
@@ -108,7 +127,11 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   function plusWith(list: CardVariant[]) {
     const settled = singlePart ? family.onlyVariant : pick(list, keys, { ...preset, ...choices }).chosen;
     if (settled && !open) addToCartNow(lineFor(family, settled), 1, image.current);
-    else if (list.length > 0) setOpen((o) => !o);
+    else if (open) setOpen(false);
+    else if (list.length > 0) {
+      setAsSheet(window.matchMedia(SHEET_QUERY).matches);
+      setOpen(true);
+    }
   }
 
   function onPlus() {
@@ -122,10 +145,11 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     setChoices(next);
     const settled = pick(list, keys, next).chosen;
     // Picking the last size adds it: two taps for a part with one option. A size that's
-    // already in the cart isn't added again; its stepper shows instead.
+    // already in the cart isn't added again; its stepper shows instead. The sheet stays
+    // open with the stepper, for the quantity; the picker over the card closes.
     if (settled) {
       if (!lines.some((l) => l.variantId === settled.id)) addToCartNow(lineFor(family, settled), 1, image.current);
-      setOpen(false);
+      if (!asSheet) setOpen(false);
     }
   }
 
@@ -140,17 +164,20 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       aria-expanded={singlePart ? undefined : open}
       aria-label={singlePart ? `הוספה לסל: ${family.title}` : `בחירת אפשרות והוספה לסל: ${family.title}`}
       className={`flex size-11 shrink-0 items-center justify-center rounded-full transition duration-200 active:scale-90 ${
-        open ? "bg-foreground text-background" : "bg-brand text-white"
+        open && !asSheet ? "bg-foreground text-background" : "bg-brand text-white"
       }`}
     >
-      <Plus size={20} strokeWidth={2} aria-hidden className={`transition-transform duration-200 ${open ? "rotate-45" : ""}`} />
+      <Plus size={20} strokeWidth={2} aria-hidden className={`transition-transform duration-200 ${open && !asSheet ? "rotate-45" : ""}`} />
     </button>
   );
 
   const showPicker = open && !singlePart && variants !== null;
 
-  /** The option chips, one group per option. `scroll` caps each group's height, for the inline (list) picker. */
-  const optionGroups = (scroll: boolean) =>
+  /**
+   * The option chips, one group per option. `scroll` caps each group's height, for the inline
+   * (list) picker; `prices` puts under each chip the lowest price it leads to (the sheet).
+   */
+  const optionGroups = (scroll: boolean, prices = false) =>
     keys.map((key) => (
       <div key={key} className="flex flex-col gap-1.5">
         <span className="text-caption text-muted">{optionLabel(key)}</span>
@@ -163,6 +190,8 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
               aria-pressed={chip.selected}
               onClick={() => onChip(key, chip.value)}
               className={`min-h-11 rounded-full px-3 text-caption transition-colors ${
+                prices ? "flex flex-col items-center justify-center px-3.5 py-1 text-[15px] leading-tight" : ""
+              } ${
                 chip.selected
                   ? "bg-foreground text-background"
                   : chip.enabled
@@ -171,6 +200,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
               }`}
             >
               {chip.value === NONE ? "ללא" : <Ltr>{chip.value}</Ltr>}
+              {prices && chip.enabled && <ChipPrice value={chipPrice(variants ?? [], picked.selected, key, chip.value)} />}
             </button>
           ))}
         </div>
@@ -187,17 +217,70 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   const photo_ = photo && (
     // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={photo.src} srcSet={photo.srcSet} alt={family.title} {...imageLoading(eager)} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
+    <img src={photo.src} srcSet={photo.srcSet} alt={family.title} {...imageLoading(eager)} referrerPolicy="no-referrer" className="size-full object-contain" />
   );
 
-  const availability = <AvailabilityDot available={current?.available ?? family.available} checkedAt={family.checkedAt} />;
+  // "3 מתוך 8 אפשרויות זמינות" when only some sizes are in stock, until one is chosen.
+  const sets = family.optionSets ?? 0;
+  const inStock = family.availableOptionSets ?? 0;
+  const partial = !current && sets > 1 && inStock > 0 && inStock < sets ? { of: sets, available: inStock } : undefined;
+  const availability = <AvailabilityDot available={current?.available ?? family.available} checkedAt={family.checkedAt} partial={partial} />;
+
+  const closeSheet = (e: React.MouseEvent<HTMLElement>) => e.currentTarget.closest("dialog")?.close();
+
+  /** On a phone: photo, chips with prices, then the stepper once the part is in the cart. */
+  const sheet = showPicker && asSheet && (
+    <dialog
+      ref={(el) => {
+        if (el && !el.open) el.showModal();
+      }}
+      aria-label={`בחירת אפשרות: ${family.title}`}
+      className="sheet sheet-bottom"
+      onClose={() => setOpen(false)}
+      onClick={(e) => e.target === e.currentTarget && e.currentTarget.close()}
+    >
+      <div className="flex max-h-[inherit] flex-col">
+        <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+          <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-white p-1 ring-1 ring-line">{photo_}</div>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <Ltr className="line-clamp-2 text-start text-[15px] font-medium">{family.title}</Ltr>
+            <span className="text-[15px] font-semibold">{price}</span>
+          </div>
+          <button
+            type="button"
+            onClick={closeSheet}
+            aria-label="סגירה"
+            className="-me-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:text-foreground"
+          >
+            <X size={20} strokeWidth={1.75} aria-hidden />
+          </button>
+        </div>
+        <div className="flex flex-col gap-4 overflow-y-auto px-4 py-4">{optionGroups(false, true)}</div>
+        <div className="flex items-center justify-between gap-3 border-t border-line px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {inCart ? (
+            <>
+              <QtyStepper variantId={inCart.variantId} qty={inCart.qty} label={family.title} />
+              <button type="button" onClick={closeSheet} className="flex h-11 items-center rounded-full bg-brand px-6 font-medium text-white">
+                סיום
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-caption text-muted">הבחירה האחרונה מוסיפה לסל</span>
+              {detailsLink}
+            </>
+          )}
+        </div>
+      </div>
+    </dialog>
+  );
 
   if (layout === "row") {
     return (
       <li className="flex flex-col gap-2 border-b border-line py-3 last:border-b-0">
         <div className="flex items-center gap-3">
           <Link href={href} className="shrink-0">
-            <div ref={image} className="size-16 overflow-hidden rounded-xl bg-tile p-1">
+            <div ref={image} className="size-16 overflow-hidden rounded-xl bg-white p-1 ring-1 ring-line">
               {photo_}
             </div>
           </Link>
@@ -213,17 +296,20 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
               )}
               {!current && family.variantCount > 1 && `, ${family.variantCount.toLocaleString("he-IL")} אפשרויות`}
             </span>
+            {/* Under the title on a phone; its own column from 640px. */}
+            <span className="block text-[15px] font-semibold sm:hidden">{price}</span>
           </Link>
           <div className="hidden w-32 sm:block">{availability}</div>
-          <span className="w-20 shrink-0 text-end text-[15px] font-semibold">{price}</span>
-          <div className="flex w-28 shrink-0 justify-end">{action}</div>
+          <span className="hidden w-20 shrink-0 text-end text-[15px] font-semibold sm:block">{price}</span>
+          <div className="flex shrink-0 justify-end sm:w-28">{action}</div>
         </div>
-        {showPicker && (
+        {showPicker && !asSheet && (
           <div className="flex flex-col gap-3 rounded-xl bg-subtle p-3" role="group" aria-label="בחירת אפשרות">
             {optionGroups(true)}
             {detailsLink}
           </div>
         )}
+        {sheet}
       </li>
     );
   }
@@ -232,7 +318,8 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     <li className="card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift">
       <Link href={href} className="flex flex-col gap-3">
         <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
-          <div ref={image} className="relative aspect-square w-full overflow-hidden rounded-xl bg-tile p-3 ring-1 ring-black/5">
+          {/* Every photo on the same padded white tile: supplier photos are shot on white. */}
+          <div ref={image} className="relative aspect-square w-full overflow-hidden rounded-xl bg-white p-3 ring-1 ring-line">
             {photo_}
             {familyInCart > 0 && (
               <span className="absolute end-2 top-2 rounded-full bg-foreground px-2 py-0.5 text-[12px] font-medium text-background tabular-nums">
@@ -243,7 +330,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
         </ViewTransition>
         <div className="flex flex-col gap-1">
           <Ltr className="truncate text-start text-caption text-muted">{family.supplierNames.join(", ")}</Ltr>
-          <h2 dir="ltr" className="line-clamp-2 text-start text-[15px] leading-snug font-medium tracking-normal">
+          <h2 dir="ltr" className="line-clamp-2 text-start text-[15px] leading-snug font-medium tracking-normal" title={family.title}>
             {family.title}
           </h2>
           {current && keys.length > 0 && (
@@ -255,7 +342,8 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
         </div>
       </Link>
 
-      <div className="flex items-end justify-between gap-2">
+      {/* In the cart, the stepper wraps to its own row on a narrow card instead of covering the price. */}
+      <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-[15px] font-semibold">{price}</span>
           {!current && family.variantCount > 1 && (
@@ -265,8 +353,9 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
         {action}
       </div>
 
-      {/* The picker covers the card above its "+" instead of growing it, so every card in the row keeps its height. */}
-      {showPicker && (
+      {sheet}
+      {/* From 640px the picker covers the card above its "+" instead of growing it, so every card in the row keeps its height. */}
+      {showPicker && !asSheet && (
         <div
           role="group"
           aria-label="בחירת אפשרות"

@@ -157,6 +157,9 @@ export type CardFamily = {
   optionKeys: string[];
   /** Whether anything in the family can be added (listed, with a price). */
   orderable: boolean;
+  /** Distinct option sets that can be ordered, and how many of them the supplier has in stock. */
+  optionSets?: number;
+  availableOptionSets?: number;
   /** Set when the family is one part (one set of options): the offer to add, cheapest in stock. */
   onlyVariant: CardVariant | null;
   /** When the search is one of its SKUs: that variant's options, chosen on the card. */
@@ -243,12 +246,14 @@ async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
     .select({
       familyId: variants.familyId,
       sets: sql<number>`count(DISTINCT ${variants.familyOptions})::int`,
+      availableSets: sql<number>`(count(DISTINCT ${variants.familyOptions}) FILTER (WHERE ${variants.available} IS TRUE))::int`,
     })
     .from(variants)
     .innerJoin(products, eq(products.id, variants.productId))
     .where(and(inArray(variants.familyId, ids), eq(products.status, "published"), isNull(products.missingSince), isNull(variants.missingSince), sql`${variants.priceUsd} > 0`))
     .groupBy(variants.familyId);
   const sets = new Map(shape.map((r) => [r.familyId!, r.sets]));
+  const availableSets = new Map(shape.map((r) => [r.familyId!, r.availableSets]));
   const single = ids.filter((id) => sets.get(id) === 1);
   const only = new Map<string, CardVariant>();
   for (const { familyId, variant } of await variantsOf(single, rate)) if (!only.has(familyId)) only.set(familyId, variant);
@@ -266,6 +271,8 @@ async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
     variantCount: r.variantCount,
     optionKeys: r.optionKeys,
     orderable: (sets.get(r.id) ?? 0) > 0,
+    optionSets: sets.get(r.id) ?? 0,
+    availableOptionSets: availableSets.get(r.id) ?? 0,
     onlyVariant: only.get(r.id) ?? null,
   }));
 }

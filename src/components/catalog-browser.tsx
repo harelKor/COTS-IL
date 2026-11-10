@@ -182,7 +182,7 @@ const sidebarHeading = "mb-2 text-caption font-semibold text-muted";
 /**
  * The catalog's filters and results. Every change applies at once (no "apply"
  * button) and lives in the URL, so a filtered view can be shared or opened in a
- * new tab. Results load as you scroll, and the URL keeps how many pages are
+ * new tab. More results load with a button, and the URL keeps how many pages are
  * loaded, so "back" comes back to the same place.
  *
  * From 1024px the filters sit in a sticky sidebar; below it, in a chip bar and a sheet.
