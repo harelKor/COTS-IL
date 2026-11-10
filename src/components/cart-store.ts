@@ -18,6 +18,11 @@ export type CartSheetLine = {
   supplierName: string;
   qty: number;
   unitPriceIls: number | null;
+  /** False once the part left the catalog or lost its price: the line blocks the send until removed. Unknown (a guest's line) counts as true. */
+  orderable?: boolean;
+  /** The supplier's yes/no and when it was checked (ISO). Not sold out doesn't block the send. */
+  available?: boolean | null;
+  checkedAt?: string | null;
 };
 
 export type Checkout = {
@@ -120,12 +125,19 @@ export function removeOptimistic(variantId: string): CartSheetLine | null {
   return line;
 }
 
+/** Marks lines the server refused to send, so the sheet names them with a Remove button. */
+export function markBlocked(variantIds: string[]) {
+  const ids = new Set(variantIds);
+  set({ ...state, lines: state.lines.map((l) => (ids.has(l.variantId) ? { ...l, orderable: false } : l)) });
+}
+
 /** Whether the cart can be changed here: a guest's in the browser, a team member's on the server. */
 export const canEditCart = (mode: CartMode) => isLocal(mode) || mode === "ordering";
 
+/** Item count and ₪ total. Lines that can't be ordered any more don't count toward the total. */
 export function cartTotals(lines: CartSheetLine[]) {
   return {
     count: lines.reduce((sum, l) => sum + l.qty, 0),
-    totalIls: lines.reduce((sum, l) => sum + (l.unitPriceIls ?? 0) * l.qty, 0),
+    totalIls: lines.reduce((sum, l) => sum + (l.orderable === false ? 0 : (l.unitPriceIls ?? 0) * l.qty), 0),
   };
 }

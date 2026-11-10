@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { SharedLine } from "@/domain/cart-share";
+import { isOrderable } from "@/domain/cart";
 import { DEFAULT_MULTIPLIER, priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam, type Viewer } from "@/lib/auth";
 import { getCheckoutDefaults } from "@/lib/orders";
@@ -39,7 +40,7 @@ async function addLine(teamId: string, userId: string, variantId: string, count:
     .from(variants)
     .innerJoin(products, eq(products.id, variants.productId))
     .where(eq(variants.id, variantId));
-  if (!variant || variant.variantMissing || variant.productMissing || variant.status !== "published" || priceIls(variant.priceUsd) === null) {
+  if (!variant || !isOrderable({ ...variant, productStatus: variant.status })) {
     return "לא ניתן להזמין את הפריט הזה";
   }
 
@@ -104,7 +105,14 @@ const addressError = { path: ["address"], message: "למשלוח צריך כתו
 const deliverySchema = z.object(deliveryFields).refine(needsAddress, addressError);
 type Delivery = z.infer<typeof deliverySchema>;
 
-export type SendState = { orderId?: string; number?: number; error?: string; fieldErrors?: Record<string, string[] | undefined> };
+export type SendState = {
+  orderId?: string;
+  number?: number;
+  error?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+  /** Lines that can't be ordered any more, so the sheet can name them. */
+  blocked?: string[];
+};
 
 /**
  * The cart sheet's "Send quote request": one tap for anyone on the team. Delivery and
@@ -115,7 +123,7 @@ export async function sendQuoteRequest(changes: Partial<Delivery> = {}): Promise
   const parsed = deliverySchema.safeParse({ ...(await getCheckoutDefaults(team.id)), ...changes });
   if (!parsed.success) return { error: "צריך להשלים פרטי מסירה", fieldErrors: parsed.error.flatten().fieldErrors };
   const result = await createOrder(viewer, team, parsed.data);
-  if ("error" in result) return { error: result.error };
+  if ("error" in result) return result;
   revalidatePath("/cart");
   revalidatePath("/orders");
   refresh();
@@ -123,7 +131,7 @@ export async function sendQuoteRequest(changes: Partial<Delivery> = {}): Promise
 }
 
 /** Turns the cart into an order, copying prices and SKUs as they are right now (spec §8). */
-async function createOrder(viewer: Viewer, team: Team, input: Delivery): Promise<{ orderId: string; number: number } | { error: string }> {
+async function createOrder(viewer: Viewer, team: Team, input: Delivery): Promise<{ orderId: string; number: number } | { error: string; blocked?: string[] }> {
   return db.transaction(async (tx) => {
     // Locks the cart, so a double click or two team members can't submit the same lines twice.
     const lines = await tx
@@ -150,10 +158,11 @@ async function createOrder(viewer: Viewer, team: Team, input: Delivery): Promise
 
     if (lines.length === 0) return { error: "הסל ריק" };
 
-    const blocked = lines.filter(
-      (l) => l.variantMissing || l.productMissing || l.status !== "published" || priceIls(l.priceUsd) === null,
-    );
-    if (blocked.length > 0) return { error: "יש בסל פריטים שכבר לא ניתן להזמין. הסירו אותם ונסו שוב." };
+    const blocked = lines.filter((l) => !isOrderable({ ...l, productStatus: l.status }));
+    if (blocked.length > 0) {
+      const names = blocked.map((l) => l.title).join(", ");
+      return { error: `לא ניתן להזמין עוד: ${names}. הסירו ונסו שוב.`, blocked: blocked.map((l) => l.variantId) };
+    }
 
     const now = new Date();
     const [order] = await tx

@@ -6,10 +6,15 @@ import type { Viewer } from "@/lib/auth";
 import { orderStage, type OrderStage } from "@/domain/order-stage";
 import type { OrderStatus } from "@/domain/orders";
 import { getItemProgress, getOrderDeliveries } from "@/lib/logistics";
+import type { CartSheetLine } from "@/components/cart-store";
+import { isOrderable } from "@/domain/cart";
+import { priceIls } from "@/domain/pricing";
+import { productHref } from "@/lib/catalog-links";
 
 const { cartItems, products, quoteLines, quotes, suppliers, teamOrderItems, teamOrders, teams, variants } = schema;
 
-export async function getCart(teamId: string) {
+/** The team's cart with what the catalog knows about each part. `variantIds` limits it to those lines. */
+export async function getCart(teamId: string, variantIds?: string[]) {
   return db
     .select({
       variantId: cartItems.variantId,
@@ -33,11 +38,29 @@ export async function getCart(teamId: string) {
     .innerJoin(variants, eq(variants.id, cartItems.variantId))
     .innerJoin(products, eq(products.id, variants.productId))
     .innerJoin(suppliers, eq(suppliers.id, variants.supplierId))
-    .where(eq(cartItems.teamId, teamId))
+    .where(variantIds ? and(eq(cartItems.teamId, teamId), inArray(cartItems.variantId, variantIds)) : eq(cartItems.teamId, teamId))
     .orderBy(asc(suppliers.name), asc(products.title));
 }
 
 export type CartLine = Awaited<ReturnType<typeof getCart>>[number];
+
+/** A cart line as the cart sheet shows it (CartSheetLine in src/components/cart-store.ts). */
+export function toSheetLine(l: CartLine): CartSheetLine {
+  return {
+    variantId: l.variantId,
+    title: l.title,
+    options: l.options.map((o) => o.value).join(" / "),
+    sku: l.supplierSku,
+    image: l.image,
+    href: productHref(l.supplierCode, l.handle),
+    supplierName: l.supplierName,
+    qty: l.qty,
+    unitPriceIls: priceIls(l.priceUsd),
+    orderable: isOrderable({ variantMissing: l.variantMissing, productMissing: l.productMissing, productStatus: l.productStatus, priceUsd: l.priceUsd }),
+    available: l.available,
+    checkedAt: l.checkedAt.toISOString(),
+  };
+}
 
 export async function cartCount(teamId: string) {
   const [{ count }] = await db

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatIls } from "@/domain/pricing";
 import { CartPanel, CloseButton } from "./cart-panel";
 import { canEditCart, cartTotals, useCart } from "./cart-store";
+import { Ltr } from "./ltr";
 
 /** Opens the cart sheet from anywhere on the site. */
 export const openCart = () => window.dispatchEvent(new Event("cart:open"));
@@ -39,7 +40,7 @@ export function CartButton() {
  * the cart as a sheet, where the request is sent too. There's no checkout page.
  */
 export function CartPill() {
-  const { mode, lines } = useCart();
+  const { mode, lines, team } = useCart();
   const sheet = useRef<HTMLDialogElement>(null);
   const [wantOpen, setWantOpen] = useState(false);
   const { count, totalIls } = cartTotals(lines);
@@ -89,11 +90,22 @@ export function CartPill() {
 
       <dialog ref={sheet} aria-label="הסל" className="sheet sheet-side" onClick={(e) => e.target === sheet.current && close()}>
         <div className="flex h-full max-h-[inherit] flex-col">
-          <div className="flex items-center justify-between border-b border-line px-6 py-3">
-            <h2 className="text-section font-semibold">הסל</h2>
+          <div className="flex items-center justify-between gap-3 border-b border-line px-6 py-2">
+            <div className="flex min-w-0 flex-col">
+              <h2 className="truncate text-section font-semibold">
+                {team ? (
+                  <>
+                    סל הקבוצה, {team.name} <Ltr>{`${team.program} ${team.number}`}</Ltr>
+                  </>
+                ) : (
+                  "הסל"
+                )}
+              </h2>
+              {count > 0 && <span className="text-caption text-muted">{count === 1 ? "פריט אחד" : `${count} פריטים`}</span>}
+            </div>
             <CloseButton onClick={close} />
           </div>
-          <div className="flex-1 overflow-y-auto px-6 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <div className="flex flex-1 flex-col overflow-y-auto px-6 pt-2">
             <CartPanel onNavigate={close} />
           </div>
         </div>

@@ -1,21 +1,22 @@
 "use client";
 
-import { Check, ChevronDown, Share2, X } from "lucide-react";
+import { Check, ChevronDown, Share2, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import { sendEmailLink, setUpTeam, signInWithGoogle } from "@/app/auth/actions";
 import { sendQuoteRequest, type SendState } from "@/app/cart/actions";
 import type { TeamNameResponse } from "@/app/api/team-name/route";
 import { encodeCart } from "@/domain/cart-share";
 import { formatIls } from "@/domain/pricing";
 import { removeNow } from "./cart-actions";
-import { cartTotals, useCart, type CartSheetLine, type Checkout } from "./cart-store";
+import { cartTotals, markBlocked, useCart, type CartSheetLine, type Checkout } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
 import { showToast } from "./toast";
 
 const VAT = 0.18;
+const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
 
 function thumb(src: string) {
   return src.startsWith("https://cdn.shopify.com/") ? `${src}${src.includes("?") ? "&" : "?"}width=120` : src;
@@ -75,12 +76,31 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
           <span className="truncate text-caption text-muted">
             <Ltr>{[line.supplierName, line.options, line.sku].filter(Boolean).join(", ")}</Ltr>
           </span>
-          <div className="flex items-center justify-between gap-2">
-            <QtyStepper variantId={line.variantId} qty={line.qty} label={line.title} />
-            <span className="text-[15px] font-semibold tabular-nums">
-              {line.unitPriceIls === null ? <span className="text-caption font-normal text-muted">ייבדק בהצעה</span> : formatIls(line.unitPriceIls * line.qty)}
-            </span>
-          </div>
+          {line.orderable === false ? (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-caption font-medium text-danger">לא ניתן להזמין עוד</span>
+              <button
+                type="button"
+                onClick={() => removeNow(line.variantId)}
+                className="flex h-11 items-center gap-1.5 rounded-full bg-danger/10 px-4 text-caption font-semibold text-danger hover:bg-danger/15"
+              >
+                <Trash2 size={16} strokeWidth={1.75} aria-hidden />
+                הסרה
+              </button>
+            </div>
+          ) : (
+            <>
+              {line.available === false && line.checkedAt && (
+                <span className="text-caption text-warning">לא זמין אצל הספק, נבדק {dayMonth.format(new Date(line.checkedAt))}</span>
+              )}
+              <div className="flex items-center justify-between gap-2">
+                <QtyStepper variantId={line.variantId} qty={line.qty} label={line.title} />
+                <span className="text-[15px] font-semibold tabular-nums">
+                  {line.unitPriceIls === null ? <span className="text-caption font-normal text-muted">אין מחיר</span> : formatIls(line.unitPriceIls * line.qty)}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </li>
@@ -91,7 +111,17 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
  * One tap for anyone on the team (D11): delivery and contact are remembered, and
  * change only on request.
  */
-function TeamSend({ checkout, isNew, onSent }: { checkout: Checkout; isNew: boolean; onSent: (n: { orderId: string; number: number }) => void }) {
+function TeamSend({
+  checkout,
+  isNew,
+  blockedCount,
+  onSent,
+}: {
+  checkout: Checkout;
+  isNew: boolean;
+  blockedCount: number;
+  onSent: (n: { orderId: string; number: number }) => void;
+}) {
   const [editing, setEditing] = useState(!checkout.contactName || !checkout.contactPhone);
   const [changes, setChanges] = useState<Checkout & { notes: string }>({ ...checkout, notes: "" });
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
@@ -106,6 +136,7 @@ function TeamSend({ checkout, isNew, onSent }: { checkout: Checkout; isNew: bool
       else {
         setErrors(result.fieldErrors ?? {});
         if (result.fieldErrors) setEditing(true);
+        if (result.blocked?.length) markBlocked(result.blocked);
         setError(result.error ?? "השליחה נכשלה");
         showToast(result.error ?? "השליחה נכשלה", "error");
       }
@@ -160,10 +191,9 @@ function TeamSend({ checkout, isNew, onSent }: { checkout: Checkout; isNew: bool
         </button>
       )}
       <InlineError message={error} />
-      <button type="button" onClick={send} disabled={pending} className={primary}>
+      <button type="button" onClick={send} disabled={pending || blockedCount > 0} className={primary}>
         {pending ? "שולח…" : "שליחת בקשה להצעת מחיר"}
       </button>
-      <p className="text-caption text-muted">זו בקשה ולא הזמנה: הספק הישראלי יבדוק זמינות ומחירים ויחזור עם הצעת מחיר לאישורכם.</p>
     </div>
   );
 }
@@ -300,6 +330,34 @@ export function TeamStep() {
 }
 
 /**
+ * Pinned to the bottom of the sheet (or page): total, one status line and the
+ * primary action, so Send is in reach however long the cart is. Its height is
+ * published as --sheet-footer on the sheet so toasts sit above it.
+ */
+function CartFooter({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const sheet = el?.closest("dialog");
+    if (!el || !sheet) return;
+    const observer = new ResizeObserver(() => sheet.style.setProperty("--sheet-footer", `${el.offsetHeight}px`));
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      sheet.style.removeProperty("--sheet-footer");
+    };
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className="sticky bottom-0 z-10 -mx-6 flex max-h-[70dvh] flex-col gap-3 overflow-y-auto border-t border-line bg-surface px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
  * The cart and its checkout, in one place: the lines, the cost,
  * sharing, and the one primary action for whoever is looking (a guest signs in,
  * someone signed in to a team sends).
@@ -311,6 +369,8 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
   const [costOpen, setCostOpen] = useState(false);
   const [sent, setSent] = useState<{ orderId: string; number: number } | null>(null);
   const shareUrl = typeof window === "undefined" ? "" : `${window.location.origin}/cart/shared?items=${encodeCart(lines)}`;
+  const blocked = lines.filter((l) => l.orderable === false);
+  const unavailable = lines.filter((l) => l.orderable !== false && l.available === false);
 
   async function copyShare() {
     try {
@@ -338,69 +398,76 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
     );
   }
 
+  if (lines.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-8 text-center">
+        <p className="text-section font-semibold">הסל ריק</p>
+        <Link
+          href="/catalog"
+          onClick={onNavigate}
+          className="flex h-11 items-center rounded-full border border-line bg-white/90 px-5 text-[15px] font-medium text-brand shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle"
+        >
+          לקטלוג
+        </Link>
+      </div>
+    );
+  }
+
+  const status =
+    blocked.length > 0
+      ? { tone: "text-danger", text: `${blocked.length === 1 ? "פריט אחד" : `${blocked.length} פריטים`} בסל כבר לא ניתנים להזמנה: הסירו ${blocked.length === 1 ? "אותו" : "אותם"} כדי לשלוח.` }
+      : unavailable.length > 0
+        ? { tone: "text-warning", text: `${unavailable.length === 1 ? "פריט אחד" : `${unavailable.length} פריטים`} לא זמינים כרגע אצל הספק. אפשר לשלוח, ונבדוק בהצעה.` }
+        : { tone: "text-muted", text: "זו בקשה ולא הזמנה: הספק הישראלי יבדוק זמינות ומחירים ויחזור עם הצעת מחיר לאישורכם." };
+
   return (
-    <div className="flex flex-col gap-4">
-      {lines.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 py-8 text-center">
-          <p className="text-section font-semibold">הסל ריק</p>
-          <Link
-            href="/catalog"
-            onClick={onNavigate}
-            className="flex h-11 items-center rounded-full border border-line bg-white/90 px-5 text-[15px] font-medium text-brand shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle"
-          >
-            לקטלוג
-          </Link>
-        </div>
-      ) : (
+    <div className="flex min-h-full flex-col">
+      <div className="flex flex-1 flex-col gap-4 pb-4">
         <ul>
           {lines.map((line) => (
             <SwipeLine key={line.variantId} line={line} onNavigate={onNavigate} />
           ))}
         </ul>
-      )}
-
-      {lines.length > 0 && (
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={copyShare} className="flex min-h-11 items-center gap-2 rounded-full bg-subtle px-4 text-caption">
             <Share2 size={16} aria-hidden />
             שיתוף הסל
           </button>
         </div>
-      )}
+      </div>
 
-      {lines.length > 0 && (
-        <>
-          <button type="button" onClick={() => setCostOpen((o) => !o)} aria-expanded={costOpen} className="flex items-baseline justify-between gap-2 text-start">
-            <span className="flex items-center gap-1 text-muted">
-              סה״כ משוער, כולל מע״מ
-              <ChevronDown size={14} aria-hidden className={`transition-transform ${costOpen ? "rotate-180" : ""}`} />
-            </span>
-            <span className="text-section font-semibold tabular-nums">{formatIls(totalIls)}</span>
-          </button>
-          {costOpen && (
-            <dl className="flex flex-col gap-1 rounded-xl bg-subtle p-3 text-caption">
-              <div className="flex justify-between">
-                <dt>{count} פריטים</dt>
-                <dd className="tabular-nums">{formatIls(totalIls)}</dd>
-              </div>
-              <div className="flex justify-between text-muted">
-                <dt>מתוכם מע״מ</dt>
-                <dd className="tabular-nums">{formatIls(Math.round(totalIls - totalIls / (1 + VAT)))}</dd>
-              </div>
-              <div className="flex justify-between text-muted">
-                <dt>משלוח בישראל</dt>
-                <dd>יתומחר בהצעה</dd>
-              </div>
-            </dl>
-          )}
+      <CartFooter>
+        <button type="button" onClick={() => setCostOpen((o) => !o)} aria-expanded={costOpen} className="flex min-h-11 items-center justify-between gap-2 text-start">
+          <span className="flex items-center gap-1 text-muted">
+            סה״כ משוער, כולל מע״מ
+            <ChevronDown size={14} aria-hidden className={`transition-transform ${costOpen ? "rotate-180" : ""}`} />
+          </span>
+          <span className="text-section font-semibold tabular-nums">{formatIls(totalIls)}</span>
+        </button>
+        {costOpen && (
+          <dl className="flex flex-col gap-1 rounded-xl bg-subtle p-3 text-caption">
+            <div className="flex justify-between">
+              <dt>{count} פריטים</dt>
+              <dd className="tabular-nums">{formatIls(totalIls)}</dd>
+            </div>
+            <div className="flex justify-between text-muted">
+              <dt>מתוכם מע״מ</dt>
+              <dd className="tabular-nums">{formatIls(Math.round(totalIls - totalIls / (1 + VAT)))}</dd>
+            </div>
+            <div className="flex justify-between text-muted">
+              <dt>משלוח בישראל</dt>
+              <dd>יתומחר בהצעה</dd>
+            </div>
+          </dl>
+        )}
+        <p className={`text-caption ${status.tone}`}>{status.text}</p>
 
-          {mode === "guest" && <SignInStep google={!!cart.googleSignIn} />}
-          {mode === "noteam" && <TeamStep />}
-          {mode === "ordering" && cart.team && cart.checkout && (
-            <TeamSend checkout={cart.checkout} isNew={cart.team.status === "pending"} onSent={setSent} />
-          )}
-        </>
-      )}
+        {mode === "guest" && <SignInStep google={!!cart.googleSignIn} />}
+        {mode === "noteam" && <TeamStep />}
+        {mode === "ordering" && cart.team && cart.checkout && (
+          <TeamSend checkout={cart.checkout} isNew={cart.team.status === "pending"} blockedCount={blocked.length} onSent={setSent} />
+        )}
+      </CartFooter>
     </div>
   );
 }

@@ -2,14 +2,12 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Boxes } from "lucide-react";
 import { signout } from "@/app/auth/actions";
-import { priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { googleSignInEnabled } from "@/lib/auth-providers";
-import { getCart, getCheckoutDefaults } from "@/lib/orders";
+import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
 import type { CartState } from "./cart-store";
 import { CartButton } from "./cart-pill";
 import { CartSync } from "./cart-sync";
-import { productHref } from "./catalog";
 import { Ltr } from "./ltr";
 import { SearchPanel } from "./search-panel";
 
@@ -32,17 +30,7 @@ async function Account() {
       mode: "ordering",
       team: { name: team.name, program: team.program, number: team.number, status: team.status },
       checkout,
-      lines: lines.map((l) => ({
-        variantId: l.variantId,
-        title: l.title,
-        options: l.options.map((o) => o.value).join(" / "),
-        sku: l.supplierSku,
-        image: l.image,
-        href: productHref(l.supplierCode, l.handle),
-        supplierName: l.supplierName,
-        qty: l.qty,
-        unitPriceIls: priceIls(l.priceUsd),
-      })),
+      lines: lines.map(toSheetLine),
     };
   }
 
