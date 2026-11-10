@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { sendEmailLink, setUpTeam, signInWithGoogle } from "@/app/auth/actions";
-import { sendQuoteRequest } from "@/app/cart/actions";
+import { sendQuoteRequest, type SendState } from "@/app/cart/actions";
 import type { TeamNameResponse } from "@/app/api/team-name/route";
 import { encodeCart } from "@/domain/cart-share";
 import { formatIls } from "@/domain/pricing";
@@ -24,6 +24,16 @@ function thumb(src: string) {
 const primary =
   "flex h-11 w-full items-center justify-center gap-2 rounded-full bg-brand px-6 font-medium text-white transition-colors hover:bg-brand-strong disabled:opacity-60";
 const field = "h-11 w-full rounded-xl bg-subtle px-4 text-[15px] outline-none focus:ring-2 focus:ring-brand";
+
+/** A server error, right above the button that caused it (the toast repeats it). */
+function InlineError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p role="alert" className="rounded-xl border border-danger/30 bg-danger/5 px-3 py-2 text-caption font-medium text-danger">
+      {message}
+    </p>
+  );
+}
 
 /** A cart line that a sideways swipe removes (with Undo), as on a phone's mail app. */
 function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () => void }) {
@@ -85,15 +95,18 @@ function TeamSend({ checkout, isNew, onSent }: { checkout: Checkout; isNew: bool
   const [editing, setEditing] = useState(!checkout.contactName || !checkout.contactPhone);
   const [changes, setChanges] = useState<Checkout & { notes: string }>({ ...checkout, notes: "" });
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function send() {
+    setError(null);
     startTransition(async () => {
-      const result = await sendQuoteRequest(changes);
+      const result = await sendQuoteRequest(changes).catch(() => ({ error: "אין חיבור לשרת. נסו שוב בעוד רגע." }) as SendState);
       if (result.orderId && result.number) onSent({ orderId: result.orderId, number: result.number });
       else {
         setErrors(result.fieldErrors ?? {});
         if (result.fieldErrors) setEditing(true);
+        setError(result.error ?? "השליחה נכשלה");
         showToast(result.error ?? "השליחה נכשלה", "error");
       }
     });
@@ -146,6 +159,7 @@ function TeamSend({ checkout, isNew, onSent }: { checkout: Checkout; isNew: bool
           <span className="shrink-0 text-brand">שינוי</span>
         </button>
       )}
+      <InlineError message={error} />
       <button type="button" onClick={send} disabled={pending} className={primary}>
         {pending ? "שולח…" : "שליחת בקשה להצעת מחיר"}
       </button>
@@ -160,6 +174,7 @@ export function SignInStep({ google, next: to, intro = "כדי לשלוח צרי
   const next = to ?? `${pathname}?cart=open`;
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   if (sent) {
@@ -179,15 +194,20 @@ export function SignInStep({ google, next: to, intro = "כדי לשלוח צרי
       className="flex flex-col gap-2"
       onSubmit={(e) => {
         e.preventDefault();
+        setError(null);
         startTransition(async () => {
-          const result = await sendEmailLink(email, next);
+          const result = await sendEmailLink(email, next).catch(() => ({ sent: undefined, error: "אין חיבור לשרת. נסו שוב בעוד רגע." }));
           if (result.sent) setSent(result.sent);
-          else showToast(result.error ?? "השליחה נכשלה", "error");
+          else {
+            setError(result.error ?? "השליחה נכשלה");
+            showToast(result.error ?? "השליחה נכשלה", "error");
+          }
         });
       }}
     >
       <p className="text-caption text-muted">{intro}</p>
       <input className={field} type="email" required dir="ltr" autoComplete="email" placeholder="you@team.org" aria-label="דוא״ל" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <InlineError message={error} />
       <button disabled={pending} className={primary}>
         {pending ? "שולח…" : "שליחת קישור כניסה"}
       </button>
@@ -210,6 +230,7 @@ export function TeamStep() {
   const [number, setNumber] = useState("");
   const [name, setName] = useState("");
   const [registered, setRegistered] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   async function lookUp(n: string, p = program) {
@@ -225,9 +246,13 @@ export function TeamStep() {
       className="flex flex-col gap-2"
       onSubmit={(e) => {
         e.preventDefault();
+        setError(null);
         startTransition(async () => {
-          const result = await setUpTeam({ program, number, name });
-          if (result.error) showToast(result.error, "error");
+          const result = await setUpTeam({ program, number, name }).catch(() => ({ error: "אין חיבור לשרת. נסו שוב בעוד רגע." }));
+          if (result?.error) {
+            setError(result.error);
+            showToast(result.error, "error");
+          }
         });
       }}
     >
@@ -266,6 +291,7 @@ export function TeamStep() {
       ) : (
         <input className={field} required placeholder="שם הקבוצה" aria-label="שם הקבוצה" value={name} onChange={(e) => setName(e.target.value)} />
       )}
+      <InlineError message={error} />
       <button disabled={pending || registered} className={primary}>
         {pending ? "יוצר…" : "יצירת הקבוצה"}
       </button>

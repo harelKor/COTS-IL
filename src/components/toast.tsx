@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 
 type Toast = { id: number; text: string; tone: "default" | "error"; action?: { label: string; run: () => void } };
 
-let toast: Toast | null = null;
+/** Two at most: a new toast stacks on the last one instead of replacing it. */
+const MAX_TOASTS = 2;
+
+let toasts: Toast[] = [];
 let nextId = 1;
 const listeners = new Set<() => void>();
 
@@ -13,19 +17,19 @@ function emit() {
 }
 
 /**
- * Shows a short message at the bottom of the screen. A new one replaces the last.
- * An action (like Undo) keeps it up for 5 seconds instead of 3.
+ * Shows a short message at the bottom of the screen, above an open sheet too.
+ * An action (like Undo) or an error keeps it up for 6 seconds instead of 3;
+ * hovering or focusing it pauses the timer.
  */
 export function showToast(text: string, tone: Toast["tone"] = "default", action?: Toast["action"]) {
-  toast = { id: nextId++, text, tone, action };
+  toasts = [...toasts, { id: nextId++, text, tone, action }].slice(-MAX_TOASTS);
   emit();
 }
 
 function dismiss(id: number) {
-  if (toast?.id === id) {
-    toast = null;
-    emit();
-  }
+  if (!toasts.some((t) => t.id === id)) return;
+  toasts = toasts.filter((t) => t.id !== id);
+  emit();
 }
 
 function subscribe(listener: () => void) {
@@ -33,39 +37,99 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-export function Toaster() {
-  const current = useSyncExternalStore(subscribe, () => toast, () => null);
+const noToasts: Toast[] = [];
+const noSubscribe = () => () => {};
+
+/**
+ * The open modal <dialog>, if any. A modal makes the rest of the page inert, so
+ * toasts render inside it (and in the top layer, as a popover) to stay visible
+ * and clickable while the cart sheet or search panel is open.
+ */
+function useOpenModal() {
+  const [modal, setModal] = useState<HTMLDialogElement | null>(null);
+  useEffect(() => {
+    const find = () => {
+      const open = [...document.querySelectorAll<HTMLDialogElement>("dialog[open]")].filter((d) => d.matches(":modal"));
+      setModal(open.at(-1) ?? null);
+    };
+    find();
+    const observer = new MutationObserver(find);
+    observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ["open"] });
+    return () => observer.disconnect();
+  }, []);
+  return modal;
+}
+
+function ToastItem({ toast }: { toast: Toast }) {
+  const [paused, setPaused] = useState(false);
+  const remaining = useRef(toast.action || toast.tone === "error" ? 6000 : 3000);
 
   useEffect(() => {
-    if (!current) return;
-    const timer = setTimeout(() => dismiss(current.id), current.action ? 5000 : 3000);
-    return () => clearTimeout(timer);
-  }, [current]);
+    if (paused) return;
+    const started = Date.now();
+    const timer = setTimeout(() => dismiss(toast.id), remaining.current);
+    return () => {
+      clearTimeout(timer);
+      remaining.current = Math.max(1000, remaining.current - (Date.now() - started));
+    };
+  }, [paused, toast.id]);
 
   return (
-    <div data-toasts aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4">
-      {current && (
-        <div
-          key={current.id}
-          className={`pointer-events-auto flex items-center gap-4 rounded-full ps-5 py-1.5 text-caption font-medium shadow-lift transition-opacity duration-200 starting:opacity-0 ${
-            current.tone === "error" ? "bg-danger text-white" : "bg-foreground text-background"
-          } ${current.action ? "pe-2" : "pe-5"}`}
+    <div
+      role={toast.tone === "error" ? "alert" : "status"}
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      className={`pointer-events-auto flex max-w-full items-center gap-3 rounded-full ps-5 py-1 text-caption font-medium shadow-lift transition-opacity duration-200 starting:opacity-0 ${
+        toast.tone === "error" ? "bg-danger text-white" : "bg-foreground text-background"
+      } ${toast.action ? "pe-1" : "pe-5"}`}
+    >
+      <span className="py-2">{toast.text}</span>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            toast.action!.run();
+            dismiss(toast.id);
+          }}
+          className="h-11 shrink-0 rounded-full px-4 font-semibold text-brand-soft hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-brand-soft"
         >
-          <span className="py-1">{current.text}</span>
-          {current.action && (
-            <button
-              type="button"
-              onClick={() => {
-                current.action!.run();
-                dismiss(current.id);
-              }}
-              className="h-9 rounded-full px-4 font-semibold text-brand hover:bg-white/10"
-            >
-              {current.action.label}
-            </button>
-          )}
-        </div>
+          {toast.action.label}
+        </button>
       )}
     </div>
+  );
+}
+
+export function Toaster() {
+  const current = useSyncExternalStore(subscribe, () => toasts, () => noToasts);
+  const modal = useOpenModal();
+  const box = useRef<HTMLDivElement>(null);
+  const mounted = useSyncExternalStore(noSubscribe, () => true, () => false);
+
+  // Into the top layer, above any open modal. Showing it again moves it to the top.
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el || typeof el.showPopover !== "function") return;
+    if (el.matches(":popover-open")) el.hidePopover();
+    if (current.length > 0) el.showPopover();
+  }, [current, modal, mounted]);
+
+  if (!mounted) return null;
+  return createPortal(
+    <div
+      ref={box}
+      popover="manual"
+      data-toasts
+      aria-live="polite"
+      // Above the cart sheet's pinned footer when it is open (--sheet-footer is set on the sheet).
+      className="pointer-events-none fixed inset-x-0 top-auto bottom-[calc(var(--sheet-footer,5rem)+1rem)] m-0 flex w-full flex-col items-center gap-2 overflow-visible border-0 bg-transparent px-4 py-0"
+    >
+      {current.map((t) => (
+        <ToastItem key={t.id} toast={t} />
+      ))}
+    </div>,
+    modal ?? document.body,
   );
 }
