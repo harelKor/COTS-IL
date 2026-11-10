@@ -470,7 +470,7 @@ Ideas that make COTS-IL better than ordering direct, in order of value. Each is 
 | Session | Branch / commit | Done | Notes |
 |---|---|---|---|
 | S0 | `claude/infallible-ramanujan-54cb97` | ✓ (7a) | Migration `team_role_legacy` must reach production before this merges. 7b after one deploy: drop `memberships.role`, `team_invitations.role` and the `team_role` enum, and stop `handle_new_user()` writing `role` |
-| S1 | | | |
+| S1 | `claude/kind-joliot-2ebc0d` | ✓ | Tasks 1–12. No migration. `src/lib/business.ts` started with `quoteLeadBusinessDays` only (S4 fills the rest). Screenshots (360 and 1280: 21 lines, blocked line, send error, Undo toast in the sheet, after send, empty, shared cart) are in the session notes folder, not the repo |
 | S2 | | | |
 | S3 | | | |
 | S4 | | | |
@@ -478,7 +478,7 @@ Ideas that make COTS-IL better than ordering direct, in order of value. Each is 
 | S6 | | | |
 | S7 | | | |
 | S8 | | | |
-| S9 | | | |
+| S9 | `claude/kind-joliot-2ebc0d` | task 1 | Task 1 done with S1: DB pool 5, idle 20 s, connect and queue 10 s, `statement_timeout` 8 s, `maxDuration` 30 on catalog pages and 15 on the catalog/search APIs. Watch `get_runtime_errors` for `QUEUE_TIMEOUT` or statement timeouts after deploy. Tasks 2–8 open |
 | S10 | | | |
 | S11 | | | |
 | S12 | | | |

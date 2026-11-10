@@ -28,12 +28,12 @@ const primary =
   "flex h-11 w-full items-center justify-center gap-2 rounded-full bg-brand px-6 font-medium text-white transition-colors hover:bg-brand-strong disabled:opacity-60";
 const field = "h-11 w-full rounded-xl bg-subtle px-4 text-[15px] outline-none focus:ring-2 focus:ring-brand";
 
-/** "X: 2 ← 3, Y נוסף, Z הוסר" for the stale-cart message. */
+/** "X: היה 2, עכשיו 3, Y נוסף (1), Z הוסר" for the stale-cart message (words, since arrows flip next to English titles). */
 function describeChanges(changes: CartChange[], lines: CartSheetLine[]) {
   const title = (id: string) => lines.find((l) => l.variantId === id)?.title ?? "פריט";
   return changes
     .slice(0, 5)
-    .map((c) => (c.before === 0 ? `${title(c.variantId)} נוסף (${c.after})` : c.after === 0 ? `${title(c.variantId)} הוסר` : `${title(c.variantId)}: ${c.before} ← ${c.after}`))
+    .map((c) => (c.before === 0 ? `${title(c.variantId)} נוסף (${c.after})` : c.after === 0 ? `${title(c.variantId)} הוסר` : `${title(c.variantId)}: היה ${c.before}, עכשיו ${c.after}`))
     .join(", ")
     .concat(changes.length > 5 ? ` ועוד ${changes.length - 5}` : "");
 }
@@ -401,7 +401,7 @@ function CartFooter({ children }: { children: React.ReactNode }) {
   return (
     <div
       ref={ref}
-      className="sticky bottom-0 z-10 -mx-6 flex max-h-[70dvh] flex-col gap-3 overflow-y-auto border-t border-line bg-surface px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
+      className="sticky bottom-0 z-10 -mx-6 flex max-h-[70dvh] shrink-0 flex-col gap-3 overflow-y-auto border-t border-line bg-surface px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
       {children}
     </div>
@@ -497,9 +497,21 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
 
   const status =
     blocked.length > 0
-      ? { tone: "text-danger", text: `${blocked.length === 1 ? "פריט אחד" : `${blocked.length} פריטים`} בסל כבר לא ניתנים להזמנה: הסירו ${blocked.length === 1 ? "אותו" : "אותם"} כדי לשלוח.` }
+      ? {
+          tone: "text-danger",
+          text:
+            blocked.length === 1
+              ? "פריט אחד בסל כבר לא ניתן להזמנה: הסירו אותו כדי לשלוח."
+              : `${blocked.length} פריטים בסל כבר לא ניתנים להזמנה: הסירו אותם כדי לשלוח.`,
+        }
       : unavailable.length > 0
-        ? { tone: "text-warning", text: `${unavailable.length === 1 ? "פריט אחד" : `${unavailable.length} פריטים`} לא זמינים כרגע אצל הספק. אפשר לשלוח, ונבדוק בהצעה.` }
+        ? {
+            tone: "text-warning",
+            text:
+              unavailable.length === 1
+                ? "פריט אחד לא זמין כרגע אצל הספק. אפשר לשלוח, ונבדוק בהצעה."
+                : `${unavailable.length} פריטים לא זמינים כרגע אצל הספק. אפשר לשלוח, ונבדוק בהצעה.`,
+          }
         : { tone: "text-muted", text: "זו בקשה ולא הזמנה: הספק הישראלי יבדוק זמינות ומחירים ויחזור עם הצעת מחיר לאישורכם." };
 
   return (
