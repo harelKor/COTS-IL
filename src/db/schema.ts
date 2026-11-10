@@ -114,6 +114,8 @@ export const categories = pgTable("categories", {
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
+  /** The home page's photos for this category, worked out by each regroup (categoryPhotos). */
+  images: text("images").array().notNull().default([]),
 });
 
 /** One row per supplier product, updated by the sync job (scripts/sync.ts). */

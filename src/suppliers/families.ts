@@ -1,6 +1,7 @@
 import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../db/schema";
+import { categoryPhotos } from "../domain/catalog-rank";
 import { groupFamilies, type FamilyDraft, type GroupProduct } from "../domain/families/group";
 import { isRealDescription } from "../lib/description";
 
@@ -137,6 +138,16 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
 
   await tx.delete(schema.groupingIssues);
   for (const batch of chunks(issues)) await tx.insert(schema.groupingIssues).values(batch);
+
+  // The home page's category photos, so it doesn't rank every family on each render.
+  const photos = categoryPhotos(
+    families.flatMap((f, i) => {
+      const row = familyValues[i];
+      if (row.status !== "published") return [];
+      return [{ title: row.title, categorySlug: f.categorySlug, available: row.available, minPriceUsd: row.minPriceUsd === null ? null : Number(row.minPriceUsd), variantCount: row.variantCount, images: row.images }];
+    }),
+  );
+  for (const [slug, id] of categoryIds) await tx.update(categories).set({ images: photos.get(slug) ?? [] }).where(eq(categories.id, id));
 
   return summarize(families, productById, variantById, variantsByProduct, issues);
 }

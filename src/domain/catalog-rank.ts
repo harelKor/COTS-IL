@@ -59,3 +59,34 @@ export function rankKey(f: Rankable): [number, number, number] {
   const main = (f.minPriceUsd ?? 0) >= MAIN_ITEM_MIN_USD || f.variantCount >= 3;
   return [f.available === true ? 0 : 1, accessory ? 1 : 0, main ? 0 : 1];
 }
+
+export type PhotoCandidate = Rankable & { images: string[] };
+
+/**
+ * The home page's photos for each category: the first photo of its top `perCategory`
+ * families in the default order (then pricier first, then by title). Worked out once per
+ * regroup and stored on `categories.images`, because ranking every family on each
+ * render cost 1.7 s of database time (Nov 10, 2026).
+ */
+export function categoryPhotos(families: PhotoCandidate[], perCategory = 3): Map<string, string[]> {
+  const bySlug = new Map<string, PhotoCandidate[]>();
+  for (const f of families) {
+    if (!f.categorySlug || f.images.length === 0) continue;
+    bySlug.set(f.categorySlug, [...(bySlug.get(f.categorySlug) ?? []), f]);
+  }
+  const out = new Map<string, string[]>();
+  for (const [slug, list] of bySlug) {
+    const sorted = list
+      .map((f) => ({ f, key: rankKey(f) }))
+      .sort(
+        (a, b) =>
+          a.key[0] - b.key[0] ||
+          a.key[1] - b.key[1] ||
+          a.key[2] - b.key[2] ||
+          (b.f.minPriceUsd ?? -Infinity) - (a.f.minPriceUsd ?? -Infinity) ||
+          a.f.title.localeCompare(b.f.title),
+      );
+    out.set(slug, sorted.slice(0, perCategory).map(({ f }) => f.images[0]));
+  }
+  return out;
+}

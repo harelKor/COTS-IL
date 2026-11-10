@@ -120,6 +120,13 @@
       "when": 1794314120315,
       "tag": "20261110123520_variants_lower_sku",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794319096113,
+      "tag": "20261110135816_category_images",
+      "breakpoints": true
     }
   ]
 }

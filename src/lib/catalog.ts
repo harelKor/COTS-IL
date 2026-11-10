@@ -49,9 +49,6 @@ function mainItemsFirst(): SQL[] {
   ];
 }
 
-/** How many product photos each category shows on the home page. */
-const CATEGORY_IMAGES = 3;
-
 /** `withSpecs: false` leaves out the spec filters, for counting the values each spec could take. */
 function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
   const conditions: (SQL | undefined)[] = [visible];
@@ -354,48 +351,25 @@ export async function getFacets() {
   catalogCache();
   const count = sql<number>`count(*)::int`;
 
-  // The top families with a photo in each category, in the catalog's default order.
-  const ranked = db
-    .select({
-      slug: sql<string>`${categories.slug}`.as("slug"),
-      image: sql<string>`${families.images}[1]`.as("image"),
-      rank: sql<number>`row_number() OVER (PARTITION BY ${families.categoryId} ORDER BY ${sql.join(
-        [...mainItemsFirst(), sql`${families.minPriceUsd} DESC NULLS LAST`, sql`${families.title} ASC`],
-        sql`, `,
-      )})`.as("rank"),
-    })
+  // One after another, not in parallel: on a cold instance this fills the cache while other
+  // renders need the same 5 connections (src/db/index.ts).
+  const categoryRows = await db
+    .select({ slug: categories.slug, name: categories.name, images: categories.images, count })
     .from(families)
     .innerJoin(categories, eq(categories.id, families.categoryId))
-    .where(and(visible, sql`cardinality(${families.images}) > 0`))
-    .as("ranked");
-
-  const [categoryRows, supplierRows, imageRows] = await Promise.all([
-    db
-      .select({ slug: categories.slug, name: categories.name, count })
-      .from(families)
-      .innerJoin(categories, eq(categories.id, families.categoryId))
-      .where(visible)
-      .groupBy(categories.slug, categories.name, categories.sortOrder)
-      .orderBy(asc(categories.sortOrder)),
-    db
-      .select({ code: suppliers.code, name: suppliers.name, programs: suppliers.programs, count })
-      .from(families)
-      .innerJoin(suppliers, sql`${suppliers.code} = ANY(${families.supplierCodes})`)
-      .where(and(visible, eq(suppliers.active, true)))
-      .groupBy(suppliers.code, suppliers.name, suppliers.programs)
-      .orderBy(desc(count)),
-    db
-      .select({ slug: ranked.slug, image: ranked.image })
-      .from(ranked)
-      .where(sql`${ranked.rank} <= ${CATEGORY_IMAGES}`)
-      .orderBy(ranked.slug, ranked.rank),
-  ]);
-
-  const images = new Map<string, string[]>();
-  for (const { slug, image } of imageRows) images.set(slug, [...(images.get(slug) ?? []), image]);
+    .where(visible)
+    .groupBy(categories.id)
+    .orderBy(asc(categories.sortOrder));
+  const supplierRows = await db
+    .select({ code: suppliers.code, name: suppliers.name, programs: suppliers.programs, count })
+    .from(families)
+    .innerJoin(suppliers, sql`${suppliers.code} = ANY(${families.supplierCodes})`)
+    .where(and(visible, eq(suppliers.active, true)))
+    .groupBy(suppliers.code, suppliers.name, suppliers.programs)
+    .orderBy(desc(count));
 
   return {
-    categories: categoryRows.map((c) => ({ ...c, images: images.get(c.slug) ?? [] })),
+    categories: categoryRows,
     suppliers: supplierRows,
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCESSORY_TITLE_PATTERN, isAccessoryTitle, rankKey, type Rankable } from "./catalog-rank";
+import { ACCESSORY_TITLE_PATTERN, categoryPhotos, isAccessoryTitle, rankKey, type Rankable } from "./catalog-rank";
 
 const family = (over: Partial<Rankable>): Rankable => ({
   title: "Kraken X60",
@@ -81,5 +81,29 @@ describe("rankKey", () => {
       "B Gear",
       "A Hub",
     ]);
+  });
+});
+
+describe("categoryPhotos", () => {
+  const photo = (title: string, over: Partial<Rankable> = {}, images = [`${title}.jpg`]) => ({ ...family({ title, ...over }), images });
+
+  it("takes the first photo of the top families, main items first", () => {
+    const photos = categoryPhotos(
+      [
+        photo("Motor Screw Pack", { minPriceUsd: 5 }),
+        photo("Kraken X60", { minPriceUsd: 200 }),
+        photo("Kraken X44", { minPriceUsd: 180 }),
+        photo("Falcon 500", { available: false, minPriceUsd: 250 }),
+        photo("NEO Vortex", { minPriceUsd: 210 }),
+      ],
+      3,
+    );
+    expect(photos.get("motors")).toEqual(["NEO Vortex.jpg", "Kraken X60.jpg", "Kraken X44.jpg"]);
+  });
+
+  it("skips families without a photo or a category", () => {
+    const photos = categoryPhotos([photo("A", {}, []), photo("B", { categorySlug: null }), photo("C", { categorySlug: "gears" })]);
+    expect([...photos.keys()]).toEqual(["gears"]);
+    expect(photos.get("gears")).toEqual(["C.jpg"]);
   });
 });
