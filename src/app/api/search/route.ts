@@ -4,6 +4,9 @@ import { priceIls } from "@/domain/pricing";
 import { quickSearch } from "@/lib/catalog";
 import { parseQuickQuery, tokenIsPartName } from "@/lib/quick-query";
 
+/** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
+export const maxDuration = 15;
+
 export type SearchResult = {
   id: string;
   href: string;

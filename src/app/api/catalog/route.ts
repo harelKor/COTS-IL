@@ -2,7 +2,10 @@ import { type NextRequest } from "next/server";
 import { searchCards, type CardFamily } from "@/lib/catalog";
 import { PAGE_SIZE, parseFilters } from "@/lib/catalog-filters";
 
-export type CatalogPage = { cards: CardFamily[]; total: number };
+/** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
+export const maxDuration = 15;
+
+export type CatalogPage ={ cards: CardFamily[]; total: number };
 
 /** One more page of catalog cards for infinite scroll, with the same filters as the page URL. */
 export async function GET(request: NextRequest) {

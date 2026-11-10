@@ -9,6 +9,9 @@ import { catalogHref, catalogQuery, PAGE_SIZE, parseFilters } from "@/lib/catalo
 
 export const metadata: Metadata = { title: "קטלוג" };
 
+/** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
+export const maxDuration = 30;
+
 /** One tap per category, in a row that scrolls sideways on phones. */
 async function CategoryChips({ searchParams }: PageProps<"/catalog">) {
   const filters = parseFilters(await searchParams);

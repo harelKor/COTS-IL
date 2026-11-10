@@ -3,6 +3,9 @@ import { familyHref } from "@/components/catalog";
 import { resolveProductUrl } from "@/lib/catalog";
 import { catalogHref } from "@/lib/catalog-filters";
 
+/** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
+export const maxDuration = 15;
+
 /**
  * Old product URLs (/catalog/wcp/wcp-0749), from before the catalog listed
  * families. They redirect for good to the family, with that variant selected,

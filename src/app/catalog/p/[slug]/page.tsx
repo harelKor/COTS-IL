@@ -18,6 +18,9 @@ import { catalogHref } from "@/lib/catalog-filters";
 import { familyHref } from "@/lib/catalog-links";
 import { descriptionText, isRealDescription, metaDescription } from "@/lib/description";
 
+/** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
+export const maxDuration = 30;
+
 export async function generateMetadata({ params }: PageProps<"/catalog/p/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const result = await getFamily(decodeURIComponent(slug));
