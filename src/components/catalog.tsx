@@ -1,21 +1,4 @@
-import { isAvailabilityFresh } from "@/domain/reports";
-
-const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
-
 export { familyHref, productHref, productImageTransition } from "@/lib/catalog-links";
-
-/** Suppliers only tell us yes or no, so this never shows a stock count. */
-export function Availability({ available, checkedAt }: { available: boolean | null; checkedAt: Date }) {
-  const date = dayMonth.format(checkedAt);
-  if (available === null || !isAvailabilityFresh(checkedAt, new Date())) {
-    return <span className="text-caption text-muted">זמינות לא אומתה</span>;
-  }
-  return available ? (
-    <span className="text-caption text-success">זמין אצל הספק (נבדק {date})</span>
-  ) : (
-    <span className="text-caption text-warning">לא זמין כרגע (נבדק {date})</span>
-  );
-}
 
 /** Some supplier originals are 6000px wide, and Shopify's CDN can resize on request. */
 export function sized(src: string, width: number) {

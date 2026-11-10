@@ -1,11 +1,11 @@
 "use client";
 
 import { Copy, Minus, Plus, ShoppingBag } from "lucide-react";
-import { useRef, useState, ViewTransition } from "react";
+import { useRef, useState, useSyncExternalStore, ViewTransition } from "react";
 import { choose, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
 import { formatIls } from "@/domain/pricing";
-import { isAvailabilityFresh } from "@/domain/reports";
+import { availabilityStatus, isFresh, useNow } from "./availability";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
 import { addToCartNow } from "./cart-actions";
 import { PriceNote } from "./price-note";
@@ -31,25 +31,41 @@ type Props = {
   family: { id: string; slug: string; title: string; images: string[]; optionKeys: string[] };
   /** Cheapest in stock first, so a settled choice picks the best offer. */
   variants: ViewVariant[];
-  initialVariantId: string | null;
 };
 
-const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
+type InnerProps = Props & { initialVariantId: string | null };
+
+const noSubscribe = () => () => {};
+/** The address the picker itself last wrote, so its own changes to `?v=` do not reset it. */
+let ownHref = "";
+let linked: { href: string; v: string | null } = { href: "", v: null };
+/** `?v=` from the address bar (a SKU, any case, or a variant id); null while prerendering. */
+function linkedVariant() {
+  const href = window.location.href;
+  if (href !== linked.href && href !== ownHref) linked = { href, v: new URLSearchParams(window.location.search).get("v")?.trim().toLowerCase() ?? null };
+  return linked.v;
+}
+/** Shows the chosen variant in the address bar without a navigation. */
+function showInUrl(path: string) {
+  window.history.replaceState(window.history.state, "", path);
+  ownHref = window.location.href;
+}
+const noLinkedVariant = () => null;
+
+/**
+ * The family page's gallery and buy panel. The page is prerendered without a selection;
+ * the variant in the link (`?v=`) is chosen in the browser, so one cached page serves them all.
+ */
+export function FamilyView({ family, variants }: Props) {
+  const wanted = useSyncExternalStore(noSubscribe, linkedVariant, noLinkedVariant);
+  const match = wanted ? variants.find((x) => x.id === wanted || x.sku?.toLowerCase() === wanted) : undefined;
+  const initialVariantId = match?.id ?? (variants.length === 1 ? variants[0].id : null);
+  return <FamilyPicker key={initialVariantId ?? "none"} family={family} variants={variants} initialVariantId={initialVariantId} />;
+}
 
 function sized(src: string | null | undefined, width: number) {
   if (!src) return null;
   return src.startsWith("https://cdn.shopify.com/") ? `${src}${src.includes("?") ? "&" : "?"}width=${width}` : src;
-}
-
-/** Availability in words, short and with its check date, and the dot's color. */
-function availabilityText(v: ViewVariant) {
-  const checked = new Date(v.checkedAt);
-  if (v.available === null || !isAvailabilityFresh(checked, new Date()))
-    return { text: "זמינות לא אומתה", short: "לא אומת", tone: "text-muted", dot: "bg-muted" };
-  const date = dayMonth.format(checked);
-  return v.available
-    ? { text: `זמין אצל הספק (נבדק ${date})`, short: "זמין", tone: "text-success", dot: "bg-success" }
-    : { text: `לא זמין כרגע (נבדק ${date})`, short: "לא זמין", tone: "text-warning", dot: "bg-warning" };
 }
 
 /**
@@ -57,8 +73,10 @@ function availabilityText(v: ViewVariant) {
  * several sell the part) update the photo, price, SKU and URL at once; "Add"
  * puts the chosen variant in the cart without leaving the page.
  */
-export function FamilyView({ family, variants, initialVariantId }: Props) {
+function FamilyPicker({ family, variants, initialVariantId }: InnerProps) {
   const { mode, lines } = useCart();
+  const now = useNow();
+  const availabilityText = (v: ViewVariant) => availabilityStatus(v.available, v.checkedAt, isFresh(v.checkedAt, now));
   const manySuppliers = new Set(variants.map((v) => v.supplierCode)).size > 1;
   const keys = family.optionKeys;
 
@@ -87,13 +105,13 @@ export function FamilyView({ family, variants, initialVariantId }: Props) {
     setPhoto(null);
     const result = pick(variants, keys, next);
     const settled = result.chosen ? (result.candidates.find((v) => v.supplierName === supplier) ?? result.candidates[0]) : null;
-    window.history.replaceState(window.history.state, "", familyHref(family.slug, settled ? (settled.sku ?? settled.id) : null));
+    showInUrl(familyHref(family.slug, settled ? (settled.sku ?? settled.id) : null));
   }
 
   function onSupplier(name: string) {
     setSupplier(name);
     const offer = offers.find((v) => v.supplierName === name);
-    if (offer) window.history.replaceState(window.history.state, "", familyHref(family.slug, offer.sku ?? offer.id));
+    if (offer) showInUrl(familyHref(family.slug, offer.sku ?? offer.id));
   }
 
   function add() {

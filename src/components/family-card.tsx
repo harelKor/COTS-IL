@@ -6,7 +6,7 @@ import { useRef, useState, ViewTransition } from "react";
 import { choose, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
 import { formatIls } from "@/domain/pricing";
-import { isAvailabilityFresh } from "@/domain/reports";
+import { availabilityStatus, isFresh, useNow } from "./availability";
 import type { FamilyVariants } from "@/app/api/family/[id]/variants/route";
 import type { CardFamily, CardVariant } from "@/lib/catalog";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
@@ -36,9 +36,9 @@ function lineFor(family: CardFamily, v: CardVariant): AddableLine {
 
 /** A dot for availability, with the words for screen readers and on hover. */
 function AvailabilityDot({ available, checkedAt }: { available: boolean | null; checkedAt: string }) {
-  const fresh = isAvailabilityFresh(new Date(checkedAt), new Date());
-  const [color, text] =
-    available === null || !fresh ? ["bg-muted", "זמינות לא אומתה"] : available ? ["bg-success", "זמין אצל הספק"] : ["bg-warning", "לא זמין כרגע"];
+  const fresh = isFresh(checkedAt, useNow());
+  const { dot: color } = availabilityStatus(available, checkedAt, fresh);
+  const text = available === null || !fresh ? "זמינות לא אומתה" : available ? "זמין אצל הספק" : "לא זמין כרגע";
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-caption text-muted" title={text}>
       <span className={`size-2 shrink-0 rounded-full ${color}`} aria-hidden />
