@@ -555,6 +555,105 @@ Ideas that make COTS-IL better than ordering direct, in order of value. Each is 
 
 ---
 
+## Second audit (Nov 10, 2026, "COTS-IL — UX & Logic Audit"): triage
+
+An external review after S0–S4, S10A, the pricing fix and the speed pass, written while signed in as admin, so the team-side flow and phone width were not covered. Each finding is placed in a session below. New sessions are S13–S15; additions to existing sessions are listed under them. Items it found already done (OG image, sitemap, contact page shell, 404) are left out.
+
+### S13. Admin reliability and one order state machine (Plan first, blocker)
+
+1. **Admin pages hang.** `/admin/purchasing`, `/admin/teams`, `/admin/reports` and `/admin/deliveries` stream for 40–75 s+, and the admin tab bar sometimes stays a skeleton. The HTML stream never closes and the console shows no errors.
+   - Find the cause from Vercel `get_runtime_errors` and `get_runtime_logs`. Suspects:
+     - pool exhaustion: `max: 5`, while the tab badges, the page body and `getViewer` all query in parallel per request;
+     - a query that escapes the 8 s `statement_timeout`;
+     - an un-awaited promise in a shared loader.
+   - Fix the cause.
+   - Render the tab links statically, and stream only the badge counts from one cached query.
+   - Give every admin route a Hebrew `error.tsx` and a `maxDuration`.
+2. **One status function.**
+   - One pure function in `src/domain` gives the order's status from its lines, POs, shipments, receipts and deliveries. The admin list, the admin card, the team's stepper, the team's badge and the line chips all use it. There are two vocabularies over the same states: the admin's ("הוזמן מספק") and the team's ("הוזמן").
+   - "נשלחה" alone is banned, because it's ambiguous: sent to whom?
+   - Fix order #1001, which shows three statuses at once.
+3. **Allowed transitions only.**
+   - A line can't be delivered before its shipment is received (the warehouse check counts quantity and damage).
+   - A delivery note is refused for lines that aren't received.
+   - Any skip the admin really needs is a logged override with a reason.
+   - Tests for every transition.
+4. **Lock after ordering.** After any line is on a PO marked ordered, "לשנות פרטים ושליחה לאישור מחדש" is gone for that order. A change becomes a new linked order, or edits only the lines not yet ordered.
+5. **PO record.**
+   - The supplier order number is required before "סימון כהוזמן".
+   - Record US shipping, tax, total charged, card used and tracking number (migration).
+   - Show a "עלות / הכנסה" line per PO: USD cost × rate against the ₪ quoted to its teams.
+   - "Remove" becomes a Hebrew control with Undo.
+6. **Test data.** The "rfrr FRC 33333" orders get a test flag, or are deleted with the user's OK on production.
+
+### S14. Admin quote, inbox and PO polish (after S13, same files)
+
+- **Quote editor:**
+  - the title is "טיוטת הצעה" until the quote is sent;
+  - subtotal, shipping, VAT line and total, with the difference from the team's request, above Send;
+  - a thumbnail, live availability and "רענון מחיר" on each line;
+  - reject moves into a "…" menu.
+- **Inbox:**
+  - a visible sort (needs my action, newest, team) with group headings ("מחכה לך");
+  - drop the "חיפוש" button, since the field filters as you type;
+  - bulk "סמן כהוזמן מ-WCP" for selected orders;
+  - the next step is the one filled `.btn-brand` button on each card, and passive links are text.
+- **POs:**
+  - draft cards read "2 שורות, 4 יחידות, $737.96", not "נשלחו 0 מתוך 4";
+  - tab badges count only what needs action;
+  - show both "נוצרה" and "עודכנה";
+  - hide the Teams column from the supplier-facing PDF and Excel.
+- **Fields and display:**
+  - delivery address requires street, number, city and phone;
+  - date inputs use `lang="he-IL"`, and dates show DD/MM;
+  - one team display format, "<name> <program> <number>" in `<bdi>`, everywhere;
+  - payment terms (from `src/lib/business.ts`) on the quote and the team's order page.
+
+### S15. Catalog overrides for the admin (Plan first, after S13)
+
+Hide a product, override a price or image, split or merge a family, rename a category, and pin "recommended" items. Overrides live in their own tables, which the nightly sync and regroup respect. Use this to spot-check the 184 multi-supplier families (e.g. WCP-0749 listed under WCP and CTRE) and split any that are wrong.
+
+### Additions to existing sessions
+
+- **S5 (search):**
+  - Hebrew synonyms, including slang (ספרינג, ספרוקט, גיר, מיסב, ציר משושה);
+  - main items ranked above accessories (Kraken X60/X44 before "Kraken Wire Bundle");
+  - Enter opens the results page unless a row is highlighted.
+- **S6 (catalog):**
+  - "מומלץ" = a curated list of favourites from S15, then main items in stock, not names that start with digits;
+  - the category chip row gets an edge fade and an arrow;
+  - a card shows "x מתוך y אפשרויות זמינות" when its options differ;
+  - all photos on the same padded white tile;
+  - 4 columns and a wider max width (1,280–1,400px) on desktop;
+  - "load more" plus "48 מתוך 2,847" instead of endless scroll.
+- **S7 (product page):**
+  - one "size" picker when one option axis fully determines another (X-Contact Bearing ID × OD), or highlight the value that changed automatically;
+  - a disabled "בחרו <option>" button before choosing;
+  - "בקשה בכל זאת" for unavailable variants;
+  - one supplier link (not two), with the missing space in "באתר<supplier>" fixed;
+  - the description labelled "תיאור כללי של הספק";
+  - an expand icon on "כל האפשרויות".
+- **S11 (design):**
+  - one solid primary button per screen;
+  - status badges as small tags, distinct from buttons;
+  - secondary text at AA contrast and 13px minimum;
+  - `<bdi>` around every Latin string;
+  - the header keeps fixed slots for cart and account, so nothing jumps;
+  - a persistent cart icon with its count on every page, including home;
+  - supplier names never truncate;
+  - home counts explain "חלק מהמוצרים נמכרים אצל כמה ספקים" (or count each family once);
+  - "התקנת אפליקציה" moves to the account menu.
+- **S9 (platform):**
+  - stop prefetching `/admin` links for non-admins, and confirm every admin route and action re-checks `requireAdmin`;
+  - copy or proxy supplier images (WebP at card size) so a supplier renaming a file doesn't break pages;
+  - Product JSON-LD.
+
+### Decisions needed from the user
+
+- **Pricing formula.** Prices are now USD × Bank of Israel rate, while the site says "VAT included". That leaves out international freight, customs, handling and margin, so either the copy is wrong or every order loses money. Choose the formula, e.g. × rate × (1 + markup) + 18% VAT, and the pages, cart and `src/domain/pricing.ts` will follow it.
+- **Business facts** for `src/lib/business.ts`: operator name and business ID, email, phone, WhatsApp, typical lead time, and payment terms. The contact and about pages, the footer, the shipping page and the FAQ show them once they're set.
+- **Test orders** on production: flag or delete them.
+
 ## What the user needs to provide
 
 | Needed for | Item |
