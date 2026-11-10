@@ -44,14 +44,25 @@ async function poProgress() {
   return { served, counts: new Map(counts.map((c) => [c.poId, c])) };
 }
 
+/** TEMPORARY (S13 hang hunt): logs each load's time, and which are still pending after 5 s. */
+function traced<T>(label: string, p: Promise<T>): Promise<T> {
+  const t0 = Date.now();
+  const late = setTimeout(() => console.warn(`[purchasing] still waiting: ${label} after 5 s`), 5000);
+  return p.then(
+    (v) => (clearTimeout(late), console.log(`[purchasing] ${label} ${Date.now() - t0} ms`), v),
+    (e) => (clearTimeout(late), console.error(`[purchasing] ${label} failed`, e), Promise.reject(e)),
+  );
+}
+
 async function Purchasing() {
-  await requireAdmin();
+  await traced("requireAdmin", requireAdmin());
   const [demandRows, pos, vendorRows, progress] = await Promise.all([
-    getDemand(),
-    listPos(),
-    db.select({ id: suppliers.id, baseUrl: suppliers.baseUrl }).from(suppliers),
-    poProgress(),
+    traced("getDemand", getDemand()),
+    traced("listPos", listPos()),
+    traced("suppliers", db.select({ id: suppliers.id, baseUrl: suppliers.baseUrl }).from(suppliers).then((r) => r)),
+    traced("poProgress", poProgress()),
   ]);
+  console.log("[purchasing] all loaded");
   const demand = consolidateDemand(demandRows);
   const baseUrl = new Map(vendorRows.map((s) => [s.id, s.baseUrl]));
   const now = new Date().getTime();
