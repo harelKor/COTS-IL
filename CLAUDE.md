@@ -74,7 +74,7 @@ Open:
 - Removed on purpose, don't bring back: pasting a SKU list or dropping a BOM file into the cart (removed Nov 2026 to keep the cart and hero focused), and the dark theme (D10).
 - The local Supabase stack runs on ports 544xx (`supabase/config.toml`). Another, unrelated project on this machine uses the default 543xx ports: never point COTS-IL commands at those.
 - One kind of team account (D11, Nov 10, 2026): no student, mentor or viewer roles; everyone signed in to a team can build, send, approve, cancel and manage it. Membership in a team whose status allows ordering (`teamCanOrder`) is the only permission; the one guard is that a team can't remove its last sign-in email (`wouldLeaveNoMembers`). Copy says "הקבוצה" / "חשבון הקבוצה". The `memberships.role` / `team_invitations.role` columns and the `team_role` enum are legacy (always `team_admin`, never read) until they're dropped (S0 step 7b). Don't add role checks or role wording.
-- Prices: `src/domain/pricing.ts` only. ILS (VAT included) = USD × Bank of Israel daily USD rate × 1.6, whole shekels; the rate comes from `exchange_rates` via `usdIlsRate()` in `src/lib/fx.ts`, fetched by the daily sync (last rate kept on failure, never 0). Availability is yes/no plus its check date, never a stock count.
+- Prices: `src/domain/pricing.ts` only. ILS = USD × Bank of Israel daily USD rate (no markup), whole shekels; the rate comes from `exchange_rates` via `usdIlsRate()` in `src/lib/fx.ts`, fetched by the daily sync (last rate kept on failure, never 0). Availability is yes/no plus its check date, never a stock count.
 - Pure logic goes in `src/domain` with Vitest tests.
 
 ## RTL

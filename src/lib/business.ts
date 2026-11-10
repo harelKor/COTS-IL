@@ -22,7 +22,7 @@ export const business = {
   pickupHours: null as string | null,
   /** A sentence about the handling fee, e.g. "דמי טיפול של ₪ 30 להזמנה". */
   handlingFee: null as string | null,
-  /** What the ₪ catalog price (USD × Bank of Israel rate × 1.6) covers, as one sentence, e.g. "משלוח מארה״ב, מכס ומע״מ". */
+  /** What the ₪ catalog price (USD × Bank of Israel rate) covers, as one sentence, e.g. "משלוח מארה״ב, מכס ומע״מ". */
   priceIncludes: null as string | null,
   /** Typical days from an approved quote to delivery in Israel, per supplier code. */
   leadTimes: {

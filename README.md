@@ -59,7 +59,7 @@ The site is open for browsing. An account is needed only to order and for the ad
 - `.github/workflows/sync.yml` runs it daily. It needs a `DATABASE_URL` repository secret pointing at the production database.
 - A failed or suspiciously small sync changes nothing and is recorded in `sync_jobs`.
 - When it finishes, the workflow calls `POST /api/revalidate` so pages stop showing the cached catalog. That needs a `REVALIDATE_SECRET` (at least 16 characters) set both as a Vercel production environment variable and as a repository secret.
-- Prices, VAT included, are USD × the Bank of Israel representative USD rate × 1.6, rounded to whole shekels (`src/domain/pricing.ts`). The daily sync fetches the rate into `exchange_rates` and keeps the last one if the fetch fails (`src/suppliers/boi.ts`, `src/lib/fx.ts`); orders keep the rate they were priced at (`team_order_items.usd_ils_rate`). Categories come from the rules in `src/suppliers/classify.ts`.
+- Prices are the supplier's USD price × the Bank of Israel representative USD rate (no markup), rounded to whole shekels (`src/domain/pricing.ts`). The daily sync fetches the rate into `exchange_rates` and keeps the last one if the fetch fails (`src/suppliers/boi.ts`, `src/lib/fx.ts`); orders keep the rate they were priced at (`team_order_items.usd_ils_rate`). Categories come from the rules in `src/suppliers/classify.ts`.
 
 ## Product families
 

@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { hasUsdPrice, priceIls } from "./pricing";
 
 describe("priceIls", () => {
-  it("is USD × rate × 1.6, rounded to whole shekels", () => {
-    expect(priceIls("100.00", 3.5)).toBe(560);
-    expect(priceIls("19.99", 3.171)).toBe(101);
+  it("is USD × rate, rounded to whole shekels", () => {
+    expect(priceIls("100.00", 3.5)).toBe(350);
+    expect(priceIls("19.99", 3.171)).toBe(63);
     // Kraken X44 at the Nov 9, 2026 Bank of Israel rate.
-    expect(priceIls("217.99", 3.171)).toBe(1106);
+    expect(priceIls("217.99", 3.171)).toBe(691);
   });
 
   it("never rounds a cheap part down to zero", () => {

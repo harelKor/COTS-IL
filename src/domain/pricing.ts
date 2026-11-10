@@ -1,9 +1,9 @@
 /**
- * The price rule (decided Nov 10, 2026): the ILS price, VAT included, is the
- * supplier's USD price × the Bank of Israel representative USD rate × 1.6,
- * rounded to whole shekels. The rate is fetched by the daily sync (src/lib/fx.ts).
+ * The price rule: the ILS price is the
+ * supplier's USD price × the Bank of Israel representative USD rate, with no
+ * markup (user's decision, Nov 10, 2026), rounded to whole shekels. The rate is fetched by the daily sync (src/lib/fx.ts).
  */
-export const MARKUP = 1.6;
+export const MARKUP = 1;
 
 /** True when a USD price is a real, positive number, i.e. the part can be priced and ordered. */
 export function hasUsdPrice(usd: string | number | null | undefined): boolean {

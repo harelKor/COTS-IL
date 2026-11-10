@@ -18,7 +18,7 @@ export type EditorLine = {
   qty: number;
   unitPriceIls: number;
   changeReason: string;
-  /** Today's catalog price (USD × rate × 1.6), to compare with what the team saw. */
+  /** Today's catalog price (USD × rate), to compare with what the team saw. */
   livePriceIls: number | null;
   liveAvailable: boolean | null;
 };
