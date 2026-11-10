@@ -10,7 +10,9 @@ export const maxDuration = 30;
 /** What waits on the admin: requests to quote, and approved lines not yet on any vendor order. One query per request. */
 const waitingCounts = cache(async () => {
   await requireAdmin();
-  const [row] = await db.execute<{ orders: number; vendor: number }>(sql`
+  const {
+    rows: [row],
+  } = await db.execute<{ orders: number; vendor: number }>(sql`
     SELECT
       (SELECT count(*)::int FROM team_orders WHERE status = 'submitted') AS orders,
       (SELECT count(DISTINCT i.order_id)::int

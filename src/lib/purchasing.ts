@@ -145,7 +145,9 @@ export async function orderSupplierLock(reader: Reader, orderId: string): Promis
 
 /** What the teams were quoted, in shekels, for the units this supplier order buys for them. */
 export async function getPoRevenueIls(poId: string): Promise<number> {
-  const [row] = await db.execute<{ ils: number }>(sql`
+  const {
+    rows: [row],
+  } = await db.execute<{ ils: number }>(sql`
     SELECT coalesce(sum(a.qty * ql.unit_price_ils), 0)::int AS ils
     FROM po_allocations a
     JOIN po_lines l ON l.id = a.po_line_id

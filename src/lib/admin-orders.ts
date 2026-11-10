@@ -177,7 +177,9 @@ export async function getOrderLogistics(orderId: string) {
 
 /** When each stage happened, for a finished order's summary. */
 export async function getOrderDates(orderId: string) {
-  const [row] = await db.execute<{
+  const {
+    rows: [row],
+  } = await db.execute<{
     quote_sent: string | null;
     approved: string | null;
     ordered: string | null;
