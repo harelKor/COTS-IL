@@ -74,7 +74,7 @@ The admin side has well-prefilled forms but no inbox, no notifications and hard-
 | S7 | Product page | E | S4 (lead times) | P1 | no |
 | S8 | Quote, approval, tracking, team | B | S3 | P1 | yes |
 | S9 | Performance, reliability, SEO, observability | F | none (do the DB timeouts first) | P1 | no |
-| S10A | Admin: linked order → PO → shipment → delivery, path bar, no footer | B | none | P1 (user request) | yes |
+| S10A | Admin: all orders on one page, combined vendor orders, no footer | B | none | P1 (user request) | yes |
 | S10 | Admin inbox and notifications | B | S3, S10A | P1 | yes |
 | S11 | Design system and accessibility pass | G | after S1, S6, S7 merge | P2 | no |
 | S12 | Beyond parity: lists, season kits, budgets | H | S1–S8 | growth | yes |
@@ -384,41 +384,116 @@ Prompt:
 Read CLAUDE.md and docs/IMPROVEMENT-PLAN.md (Rules, S9). Read the caching, connection(), metadata-route and error-handling guides in node_modules/next/dist/docs first. Implement S9 tasks 1–11 in order, one commit each. For anything that needs the Vercel or Supabase dashboard (env vars, firewall, Sentry DSN), write exact steps for me instead of guessing. Report Lighthouse mobile scores before and after.
 ```
 
-## S10A. Admin: one linked chain from team order to delivery, and a path bar (Plan first)
+## S10A. Admin: all orders on one page, combined vendor orders (Plan first)
 
-**Goal (user request, Nov 10, 2026):** the admin always sees how things connect: a team order, the supplier orders (POs) its lines went into, the shipments and receipts of those POs, and the deliveries that brought the parts to the team. From any of them, one tap reaches the others. A path bar ("ניהול › רכש › הזמנת ספק 12 › משלוח 3") is always at the top. The site footer doesn't appear in admin. Simple: no new concepts, the same pages, linked.
+**Goal (user design, Nov 10, 2026):** the admin manages every team order from one page, "כל ההזמנות", without going back and forth. Each order is a card that opens in place and shows what its current stage needs. Ordering from vendors happens on a second page, "הזמנות ספקים", where the parts still to order from all orders merge into one big cart per vendor. Each part stays linked to its team order, and sending a batch updates the orders it served, line by line.
 
-How the data links (already in the schema, never shown together):
-`team_orders` → `team_order_items` → `po_allocations` (per-team share of a PO line) → `po_lines` → `supplier_pos` → `shipment_items` / `shipments` → `receipt_lines` / `receipts` → `stock_allocations` (received units tied to an order line) → `delivery_items` → `deliveries`. A PO line serves many teams' orders; one delivery covers several orders of one team; an order can span several POs and deliveries. Nothing stores order ↔ delivery directly; it's always four joins.
+### Statuses (derived, nothing new stored)
 
-What's wrong today:
-- `/admin/orders/[id]` shows no POs, shipments or deliveries. `getOrderForViewer` (`src/lib/orders.ts:145-152`) already returns per-line `progress` and the order's `deliveries`, but the page drops them (`src/app/admin/orders/[id]/page.tsx:25`).
-- `/admin/orders` shows status only, not how far each order got (`getOrderStages` is used only by the team's `/orders`).
-- PO page links to orders only as small text per line (`purchasing/[id]/page.tsx:96-105`); shipments appear only when status is `ordered` (`:170`); no deliveries.
-- Shipment page shows team shares as plain text, not links (`logistics/[id]/page.tsx:82`; `getShares` lacks `orderId`, `src/lib/logistics.ts:134-141`); no deliveries.
-- Deliveries board and delivery note show `#orderNumber` as plain text (`deliveries/page.tsx:34`, `src/components/delivery-note.tsx:45`; `getReadyToDeliver` lacks `orderId`); no PO.
-- Shortages shows order items and PO lines in two unlinked tables.
-- Navigation: no `src/app/admin/layout.tsx`, no breadcrumbs; each page has its own back link in a different place (orders:62, purchasing:124, purchasing/[id]:41, logistics:74, logistics/[id]:43 and 217-222, deliveries:134, deliveries/[id]:27, orders/[id]:130-137).
-- The site footer (`src/components/site-footer.tsx`, rendered in `src/app/layout.tsx:42`) shows under every admin page.
+Each order shows one status, with its own colour (status tokens from `globals.css`; add tokens where a colour is missing):
 
-Tasks:
-1. **Admin shell.** `src/app/admin/layout.tsx` with: the path bar (sticky under the site header, `print:hidden`) and the section tabs from S10 task 1 (Inbox, Orders, Purchasing, Shipments, Deliveries, Reports, Catalog). Hide the site footer under `/admin` with a small client `FooterGate` (`usePathname().startsWith("/admin")` → null) around `<SiteFooter/>` in the root layout; the cart pill is hidden there too. Remove every per-page back link listed above.
-2. **Path bar.** `src/components/admin/breadcrumbs.tsx`: each page passes its trail (`[{label, href}]`), the last item is the current page (not a link). Trails: Order: ניהול › הזמנות › הזמנה N (קבוצה X). PO: ניהול › רכש › הזמנת ספק N (ספק). Shipment: ניהול › רכש › הזמנת ספק N › משלוח M (shipments belong to a PO). Delivery: ניהול › מסירות › תעודה N (קבוצה X). Mobile: the bar scrolls sideways and shows the last two items; `aria-label="מיקום"`, `aria-current="page"`, chevrons mirrored for RTL.
-3. **One query for the chain**, `src/lib/order-chain.ts`, used by all pages below: given an order id, PO id, shipment id or delivery id, return the linked orders, POs (number, supplier, status), shipments (number, status), deliveries (number, status), and per order line the counts quoted / on PO / shipped / received / delivered. Build on `getItemProgress`, `getShares`, `getPo`, `getPoShipping`, `getOrderDeliveries`; add `orderId` to `getShares` and `getReadyToDeliver`. Pure grouping and stage logic in `src/domain/order-chain.ts` with tests (an order split over two POs, a PO serving three teams, a partial receipt, one delivery covering two orders).
-4. **"מעקב" (tracking) panel**, the same component on every page, showing the chain as linked chips:
-   - Order page: under the quote, a per-line table: part, qty, then PO chip (e.g. "WCP #12, הוזמן"), shipment chip, delivery chip, and the line's stage. Lines not yet on a PO show "טרם הוזמן מהספק" with "הוספה להזמנת ספק" (the existing purchasing action).
-   - PO page: per line, the team orders it serves as chips ("1690 #57, 2 יח׳") linking to the order; a shipments section in every status; a deliveries section.
-   - Shipment page: team shares as links; per share whether it was received, allocated and delivered, with the delivery chip.
-   - Delivery note (admin view): order and PO chips per line.
-5. **Progress on the lists.** `/admin/orders`: a stage column (the same stage the team sees) and a small "PO 2/3, נמסר 1/3" summary. `/admin/purchasing` PO list: teams served and shipped/received counts. `/admin/deliveries` board: order numbers as links.
-6. **Shortages** in one table: order line → its PO line → what's missing and where (not ordered / not shipped / damaged / not received).
-7. Keep it simple: no new tables, no new statuses, nothing the admin has to maintain by hand; every link is derived from records that already exist. Admin print views keep their layout (path bar and chips `print:hidden`).
+| Status | Meaning, from existing records | Colour |
+|---|---|---|
+| מחכה לאישורך | `submitted`: the team sent a request; the admin checks it and sends a quote | amber |
+| מחכה לאישור קבוצה | `quote_sent` | light blue (brand-soft) |
+| אושרה, מחכה לשליחה | `approved`, and not every line is on a vendor order marked ordered | violet |
+| נשלחה | every line is on a vendor order marked ordered (sent to the vendor) | cobalt |
+| הגיעה למחסן | every line received and allocated in Israel, not yet delivered | teal |
+| נשלחה לקבוצה | a delivery exists and isn't confirmed yet | indigo |
+| הסתיימה | everything delivered, or the order was rejected or cancelled (says which) | green / slate |
 
-Acceptance: from any order, PO, shipment or delivery, the related ones are one tap away and the path bar leads back up; with seeded data (one order over two suppliers, partly delivered) the order page shows each line's PO, shipment and delivery; no footer on any `/admin` page; 360px without horizontal scroll; Vitest for `order-chain`.
+The status comes from a pure function `adminOrderStatus()` in `src/domain/admin-orders.ts`, built on `orderStage()` and `lineStage()` (`src/domain/order-stage.ts`, `src/domain/logistics.ts`), with tests. **Partial progress:** an order whose lines are at different points shows the earliest status, plus a progress strip on the card such as "3 מתוך 5 פריטים נשלחו לספק". In the open card, each line carries its own small stage chip.
+
+### Page 1: "כל ההזמנות" (`/admin`, replaces the hub and `/admin/orders`)
+
+1. **Filter boxes at the top.** One large box per status, in its colour, with its count (e.g. "מחכה לאישורך 4").
+   - Tapping a box filters the list; tapping it again clears the filter. "הכל" is the default.
+   - Search by team number or order number.
+   - The filter lives in the URL (`?status=`), so refresh and Back keep it.
+   - At 360px the boxes form a 2-column grid.
+2. **The order list.** One card per order.
+   - Orders that need the admin come first (מחכה לאישורך, then אושרה מחכה לשליחה), oldest first within each status.
+   - A closed card shows team number and name, order number, date, age ("לפני 3 ימים"), item count, total, status badge, the progress strip when partial, and the main button for its stage.
+3. **Finished orders.** Orders that are הסתיימה, rejected or cancelled go in a collapsible section below, "הזמנות שהסתיימו (N)". It is closed by default and loads when opened.
+4. **The open card.** Tapping anywhere on a card opens it in place. One card is open at a time, and the URL gets `?open=<id>`, so an open card can be shared and survives refresh. It shows what the stage needs, so the admin never navigates away:
+   - **מחכה לאישורך:**
+     - The closed card itself has an "אישור ושליחה לקבוצה" button.
+     - Open, the card shows the quote ready to edit: every line with qty, price (with a "מחיר קטלוג" fill), and a change reason when the price differs. Also shipping, notes, the team's details and contact, and team approval if the team is new (pending).
+     - Approving sends the quote with the existing `sendQuote` (version 1).
+   - **After sending:** the details lock and become read-only. The "לשנות פרטים ושליחה לאישור מחדש" button unlocks them. Saving creates the next quote version and sends it for approval again, using the existing versioned quotes; the team's earlier approval no longer counts, as today.
+   - **מחכה לאישור קבוצה:** the locked quote, when it was sent, the approve links (copy or WhatsApp for each team email), and "לשנות פרטים ושליחה לאישור מחדש".
+   - **אושרה, מחכה לשליחה:**
+     - For each line: its vendor, and whether it's already in a vendor batch.
+     - The vendor order(s) holding these lines, with the other orders they serve shown as badges.
+     - The vendor's "פתיחת סל" (open cart) link and the vendor reference field.
+     - **"סמן כנשלחה"** marks those vendor orders as ordered. A vendor order is shared, so the button says how many other orders it also updates ("מעדכן גם 2 הזמנות נוספות").
+     - Lines not yet in a batch get "הוספה להזמנת ספק".
+   - **נשלחה / הגיעה למחסן:**
+     - For each line: its vendor order, shipment and tracking, and received and damaged counts.
+     - The receive action for its shipment.
+     - "הפקת תעודת משלוח" once parts are allocated.
+   - **נשלחה לקבוצה:** the delivery note(s), print, and "סימון כנמסר".
+   - **הסתיימה:** a read-only summary with the date of each stage.
+5. **Actions stay inside the card.** Every action updates the card in place (a server action plus refresh). Reversible actions get an Undo toast, and there are no confirm dialogs.
+
+### Page 2: "הזמנות ספקים" (`/admin/purchasing`, rebuilt)
+
+1. **One section per vendor** (AndyMark, WCP, CTRE, The Thrifty Bot), listing everything that still needs ordering: approved order lines not yet on an ordered vendor order, merged per part (variant).
+   - Each part row shows SKU, part, total qty and cost.
+   - Each row has **badges for the orders it serves** ("1690 #57 ×2", "2231 #60 ×1"). Tapping a badge opens that order's card on page 1 (`/admin?open=<id>`).
+2. **Per-vendor summary and actions.**
+   - Summary: total $, number of orders served, and the age of the oldest waiting line.
+   - Actions:
+     - "פתיחת סל", the existing one-click Shopify cart from `src/domain/purchasing.ts`;
+     - "העתקת רשימת מק״טים";
+     - vendor reference;
+     - **"סמן כנשלחה"**.
+   - Sending creates (or reuses) the vendor order, marks it ordered, and updates every linked order. Orders whose lines were all sent become "נשלחה"; the others show which lines were sent.
+3. **Choosing what goes in a batch.**
+   - By default a batch holds everything waiting for that vendor.
+   - Each part row and each order badge has a checkbox to leave it out of this batch, for budget or a missing approval, so a batch can carry only some of an order's lines.
+   - The progress strip on page 1 then shows the split.
+4. **"הזמנות ספק שנשלחו"** below: sent vendor orders, with the orders they serve as badges, shipment and receipt status, and the receive actions. Finished ones sit in a collapsed section.
+
+### Links, navigation and layout
+
+- **Links.**
+  - Every order number anywhere in admin (vendor orders, shipments, deliveries, shortages) is a badge that links to `/admin?open=<id>`.
+  - Every vendor order number links to its section on page 2.
+- **Admin layout.** `src/app/admin/layout.tsx` with:
+  - tabs **כל ההזמנות, הזמנות ספקים, מסירות, דוחות, קטלוג**, with badge counts on the first two;
+  - a path bar on pages one level down (e.g. ניהול › הזמנות ספקים › WCP #12).
+
+  Both stay at the top, are `print:hidden`, and scroll sideways at 360px.
+- **No site footer and no cart pill under `/admin`.** A small client `FooterGate` in the root layout uses `usePathname()` to hide them.
+- **Old pages.** Pages that become sections of the two main pages stay as deep links that redirect there (`/admin/orders/[id]` → `/admin?open=<id>`), so old links keep working. The vendor order print view and the Excel export stay as they are.
+
+### Data and code
+
+- **Nothing new is stored.** The links already exist: `team_order_items` → `po_allocations` → `po_lines` → `supplier_pos` → `shipment_items` / `receipt_lines` → `stock_allocations` → `delivery_items` → `deliveries`.
+- **Loading.** One query module, `src/lib/admin-orders.ts`, loads the open orders with their lines, vendor orders, shipments, receipts and deliveries in a few set-based queries, with no loop per order. It reuses `getItemProgress`, `getShares` (add `orderId`), `getPo`, `getDemand`, `getReadyToDeliver` (add `orderId`) and `getOrderDeliveries`.
+- **Grouping.** Sorting orders into statuses and lines into batches is pure code in `src/domain/admin-orders.ts`, with tests for:
+  - an order split over two vendors;
+  - one vendor order serving three teams;
+  - a partial batch;
+  - a partial receipt;
+  - one delivery covering two orders.
+- **Actions.**
+  - "סמן כנשלחה" on both pages calls the same action as the existing `recordOrdered` (`src/app/admin/purchasing/actions.ts`).
+  - Creating batch drafts reuses the existing PO-draft action, extended to take a selection of order lines.
+  - Editing the quote inside the card reuses `quote-editor.tsx` and `sendQuote`; the approve links reuse `approve-links.tsx`.
+- **Performance.** Closed cards need only summary fields. An open card's details stream in with `<Suspense>`, and finished orders load only when their section opens.
+
+Acceptance, on the local stack, seeded with: 6 orders across all statuses, one order split over WCP and AndyMark, one WCP batch serving three orders, and one partial delivery.
+- Each of these runs from the one page, with no navigation and in under 10 taps: request → quote sent; approved → "סמן כנשלחה"; received → delivered.
+- Sending the WCP batch on page 2 updates all three orders. The split order shows "WCP נשלח, AndyMark ממתין" on its card.
+- Filters, the open card and the finished section survive refresh and Back.
+- No footer under `/admin`, and every page works at 360px with no horizontal scroll.
+- Vitest covers `adminOrderStatus()` and the batch grouping.
 
 Prompt:
 ```
-Read CLAUDE.md, docs/admin-guide.md and docs/IMPROVEMENT-PLAN.md (Rules, S10A). Plan first: the order-chain query shape (show the SQL), the tracking panel per page, and the breadcrumb trails. After my OK, implement S10A tasks 1–7. Seed a local order split across two POs with a partial delivery to test it. Update docs/admin-guide.md. Screenshots of the order, PO, shipment and delivery pages at 360px and 1280px.
+Read CLAUDE.md, docs/admin-guide.md and docs/IMPROVEMENT-PLAN.md (Rules, S10A). Plan first: the status function and its mapping to existing records, the queries in src/lib/admin-orders.ts (show the SQL), the card contents per status, the vendor batch selection, and which existing pages redirect. After my OK, implement it. Seed the acceptance data locally (ports 544xx). Update docs/admin-guide.md. Screenshots of both pages at 360px and 1280px: filters, a card open in each status, a partial order, a vendor batch.
 ```
 
 ## S10. Admin inbox and notifications (Plan first)
