@@ -592,7 +592,7 @@ Ideas that make COTS-IL better than ordering direct, in order of value. Each is 
 | S7 | | | |
 | S8 | | | |
 | S9 | `claude/kind-joliot-2ebc0d` | task 1 | Task 1 done with S1: DB pool 5, idle 20 s, connect and queue 10 s, `statement_timeout` 8 s, `maxDuration` 30 on catalog pages and 15 on the catalog/search APIs. Watch `get_runtime_errors` for `QUEUE_TIMEOUT` or statement timeouts after deploy. Tasks 2–8 open |
-| S10A | | | |
+| S10A | `claude/kind-goldwasser-f77e5e` | ✓ | No migration. `/admin` is "כל ההזמנות", `/admin/purchasing` is "הזמנות ספקים" with per-vendor batches (`sendVendorBatch`); `/admin/orders`, `/admin/orders/[id]` and `/admin/logistics` redirect; team approval and sync status moved to `/admin/teams`. Local seed: `npx tsx scripts/seed-s10a.ts`. The card links to the vendor section for "פתיחת סל" instead of building its own cart |
 | S10 | | | |
 | S11 | | | |
 | S12 | | | |

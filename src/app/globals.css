@@ -21,6 +21,11 @@
   --danger: #d70015;
   --success: #1e8e3e;
   --warning: #b26a00;
+  /* Admin order statuses (S10A). */
+  --violet: #6d28d9;
+  --teal: #0f766e;
+  --indigo: #4338ca;
+  --slate: #52658a;
   --glass: rgb(255 255 255 / 0.86);
   /* Product photos sit on a near-white ice-blue tile. */
   --tile: #f2f7ff;
@@ -52,6 +57,10 @@
 }
 
 @theme inline {
+  --color-violet: var(--violet);
+  --color-teal: var(--teal);
+  --color-indigo: var(--indigo);
+  --color-slate: var(--slate);
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-subtle: var(--subtle);

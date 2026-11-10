@@ -214,7 +214,7 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
       </section>
 
       <div className="flex flex-wrap items-center gap-4 text-sm">
-        <Link href="/admin/logistics" className="text-brand hover:underline">
+        <Link href="/admin/purchasing#sent" className="text-brand hover:underline">
           לכל המשלוחים
         </Link>
         <Link href="/admin/deliveries" className="text-brand hover:underline">

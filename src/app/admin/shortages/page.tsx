@@ -40,7 +40,7 @@ async function Shortages() {
                 {openItems.map((item) => (
                   <tr key={item.orderItemId} className="border-t border-line align-top">
                     <td className="whitespace-nowrap p-2">
-                      <Link href={`/admin/orders/${item.orderId}`} className="hover:text-brand">
+                      <Link href={`/admin?open=${item.orderId}`} className="hover:text-brand">
                         <span className="ltr">{`${item.teamProgram} ${item.teamNumber}`}</span> #{item.orderNumber}
                       </Link>
                     </td>

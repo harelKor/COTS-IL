@@ -21,6 +21,8 @@ function demandQuery(reader: Reader) {
   return reader
     .select({
       orderItemId: teamOrderItems.id,
+      orderId: teamOrders.id,
+      submittedAt: teamOrders.submittedAt,
       orderNumber: teamOrders.number,
       teamProgram: teams.program,
       teamNumber: teams.number,

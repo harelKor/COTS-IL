@@ -140,7 +140,7 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
                 {sales.map((s) => (
                   <tr key={s.orderId} className="border-t border-line">
                     <td className="p-2">
-                      <Link href={`/admin/orders/${s.orderId}`} className="text-brand hover:underline">
+                      <Link href={`/admin?open=${s.orderId}`} className="text-brand hover:underline">
                         {s.number}
                       </Link>
                     </td>

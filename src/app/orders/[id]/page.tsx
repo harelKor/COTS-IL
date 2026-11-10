@@ -132,7 +132,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
       )}
 
       <div className="flex flex-wrap items-center gap-3 print:hidden">
-        <Link href={viewer.isAdmin ? `/admin/orders/${order.id}` : "/orders"} className="text-sm text-brand hover:underline">
+        <Link href={viewer.isAdmin ? `/admin?open=${order.id}` : "/orders"} className="text-sm text-brand hover:underline">
           {viewer.isAdmin ? "לניהול ההזמנה" : "לכל ההזמנות"}
         </Link>
         {onTeam && <ReorderButton orderId={order.id} />}

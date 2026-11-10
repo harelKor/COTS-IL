@@ -1,5 +1,7 @@
 export type DemandRow = {
   orderItemId: string;
+  orderId?: string;
+  submittedAt?: Date;
   orderNumber: number;
   teamLabel: string;
   supplierId: string;
@@ -16,7 +18,14 @@ export type DemandRow = {
   allocatedQty: number;
 };
 
-export type Allocation = { orderItemId: string; orderNumber: number; teamLabel: string; qty: number };
+export type Allocation = {
+  orderItemId: string;
+  orderNumber: number;
+  teamLabel: string;
+  qty: number;
+  orderId?: string;
+  submittedAt?: Date;
+};
 
 export type ConsolidatedLine = Pick<
   DemandRow,
@@ -71,6 +80,8 @@ export function consolidateDemand(rows: DemandRow[]): SupplierDemand[] {
       orderNumber: row.orderNumber,
       teamLabel: row.teamLabel,
       qty: need,
+      orderId: row.orderId,
+      submittedAt: row.submittedAt,
     });
   }
 

@@ -93,6 +93,7 @@ export async function sendQuote(_prev: QuoteFormState, formData: FormData): Prom
   if (result.sent) {
     revalidatePath(`/admin/orders/${orderId}`);
     revalidatePath(`/orders/${orderId}`);
+    revalidatePath("/admin", "layout");
   }
   return result;
 }
@@ -132,5 +133,6 @@ export async function rejectOrder(_prev: QuoteFormState, formData: FormData): Pr
 
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath(`/orders/${orderId}`);
+    revalidatePath("/admin", "layout");
   return result;
 }

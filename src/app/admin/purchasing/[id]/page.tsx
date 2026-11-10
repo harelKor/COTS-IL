@@ -96,7 +96,7 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
                   <td className="p-2 text-xs print:hidden">
                     {line.allocations.map((a) => (
                       <div key={`${a.orderId}`}>
-                        <Link href={`/admin/orders/${a.orderId}`} className="hover:text-brand">
+                        <Link href={`/admin?open=${a.orderId}`} className="hover:text-brand">
                           {a.teamProgram} {a.teamNumber} #{a.orderNumber}
                         </Link>
                         : {a.qty}
