@@ -7,7 +7,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { SearchResponse, SearchResult } from "@/app/api/search/route";
 import { formatIls } from "@/domain/pricing";
 import { catalogHref } from "@/lib/catalog-filters";
-import { parseQuickQuery } from "@/lib/quick-query";
+import { normalizeSearch, parseQuickQuery } from "@/lib/quick-query";
 import { addToCartNow } from "./cart-actions";
 import { canEditCart, useCart } from "./cart-store";
 import { Ltr } from "./ltr";
@@ -83,7 +83,7 @@ export function SearchPanel() {
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal });
+        const response = await fetch(`/api/search?q=${encodeURIComponent(normalizeSearch(query))}`, { signal: controller.signal });
         const body = (await response.json()) as SearchResponse;
         setFound({ text: query, ...body });
         setActive(0);

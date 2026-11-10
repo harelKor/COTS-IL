@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseQuickQuery, tokenIsPartName } from "./quick-query";
+import { normalizeSearch, parseQuickQuery, tokenIsPartName } from "./quick-query";
 
 describe("parseQuickQuery", () => {
   it("reads a trailing x4 as the quantity", () => {
@@ -33,5 +33,11 @@ describe("tokenIsPartName", () => {
 
   it("reads × as x", () => {
     expect(tokenIsPartName("×60", ["Kraken X60"])).toBe(true);
+  });
+});
+
+describe("normalizeSearch", () => {
+  it("trims, lowercases and collapses spaces", () => {
+    expect(normalizeSearch("  Falcon   500 X4 ")).toBe("falcon 500 x4");
   });
 });
