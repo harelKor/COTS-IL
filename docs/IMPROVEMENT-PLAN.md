@@ -590,7 +590,7 @@ An external review after S0–S4, S10A, the pricing fix and the speed pass, writ
 
 - **Quote editor:**
   - the title is "טיוטת הצעה" until the quote is sent;
-  - subtotal, shipping, VAT line and total, with the difference from the team's request, above Send;
+  - subtotal, shipping and total (VAT line removed Nov 10, 2026: prices carry no VAT), with the difference from the team's request, above Send;
   - a thumbnail, live availability and "רענון מחיר" on each line;
   - reject moves into a "…" menu.
 - **Inbox:**
@@ -650,7 +650,7 @@ Hide a product, override a price or image, split or merge a family, rename a cat
 
 ### Decisions needed from the user
 
-- **Pricing formula.** Prices are now USD × Bank of Israel rate, while the site says "VAT included". That leaves out international freight, customs, handling and margin, so either the copy is wrong or every order loses money. Choose the formula, e.g. × rate × (1 + markup) + 18% VAT, and the pages, cart and `src/domain/pricing.ts` will follow it.
+- **Pricing formula.** Decided Nov 10, 2026: USD × Bank of Israel rate, no markup and no VAT. The "VAT included" copy and the VAT lines in the cart and the quote summary were removed. The admin reports still take 18% VAT out of revenue (`src/domain/reports.ts`); whether that stays depends on how the business is registered.
 - **Business facts** for `src/lib/business.ts`: operator name and business ID, email, phone, WhatsApp, typical lead time, and payment terms. The contact and about pages, the footer, the shipping page and the FAQ show them once they're set.
 - **Test orders** on production: flag or delete them.
 

@@ -1,10 +1,9 @@
-import { VAT_RATE } from "./reports";
-
 type Line = { qty: number; unitPriceIls: number; requestedQty: number; requestedPrice: number };
 
 /**
- * The quote editor's totals above Send: subtotal, shipping, the VAT already inside the
- * prices, the total, and how far it moved from what the team asked for (the request has no shipping).
+ * The quote editor's totals above Send: subtotal, shipping, the total, and how far it
+ * moved from what the team asked for (the request has no shipping). Prices carry no
+ * VAT and no markup (user decision, Nov 10, 2026), so there is no VAT line.
  */
 export function quoteSummary(lines: Line[], shippingIls: number | null) {
   const subtotal = lines.reduce((sum, l) => sum + safe(l.qty) * safe(l.unitPriceIls), 0);
@@ -15,8 +14,6 @@ export function quoteSummary(lines: Line[], shippingIls: number | null) {
     subtotal,
     shipping,
     total,
-    /** Prices include VAT, so this is the part of the total that is VAT. */
-    vat: Math.round(total - total / (1 + VAT_RATE)),
     requested,
     /** Lines only: positive when the quote costs more than the request. */
     difference: subtotal - requested,

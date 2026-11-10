@@ -32,6 +32,8 @@ type Props = {
   family: { id: string; slug: string; title: string; images: string[]; optionKeys: string[] };
   /** Cheapest in stock first, so a settled choice picks the best offer. */
   variants: ViewVariant[];
+  /** Day of the Bank of Israel rate behind the prices (YYYY-MM-DD). */
+  rateDate?: string;
 };
 
 type InnerProps = Props & { initialVariantId: string | null };
@@ -57,11 +59,11 @@ const noLinkedVariant = () => null;
  * The family page's gallery and buy panel. The page is prerendered without a selection;
  * the variant in the link (`?v=`) is chosen in the browser, so one cached page serves them all.
  */
-export function FamilyView({ family, variants }: Props) {
+export function FamilyView({ family, variants, rateDate }: Props) {
   const wanted = useSyncExternalStore(noSubscribe, linkedVariant, noLinkedVariant);
   const match = wanted ? variants.find((x) => x.id === wanted || x.sku?.toLowerCase() === wanted) : undefined;
   const initialVariantId = match?.id ?? (variants.length === 1 ? variants[0].id : null);
-  return <FamilyPicker key={initialVariantId ?? "none"} family={family} variants={variants} initialVariantId={initialVariantId} />;
+  return <FamilyPicker key={initialVariantId ?? "none"} family={family} variants={variants} rateDate={rateDate} initialVariantId={initialVariantId} />;
 }
 
 /**
@@ -69,7 +71,7 @@ export function FamilyView({ family, variants }: Props) {
  * several sell the part) update the photo, price, SKU and URL at once; "Add"
  * puts the chosen variant in the cart without leaving the page.
  */
-function FamilyPicker({ family, variants, initialVariantId }: InnerProps) {
+function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerProps) {
   const { mode, lines } = useCart();
   const now = useNow();
   const availabilityText = (v: ViewVariant) => availabilityStatus(v.available, v.checkedAt, isFresh(v.checkedAt, now));
@@ -303,7 +305,7 @@ function FamilyPicker({ family, variants, initialVariantId }: InnerProps) {
           )}
           <div className="hidden md:block">{addControls}</div>
           <div className="border-t border-line pt-3">
-            <PriceNote />
+            <PriceNote rateDate={rateDate} />
           </div>
         </section>
 

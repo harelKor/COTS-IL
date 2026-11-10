@@ -9,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "COTS-IL",
     short_name: "COTS-IL",
-    description: "ציוד FRC ו-FTC מכל הספקים בהזמנה אחת, במחירים בשקלים כולל מע״מ",
+    description: "ציוד FRC ו-FTC מכל הספקים בהזמנה אחת, במחירים בשקלים לפי שער בנק ישראל",
     lang: "he",
     dir: "rtl",
     start_url: "/",

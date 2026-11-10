@@ -21,7 +21,7 @@ const SITE_NAME = "COTS-IL";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://cots-il.vercel.app"),
   title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
-  description: "ציוד FRC ו-FTC מכל הספקים בהזמנה אחת, במחירים בשקלים כולל מע״מ",
+  description: "ציוד FRC ו-FTC מכל הספקים בהזמנה אחת, במחירים בשקלים לפי שער בנק ישראל",
   openGraph: { siteName: SITE_NAME, locale: "he_IL", type: "website" },
   // Installed from Safari, the app opens full screen with its own name and icon.
   appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "default" },

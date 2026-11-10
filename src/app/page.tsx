@@ -178,7 +178,7 @@ async function Browse() {
 /** Under the hero: the three things a first-time team asks before anything else. */
 function ValueStrip() {
   const items = [
-    business.priceIncludes ? `מחיר בש״ח כולל ${business.priceIncludes}` : "מחיר בש״ח כולל מע״מ",
+    business.priceIncludes ? `מחיר בש״ח כולל ${business.priceIncludes}` : "מחיר הספק בש״ח, בלי תוספת",
     "הצעת מחיר בלי התחייבות",
     business.pickupAddress ? "איסוף או משלוח בישראל" : "מסירה בישראל",
   ];
@@ -214,7 +214,7 @@ async function TrustStrip() {
 
 const WHY = [
   { icon: Boxes, title: "הזמנה אחת לכל הספקים", text: "סל אחד מכל ארבעת הספקים, במקום ארבע הזמנות נפרדות." },
-  { icon: Coins, title: "בשקלים, כולל מע״מ", text: "בלי כרטיס אשראי בדולרים ובלי הפתעות בשער." },
+  { icon: Coins, title: "בשקלים, בלי תוספת", text: "מחיר הספק לפי השער היציג של בנק ישראל. בלי כרטיס אשראי בדולרים." },
   { icon: Truck, title: "משלוח מרוכז", text: "אנחנו מאחדים הזמנות למשלוח אחד ומוסרים לקבוצה." },
   { icon: FileCheck2, title: "בלי ניירת מכס", text: "היבוא והשחרור עלינו. אתם מקבלים את החלקים." },
 ];
@@ -252,7 +252,7 @@ export default function HomePage() {
 
         <section className="flex flex-col items-center gap-6 py-10 text-center sm:py-16">
           <p className="card-surface rounded-full px-4 py-1.5 text-caption text-muted">
-            פורטל הרכש המרכזי לקבוצות <Ltr>FIRST</Ltr> בישראל, מחירים בש״ח כולל מע״מ
+            פורטל הרכש המרכזי לקבוצות <Ltr>FIRST</Ltr> בישראל, מחיר הספק בש״ח לפי שער בנק ישראל
           </p>
           <h1 className="max-w-3xl text-hero-sm font-semibold sm:text-hero">
             ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים,{" "}

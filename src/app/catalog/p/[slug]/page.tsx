@@ -13,7 +13,7 @@ import { measure } from "@/domain/families/parse";
 import { compareOptionValues, optionLabel } from "@/domain/families/sort";
 import { formatIls, priceIls } from "@/domain/pricing";
 import { getCompanions, getFamily, type FamilyVariant } from "@/lib/catalog";
-import { usdIlsRate } from "@/lib/fx";
+import { getUsdIlsRate, usdIlsRate } from "@/lib/fx";
 import { catalogHref } from "@/lib/catalog-filters";
 import { familyHref } from "@/lib/catalog-links";
 import { descriptionText, isRealDescription, metaDescription } from "@/lib/description";
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: PageProps<"/catalog/p/[slug]"
   const { family } = result;
   const suppliers = [...new Set(result.variants.map((v) => v.supplierName))].join(", ");
   const low = priceIls(family.minPriceUsd, rate);
-  const price = low === null ? "" : `${family.variantCount > 1 ? "החל מ-" : ""}${formatIls(low)} כולל מע״מ, `;
+  const price = low === null ? "" : `${family.variantCount > 1 ? "החל מ-" : ""}${formatIls(low)}, `;
   const text = isRealDescription(family.descriptionHtml) ? descriptionText(family.descriptionHtml) : "";
   const description = metaDescription(`${price}${suppliers}${text ? `, ${text}` : ""}`);
   const title = `${family.title}, ${suppliers}`;
@@ -132,7 +132,7 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
 async function FamilyBody({ slug, children }: { slug: string; children: React.ReactNode }) {
   const result = await getFamily(slug);
   if (!result) notFound();
-  const rate = await usdIlsRate();
+  const { rate, rateDate } = await getUsdIlsRate();
 
   const { family } = result;
   const viewVariants: ViewVariant[] = byOffer(result.variants, rate).map((v) => ({
@@ -179,6 +179,7 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
       <FamilyView
         family={{ id: family.id, slug: family.slug, title: family.title, images: family.images, optionKeys: family.optionKeys }}
         variants={viewVariants}
+        rateDate={rateDate}
       />
 
       <div className="grid gap-6 md:grid-cols-2">

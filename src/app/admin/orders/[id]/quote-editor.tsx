@@ -7,7 +7,6 @@ import { Availability } from "@/components/availability";
 import { ItemDescription } from "@/components/orders";
 import { formatIls } from "@/domain/pricing";
 import { quoteSummary } from "@/domain/quote-summary";
-import { VAT_RATE } from "@/domain/reports";
 import { shopifyImage } from "@/lib/images";
 import { rejectOrder, sendQuote, type QuoteFormState } from "../actions";
 
@@ -151,8 +150,6 @@ export function QuoteEditor(props: {
         <dd className="text-end tabular-nums">{formatIls(summary.subtotal)}</dd>
         <dt>משלוח</dt>
         <dd className="text-end tabular-nums">{shipping === "" ? "עוד לא מולא" : formatIls(summary.shipping)}</dd>
-        <dt className="text-muted">מתוכם מע״מ ({VAT_RATE * 100}%)</dt>
-        <dd className="text-end text-muted tabular-nums">{formatIls(summary.vat)}</dd>
         <dt className="font-semibold">סה״כ לתשלום</dt>
         <dd className="text-end font-semibold tabular-nums">{formatIls(summary.total)}</dd>
         <dt className="text-muted">לעומת הבקשה ({formatIls(summary.requested)}, בלי משלוח)</dt>

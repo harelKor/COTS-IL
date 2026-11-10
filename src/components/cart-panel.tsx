@@ -20,7 +20,6 @@ import { QtyStepper } from "./qty-stepper";
 import { showToast } from "./toast";
 import { formatAddress, missingAddressParts, parseAddress, type AddressParts } from "@/domain/display";
 
-const VAT = 0.18;
 const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
 
 const primary =
@@ -551,7 +550,7 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
       <CartFooter>
         <button type="button" onClick={() => setCostOpen((o) => !o)} aria-expanded={costOpen} className="flex min-h-11 items-center justify-between gap-2 text-start">
           <span className="flex items-center gap-1 text-muted">
-            סה״כ משוער, כולל מע״מ
+            סה״כ משוער
             <ChevronDown size={14} aria-hidden className={`transition-transform ${costOpen ? "rotate-180" : ""}`} />
           </span>
           <span className="text-section font-semibold tabular-nums">{formatIls(totalIls)}</span>
@@ -561,10 +560,6 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
             <div className="flex justify-between">
               <dt>{count} פריטים</dt>
               <dd className="tabular-nums">{formatIls(totalIls)}</dd>
-            </div>
-            <div className="flex justify-between text-muted">
-              <dt>מתוכם מע״מ</dt>
-              <dd className="tabular-nums">{formatIls(Math.round(totalIls - totalIls / (1 + VAT)))}</dd>
             </div>
             <div className="flex justify-between text-muted">
               <dt>משלוח בישראל</dt>

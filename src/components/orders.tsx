@@ -169,7 +169,7 @@ export function QuoteTable({
           </tr>
           <tr className="border-t border-line font-semibold">
             <td className="p-3" colSpan={3}>
-              סה״כ לתשלום, כולל מע״מ
+              סה״כ לתשלום
             </td>
             <td className="whitespace-nowrap p-3">{formatIls(totals.total)}</td>
           </tr>

@@ -68,7 +68,7 @@ export default function CatalogPage(props: PageProps<"/catalog">) {
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-title font-semibold">קטלוג</h1>
-        <p className="text-caption text-muted">המחירים כוללים מע״מ. משלוח בישראל מתומחר בהצעת המחיר.</p>
+        <p className="text-caption text-muted">מחיר הספק בדולרים לפי השער היציג של בנק ישראל, בלי תוספת. משלוח בישראל מתומחר בהצעת המחיר.</p>
       </div>
       <Suspense fallback={<div className="skeleton h-11 w-full rounded-full" aria-hidden />}>
         <CategoryChips {...props} />

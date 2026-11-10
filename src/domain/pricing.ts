@@ -18,7 +18,7 @@ export function assertRate(usdIlsRate: number): number {
   return usdIlsRate;
 }
 
-/** ILS price in whole shekels, VAT included, or null when the item has no usable price and can't be ordered. */
+/** ILS price in whole shekels (USD × rate, no markup, no VAT), or null when the item has no usable price and can't be ordered. */
 export function priceIls(usd: string | number | null | undefined, usdIlsRate: number, markup = MARKUP): number | null {
   if (!hasUsdPrice(usd)) return null;
   const value = Number(usd);

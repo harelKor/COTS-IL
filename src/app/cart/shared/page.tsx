@@ -39,7 +39,7 @@ async function Shared({ searchParams }: PageProps<"/cart/shared">) {
     <div className="flex flex-col gap-4">
       <SharedCart lines={lines}>
         <div className="flex items-baseline justify-between">
-          <span className="text-muted">סה״כ משוער, כולל מע״מ</span>
+          <span className="text-muted">סה״כ משוער</span>
           <span className="text-section font-semibold tabular-nums">
             {formatIls(total)}
           </span>

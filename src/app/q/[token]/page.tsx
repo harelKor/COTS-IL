@@ -65,7 +65,7 @@ async function Approval({ params }: PageProps<"/q/[token]">) {
           <dd className="tabular-nums">{formatIls(totals.shipping)}</dd>
         </div>
         <div className="flex justify-between text-section font-semibold">
-          <dt>סה״כ כולל מע״מ</dt>
+          <dt>סה״כ</dt>
           <dd className="tabular-nums">{formatIls(totals.total)}</dd>
         </div>
       </dl>
