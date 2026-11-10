@@ -1,116 +1,170 @@
+import { asc, eq, sql } from "drizzle-orm";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Button } from "@/components/form";
+import { db, schema } from "@/db";
+import { Ltr } from "@/components/ltr";
 import { formatDateTime } from "@/components/orders";
-import { consolidateDemand, describeOptions, type SupplierDemand } from "@/domain/purchasing";
+import { consolidateDemand } from "@/domain/purchasing";
 import { requireAdmin } from "@/lib/auth";
 import { getDemand, listPos } from "@/lib/purchasing";
-import { createPo } from "./actions";
-import { PO_STATUS_LABELS } from "./status";
 import { Loading, PageSkeleton } from "@/components/skeleton";
+import { PO_STATUS_LABELS } from "./status";
+import { VendorBatch } from "./vendor-batch";
 
-export const metadata: Metadata = { title: "רכש" };
+export const metadata: Metadata = { title: "הזמנות ספקים" };
 
-function SupplierBoard({ demand }: { demand: SupplierDemand }) {
-  return (
-    <section className="overflow-hidden rounded-lg border border-line bg-surface">
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-subtle p-3">
-        <h3 className="ltr font-semibold">{demand.supplierName}</h3>
-        <form action={createPo}>
-          <input type="hidden" name="supplierId" value={demand.supplierId} />
-          <Button>הוספה להזמנת ספק</Button>
-        </form>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-muted">
-            <tr>
-              <th className="p-3 text-start font-medium">פריט</th>
-              <th className="p-3 text-start font-medium">כמות</th>
-              <th className="p-3 text-start font-medium">שיוך לקבוצות</th>
-            </tr>
-          </thead>
-          <tbody>
-            {demand.lines.map((line) => (
-              <tr key={line.variantId} className="border-t border-line align-top">
-                <td dir="ltr" className="p-3 text-start">
-                  <div className="font-medium">{line.title}</div>
-                  <div className="text-xs text-muted">
-                    {[describeOptions(line.options), line.supplierSku ?? "no supplier SKU"].filter(Boolean).join(", ")}
-                  </div>
-                </td>
-                <td className="p-3 font-semibold">{line.qty}</td>
-                <td className="p-3 text-xs">
-                  {line.allocations.map((a) => (
-                    <div key={a.orderItemId}>
-                      <span className="ltr">{a.teamLabel}</span>, הזמנה {a.orderNumber}: {a.qty}
-                    </div>
-                  ))}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
+const { poAllocations, poLines, receiptLines, shipmentItems, supplierPos, suppliers, teamOrderItems, teamOrders, teams } = schema;
+
+/** For every supplier order: the team orders it serves, and how much has shipped and arrived. */
+async function poProgress() {
+  const [served, counts] = await Promise.all([
+    db
+      .selectDistinct({
+        poId: poLines.poId,
+        orderId: teamOrders.id,
+        orderNumber: teamOrders.number,
+        teamNumber: teams.number,
+      })
+      .from(poAllocations)
+      .innerJoin(poLines, eq(poLines.id, poAllocations.poLineId))
+      .innerJoin(teamOrderItems, eq(teamOrderItems.id, poAllocations.orderItemId))
+      .innerJoin(teamOrders, eq(teamOrders.id, teamOrderItems.orderId))
+      .innerJoin(teams, eq(teams.id, teamOrders.teamId))
+      .orderBy(asc(teamOrders.number)),
+    db
+      .select({
+        poId: supplierPos.id,
+        ordered: sql<number>`(SELECT coalesce(sum(a.qty), 0)::int FROM ${poAllocations} a JOIN ${poLines} l ON l.id = a.po_line_id WHERE l.po_id = supplier_pos.id)`,
+        shipped: sql<number>`(SELECT coalesce(sum(si.qty), 0)::int FROM ${shipmentItems} si JOIN ${poLines} l ON l.id = si.po_line_id WHERE l.po_id = supplier_pos.id)`,
+        received: sql<number>`(SELECT coalesce(sum(rl.qty_received), 0)::int FROM ${receiptLines} rl JOIN ${poLines} l ON l.id = rl.po_line_id WHERE l.po_id = supplier_pos.id)`,
+      })
+      .from(supplierPos),
+  ]);
+  return { served, counts: new Map(counts.map((c) => [c.poId, c])) };
 }
 
 async function Purchasing() {
   await requireAdmin();
-  const [demandRows, pos] = await Promise.all([getDemand(), listPos()]);
+  const [demandRows, pos, vendorRows, progress] = await Promise.all([
+    getDemand(),
+    listPos(),
+    db.select({ id: suppliers.id, baseUrl: suppliers.baseUrl }).from(suppliers),
+    poProgress(),
+  ]);
   const demand = consolidateDemand(demandRows);
+  const baseUrl = new Map(vendorRows.map((s) => [s.id, s.baseUrl]));
+  const now = new Date().getTime();
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+
+  const sent = pos.filter((p) => p.status === "ordered");
+  const drafts = pos.filter((p) => p.status === "draft");
+  const isDone = (id: string) => {
+    const c = progress.counts.get(id);
+    return !!c && c.ordered > 0 && c.received >= c.ordered;
+  };
+
+  const PoRow = ({ po }: { po: (typeof pos)[number] }) => {
+    const c = progress.counts.get(po.id);
+    return (
+      <li id={`po-${po.id}`} className="card-surface flex flex-col gap-2 rounded-[18px] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Link href={`/admin/purchasing/${po.id}`} className="font-semibold text-brand hover:underline">
+            <Ltr>{`${po.supplierName} #${po.number}`}</Ltr>
+          </Link>
+          <span className="text-sm text-muted">
+            {PO_STATUS_LABELS[po.status]}
+            {po.supplierOrderRef && (
+              <>
+                , <Ltr>{po.supplierOrderRef}</Ltr>
+              </>
+            )}
+            {po.orderedAt && (
+              <>
+                , <Ltr>{formatDateTime(po.orderedAt).slice(0, 10)}</Ltr>
+              </>
+            )}
+          </span>
+        </div>
+        {c && (
+          <div className="text-sm text-muted">
+            נשלחו מהספק {c.shipped} מתוך {c.ordered}, הגיעו {c.received}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {progress.served
+            .filter((s) => s.poId === po.id)
+            .map((s) => (
+              <Link key={s.orderId} href={`/admin?open=${s.orderId}`} className="inline-flex min-h-8 items-center rounded-full bg-brand-soft px-3 text-xs font-medium text-brand-strong">
+                <Ltr>{`${s.teamNumber} #${s.orderNumber}`}</Ltr>
+              </Link>
+            ))}
+        </div>
+      </li>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="flex flex-col gap-3">
-        <h2 className="font-semibold">לקנות מהספקים</h2>
+      <section className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">להזמין מהספקים</h2>
         {demand.length === 0 ? (
-          <p className="text-muted">אין כרגע שורות מאושרות שממתינות לרכש.</p>
+          <p className="text-muted">אין כרגע פריטים מאושרים שממתינים להזמנה.</p>
         ) : (
-          demand.map((d) => <SupplierBoard key={d.supplierId} demand={d} />)
+          demand.map((d) => (
+            <VendorBatch
+              key={d.supplierId}
+              supplier={{ id: d.supplierId, name: d.supplierName, platform: d.platform, baseUrl: baseUrl.get(d.supplierId) ?? "" }}
+              lines={d.lines}
+              oldest={Math.min(...d.lines.flatMap((l) => l.allocations.map((a) => a.submittedAt?.getTime() ?? now)))}
+              today={today}
+              now={now}
+            />
+          ))
         )}
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="font-semibold">הזמנות ספק</h2>
-        {pos.length === 0 ? (
-          <p className="text-muted">עדיין אין הזמנות ספק.</p>
+      {drafts.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xl font-semibold">טיוטות</h2>
+          <ul className="flex flex-col gap-3">
+            {drafts.map((po) => (
+              <PoRow key={po.id} po={po} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section id="sent" className="flex flex-col gap-3 scroll-mt-20">
+        <h2 className="text-xl font-semibold">הזמנות ספק שנשלחו</h2>
+        {sent.filter((p) => !isDone(p.id)).length === 0 ? (
+          <p className="text-muted">אין הזמנות ספק בדרך.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-line bg-surface">
-            <table className="w-full text-sm">
-              <thead className="bg-subtle text-muted">
-                <tr>
-                  <th className="px-4 py-2 text-start font-medium">מספר</th>
-                  <th className="px-4 py-2 text-start font-medium">ספק</th>
-                  <th className="px-4 py-2 text-start font-medium">שורות</th>
-                  <th className="px-4 py-2 text-start font-medium">אסמכתא אצל הספק</th>
-                  <th className="px-4 py-2 text-start font-medium">נוצרה</th>
-                  <th className="px-4 py-2 text-start font-medium">סטטוס</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pos.map((po) => (
-                  <tr key={po.id} className="border-t border-line">
-                    <td className="px-4 py-2">
-                      <Link href={`/admin/purchasing/${po.id}`} className="text-brand hover:underline">
-                        {po.number}
-                      </Link>
-                    </td>
-                    <td className="ltr px-4 py-2">{po.supplierName}</td>
-                    <td className="px-4 py-2">{po.lineCount}</td>
-                    <td className="ltr px-4 py-2">{po.supplierOrderRef}</td>
-                    <td className="whitespace-nowrap px-4 py-2">
-                      <span className="ltr">{formatDateTime(po.createdAt)}</span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2">{PO_STATUS_LABELS[po.status]}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="flex flex-col gap-3">
+            {sent
+              .filter((p) => !isDone(p.id))
+              .map((po) => (
+                <PoRow key={po.id} po={po} />
+              ))}
+          </ul>
         )}
+        <details className="group">
+          <summary className="flex min-h-11 cursor-pointer items-center rounded-full bg-subtle px-4 font-semibold hover:bg-subtle-hover">
+            הזמנות ספק שהסתיימו ({pos.filter((p) => p.status === "cancelled" || (p.status === "ordered" && isDone(p.id))).length})
+          </summary>
+          <ul className="mt-3 flex flex-col gap-3">
+            {pos
+              .filter((p) => p.status === "cancelled" || (p.status === "ordered" && isDone(p.id)))
+              .map((po) => (
+                <PoRow key={po.id} po={po} />
+              ))}
+          </ul>
+        </details>
+        <p className="text-sm">
+          <Link href="/admin/shortages" className="text-brand hover:underline">
+            דוח חוסרים
+          </Link>
+        </p>
       </section>
     </div>
   );
@@ -119,12 +173,7 @@ async function Purchasing() {
 export default function PurchasingPage() {
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">רכש</h1>
-        <Link href="/admin" className="text-sm text-brand hover:underline">
-          לניהול
-        </Link>
-      </div>
+      <h1 className="mb-6 text-[28px] font-semibold tracking-[-0.02em]">הזמנות ספקים</h1>
       <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Purchasing />
       </Suspense>

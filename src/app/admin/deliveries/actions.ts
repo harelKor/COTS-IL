@@ -11,6 +11,7 @@ import { requireAdmin } from "@/lib/auth";
 const { auditLog, deliveries, deliveryItems, stockAllocations, teamOrderItems, teamOrders } = schema;
 
 function refresh(id?: string) {
+  revalidatePath("/admin", "layout");
   revalidatePath("/admin/deliveries");
   revalidatePath("/admin/shortages");
   if (id) {
@@ -77,6 +78,8 @@ export async function createDelivery(_prev: ActionState, formData: FormData): Pr
 
   if (result.error) return result;
   refresh(result.id);
+  // From an order card the admin stays on the card.
+  if (formData.get("stay")) return {};
   redirect(`/admin/deliveries/${result.id}`);
 }
 

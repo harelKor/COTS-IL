@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "ההזמנות שלנו" };
 async function Orders() {
   const viewer = await getViewer();
   if (!viewer) redirect("/login?next=/orders");
-  if (viewer.isAdmin && !orderingTeam(viewer)) redirect("/admin/orders");
+  if (viewer.isAdmin && !orderingTeam(viewer)) redirect("/admin");
   const team = orderingTeam(viewer);
   if (!team) redirect("/pending");
 

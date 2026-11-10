@@ -27,7 +27,7 @@ const {
 const count = (value: FormDataEntryValue | null) => (value === null || value === "" ? 0 : Number(value));
 
 function refresh(shipmentId?: string) {
-  revalidatePath("/admin/logistics");
+  revalidatePath("/admin", "layout");
   revalidatePath("/admin/deliveries");
   revalidatePath("/admin/shortages");
   if (shipmentId) revalidatePath(`/admin/logistics/${shipmentId}`);
@@ -376,5 +376,5 @@ export async function deleteShipment(formData: FormData) {
   });
 
   refresh(id);
-  if (removed) redirect("/admin/logistics");
+  if (removed) redirect("/admin/purchasing#sent");
 }

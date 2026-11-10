@@ -42,5 +42,5 @@ export async function reviewTeam(formData: FormData) {
     });
   });
 
-  revalidatePath("/admin");
+  revalidatePath("/admin", "layout");
 }

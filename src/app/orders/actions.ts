@@ -76,7 +76,7 @@ export async function decideQuote(_prev: DecisionState, formData: FormData): Pro
 
   if ("error" in result) return { error: result.error };
   revalidatePath(`/orders/${result.orderId}`);
-  revalidatePath(`/admin/orders/${result.orderId}`);
+  revalidatePath("/admin", "layout");
   return {};
 }
 
@@ -106,7 +106,7 @@ export async function cancelOrder(formData: FormData) {
   });
 
   revalidatePath(`/orders/${orderId}`);
-  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin", "layout");
 }
 
 export type LinkApprovalState = { approved?: boolean; error?: string };
@@ -145,6 +145,6 @@ export async function approveQuoteByLink(token: string): Promise<LinkApprovalSta
 
   if ("error" in result) return { error: result.error };
   revalidatePath(`/orders/${result.orderId}`);
-  revalidatePath(`/admin/orders/${result.orderId}`);
+  revalidatePath("/admin", "layout");
   return { approved: true };
 }
