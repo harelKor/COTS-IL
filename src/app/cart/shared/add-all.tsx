@@ -1,5 +1,6 @@
 "use client";
 
+import { shopifyImage } from "@/lib/images";
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -12,10 +13,6 @@ import { showToast } from "@/components/toast";
 import { formatIls } from "@/domain/pricing";
 
 type SharedLine = AddableLine & { qty: number };
-
-function thumb(src: string) {
-  return src.startsWith("https://cdn.shopify.com/") ? `${src}${src.includes("?") ? "&" : "?"}width=120` : src;
-}
 
 /**
  * A shared cart's lines, each marked when it's already in this viewer's cart,
@@ -62,7 +59,7 @@ export function SharedCart({ lines, children }: { lines: SharedLine[]; children?
             <li key={l.variantId} className="flex items-center gap-3 border-b border-line py-3 last:border-b-0">
               <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-tile">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {l.image && <img src={thumb(l.image)} alt={l.title} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />}
+                {l.image && <img {...shopifyImage(l.image, 56)} loading="lazy" alt={l.title} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />}
               </span>
               <Link href={l.href} className="min-w-0 flex-1 hover:text-brand">
                 <Ltr className="line-clamp-2 text-start text-[15px] font-medium">{l.title}</Ltr>

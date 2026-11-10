@@ -7,6 +7,7 @@ import { optionLabel } from "@/domain/families/sort";
 import { formatIls } from "@/domain/pricing";
 import { availabilityStatus, isFresh, useNow } from "./availability";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
+import { imageLoading, shopifyImage } from "@/lib/images";
 import { addToCartNow } from "./cart-actions";
 import { PriceNote } from "./price-note";
 import { canEditCart, useCart } from "./cart-store";
@@ -61,11 +62,6 @@ export function FamilyView({ family, variants }: Props) {
   const match = wanted ? variants.find((x) => x.id === wanted || x.sku?.toLowerCase() === wanted) : undefined;
   const initialVariantId = match?.id ?? (variants.length === 1 ? variants[0].id : null);
   return <FamilyPicker key={initialVariantId ?? "none"} family={family} variants={variants} initialVariantId={initialVariantId} />;
-}
-
-function sized(src: string | null | undefined, width: number) {
-  if (!src) return null;
-  return src.startsWith("https://cdn.shopify.com/") ? `${src}${src.includes("?") ? "&" : "?"}width=${width}` : src;
 }
 
 /**
@@ -177,7 +173,7 @@ function FamilyPicker({ family, variants, initialVariantId }: InnerProps) {
             {shown && (
               // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={sized(shown, 900)!} alt={family.title} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
+              <img {...shopifyImage(shown, 560)} alt={family.title} {...imageLoading(true)} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
             )}
             {chosen?.sku && (
               <button
@@ -206,7 +202,7 @@ function FamilyPicker({ family, variants, initialVariantId }: InnerProps) {
                   className={`aspect-square w-full overflow-hidden rounded-xl bg-tile p-1 ${src === shown ? "ring-2 ring-foreground" : "ring-1 ring-black/5"}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={sized(src, 160)!} alt="" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
+                  <img {...shopifyImage(src, 80)} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
                 </button>
               </li>
             ))}

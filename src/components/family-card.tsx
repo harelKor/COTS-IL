@@ -10,16 +10,11 @@ import { availabilityStatus, isFresh, useNow } from "./availability";
 import type { FamilyVariants } from "@/app/api/family/[id]/variants/route";
 import type { CardFamily, CardVariant } from "@/lib/catalog";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
+import { imageLoading, shopifyImage } from "@/lib/images";
 import { addToCartNow, type AddableLine } from "./cart-actions";
 import { canEditCart, useCart } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
-
-/** Shopify's CDN resizes on request; cards only need a few hundred pixels. */
-function sized(src: string | null, width: number) {
-  if (!src) return null;
-  return src.startsWith("https://cdn.shopify.com/") ? `${src}${src.includes("?") ? "&" : "?"}width=${width}` : src;
-}
 
 function lineFor(family: CardFamily, v: CardVariant): AddableLine {
   return {
@@ -52,6 +47,8 @@ type Props = {
   /** Choices already made by the catalog's filters, e.g. { bore: '1/2" Hex' }. */
   preset?: Record<string, string>;
   layout?: "grid" | "row";
+  /** One of the first cards on screen: its photo loads at once. */
+  eager?: boolean;
 };
 
 /**
@@ -59,7 +56,7 @@ type Props = {
  * sizes it opens chips on the card, and picking the last one adds it. Once in
  * the cart, "+" becomes a stepper. Nothing here leaves the page.
  */
-export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
+export function FamilyCard({ family, preset = {}, layout = "grid", eager = false }: Props) {
   const { mode, lines } = useCart();
   const [open, setOpen] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
@@ -92,7 +89,8 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
     return loading.current;
   }
   const href = familyHref(family.slug, current?.sku ?? current?.id ?? null);
-  const photo = sized(current?.image ?? family.image, layout === "row" ? 160 : 400);
+  const photoSrc = current?.image ?? family.image;
+  const photo = photoSrc ? shopifyImage(photoSrc, layout === "row" ? 64 : 240) : null;
 
   const price =
     current?.priceIls != null ? (
@@ -183,7 +181,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid" }: Props) {
   const photo_ = photo && (
     // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={photo} alt={family.title} loading="lazy" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
+    <img src={photo.src} srcSet={photo.srcSet} alt={family.title} {...imageLoading(eager)} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
   );
 
   const availability = <AvailabilityDot available={current?.available ?? family.available} checkedAt={family.checkedAt} />;

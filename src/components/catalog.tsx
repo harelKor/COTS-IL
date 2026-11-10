@@ -1,10 +1,7 @@
-export { familyHref, productHref, productImageTransition } from "@/lib/catalog-links";
+import { shopifyImage } from "@/lib/images";
 
-/** Some supplier originals are 6000px wide, and Shopify's CDN can resize on request. */
-export function sized(src: string, width: number) {
-  if (!src.startsWith("https://cdn.shopify.com/")) return src;
-  return `${src}${src.includes("?") ? "&" : "?"}width=${width}`;
-}
+export { familyHref, productHref, productImageTransition } from "@/lib/catalog-links";
+export { sized } from "@/lib/images";
 
 type ProductImageProps = { src: string | undefined; alt: string; width: number; className?: string };
 
@@ -16,7 +13,7 @@ export function ProductImage({ src, alt, width, className }: ProductImageProps) 
       {/* Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={sized(src, width)}
+        {...shopifyImage(src, width)}
         alt={alt}
         loading="lazy"
         referrerPolicy="no-referrer"

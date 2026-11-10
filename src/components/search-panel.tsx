@@ -7,6 +7,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { SearchResponse, SearchResult } from "@/app/api/search/route";
 import { formatIls } from "@/domain/pricing";
 import { catalogHref } from "@/lib/catalog-filters";
+import { shopifyImage } from "@/lib/images";
 import { normalizeSearch, parseQuickQuery } from "@/lib/quick-query";
 import { addToCartNow } from "./cart-actions";
 import { canEditCart, useCart } from "./cart-store";
@@ -19,11 +20,6 @@ export const openSearch = () => window.dispatchEvent(new Event("search:open"));
 /** Typing in a field shouldn't open the panel when "/" is pressed. */
 function isEditable(target: EventTarget | null) {
   return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
-}
-
-/** Shopify's CDN resizes on request; the panel only needs a thumbnail. */
-function thumb(src: string) {
-  return src.startsWith("https://cdn.shopify.com/") ? `${src}${src.includes("?") ? "&" : "?"}width=96` : src;
 }
 
 /**
@@ -214,7 +210,7 @@ export function SearchPanel() {
                   <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-tile">
                     {r.image && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={thumb(r.image)} alt={r.title} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
+                      <img {...shopifyImage(r.image, 56)} loading="lazy" alt={r.title} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
                     )}
                   </span>
                   <span className="min-w-0 flex-1">

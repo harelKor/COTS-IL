@@ -1,5 +1,6 @@
 "use client";
 
+import { shopifyImage } from "@/lib/images";
 import { PriceNote } from "./price-note";
 import { Check, ChevronDown, Share2, Trash2, X } from "lucide-react";
 import Link from "next/link";
@@ -20,10 +21,6 @@ import { showToast } from "./toast";
 
 const VAT = 0.18;
 const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
-
-function thumb(src: string) {
-  return src.startsWith("https://cdn.shopify.com/") ? `${src}${src.includes("?") ? "&" : "?"}width=120` : src;
-}
 
 const primary =
   "flex h-11 w-full items-center justify-center gap-2 rounded-full bg-brand px-6 font-medium text-white transition-colors hover:bg-brand-strong disabled:opacity-60";
@@ -79,7 +76,7 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
         <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-tile">
           {line.image && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={thumb(line.image)} alt={line.title} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
+            <img {...shopifyImage(line.image, 56)} loading="lazy" alt={line.title} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
           )}
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
