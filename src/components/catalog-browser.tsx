@@ -2,7 +2,7 @@
 
 import { Check, ChevronDown, LayoutGrid, List, SlidersHorizontal, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import type { CatalogPage } from "@/app/api/catalog/route";
 import { optionLabel } from "@/domain/families/sort";
 import type { CardFamily, SpecFacet } from "@/lib/catalog";
@@ -15,6 +15,9 @@ import {
   type CatalogFilters,
   type Sort,
 } from "@/lib/catalog-filters";
+
+/** Pages that load by scrolling before a "load more" button takes over (the footer must stay reachable). */
+const AUTO_PAGES = 3;
 import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
 
@@ -187,30 +190,31 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
     Object.entries(filters.specs).flatMap(([k, values]) => (values.length === 1 ? [[k, values[0]]] : [])),
   );
 
+  // Scrolling loads the first pages; after that a button does, so the footer stays reachable.
+  const loadMore = useCallback(async () => {
+    if (loading) return;
+    setLoading(true);
+    const nextPage = pages.current + 1;
+    try {
+      const res = await fetch(`/api/catalog?${catalogQuery({ ...filters, page: nextPage })}`);
+      const body = (await res.json()) as CatalogPage;
+      pages.current = nextPage;
+      setCards((prev) => [...prev, ...body.cards.filter((c) => !prev.some((p) => p.id === c.id))]);
+      // Keeps the place in the URL without a navigation, so "back" returns here.
+      window.history.replaceState(window.history.state, "", catalogHref({ ...filters, page: nextPage }));
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, loading]);
+  const autoLoad = Math.ceil(cards.length / PAGE_SIZE) < AUTO_PAGES;
+
   useEffect(() => {
     const el = sentinel.current;
-    if (!el || cards.length >= total) return;
-    const observer = new IntersectionObserver(
-      async ([entry]) => {
-        if (!entry.isIntersecting || loading) return;
-        setLoading(true);
-        const nextPage = pages.current + 1;
-        try {
-          const res = await fetch(`/api/catalog?${catalogQuery({ ...filters, page: nextPage })}`);
-          const body = (await res.json()) as CatalogPage;
-          pages.current = nextPage;
-          setCards((prev) => [...prev, ...body.cards.filter((c) => !prev.some((p) => p.id === c.id))]);
-          // Keeps the place in the URL without a navigation, so "back" returns here.
-          window.history.replaceState(window.history.state, "", catalogHref({ ...filters, page: nextPage }));
-        } finally {
-          setLoading(false);
-        }
-      },
-      { rootMargin: "800px 0px" },
-    );
+    if (!el || cards.length >= total || !autoLoad) return;
+    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && void loadMore(), { rootMargin: "800px 0px" });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [cards.length, total, filters, loading]);
+  }, [cards.length, total, autoLoad, loadMore]);
 
   const active: { label: React.ReactNode; clear: CatalogFilters }[] = [
     ...(filters.q ? [{ label: <>חיפוש: <Ltr>{filters.q}</Ltr></>, clear: { ...filters, q: "" } }] : []),
@@ -394,6 +398,11 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                 מוצגים {cards.length.toLocaleString("he-IL")} מתוך {total.toLocaleString("he-IL")}
               </span>
               {loading && <span className="skeleton h-2 w-24" aria-hidden />}
+              {!autoLoad && !loading && (
+                <button type="button" onClick={() => void loadMore()} className="flex h-11 items-center rounded-full border border-line bg-white px-6 text-[15px] font-medium text-foreground shadow-card hover:border-brand/40 hover:text-brand">
+                  טעינת עוד מוצרים
+                </button>
+              )}
             </>
           )}
         </div>

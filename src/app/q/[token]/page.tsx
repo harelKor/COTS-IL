@@ -1,3 +1,4 @@
+import { WhatsAppLink } from "@/components/whatsapp-link";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
@@ -90,6 +91,9 @@ export default function ApprovePage(props: PageProps<"/q/[token]">) {
       >
         <Approval {...props} />
       </Suspense>
+      <div className="mt-6">
+        <WhatsAppLink text="שאלה על הצעת מחיר ב-COTS-IL" />
+      </div>
     </div>
   );
 }

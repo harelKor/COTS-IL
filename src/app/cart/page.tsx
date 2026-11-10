@@ -1,3 +1,4 @@
+import { WhatsAppLink } from "@/components/whatsapp-link";
 import type { Metadata } from "next";
 import { CartPanel } from "@/components/cart-panel";
 
@@ -11,6 +12,7 @@ export default function CartPage() {
       <div className="rounded-card bg-surface px-6 py-4">
         <CartPanel />
       </div>
+      <WhatsAppLink text="שאלה על הסל ב-COTS-IL" />
     </div>
   );
 }

@@ -615,3 +615,15 @@ export async function getSharedLines(variantIds: string[]) {
     unitPriceIls: priceIls(r.priceUsd),
   }));
 }
+
+/** When the catalog last synced successfully from any supplier, for "prices updated …" on the home page. */
+export async function getLastSync(): Promise<Date | null> {
+  "use cache";
+  catalogCache();
+  const jobs = schema.syncJobs;
+  const [row] = await db
+    .select({ at: sql<string | null>`max(${jobs.finishedAt})` })
+    .from(jobs)
+    .where(eq(jobs.status, "succeeded"));
+  return row?.at ? new Date(row.at) : null;
+}

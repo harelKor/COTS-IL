@@ -10,7 +10,11 @@ import { ReorderButton } from "@/components/reorder-button";
 import { formatIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { listOrders } from "@/lib/orders";
-import { getFacets } from "@/lib/catalog";
+import { getFacets, getLastSync } from "@/lib/catalog";
+import { business } from "@/lib/business";
+import { typicalLeadTime } from "@/domain/lead-time";
+import { HowItWorksSteps } from "@/components/how-it-works-steps";
+import { BadgeCheck, Boxes, Coins, FileCheck2, Truck, Undo2 } from "lucide-react";
 import { catalogHref } from "@/lib/catalog-filters";
 
 /**
@@ -171,8 +175,72 @@ async function Browse() {
   );
 }
 
+/** Under the hero: the three things a first-time team asks before anything else. */
+function ValueStrip() {
+  const items = [
+    business.priceIncludes ? `מחיר בש״ח כולל ${business.priceIncludes}` : "מחיר בש״ח כולל מע״מ",
+    "הצעת מחיר בלי התחייבות",
+    business.pickupAddress ? "איסוף או משלוח בישראל" : "מסירה בישראל",
+  ];
+  return (
+    <ul className="-mt-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[15px] text-muted">
+      {items.map((t) => (
+        <li key={t} className="flex items-center gap-2">
+          <BadgeCheck size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
+          {t}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** When the prices were last checked, and the typical lead time once it's known. */
+async function TrustStrip() {
+  const synced = await getLastSync();
+  const lead = typicalLeadTime(Object.values(business.leadTimes));
+  if (!synced && !lead) return null;
+  return (
+    <p className="card-surface flex flex-wrap justify-center gap-x-6 gap-y-1 rounded-card p-4 text-center text-caption text-muted">
+      {synced && (
+        <span>
+          המחירים והזמינות עודכנו מאתרי הספקים ב-
+          {synced.toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "numeric", timeZone: "Asia/Jerusalem" })}
+        </span>
+      )}
+      {lead && <span>זמן אספקה טיפוסי: {lead} מאישור ההצעה</span>}
+    </p>
+  );
+}
+
+const WHY = [
+  { icon: Boxes, title: "הזמנה אחת לכל הספקים", text: "סל אחד מכל ארבעת הספקים, במקום ארבע הזמנות נפרדות." },
+  { icon: Coins, title: "בשקלים, כולל מע״מ", text: "בלי כרטיס אשראי בדולרים ובלי הפתעות בשער." },
+  { icon: Truck, title: "משלוח מרוכז", text: "אנחנו מאחדים הזמנות למשלוח אחד ומוסרים לקבוצה." },
+  { icon: FileCheck2, title: "בלי ניירת מכס", text: "היבוא והשחרור עלינו. אתם מקבלים את החלקים." },
+];
+
+function WhyUs() {
+  const items = business.returnPolicy
+    ? [...WHY, { icon: Undo2, title: "החזרות בישראל", text: business.returnPolicy }]
+    : WHY;
+  return (
+    <section>
+      <h2 className="mb-4 text-section font-semibold">למה דרך COTS-IL ולא ישירות מהספק</h2>
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {items.map((w) => (
+          <li key={w.title} className="card-surface flex flex-col gap-2 rounded-card p-5">
+            <w.icon size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
+            <h3 className="text-[17px] font-semibold">{w.title}</h3>
+            <p className="text-caption leading-relaxed text-muted">{w.text}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /** One-tap examples for a first visit, each a real search that finds parts. */
-const EXAMPLES = ["Kraken X60", "SDS MK4i", "REV Spark MAX", '1/2" Hex Bearing'];
+const EXAMPLES = ["Kraken X60", "SDS MK4i", "CANcoder", '1/2" Hex Bearing'];
 
 export default function HomePage() {
   return (
@@ -210,9 +278,10 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <InstallAppButton />
           </div>
         </section>
+
+        <ValueStrip />
 
         <Suspense
           fallback={
@@ -223,6 +292,24 @@ export default function HomePage() {
         >
           <Browse />
         </Suspense>
+
+        <div className="flex justify-center">
+          <InstallAppButton />
+        </div>
+
+        <section>
+          <h2 className="mb-4 text-section font-semibold">איך זה עובד</h2>
+          <HowItWorksSteps />
+          <Link href="/how-it-works" className="mt-3 inline-flex min-h-11 items-center text-brand hover:underline">
+            כל הפרטים
+          </Link>
+        </section>
+
+        <Suspense>
+          <TrustStrip />
+        </Suspense>
+
+        <WhyUs />
       </div>
     </ViewTransition>
   );

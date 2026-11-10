@@ -1,3 +1,4 @@
+import { WhatsAppLink } from "@/components/whatsapp-link";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -148,8 +149,13 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
 
 export default function OrderPage(props: PageProps<"/orders/[id]">) {
   return (
-    <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
-      <Order {...props} />
-    </Suspense>
+    <>
+      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
+        <Order {...props} />
+      </Suspense>
+      <div className="mt-6">
+        <WhatsAppLink text="שאלה על הזמנה ב-COTS-IL" />
+      </div>
+    </>
   );
 }

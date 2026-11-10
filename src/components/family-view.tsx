@@ -8,6 +8,7 @@ import { formatIls } from "@/domain/pricing";
 import { isAvailabilityFresh } from "@/domain/reports";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
 import { addToCartNow } from "./cart-actions";
+import { PriceNote } from "./price-note";
 import { canEditCart, useCart } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
@@ -287,7 +288,9 @@ export function FamilyView({ family, variants, initialVariantId }: Props) {
             </p>
           )}
           <div className="hidden md:block">{addControls}</div>
-          <p className="border-t border-line pt-3 text-caption text-muted">המחירים כוללים מע״מ. משלוח בישראל מתומחר בהצעת המחיר.</p>
+          <div className="border-t border-line pt-3">
+            <PriceNote />
+          </div>
         </section>
 
         {chosen && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { PriceNote } from "./price-note";
 import { Check, ChevronDown, Share2, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -569,6 +570,7 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
         {mode === "ordering" && cart.team && cart.checkout && (
           <TeamSend checkout={cart.checkout} isNew={cart.team.status === "pending"} blockedCount={blocked.length} onSent={sentNow} />
         )}
+        <PriceNote />
       </CartFooter>
     </div>
   );

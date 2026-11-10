@@ -473,7 +473,7 @@ Ideas that make COTS-IL better than ordering direct, in order of value. Each is 
 | S1 | `claude/kind-joliot-2ebc0d` | ✓ | Tasks 1–12. No migration. `src/lib/business.ts` started with `quoteLeadBusinessDays` only (S4 fills the rest). Screenshots (360 and 1280: 21 lines, blocked line, send error, Undo toast in the sheet, after send, empty, shared cart) are in the session notes folder, not the repo |
 | S2 | | | |
 | S3 | | | |
-| S4 | | | |
+| S4 | `claude/charming-gagarin-0ac99e` | ✓ | Tasks 1–7, no migration. Every business fact is still `null` in `src/lib/business.ts` and its sentence is hidden (WhatsApp links render nothing until a number is set). Also added `robots.ts` and `sitemap.ts`. Open: real supplier logos (none on hand, monograms kept); the catalog "load more" button after 3 pages wasn't exercised locally (the local catalog fits on one page) |
 | S5 | | | |
 | S6 | | | |
 | S7 | | | |
