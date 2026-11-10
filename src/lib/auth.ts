@@ -1,5 +1,6 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { db, schema } from "@/db";
@@ -19,7 +20,12 @@ export type Viewer = {
     status: "pending" | "active" | "rejected" | "suspended";
     rejectionReason: string | null;
   }[];
+  /** The team picked in the team switcher (a cookie), when the user is in more than one. Not trusted: checked against `teams`. */
+  preferredTeamId: string | null;
 };
+
+/** The team switcher's cookie (switchTeam in src/app/cart/actions.ts). */
+export const TEAM_COOKIE = "cots-il-team";
 
 /** The signed-in user, verified with the Auth server, or null. */
 export async function getViewer(): Promise<Viewer | null> {
@@ -38,7 +44,10 @@ export async function getViewer(): Promise<Viewer | null> {
     .select({ team: schema.teams })
     .from(schema.memberships)
     .innerJoin(schema.teams, eq(schema.teams.id, schema.memberships.teamId))
-    .where(eq(schema.memberships.userId, profile.id));
+    .where(eq(schema.memberships.userId, profile.id))
+    // Deterministic: the team joined first comes first (S1 task 11).
+    .orderBy(asc(schema.memberships.createdAt), asc(schema.teams.number));
+  const preferred = (await cookies()).get(TEAM_COOKIE)?.value ?? null;
 
   return {
     id: profile.id,
@@ -53,6 +62,7 @@ export async function getViewer(): Promise<Viewer | null> {
       status: team.status,
       rejectionReason: team.rejectionReason,
     })),
+    preferredTeamId: preferred,
   };
 }
 
@@ -74,7 +84,13 @@ export function activeTeam(viewer: Viewer) {
  * still pending approval (its first request is reviewed with the team).
  */
 export function orderingTeam(viewer: Viewer) {
-  return activeTeam(viewer) ?? viewer.teams.find((t) => teamCanOrder(t.status)) ?? null;
+  const picked = viewer.teams.find((t) => t.id === viewer.preferredTeamId && teamCanOrder(t.status));
+  return picked ?? activeTeam(viewer) ?? viewer.teams.find((t) => teamCanOrder(t.status)) ?? null;
+}
+
+/** Teams this user can order for. The switcher shows only when there are two or more. */
+export function orderingTeams(viewer: Viewer) {
+  return viewer.teams.filter((t) => teamCanOrder(t.status));
 }
 
 export async function requireAdmin(): Promise<Viewer> {

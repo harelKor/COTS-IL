@@ -1,8 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Boxes } from "lucide-react";
+import { Boxes, Check } from "lucide-react";
 import { signout } from "@/app/auth/actions";
-import { getViewer, orderingTeam } from "@/lib/auth";
+import { switchTeam } from "@/app/cart/actions";
+import { getViewer, orderingTeam, orderingTeams } from "@/lib/auth";
 import { googleSignInEnabled } from "@/lib/auth-providers";
 import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
 import type { CartState } from "./cart-store";
@@ -46,6 +47,7 @@ async function Account() {
   }
 
   const shown = team ?? viewer.teams[0];
+  const switchable = orderingTeams(viewer);
   const initial = shown ? String(shown.number).slice(0, 4) : viewer.email.slice(0, 1).toUpperCase();
 
   return (
@@ -75,6 +77,23 @@ async function Account() {
             <Ltr>{viewer.email}</Ltr>
           )}
         </div>
+        {switchable.length > 1 && (
+          <div className="flex flex-col border-b border-line py-1" role="group" aria-label="החלפת קבוצה">
+            {switchable.map((t) => (
+              <form key={t.id} action={switchTeam.bind(null, t.id)}>
+                <button
+                  aria-pressed={t.id === team?.id}
+                  className={`${menuLink} w-full justify-between gap-2 text-start ${t.id === team?.id ? "font-semibold text-brand" : ""}`}
+                >
+                  <span className="truncate">
+                    {t.name}, <Ltr>{`${t.program} ${t.number}`}</Ltr>
+                  </span>
+                  {t.id === team?.id && <Check size={16} aria-hidden />}
+                </button>
+              </form>
+            ))}
+          </div>
+        )}
         <nav className="flex flex-col pt-1">
           {team ? (
             <>

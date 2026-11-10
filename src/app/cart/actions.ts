@@ -6,9 +6,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { MAX_SHARED_LINES, type SharedLine } from "@/domain/cart-share";
-import { isOrderable, maxMerge } from "@/domain/cart";
+import { cartChanges, cartFingerprint, isOrderable, maxMerge, type CartChange } from "@/domain/cart";
 import { DEFAULT_MULTIPLIER, priceIls } from "@/domain/pricing";
-import { getViewer, orderingTeam, type Viewer } from "@/lib/auth";
+import { getViewer, orderingTeam, orderingTeams, TEAM_COOKIE, type Viewer } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
 import type { CartSheetLine } from "@/components/cart-store";
 
@@ -121,17 +122,22 @@ export type SendState = {
   fieldErrors?: Record<string, string[] | undefined>;
   /** Lines that can't be ordered any more, so the sheet can name them. */
   blocked?: string[];
+  /** The cart changed since the sender saw it: what changed, and the cart as it is now. */
+  changed?: CartChange[];
+  lines?: CartSheetLine[];
 };
 
 /**
  * The cart sheet's "Send quote request": one tap for anyone on the team. Delivery and
  * contact come from the team's last order (or its details) unless changed.
  */
-export async function sendQuoteRequest(changes: Partial<Delivery> = {}): Promise<SendState> {
+export async function sendQuoteRequest(changes: Partial<Delivery> = {}, seen?: SharedLine[]): Promise<SendState> {
   const { viewer, team } = await requireOrderingTeam();
   const parsed = deliverySchema.safeParse({ ...(await getCheckoutDefaults(team.id)), ...changes });
   if (!parsed.success) return { error: "צריך להשלים פרטי מסירה", fieldErrors: parsed.error.flatten().fieldErrors };
-  const result = await createOrder(viewer, team, parsed.data);
+  const seenLines = z.array(z.object({ variantId: z.uuid(), qty: z.number().int() })).max(500).safeParse(seen ?? null);
+  const result = await createOrder(viewer, team, parsed.data, seenLines.success ? seenLines.data : null);
+  if ("changed" in result && result.changed) return { ...result, lines: (await getCart(team.id)).map(toSheetLine) };
   if ("error" in result) return result;
   revalidatePath("/cart");
   revalidatePath("/orders");
@@ -140,7 +146,12 @@ export async function sendQuoteRequest(changes: Partial<Delivery> = {}): Promise
 }
 
 /** Turns the cart into an order, copying prices and SKUs as they are right now (spec §8). */
-async function createOrder(viewer: Viewer, team: Team, input: Delivery): Promise<{ orderId: string; number: number } | { error: string; blocked?: string[] }> {
+async function createOrder(
+  viewer: Viewer,
+  team: Team,
+  input: Delivery,
+  seen: SharedLine[] | null,
+): Promise<{ orderId: string; number: number } | { error: string; blocked?: string[]; changed?: CartChange[] }> {
   return db.transaction(async (tx) => {
     // Locks the cart, so a double click or two team members can't submit the same lines twice.
     const lines = await tx
@@ -165,6 +176,10 @@ async function createOrder(viewer: Viewer, team: Team, input: Delivery): Promise
       .where(eq(cartItems.teamId, team.id))
       .for("update", { of: cartItems });
 
+    // Someone else on the team account may have changed the cart since this sender looked at it.
+    if (seen && cartFingerprint(seen) !== cartFingerprint(lines)) {
+      return { error: "הסל השתנה בינתיים. בדקו את השינויים ושלחו שוב.", changed: cartChanges(seen, lines) };
+    }
     if (lines.length === 0) return { error: "הסל ריק" };
 
     const blocked = lines.filter((l) => !isOrderable({ ...l, productStatus: l.status }));
@@ -275,4 +290,13 @@ export async function reorder(orderId: string): Promise<{ added: number; skipped
   for (const item of items) if (!(await addLine(team.id, viewer.id, item.variantId, item.qty))) added++;
   refresh();
   return { added, skipped: items.length - added };
+}
+
+/** The team switcher, for users in more than one team: which team's cart and orders they act for. */
+export async function switchTeam(teamId: string): Promise<void> {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  if (!orderingTeams(viewer).some((t) => t.id === teamId)) return;
+  (await cookies()).set(TEAM_COOKIE, teamId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 365 });
+  refresh();
 }

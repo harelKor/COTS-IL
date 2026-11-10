@@ -43,6 +43,8 @@ export function CartPill() {
   const { mode, lines, team } = useCart();
   const sheet = useRef<HTMLDialogElement>(null);
   const [wantOpen, setWantOpen] = useState(false);
+  // A new panel each time the sheet closes, so "sent" doesn't outlive the sheet.
+  const [panelKey, setPanelKey] = useState(0);
   const { count, totalIls } = cartTotals(lines);
   const editable = canEditCart(mode);
 
@@ -88,7 +90,13 @@ export function CartPill() {
         </button>
       )}
 
-      <dialog ref={sheet} aria-label="הסל" className="sheet sheet-side" onClick={(e) => e.target === sheet.current && close()}>
+      <dialog
+        ref={sheet}
+        aria-label="הסל"
+        className="sheet sheet-side"
+        onClose={() => setPanelKey((k) => k + 1)}
+        onClick={(e) => e.target === sheet.current && close()}
+      >
         <div className="flex h-full max-h-[inherit] flex-col">
           <div className="flex items-center justify-between gap-3 border-b border-line px-6 py-2">
             <div className="flex min-w-0 flex-col">
@@ -106,7 +114,7 @@ export function CartPill() {
             <CloseButton onClick={close} />
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto px-6 pt-2">
-            <CartPanel onNavigate={close} />
+            <CartPanel key={panelKey} onNavigate={close} onContinue={close} />
           </div>
         </div>
       </dialog>

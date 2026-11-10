@@ -7,11 +7,12 @@ import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import { sendEmailLink, setUpTeam, signInWithGoogle } from "@/app/auth/actions";
 import { sendQuoteRequest, type SendState } from "@/app/cart/actions";
 import type { TeamNameResponse } from "@/app/api/team-name/route";
-import { groupBySupplier } from "@/domain/cart";
+import { groupBySupplier, type CartChange } from "@/domain/cart";
 import { encodeCart } from "@/domain/cart-share";
 import { formatIls } from "@/domain/pricing";
-import { removeNow } from "./cart-actions";
-import { cartTotals, markBlocked, setMergeSkipped, useCart, type CartSheetLine, type Checkout } from "./cart-store";
+import { business } from "@/lib/business";
+import { flushCartWrites, removeNow } from "./cart-actions";
+import { cartSnapshot, cartTotals, markBlocked, replaceLines, setMergeSkipped, useCart, type CartSheetLine, type Checkout } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
 import { showToast } from "./toast";
@@ -26,6 +27,16 @@ function thumb(src: string) {
 const primary =
   "flex h-11 w-full items-center justify-center gap-2 rounded-full bg-brand px-6 font-medium text-white transition-colors hover:bg-brand-strong disabled:opacity-60";
 const field = "h-11 w-full rounded-xl bg-subtle px-4 text-[15px] outline-none focus:ring-2 focus:ring-brand";
+
+/** "X: 2 ← 3, Y נוסף, Z הוסר" for the stale-cart message. */
+function describeChanges(changes: CartChange[], lines: CartSheetLine[]) {
+  const title = (id: string) => lines.find((l) => l.variantId === id)?.title ?? "פריט";
+  return changes
+    .slice(0, 5)
+    .map((c) => (c.before === 0 ? `${title(c.variantId)} נוסף (${c.after})` : c.after === 0 ? `${title(c.variantId)} הוסר` : `${title(c.variantId)}: ${c.before} ← ${c.after}`))
+    .join(", ")
+    .concat(changes.length > 5 ? ` ועוד ${changes.length - 5}` : "");
+}
 
 /** A server error, right above the button that caused it (the toast repeats it). */
 function InlineError({ message }: { message: string | null }) {
@@ -145,13 +156,24 @@ function TeamSend({
   function send() {
     setError(null);
     startTransition(async () => {
-      const result = await sendQuoteRequest(changes).catch(() => ({ error: "אין חיבור לשרת. נסו שוב בעוד רגע." }) as SendState);
+      // Waiting quantity changes go first, so the server compares against the cart as shown.
+      await flushCartWrites();
+      const shown = cartSnapshot().lines;
+      const result = await sendQuoteRequest(
+        changes,
+        shown.map((l) => ({ variantId: l.variantId, qty: l.qty })),
+      ).catch(() => ({ error: "אין חיבור לשרת. נסו שוב בעוד רגע." }) as SendState);
       if (result.orderId && result.number) onSent({ orderId: result.orderId, number: result.number });
       else {
         setErrors(result.fieldErrors ?? {});
         if (result.fieldErrors) setEditing(true);
         if (result.blocked?.length) markBlocked(result.blocked);
-        setError(result.error ?? "השליחה נכשלה");
+        let message = result.error ?? "השליחה נכשלה";
+        if (result.changed && result.lines) {
+          replaceLines(result.lines);
+          message = `${message} ${describeChanges(result.changed, [...shown, ...result.lines])}`;
+        }
+        setError(message);
         showToast(result.error ?? "השליחה נכשלה", "error");
       }
     });
@@ -391,7 +413,7 @@ function CartFooter({ children }: { children: React.ReactNode }) {
  * sharing, and the one primary action for whoever is looking (a guest signs in,
  * someone signed in to a team sends).
  */
-export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
+export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void; onContinue?: () => void }) {
   const cart = useCart();
   const { lines, mode } = cart;
   const { count, totalIls } = cartTotals(lines);
@@ -401,7 +423,17 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
   const blocked = lines.filter((l) => l.orderable === false);
   const unavailable = lines.filter((l) => l.orderable !== false && l.available === false);
 
-  async function copyShare() {
+  // Phones get the system share sheet (WhatsApp is one tap away); elsewhere the link is copied.
+  async function share() {
+    const touch = window.matchMedia("(pointer: coarse)").matches;
+    if (touch && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "סל ב-COTS-IL", url: shareUrl });
+        return;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+      }
+    }
     try {
       await navigator.clipboard.writeText(shareUrl);
       showToast("הקישור לסל הועתק");
@@ -410,19 +442,39 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
     }
   }
 
-  if (sent) {
+  function sentNow(order: { orderId: string; number: number }) {
+    replaceLines([]);
+    setSent(order);
+  }
+
+  // Until the cart gains lines again (or the sheet closes, which remounts this panel).
+  if (sent && lines.length === 0) {
+    const days = business.quoteLeadBusinessDays;
     return (
-      <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+      <div className="flex flex-col items-center gap-3 px-2 py-10 text-center" role="status">
         <span className="flex size-12 items-center justify-center rounded-full bg-success text-white">
           <Check size={24} aria-hidden />
         </span>
-        <h3 className="text-section font-semibold">הבקשה נשלחה</h3>
+        <h3 className="text-section font-semibold">
+          בקשה מס׳ <Ltr>{sent.number}</Ltr> נשלחה
+        </h3>
         <p className="text-muted">
-          בקשה מס׳ <Ltr>{sent.number}</Ltr>. הספק הישראלי יבדוק זמינות ומחירים וישלח הצעת מחיר לאישור הקבוצה.
+          הספק הישראלי יבדוק זמינות ומחירים וישלח הצעת מחיר לאישור הקבוצה{days ? ` תוך ${days} ימי עסקים` : ""}. נעדכן במייל.
         </p>
-        <Link href={`/orders/${sent.orderId}`} onClick={onNavigate} className="text-brand hover:underline">
-          לצפייה בבקשה
-        </Link>
+        <div className="flex w-full flex-col gap-2 pt-2">
+          <Link href={`/orders/${sent.orderId}`} onClick={onNavigate} className={primary}>
+            לצפייה בבקשה
+          </Link>
+          {onContinue ? (
+            <button type="button" onClick={onContinue} className="flex h-11 items-center justify-center rounded-full text-[15px] font-medium text-brand hover:bg-subtle">
+              המשך קנייה
+            </button>
+          ) : (
+            <Link href="/catalog" className="flex h-11 items-center justify-center rounded-full text-[15px] font-medium text-brand hover:bg-subtle">
+              המשך קנייה
+            </Link>
+          )}
+        </div>
       </div>
     );
   }
@@ -467,7 +519,7 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
           </section>
         ))}
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={copyShare} className="flex min-h-11 items-center gap-2 rounded-full bg-subtle px-4 text-caption">
+          <button type="button" onClick={share} className="flex min-h-11 items-center gap-2 rounded-full bg-subtle px-4 text-caption">
             <Share2 size={16} aria-hidden />
             שיתוף הסל
           </button>
@@ -503,7 +555,7 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
         {mode === "guest" && <SignInStep google={!!cart.googleSignIn} />}
         {mode === "noteam" && <TeamStep />}
         {mode === "ordering" && cart.team && cart.checkout && (
-          <TeamSend checkout={cart.checkout} isNew={cart.team.status === "pending"} blockedCount={blocked.length} onSent={setSent} />
+          <TeamSend checkout={cart.checkout} isNew={cart.team.status === "pending"} blockedCount={blocked.length} onSent={sentNow} />
         )}
       </CartFooter>
     </div>

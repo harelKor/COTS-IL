@@ -81,20 +81,32 @@ const bump = (variantId: string) => {
 const isLatest = (variantId: string, v: number) => versions.get(variantId) === v;
 
 /** Runs a server write, counted so a server render that lands meanwhile can't undo local taps. */
-async function write<T>(run: () => Promise<T>): Promise<T | { error: string }> {
+const inFlight = new Set<Promise<unknown>>();
+
+function write<T>(run: () => Promise<T>): Promise<T | { error: string }> {
   writeStarted();
-  try {
-    return await run();
-  } catch {
-    return { error: "אין חיבור לשרת. השינוי לא נשמר." };
-  } finally {
-    writeEnded();
-  }
+  const p = run()
+    .catch(() => ({ error: "אין חיבור לשרת. השינוי לא נשמר." }))
+    .finally(() => {
+      writeEnded();
+      inFlight.delete(p);
+    });
+  inFlight.add(p);
+  return p;
 }
 
 /** Per-line debounce for quantity writes: five fast taps send one request. */
 const QTY_DEBOUNCE_MS = 300;
-const timers = new Map<string, { timer: ReturnType<typeof setTimeout>; confirmed: number }>();
+const timers = new Map<string, { timer: ReturnType<typeof setTimeout>; confirmed: number; fire: () => void }>();
+
+/** Sends every waiting quantity change now and waits for all cart writes, so a send sees the cart as shown. */
+export async function flushCartWrites() {
+  for (const { timer, fire } of [...timers.values()]) {
+    clearTimeout(timer);
+    fire();
+  }
+  await Promise.all([...inFlight]);
+}
 
 function cancelQtyWrite(variantId: string) {
   const pending = timers.get(variantId);
@@ -134,7 +146,7 @@ export function changeQtyNow(variantId: string, qty: number) {
   if (pending) clearTimeout(pending.timer);
   else writeStarted();
   const v = bump(variantId);
-  const timer = setTimeout(() => {
+  const fire = () => {
     timers.delete(variantId);
     void write(() => setCartQty(variantId, qty))
       .then((result) => {
@@ -146,8 +158,8 @@ export function changeQtyNow(variantId: string, qty: number) {
         } else if ("line" in result && result.line !== undefined) applyServerLine(variantId, result.line);
       })
       .finally(writeEnded);
-  }, QTY_DEBOUNCE_MS);
-  timers.set(variantId, { timer, confirmed });
+  };
+  timers.set(variantId, { timer: setTimeout(fire, QTY_DEBOUNCE_MS), confirmed, fire });
 }
 
 /** Removes a line at once and offers Undo. */
