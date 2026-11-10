@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
 import { CardGridSkeleton, Loading } from "@/components/skeleton";
-import { getFacets, getSpecFacets, getSupplierCounts, searchCards } from "@/lib/catalog";
+import { getFacets, getSpecFacets, getSupplierCounts, resolveSearch, searchCards } from "@/lib/catalog";
 import { catalogHref, catalogQuery, PAGE_SIZE, parseFilters } from "@/lib/catalog-filters";
 
 export const metadata: Metadata = { title: "קטלוג" };
@@ -38,12 +38,15 @@ const MAX_SERVER_PAGES = 2;
 
 async function Results({ searchParams }: PageProps<"/catalog">) {
   const filters = parseFilters(await searchParams);
+  // A typo ("beraing") searches the closest catalog word instead; the box keeps what was typed.
+  const query = await resolveSearch(filters.q);
+  const searched = { ...filters, q: query };
   const [{ cards, total }, facets, suppliers, { suppliers: allSuppliers }] = await Promise.all([
     // Up to the page in the URL, so "back" from a family page lands near where it was, but
     // never more than two pages on the server: scrolling loads the rest from /api/catalog.
-    searchCards(filters, 0, Math.min(filters.page, MAX_SERVER_PAGES) * PAGE_SIZE),
-    getSpecFacets(filters),
-    getSupplierCounts(filters),
+    searchCards(searched, 0, Math.min(filters.page, MAX_SERVER_PAGES) * PAGE_SIZE),
+    getSpecFacets(searched),
+    getSupplierCounts(searched),
     getFacets(),
   ]);
   // A chosen supplier with nothing here still shows, so it can be cleared.

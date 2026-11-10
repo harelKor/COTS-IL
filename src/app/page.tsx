@@ -16,6 +16,7 @@ import { typicalLeadTime } from "@/domain/lead-time";
 import { HowItWorksSteps } from "@/components/how-it-works-steps";
 import { BadgeCheck, Boxes, Coins, FileCheck2, Truck, Undo2 } from "lucide-react";
 import { catalogHref } from "@/lib/catalog-filters";
+import { SEARCH_EXAMPLES } from "@/lib/search-examples";
 
 /**
  * A signed-in team sees its last order first, with "Order again" (one tap), and a
@@ -239,8 +240,7 @@ function WhyUs() {
   );
 }
 
-/** One-tap examples for a first visit, each a real search that finds parts. */
-const EXAMPLES = ["Kraken X60", "SDS MK4i", "CANcoder", '1/2" Hex Bearing'];
+const EXAMPLES = SEARCH_EXAMPLES;
 
 export default function HomePage() {
   return (

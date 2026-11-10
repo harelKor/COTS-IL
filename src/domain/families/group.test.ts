@@ -161,3 +161,29 @@ describe("slugify", () => {
     expect(slugify('1/2" Hex Bearing (#10-32)')).toBe("1-2in-hex-bearing-no10-32");
   });
 });
+
+describe("same name at several suppliers", () => {
+  it("joins one flat product per supplier with the same name and no shared SKU", () => {
+    const { families } = groupFamilies([
+      flat("wcp", "CTR Battery Beak", "WCP-1524", "electronics"),
+      flat("ctre", "Battery Beak", "12-666675", "electronics"),
+    ]);
+    expect(families).toHaveLength(1);
+    expect(families[0].suppliers.sort()).toEqual(["ctre", "wcp"]);
+  });
+
+  it("keeps two of one supplier's products with that name apart", () => {
+    const { families } = groupFamilies([
+      flat("wcp", "Battery Beak", "WCP-1", "electronics"),
+      flat("wcp", "Battery Beak", "WCP-2", "electronics"),
+      flat("ctre", "Battery Beak", "12-1", "electronics"),
+    ]);
+    expect(families).toHaveLength(3);
+  });
+
+  it("strips the maker and trademark signs", async () => {
+    const { sameName } = await import("./group");
+    expect(sameName("CTRE Pigeon® 2.0")).toBe("pigeon 2 0");
+    expect(sameName("Hub")).toBeNull();
+  });
+});

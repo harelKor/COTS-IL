@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { searchCards, type CardFamily } from "@/lib/catalog";
+import { resolveSearch, searchCards, type CardFamily } from "@/lib/catalog";
 import { cachedJson } from "@/lib/cache-headers";
 import { normalizeSearch } from "@/lib/quick-query";
 import { PAGE_SIZE, parseFilters } from "@/lib/catalog-filters";
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const raw: Record<string, string | string[]> = {};
   for (const key of new Set(params.keys())) raw[key] = params.getAll(key);
   const filters = parseFilters(raw);
-  filters.q = normalizeSearch(filters.q);
+  filters.q = await resolveSearch(normalizeSearch(filters.q));
   const page = await searchCards({ ...filters, page: 1 }, (filters.page - 1) * PAGE_SIZE, PAGE_SIZE);
   return cachedJson(page satisfies CatalogPage);
 }

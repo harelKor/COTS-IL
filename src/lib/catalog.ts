@@ -7,7 +7,8 @@ import { isRelevantFacet } from "@/domain/facets";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
 import { usdIlsRate } from "./fx";
-import { searchPatterns, type CatalogFilters } from "./catalog-filters";
+import { correctQuery, englishQuery, likePatterns, looksLikeSku, normalizeSku, searchTerms } from "@/domain/search-query";
+import type { CatalogFilters } from "./catalog-filters";
 import { familyHref } from "./catalog-links";
 
 const { categories, productFamilies: families, products, suppliers, variants } = schema;
@@ -49,12 +50,36 @@ function mainItemsFirst(): SQL[] {
   ];
 }
 
+/**
+ * The same expression as the index `variants_sku_norm_idx`: letters and digits of the
+ * SKU, lowercase, so "wcp0749", "WCP 0749" and "wcp-0749" find WCP-0749.
+ */
+const skuNorm = sql`regexp_replace(lower(${variants.supplierSku}), '[^a-z0-9]', '', 'g')`;
+
+/**
+ * What a search matches: every word (or one of its synonyms) in the family's search
+ * text, or a variant whose SKU is the search. Null without a search; a search of only
+ * unknown Hebrew words matches nothing.
+ */
+function textMatch(q: string) {
+  if (!q.trim()) return null;
+  const terms = searchTerms(q);
+  const anyOf = (column: SQL | typeof families.searchText, patterns: string[]) =>
+    sql`(${sql.join(
+      patterns.map((p) => sql`${column} ILIKE ${p}`),
+      sql` OR `,
+    )})`;
+  const words = terms.length > 0 ? and(...terms.map((t) => anyOf(families.searchText, likePatterns(t))))! : sql`false`;
+  const inTitle = terms.length > 0 ? and(...terms.map((t) => anyOf(sql`${families.title}`, likePatterns(t))))! : sql`false`;
+  const sku = looksLikeSku(q) ? sql`${families.id} IN (SELECT ${variants.familyId} FROM ${variants} WHERE ${skuNorm} = ${normalizeSku(q)})` : null;
+  return { where: sku ? sql`(${words} OR ${sku})` : words, inTitle, sku, english: englishQuery(q) || q };
+}
+
 /** `withSpecs: false` leaves out the spec filters, for counting the values each spec could take. */
 function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
   const conditions: (SQL | undefined)[] = [visible];
-  for (const pattern of searchPatterns(filters.q)) {
-    conditions.push(sql`${families.searchText} ILIKE ${pattern}`);
-  }
+  const text = textMatch(filters.q);
+  if (text) conditions.push(text.where);
   if (filters.category) conditions.push(eq(categories.slug, filters.category));
   if (filters.supplier) conditions.push(sql`${filters.supplier} = ANY(${families.supplierCodes})`);
   if (filters.program) conditions.push(sql`${filters.program}::program = ANY(${families.programs})`);
@@ -65,12 +90,17 @@ function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
   const order: SQL[] = [];
   if (filters.sort === "price-asc") order.push(sql`${families.minPriceUsd} ASC NULLS LAST`);
   else if (filters.sort === "price-desc") order.push(sql`${families.minPriceUsd} DESC NULLS LAST`);
-  else if (filters.sort === "relevance" && filters.q) {
-    // An exact SKU first, then real parts ahead of stickers and shirts, then the closest titles.
+  else if (filters.sort === "relevance" && text) {
+    // An exact SKU first, then families named for every word, then the part itself ahead of
+    // its accessories and cheap bits (Kraken X60 before "Kraken Wire Bundle"), in stock, closest title.
+    if (text.sku) order.push(sql`${text.sku} DESC`);
     order.push(
-      sql`EXISTS (SELECT 1 FROM ${variants} JOIN ${products} ON ${products.id} = ${variants.productId} WHERE ${memberVariant} AND lower(${variants.supplierSku}) = ${filters.q.toLowerCase()}) DESC`,
+      sql`${text.inTitle} DESC`,
       sql`${categories.slug} = 'other' ASC NULLS LAST`,
-      sql`extensions.similarity(${families.title}, ${filters.q}) DESC`,
+      sql`(${families.title} ~* ${ACCESSORY_TITLE_PATTERN} AND coalesce(${categories.slug}, '') NOT IN (${sql.join(HARDWARE_CATEGORIES.map((c) => sql`${c}`), sql`, `)})) ASC`,
+      sql`(coalesce(${families.minPriceUsd}, 0) >= ${MAIN_ITEM_MIN_USD} OR ${families.variantCount} >= 3) DESC`,
+      sql`${families.available} IS TRUE DESC`,
+      sql`extensions.similarity(${families.title}, ${text.english}) DESC`,
     );
   } else if (filters.sort === "relevance") {
     // Browsing with no search: what a team came for first, the screws and spacers filed with it after.
@@ -117,6 +147,8 @@ export type CardFamily = {
   orderable: boolean;
   /** Set when the family is one part (one set of options): the offer to add, cheapest in stock. */
   onlyVariant: CardVariant | null;
+  /** When the search is one of its SKUs: that variant's options, chosen on the card. */
+  skuPreset?: Record<string, string>;
 };
 
 const cardColumns = {
@@ -247,7 +279,37 @@ export async function searchCards(filters: CatalogFilters, offset: number, limit
       .leftJoin(categories, eq(categories.id, families.categoryId))
       .where(where),
   ]);
-  return { cards: await toCards(rows), total };
+  const cards = await toCards(rows);
+  if (looksLikeSku(filters.q) && cards.length > 0) {
+    const matched = await db
+      .select({ familyId: variants.familyId, options: variants.familyOptions })
+      .from(variants)
+      .where(and(sql`${skuNorm} = ${normalizeSku(filters.q)}`, inArray(variants.familyId, cards.map((c) => c.id))));
+    for (const m of matched) {
+      const card = cards.find((c) => c.id === m.familyId);
+      if (card && !card.skuPreset) card.skuPreset = m.options;
+    }
+  }
+  return { cards, total };
+}
+
+/**
+ * The search the catalog page runs: as typed, or with its typos fixed when that finds
+ * more and the typed one finds fewer than 3 families ("beraing" → "bearing").
+ */
+export async function resolveSearch(q: string): Promise<string> {
+  "use cache";
+  catalogCache();
+  if (!q.trim()) return q;
+  const count = async (text: string) => {
+    const match = textMatch(text);
+    const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(families).where(and(visible, match?.where));
+    return n;
+  };
+  const strict = await count(q);
+  if (strict >= FEW_HITS) return q;
+  const fixed = await corrected(q);
+  return fixed && (await count(fixed)) > strict ? fixed : q;
 }
 
 /** Sizes and specs to filter by, with how many families have each value. */
@@ -491,48 +553,92 @@ export async function resolveProductUrl(supplierCode: string, handle: string) {
 const orderable = sql`${memberVariant} AND ${variants.priceUsd} > 0`;
 
 /**
+ * Every word of 3+ letters in a visible family title, with how many families use it,
+ * for correcting typos ("krakn" → "kraken"). Changes only at sync.
+ */
+async function titleVocabulary(): Promise<[string, number][]> {
+  "use cache";
+  catalogCache();
+  const rows = await db.execute<{ word: string; n: number }>(sql`
+    SELECT word, count(*)::int AS n
+    FROM ${families}, regexp_split_to_table(lower(${families.title}), '[^a-z0-9]+') AS word
+    WHERE ${families.status} = 'published' AND ${families.missingSince} IS NULL AND length(word) >= 3 AND word ~ '^[a-z]+$'
+    GROUP BY word`);
+  return rows.rows.map((r) => [r.word, r.n]);
+}
+
+/** The search with its typos fixed, when the catalog knows a close word, else null. */
+async function corrected(q: string): Promise<string | null> {
+  return correctQuery(q, new Map(await titleVocabulary()));
+}
+
+/** Fewer hits than this, and a search with a typo fixed is tried as well. */
+const FEW_HITS = 3;
+
+/**
  * The few best matches for the search panel. When a family is a single part (one
  * SKU, even if several suppliers sell it), it carries the variant to add: the
- * cheapest one in stock. Then the panel can add it without opening the page.
+ * cheapest one in stock. A search that is a SKU carries that exact variant
+ * (`matchedVariant`), in any family. With fewer than 3 hits, a typo-fixed search
+ * ("krakn x60" → "kraken x60") is used when it finds more; `query` says what ran.
  */
 export async function quickSearch(q: string) {
   "use cache";
   catalogCache();
+  const [first, names] = await Promise.all([quickRows(q), supplierNames()]);
+  let rows = first;
+  let query = q;
+  if (rows.length < FEW_HITS) {
+    const fixed = await corrected(q);
+    const more = fixed ? await quickRows(fixed) : [];
+    if (fixed && more.length > rows.length) {
+      rows = more;
+      query = fixed;
+    }
+  }
+  return { query, rows: rows.map((r) => ({ ...r, supplierNames: r.supplierCodes.map((c) => names.get(c) ?? c) })) };
+}
+
+async function quickRows(q: string) {
   const filters: CatalogFilters = { q, category: "", supplier: "", program: "", availableOnly: false, sort: "relevance", page: 1, specs: {}, view: "grid" };
   const { where, order } = searchQuery(filters);
   const part = sql`coalesce(upper(${variants.supplierSku}), ${variants.id}::text)`;
   const fromFamily = sql`FROM ${variants} JOIN ${products} ON ${products.id} = ${variants.productId} WHERE ${orderable}`;
+  const sku = looksLikeSku(q) ? normalizeSku(q) : null;
 
-  const [rows, names] = await Promise.all([
-    db
-      .select({
-        id: families.id,
-        slug: families.slug,
-        title: families.title,
-        image: sql<string | null>`${families.images}[1]`,
-        minPriceUsd: families.minPriceUsd,
-        maxPriceUsd: families.maxPriceUsd,
-        available: families.available,
-        supplierCodes: families.supplierCodes,
-        variantCount: sql<number>`(SELECT count(DISTINCT ${part})::int ${fromFamily})`,
-        onlyVariant: sql<{ id: string; sku: string | null } | null>`(
-          SELECT CASE WHEN count(DISTINCT ${part}) = 1 THEN
-            (array_agg(json_build_object('id', ${variants.id}, 'sku', ${variants.supplierSku})
-              ORDER BY ${variants.available} IS TRUE DESC, ${variants.priceUsd} ASC))[1]
-          END ${fromFamily})`,
-      })
-      .from(families)
-      .leftJoin(categories, eq(categories.id, families.categoryId))
-      .where(where)
-      .orderBy(...order)
-      .limit(8),
-    supplierNames(),
-  ]);
-
-  return rows.map((r) => ({ ...r, supplierNames: r.supplierCodes.map((c) => names.get(c) ?? c) }));
+  return db
+    .select({
+      id: families.id,
+      slug: families.slug,
+      title: families.title,
+      image: sql<string | null>`${families.images}[1]`,
+      minPriceUsd: families.minPriceUsd,
+      maxPriceUsd: families.maxPriceUsd,
+      available: families.available,
+      optionKeys: families.optionKeys,
+      lastSeenAt: families.lastSeenAt,
+      supplierCodes: families.supplierCodes,
+      variantCount: sql<number>`(SELECT count(DISTINCT ${part})::int ${fromFamily})`,
+      onlyVariant: sql<{ id: string; sku: string | null } | null>`(
+        SELECT CASE WHEN count(DISTINCT ${part}) = 1 THEN
+          (array_agg(json_build_object('id', ${variants.id}, 'sku', ${variants.supplierSku})
+            ORDER BY ${variants.available} IS TRUE DESC, ${variants.priceUsd} ASC))[1]
+        END ${fromFamily})`,
+      matchedVariant: sku
+        ? sql<{ id: string; sku: string; priceUsd: string } | null>`(
+          SELECT json_build_object('id', ${variants.id}, 'sku', ${variants.supplierSku}, 'priceUsd', ${variants.priceUsd})
+          ${fromFamily} AND ${skuNorm} = ${sku}
+          ORDER BY ${variants.available} IS TRUE DESC, ${variants.priceUsd} ASC LIMIT 1)`
+        : sql<null>`NULL`,
+    })
+    .from(families)
+    .leftJoin(categories, eq(categories.id, families.categoryId))
+    .where(where)
+    .orderBy(...order)
+    .limit(8);
 }
 
-export type QuickResult = Awaited<ReturnType<typeof quickSearch>>[number];
+export type QuickResult = Awaited<ReturnType<typeof quickSearch>>["rows"][number];
 
 /** For the admin grouping page: how each supplier's SKUs grouped, and what was left for review. */
 export async function getGroupingReport() {

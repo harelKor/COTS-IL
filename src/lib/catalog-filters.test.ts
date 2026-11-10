@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { catalogHref, hasFilters, parseFilters, searchPatterns, toggleSpec } from "./catalog-filters";
+import { catalogHref, hasFilters, parseFilters, toggleSpec } from "./catalog-filters";
 
 describe("parseFilters", () => {
   it("reads valid values", () => {
@@ -83,19 +83,5 @@ describe("catalogHref", () => {
     const raw: Record<string, string | string[]> = {};
     for (const key of new Set(params.keys())) raw[key] = params.getAll(key);
     expect(parseFilters(raw).specs).toEqual({ bore: ['1/2" Hex', "8mm SplineXS"], teeth: ["36t"] });
-  });
-});
-
-describe("searchPatterns", () => {
-  it("makes one pattern per word", () => {
-    expect(searchPatterns("Hex  Gear")).toEqual(["%hex%", "%gear%"]);
-  });
-
-  it("escapes wildcards", () => {
-    expect(searchPatterns("100%_a\\b")).toEqual(["%100\\%\\_a\\\\b%"]);
-  });
-
-  it("returns nothing for an empty search", () => {
-    expect(searchPatterns("  ")).toEqual([]);
   });
 });

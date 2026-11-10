@@ -102,12 +102,3 @@ export function hasFilters(filters: CatalogFilters): boolean {
   return !!(filters.supplier || filters.program || filters.availableOnly || Object.keys(filters.specs).length > 0);
 }
 
-/** Turns a search into ILIKE patterns, one per word, with wildcards in the input taken literally. */
-export function searchPatterns(q: string): string[] {
-  return q
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 8)
-    .map((term) => `%${term.replace(/[\\%_]/g, "\\$&")}%`);
-}

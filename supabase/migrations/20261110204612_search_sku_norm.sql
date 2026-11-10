@@ -1,0 +1,1 @@
+CREATE INDEX "variants_sku_norm_idx" ON "variants" USING btree (regexp_replace(lower("supplier_sku"), '[^a-z0-9]', '', 'g'));

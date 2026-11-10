@@ -208,6 +208,22 @@ export function groupFamilies(input: GroupProduct[]): { families: FamilyDraft[];
     }
   }
 
+  // The same part under the same name at several suppliers, with no SKU in common
+  // (CTRE's "Battery Beak", WCP's "CTR Battery Beak"): flat, sizeless products, one per
+  // supplier, join one family. Two of one supplier's products with that name stay apart.
+  const byName = new Map<string, GroupProduct[]>();
+  for (const p of products) {
+    const parse = parsed.get(p.id);
+    if (!parse || Object.keys(parse.options).length > 0 || titleKey.has(p.id) || ownerOf(p.variants[0])) continue;
+    const name = sameName(p.title);
+    if (name) byName.set(name, [...(byName.get(name) ?? []), p]);
+  }
+  for (const members of byName.values()) {
+    const supplierCount = new Set(members.map((m) => m.supplierCode)).size;
+    if (supplierCount < 2 || supplierCount !== members.length) continue;
+    for (const p of members.slice(1)) uf.union(members[0].variants[0].id, p.variants[0].id);
+  }
+
   // Options and specs of a variant as its owner describes it.
   const ownOptions = (p: GroupProduct, v: GroupVariant): Record<string, string> => {
     const parse = parsed.get(p.id);
@@ -262,6 +278,17 @@ export function groupFamilies(input: GroupProduct[]): { families: FamilyDraft[];
   }
 
   return { families: assignSlugs(drafts), issues };
+}
+
+/** A product name without the maker in front or trademark signs: "CTR Battery Beak" → "battery beak". */
+export function sameName(title: string): string | null {
+  const name = title
+    .toLowerCase()
+    .replace(/[®™©]/g, "")
+    .replace(/^(the thrifty bot|thrifty bot|ttb|wcp|andymark|ctr electronics|ctre|ctr|rev robotics|rev)\s+/, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  return name.length >= 6 ? name : null;
 }
 
 /** Option names whose values differ, known ones first in their display order. */

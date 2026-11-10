@@ -47,6 +47,7 @@ describe("statusFor", () => {
     expect(statusFor(product("Old", null, ["Discontinued"]), true)).toBe("hidden");
     expect(statusFor(product("Set", "FIRST® LEGO League"), true)).toBe("hidden");
     expect(statusFor(product("Gift Card"), true)).toBe("hidden");
+    expect(statusFor(product("Ships from Sydney - Battery Beak"), true)).toBe("hidden");
   });
 
   it("sends unpriced products to review", () => {

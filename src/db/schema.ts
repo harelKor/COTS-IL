@@ -190,6 +190,8 @@ export const variants = pgTable(
     index("variants_family_id_idx").on(t.familyId),
     // The search panel puts an exact SKU first (quickSearch in src/lib/catalog.ts).
     index("variants_lower_sku_idx").on(sql`lower(${t.supplierSku})`),
+    // Search by SKU in any spelling ("wcp0749", "WCP 0749"): letters and digits only (textMatch in src/lib/catalog.ts).
+    index("variants_sku_norm_idx").on(sql`regexp_replace(lower(${t.supplierSku}), '[^a-z0-9]', '', 'g')`),
   ],
 );
 

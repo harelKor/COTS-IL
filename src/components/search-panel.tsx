@@ -1,16 +1,26 @@
 "use client";
 
-import { Plus, Search, X } from "lucide-react";
+import { ChevronDown, Clock, Plus, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { SearchResponse, SearchResult } from "@/app/api/search/route";
 import { formatIls } from "@/domain/pricing";
 import { catalogHref } from "@/lib/catalog-filters";
+import type { CardFamily } from "@/lib/catalog";
 import { shopifyImage } from "@/lib/images";
 import { normalizeSearch, parseQuickQuery } from "@/lib/quick-query";
+import { SEARCH_CATEGORIES, SEARCH_EXAMPLES } from "@/lib/search-examples";
 import { addToCartNow } from "./cart-actions";
 import { canEditCart, useCart } from "./cart-store";
+import { CategoryIcon } from "./category-icon";
+import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
 import { showToast } from "./toast";
 
@@ -19,34 +29,118 @@ export const openSearch = () => window.dispatchEvent(new Event("search:open"));
 
 /** Typing in a field shouldn't open the panel when "/" is pressed. */
 function isEditable(target: EventTarget | null) {
-  return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+  );
+}
+
+const RECENT_KEY = "search:recent";
+const MAX_RECENT = 5;
+
+/** The last searches on this device, newest first. Private windows can refuse storage. */
+function readRecent(): string[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+    return Array.isArray(list)
+      ? list
+          .filter((x): x is string => typeof x === "string")
+          .slice(0, MAX_RECENT)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecent(q: string) {
+  const text = q.trim();
+  if (text.length < 2) return;
+  try {
+    const next = [
+      text,
+      ...readRecent().filter((x) => x.toLowerCase() !== text.toLowerCase()),
+    ].slice(0, MAX_RECENT);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    // Not saved; nothing else depends on it.
+  }
+}
+
+const noSubscribe = () => () => {};
+/** "⌘K" on a Mac, "Ctrl K" elsewhere (and while prerendering). */
+const shortcutLabel = () =>
+  /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl K";
+const serverShortcut = () => "Ctrl K";
+
+/** A search row as a catalog card, so a part with options can be chosen and added from the panel. */
+function asCard(r: SearchResult): CardFamily {
+  const slug = decodeURIComponent(r.href.split("?")[0].split("/").pop() ?? "");
+  return {
+    id: r.id,
+    slug,
+    title: r.title,
+    image: r.image,
+    supplierNames: r.supplierName.split(", "),
+    minPriceIls: r.priceIls,
+    maxPriceIls: r.maxPriceIls,
+    available: r.available,
+    checkedAt: r.checkedAt,
+    variantCount: r.variantCount,
+    optionKeys: r.optionKeys,
+    orderable: r.variantCount > 0,
+    onlyVariant: null,
+  };
 }
 
 /**
  * Spotlight-style search: "/" or Ctrl/⌘K anywhere opens it, results come while
- * typing, and "+" (or Enter) adds a single-variant part to the cart without
- * leaving the page. A trailing "x4" sets the quantity.
+ * typing, and "+" adds a single part to the cart without leaving the page; a part
+ * with options opens its chips on the row. A trailing "x4" sets the quantity.
+ * Enter opens "all results" unless a row was picked with the arrows or the mouse.
  */
 export function SearchPanel() {
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { mode } = useCart();
+  const shortcut = useSyncExternalStore(
+    noSubscribe,
+    shortcutLabel,
+    serverShortcut,
+  );
   const [text, setText] = useState("");
-  // Results are kept with the text they answer, so stale ones never show.
-  const [found, setFound] = useState<{ text: string } & SearchResponse>({ text: "", results: [], qty: 1 });
-  const [active, setActive] = useState(0);
+  // Results are kept with the text they answer: while the next ones load, these stay, dimmed.
+  const [found, setFound] = useState<{ text: string } & SearchResponse>({
+    text: "",
+    results: [],
+    q: "",
+    qty: 1,
+    corrected: null,
+  });
+  // The row the user picked with the arrows or the mouse; null until they do.
+  const [active, setActive] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [recent, setRecent] = useState<string[]>([]);
   const listId = useId();
 
   const { q, text: query } = parseQuickQuery(text);
   const ready = found.text === query;
-  const results = q.length >= 2 && ready ? found.results : [];
-  const qty = ready ? found.qty : parseQuickQuery(text).qty;
+  const results = q.length >= 2 ? found.results : [];
+  // The server knows "Kraken X60" is a name, not 60 of something: until it answers, no quantity.
+  const qty = ready ? found.qty : 1;
+  const searchText = ready && found.q ? found.q : q;
   const searching = q.length >= 2 && !ready;
   const canAdd = canEditCart(mode);
 
   function open() {
     if (dialog.current?.open) return;
+    setRecent(readRecent());
+    // On the catalog, the panel starts from the search already shown.
+    if (window.location.pathname === "/catalog") {
+      const current = new URLSearchParams(window.location.search).get("q");
+      if (current) setText((t) => t || current);
+    }
     dialog.current?.showModal();
     input.current?.select();
   }
@@ -79,12 +173,17 @@ export function SearchPanel() {
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(normalizeSearch(query))}`, { signal: controller.signal });
+        const response = await fetch(
+          `/api/search?q=${encodeURIComponent(normalizeSearch(query))}`,
+          { signal: controller.signal },
+        );
         const body = (await response.json()) as SearchResponse;
         setFound({ text: query, ...body });
-        setActive(0);
+        setActive(null);
+        setExpanded(null);
       } catch (error) {
-        if ((error as Error).name !== "AbortError") setFound({ text: query, results: [], qty: 1 });
+        if ((error as Error).name !== "AbortError")
+          setFound({ text: query, results: [], q, qty: 1, corrected: null });
       }
     }, 120);
     return () => {
@@ -95,6 +194,7 @@ export function SearchPanel() {
 
   function add(result: SearchResult) {
     if (!result.variantId) return;
+    saveRecent(text);
     addToCartNow(
       {
         variantId: result.variantId,
@@ -112,6 +212,7 @@ export function SearchPanel() {
   }
 
   function go(href: string) {
+    saveRecent(text);
     close();
     router.push(href);
   }
@@ -121,26 +222,24 @@ export function SearchPanel() {
     if (e.key === "Escape") {
       e.preventDefault();
       close();
-    } else if (e.key === "ArrowDown") {
+    } else if (e.key === "ArrowDown" && ready && results.length > 0) {
       e.preventDefault();
-      setActive((i) => Math.min(i + 1, results.length - 1));
-    } else if (e.key === "ArrowUp") {
+      setActive((i) => (i === null ? 0 : Math.min(i + 1, results.length - 1)));
+    } else if (e.key === "ArrowUp" && ready && results.length > 0) {
       e.preventDefault();
-      setActive((i) => Math.max(i - 1, 0));
+      setActive((i) => (i === null || i === 0 ? null : i - 1));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const result = results[active];
-      if (!result) {
-        if (q) go(catalogHref({ q }));
-      } else if (canAdd && result.variantId) {
-        add(result);
-      } else {
-        go(result.href);
-      }
+      // Only a row the user picked, and only once the results are for what's typed.
+      const picked = ready && active !== null ? results[active] : undefined;
+      if (picked) go(picked.href);
+      else if (q.length >= 2) go(catalogHref({ q: searchText }));
     }
   }
 
   const optionId = (i: number) => `${listId}-${i}`;
+  const chip =
+    "flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-caption hover:bg-subtle";
 
   return (
     <>
@@ -150,10 +249,20 @@ export function SearchPanel() {
         aria-label="חיפוש מוצר או מק״ט"
         className="flex size-11 items-center justify-center gap-2 rounded-full border border-line bg-white/90 shadow-2xs hover:bg-subtle text-muted transition-colors hover:text-foreground sm:h-11 sm:w-full sm:max-w-md sm:justify-start sm:px-4 sm:text-caption"
       >
-        <Search size={16} strokeWidth={1.75} aria-hidden className="max-sm:size-5" />
-        <span className="hidden flex-1 truncate text-start sm:block">חיפוש מוצר או מק״ט</span>
-        <kbd className="hidden font-sans text-[11px] text-muted sm:inline" dir="ltr">
-          Ctrl K
+        <Search
+          size={16}
+          strokeWidth={1.75}
+          aria-hidden
+          className="max-sm:size-5"
+        />
+        <span className="hidden flex-1 truncate text-start sm:block">
+          חיפוש מוצר או מק״ט
+        </span>
+        <kbd
+          className="hidden font-sans text-[11px] text-muted sm:inline"
+          dir="ltr"
+        >
+          {shortcut}
         </kbd>
       </button>
 
@@ -165,7 +274,12 @@ export function SearchPanel() {
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center gap-3 border-b border-line px-4">
-            <Search size={20} strokeWidth={1.75} className="shrink-0 text-muted" aria-hidden />
+            <Search
+              size={20}
+              strokeWidth={1.75}
+              className="shrink-0 text-muted"
+              aria-hidden
+            />
             <input
               ref={input}
               type="search"
@@ -177,8 +291,13 @@ export function SearchPanel() {
               role="combobox"
               aria-expanded={results.length > 0}
               aria-controls={listId}
-              aria-activedescendant={results[active] ? optionId(active) : undefined}
+              aria-activedescendant={
+                active !== null && results[active]
+                  ? optionId(active)
+                  : undefined
+              }
               autoComplete="off"
+              enterKeyHint="search"
               className="h-14 min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-muted [&::-webkit-search-cancel-button]:hidden"
             />
             {qty > 1 && (
@@ -196,67 +315,199 @@ export function SearchPanel() {
             </button>
           </div>
 
-          <ul id={listId} role="listbox" aria-label="תוצאות" className="flex-1 overflow-y-auto p-2">
-            {results.map((r, i) => (
-              <li
-                key={r.id}
-                id={optionId(i)}
-                role="option"
-                aria-selected={i === active}
-                onMouseMove={() => setActive(i)}
-                className={`flex items-center gap-3 rounded-xl p-2 ${i === active ? "bg-subtle" : ""}`}
-              >
-                <Link href={r.href} onClick={close} className="flex min-w-0 flex-1 items-center gap-3">
-                  <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-tile">
-                    {r.image && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img {...shopifyImage(r.image, 56)} loading="lazy" alt={r.title} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <Ltr className="block truncate text-start text-[15px] font-medium">{r.title}</Ltr>
-                    <span className="block truncate text-caption text-muted">
-                      <Ltr>{r.supplierName}</Ltr>
-                      {r.sku && (
-                        <>
-                          {", "}
-                          <Ltr className="font-mono">{r.sku}</Ltr>
-                        </>
-                      )}
-                      {r.variantCount > 1 && `, ${r.variantCount} אפשרויות`}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[15px] font-semibold">
-                    {r.priceIls === null ? (
-                      <span className="text-caption font-normal text-muted">ייבדק בהצעה</span>
-                    ) : (
-                      <>
-                        {r.fromPrice && <span className="text-caption font-normal text-muted">החל מ-</span>}
-                        <span>{formatIls(r.priceIls)}</span>
-                      </>
-                    )}
-                  </span>
-                </Link>
-                {canAdd && r.variantId && (
-                  <button
-                    type="button"
-                    onClick={() => add(r)}
-                    aria-label={`הוספה לסל: ${r.title}`}
-                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform active:scale-90"
+          {q.length < 2 ? (
+            <div className="flex-1 overflow-y-auto p-4">
+              {recent.length > 0 && (
+                <section className="mb-5">
+                  <h2 className="mb-2 text-caption text-muted">
+                    חיפושים אחרונים
+                  </h2>
+                  <ul className="flex flex-wrap gap-2">
+                    {recent.map((r) => (
+                      <li key={r}>
+                        <button
+                          type="button"
+                          onClick={() => setText(r)}
+                          className={chip}
+                        >
+                          <Clock size={14} aria-hidden className="text-muted" />
+                          <Ltr>{r}</Ltr>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              <section className="mb-5">
+                <h2 className="mb-2 text-caption text-muted">לדוגמה</h2>
+                <ul className="flex flex-wrap gap-2">
+                  {SEARCH_EXAMPLES.map((r) => (
+                    <li key={r}>
+                      <button
+                        type="button"
+                        onClick={() => setText(r)}
+                        className={chip}
+                      >
+                        <Ltr>{r}</Ltr>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+              <section>
+                <h2 className="mb-2 text-caption text-muted">קטגוריות</h2>
+                <ul className="grid gap-1 sm:grid-cols-2">
+                  {SEARCH_CATEGORIES.map((c) => (
+                    <li key={c.slug}>
+                      <Link
+                        href={catalogHref({ category: c.slug })}
+                        onClick={close}
+                        className="flex min-h-11 items-center gap-3 rounded-xl p-1 hover:bg-subtle"
+                      >
+                        <CategoryIcon slug={c.slug} />
+                        <span className="text-[15px]">{c.name}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+          ) : (
+            <ul
+              id={listId}
+              role="listbox"
+              aria-label="תוצאות"
+              aria-busy={searching}
+              className={`flex-1 overflow-y-auto p-2 transition-opacity duration-200 ${searching ? "opacity-50" : ""}`}
+            >
+              {results.map((r, i) => {
+                const choosable =
+                  !r.variantId && r.optionKeys.length > 0 && r.variantCount > 1;
+                return (
+                  <li
+                    key={r.id}
+                    id={optionId(i)}
+                    role="option"
+                    aria-selected={i === active}
+                    onMouseMove={() => ready && setActive(i)}
+                    className={`rounded-xl p-2 ${i === active ? "bg-subtle" : ""}`}
                   >
-                    <Plus size={20} strokeWidth={2} aria-hidden />
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+                    <div className="flex items-center gap-3">
+                      <Link
+                        href={r.href}
+                        onClick={() => {
+                          saveRecent(text);
+                          close();
+                        }}
+                        className="flex min-w-0 flex-1 items-center gap-3"
+                      >
+                        <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-tile">
+                          {r.image && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              {...shopifyImage(r.image, 56)}
+                              loading="lazy"
+                              alt={r.title}
+                              referrerPolicy="no-referrer"
+                              className="size-full object-contain mix-blend-multiply"
+                            />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <Ltr className="block truncate text-start text-[15px] font-medium">
+                            {r.title}
+                          </Ltr>
+                          <span className="block truncate text-caption text-muted">
+                            <Ltr>{r.supplierName}</Ltr>
+                            {r.sku && (
+                              <>
+                                {", "}
+                                <Ltr className="font-mono">{r.sku}</Ltr>
+                              </>
+                            )}
+                            {r.variantCount > 1 &&
+                              `, ${r.variantCount} אפשרויות`}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-[15px] font-semibold">
+                          {r.priceIls === null ? (
+                            <span className="text-caption font-normal text-muted">
+                              ייבדק בהצעה
+                            </span>
+                          ) : (
+                            <>
+                              {r.fromPrice && (
+                                <span className="text-caption font-normal text-muted">
+                                  החל מ-
+                                </span>
+                              )}
+                              <span>{formatIls(r.priceIls)}</span>
+                            </>
+                          )}
+                        </span>
+                      </Link>
+                      {canAdd && r.variantId && (
+                        <button
+                          type="button"
+                          onClick={() => add(r)}
+                          aria-label={`הוספה לסל: ${r.title}`}
+                          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform active:scale-90"
+                        >
+                          <Plus size={20} strokeWidth={2} aria-hidden />
+                        </button>
+                      )}
+                      {canAdd && choosable && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpanded((id) => (id === r.id ? null : r.id))
+                          }
+                          aria-expanded={expanded === r.id}
+                          aria-label={`בחירת אפשרויות: ${r.title}`}
+                          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-white text-brand hover:bg-subtle"
+                        >
+                          <ChevronDown
+                            size={20}
+                            aria-hidden
+                            className={`transition-transform ${expanded === r.id ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                      )}
+                    </div>
+                    {expanded === r.id && (
+                      <div className="mt-2">
+                        <FamilyCard family={asCard(r)} layout="row" />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
           {q.length >= 2 && (
             <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3 text-caption text-muted">
               <span aria-live="polite">
-                {searching ? "מחפש…" : results.length === 0 ? "לא נמצאו מוצרים" : "חיצים לבחירה, Enter להוספה"}
+                {searching && results.length === 0 ? (
+                  "מחפש…"
+                ) : ready && results.length === 0 ? (
+                  "לא נמצאו מוצרים"
+                ) : ready && found.corrected ? (
+                  <>
+                    תוצאות עבור <Ltr>{found.corrected}</Ltr>
+                  </>
+                ) : (
+                  "חיצים לבחירה, Enter לכל התוצאות"
+                )}
               </span>
-              <Link href={catalogHref({ q })} onClick={close} className="text-brand hover:underline">
+              <Link
+                href={catalogHref({ q: searchText })}
+                onClick={() => {
+                  saveRecent(text);
+                  close();
+                }}
+                className="flex min-h-11 items-center text-brand hover:underline"
+              >
                 כל התוצאות
               </Link>
             </div>

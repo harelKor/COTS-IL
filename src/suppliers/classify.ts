@@ -49,5 +49,7 @@ export function statusFor(input: Input, hasPrice: boolean): ProductStatus {
   const text = searchable(input);
   if (input.tags.some((t) => t.toLowerCase() === "discontinued")) return "hidden";
   if (/lego league|gift card/.test(text)) return "hidden";
+  // AndyMark lists its Australian stock again as "Ships from Sydney - …", with its own SKUs (am-0995AUS).
+  if (/^ships from sydney -/i.test(input.title)) return "hidden";
   return hasPrice ? "published" : "review";
 }
