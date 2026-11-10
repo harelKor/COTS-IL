@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { maxMerge } from "@/domain/cart";
 
 /**
  * What the viewer can do with a cart. "guest" keeps one in the browser until
@@ -39,7 +40,15 @@ export type CartTeam = {
   status: "pending" | "active" | "rejected" | "suspended";
 };
 
-export type CartState = { mode: CartMode; lines: CartSheetLine[]; team?: CartTeam; checkout?: Checkout; googleSignIn?: boolean };
+export type CartState = {
+  mode: CartMode;
+  lines: CartSheetLine[];
+  team?: CartTeam;
+  checkout?: Checkout;
+  googleSignIn?: boolean;
+  /** Parts from the cart built before sign-in that couldn't join the team's cart. */
+  mergeSkipped?: string[];
+};
 
 /**
  * The team's cart lives in the database. The server sends it with every render
@@ -110,9 +119,34 @@ export const writeEnded = () => void (pendingWrites = Math.max(0, pendingWrites 
 
 /** Replaces the cart with what the server rendered. A guest's lines come from the browser. */
 export function syncCart(next: CartState) {
-  if (isLocal(next.mode)) set({ ...next, lines: readGuestCart() });
-  else if (pendingWrites > 0 && next.mode === state.mode) set({ ...next, lines: state.lines });
-  else set(next);
+  const keep = { mergeSkipped: state.mergeSkipped };
+  if (isLocal(next.mode)) set({ ...next, ...keep, lines: readGuestCart() });
+  else if (pendingWrites > 0 && next.mode === state.mode) set({ ...next, ...keep, lines: state.lines });
+  else set({ ...next, ...keep });
+}
+
+/** Replaces every line with the server's (after a merge). */
+export function replaceLines(lines: CartSheetLine[]) {
+  set({ ...state, lines });
+}
+
+export function setMergeSkipped(titles: string[] | undefined) {
+  set({ ...state, mergeSkipped: titles?.length ? titles : undefined });
+}
+
+/**
+ * A shared cart in a guest's browser cart: each part ends at the larger of the
+ * two quantities (maxMerge), never the sum. Returns how many lines changed.
+ */
+export function mergeLocal(incoming: (Omit<CartSheetLine, "qty"> & { qty: number })[]): number {
+  const changes = maxMerge(state.lines, incoming);
+  const byId = new Map(changes.map((c) => [c.variantId, c.qty]));
+  const lines = state.lines.map((l) => (byId.has(l.variantId) ? { ...l, qty: byId.get(l.variantId)! } : l));
+  for (const line of incoming) {
+    if (byId.has(line.variantId) && !state.lines.some((l) => l.variantId === line.variantId)) lines.push({ ...line, qty: byId.get(line.variantId)! });
+  }
+  set({ ...state, lines });
+  return changes.length;
 }
 
 /** Puts the server's copy of one line in place (after a write), or takes it out when `line` is null. */

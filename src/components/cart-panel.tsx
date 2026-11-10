@@ -11,7 +11,7 @@ import { groupBySupplier } from "@/domain/cart";
 import { encodeCart } from "@/domain/cart-share";
 import { formatIls } from "@/domain/pricing";
 import { removeNow } from "./cart-actions";
-import { cartTotals, markBlocked, useCart, type CartSheetLine, type Checkout } from "./cart-store";
+import { cartTotals, markBlocked, setMergeSkipped, useCart, type CartSheetLine, type Checkout } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
 import { showToast } from "./toast";
@@ -343,6 +343,21 @@ export function TeamStep() {
   );
 }
 
+/** Parts from the cart built before sign-in that couldn't join the team's cart, named until dismissed. */
+function MergeSkipped({ titles }: { titles?: string[] }) {
+  if (!titles?.length) return null;
+  return (
+    <div role="status" className="flex items-start justify-between gap-2 rounded-xl bg-warning/10 p-3 text-caption">
+      <span>
+        מהסל שבניתם לפני הכניסה לא נוספו, כי כבר לא ניתן להזמין אותם: <Ltr>{titles.join(", ")}</Ltr>
+      </span>
+      <button type="button" onClick={() => setMergeSkipped(undefined)} className="-m-2 flex min-h-11 shrink-0 items-center px-2 font-medium text-brand">
+        הבנתי
+      </button>
+    </div>
+  );
+}
+
 /**
  * Pinned to the bottom of the sheet (or page): total, one status line and the
  * primary action, so Send is in reach however long the cart is. Its height is
@@ -415,6 +430,7 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
   if (lines.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
+        <MergeSkipped titles={cart.mergeSkipped} />
         <p className="text-section font-semibold">הסל ריק</p>
         <Link
           href="/catalog"
@@ -437,6 +453,7 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex flex-1 flex-col gap-4 pb-4">
+        <MergeSkipped titles={cart.mergeSkipped} />
         {groupBySupplier(lines).map((group) => (
           <section key={group.supplierName} aria-label={group.supplierName}>
             <h3 className="pt-2 text-caption font-semibold text-muted">

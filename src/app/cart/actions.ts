@@ -1,12 +1,12 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import type { SharedLine } from "@/domain/cart-share";
-import { isOrderable } from "@/domain/cart";
+import { MAX_SHARED_LINES, type SharedLine } from "@/domain/cart-share";
+import { isOrderable, maxMerge } from "@/domain/cart";
 import { DEFAULT_MULTIPLIER, priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam, type Viewer } from "@/lib/auth";
 import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
@@ -220,16 +220,47 @@ async function createOrder(viewer: Viewer, team: Team, input: Delivery): Promise
   });
 }
 
-/** A guest's cart, kept in the browser until sign-in, joins the team's cart. */
-export async function mergeCart(lines: SharedLine[]): Promise<{ added: number }> {
+export type MergeResult = { added: number; skipped: string[]; lines?: CartSheetLine[]; error?: string };
+
+/**
+ * Lines from elsewhere (a guest's cart at sign-in, a shared-cart link) join the
+ * team's cart. Each part ends at the larger of the two quantities, never the
+ * sum, so a link opened twice or a merge retried doesn't double anything. One
+ * upsert in one transaction. Answers with the whole cart and the titles of
+ * parts that can't be ordered any more.
+ */
+export async function mergeCart(lines: SharedLine[]): Promise<MergeResult> {
   const { viewer, team } = await requireOrderingTeam();
-  let added = 0;
-  for (const line of lines.slice(0, 100)) {
-    const parsed = z.object({ variantId: z.uuid(), qty }).safeParse(line);
-    if (parsed.success && !(await addLine(team.id, viewer.id, parsed.data.variantId, parsed.data.qty))) added++;
-  }
-  refresh();
-  return { added };
+  const parsed = z.array(z.object({ variantId: z.uuid(), qty })).max(MAX_SHARED_LINES).safeParse(lines);
+  if (!parsed.success) return { added: 0, skipped: [], error: "הסל לא תקין" };
+  const wanted = maxMerge([], parsed.data);
+  if (wanted.length === 0) return { added: 0, skipped: [], lines: (await getCart(team.id)).map(toSheetLine) };
+  const ids = wanted.map((l) => l.variantId);
+
+  const { added, skipped } = await db.transaction(async (tx) => {
+    const parts = await tx
+      .select({ id: variants.id, title: products.title, priceUsd: variants.priceUsd, variantMissing: variants.missingSince, status: products.status, productMissing: products.missingSince })
+      .from(variants)
+      .innerJoin(products, eq(products.id, variants.productId))
+      .where(inArray(variants.id, ids));
+    const orderable = new Set(parts.filter((p) => isOrderable({ ...p, productStatus: p.status })).map((p) => p.id));
+    const skipped = ids.filter((id) => !orderable.has(id)).map((id) => parts.find((p) => p.id === id)?.title ?? "פריט שכבר לא בקטלוג");
+
+    const own = await tx
+      .select({ variantId: cartItems.variantId, qty: cartItems.qty })
+      .from(cartItems)
+      .where(and(eq(cartItems.teamId, team.id), inArray(cartItems.variantId, ids)))
+      .for("update");
+    const changes = maxMerge(own, wanted.filter((l) => orderable.has(l.variantId)));
+    if (changes.length > 0) {
+      await tx
+        .insert(cartItems)
+        .values(changes.map((l) => ({ teamId: team.id, variantId: l.variantId, qty: l.qty, addedBy: viewer.id })))
+        .onConflictDoUpdate({ target: [cartItems.teamId, cartItems.variantId], set: { qty: sql`GREATEST(${cartItems.qty}, excluded.qty)` } });
+    }
+    return { added: changes.length, skipped };
+  });
+  return { added, skipped, lines: (await getCart(team.id)).map(toSheetLine) };
 }
 
 /** Adds an earlier order's parts to the cart again, skipping any that can't be ordered now. */
