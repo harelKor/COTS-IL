@@ -1,17 +1,21 @@
 "use client";
 
 import { Copy, MessageCircle } from "lucide-react";
+import { Ltr } from "@/components/ltr";
 import { showToast } from "@/components/toast";
 
-export type MentorLink = { userId: string; name: string; url: string; whatsappUrl: string };
+export type MemberLink = { userId: string; name: string | null; email: string; url: string; whatsappUrl: string };
 
-/** For each mentor: the quote in WhatsApp, ready to send, or the approval link to copy. */
-export function ApproveLinks({ mentors }: { mentors: MentorLink[] }) {
+/** For each of the team's sign-in emails: the quote in WhatsApp, ready to send, or the approval link to copy. */
+export function ApproveLinks({ members }: { members: MemberLink[] }) {
   return (
     <ul className="flex flex-col gap-2">
-      {mentors.map((m) => (
+      {members.map((m) => (
         <li key={m.userId} className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm">{m.name}</span>
+          <span className="flex min-w-0 flex-col text-sm">
+            {m.name && <span>{m.name}</span>}
+            <span className="break-all text-muted"><Ltr>{m.email}</Ltr></span>
+          </span>
           <span className="flex gap-2">
             <a
               href={m.whatsappUrl}

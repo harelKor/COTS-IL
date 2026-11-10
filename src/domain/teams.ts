@@ -1,21 +1,6 @@
-import type { TeamRole } from "./orders";
-
-export const ROLE_LABELS: Record<TeamRole, string> = {
-  team_admin: "מנטור/ית",
-  buyer: "סטודנט/ית",
-  viewer: "צופה",
-};
-
-export const canManageTeam = (role: TeamRole) => role === "team_admin";
-
-/** Every team needs a team admin, since only they can approve quotes and manage members. */
-export function wouldLeaveNoAdmin(
-  members: { userId: string; role: TeamRole }[],
-  userId: string,
-  newRole: TeamRole | null,
-): boolean {
-  if (newRole === "team_admin") return false;
-  return !members.some((m) => m.role === "team_admin" && m.userId !== userId);
+/** A team can't remove its last sign-in email, or nobody could sign in for it. */
+export function wouldLeaveNoMembers(memberIds: string[], removedId: string): boolean {
+  return !memberIds.some((id) => id !== removedId);
 }
 
 export const INVITE_DAYS = 14;

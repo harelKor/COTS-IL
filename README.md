@@ -14,7 +14,7 @@ Requirements: Node 24+, Docker Desktop (running).
 npm install
 npm run supabase:start   # local Postgres + Auth + Mailpit in Docker (first run downloads images)
 npm run env:local        # writes .env.local from the running stack
-npm run seed             # mentor, two demo teams, six suppliers
+npm run seed             # admin, two demo teams, six suppliers
 npm run dev              # http://localhost:3000
 ```
 
@@ -23,8 +23,8 @@ Local services (on 544xx ports, so they never clash with another local Supabase 
 - Mailpit (catches sign-up / verification emails): http://127.0.0.1:54424
 
 Seeded logins (`*@beniadam.test`) all use `SEED_PASSWORD` from `.env.local`:
-- `mentor@beniadam.test`: admin
-- `frc1690@beniadam.test`: approved FRC team
+- `mentor@beniadam.test`: admin (the Israeli supplier)
+- `frc1690@beniadam.test` and `frc1690-2@beniadam.test`: two sign-in emails on the approved FRC team's account
 - `ftc20001@beniadam.test`: FTC team waiting for approval
 
 ## Database changes
@@ -74,14 +74,15 @@ The catalog lists families, not supplier products: one part in all its sizes, fr
 ## Ordering
 
 - Anyone can build a cart. A guest's cart is kept in the browser and joins the team's cart at sign-in.
-- The cart is a sheet (also at `/cart`) with one main action. A guest signs in there by email link (or Google, once it's enabled in Supabase) and creates the team if it's new. A mentor (`team_admin`) sends the quote request in one tap, with delivery and contact remembered from the last order. A student (`buyer`) passes the cart to the mentor.
+- The cart is a sheet (also at `/cart`) with one main action. A guest signs in there by email link (or Google, once it's enabled in Supabase) and creates the team if it's new. Anyone signed in to the team sends the quote request in one tap, with delivery and contact remembered from the last order.
+- One kind of team account (D11): there are no roles. Every sign-in email on a team can build the cart, send requests, approve or reject quotes, cancel, and manage the team's account. A team may use one shared email or several; they are equal. The audit log keeps who sent or approved.
 - A new team can send its first request while pending; the admin approves the team while reviewing it.
 - Carts can be shared as links (`/cart/shared?items=...`).
-- On the admin's order page, each mentor gets a WhatsApp button and a copyable link to the quote. The link (`/q/<token>`) shows the quote with one Approve button and no sign-in. It's signed with `QUOTE_LINK_SECRET`, tied to that quote version, and expires after 14 days.
+- On the admin's order page, each of the team's sign-in emails gets a WhatsApp button and a copyable link to the quote. The link (`/q/<token>`) shows the quote with one Approve button and no sign-in. It's signed with `QUOTE_LINK_SECRET`, tied to that quote version, and expires after 14 days.
 - Production env vars: `QUOTE_LINK_SECRET` (required for approval links), `TBA_KEY` (optional, fills in FRC team names).
 
 ## Teams, reports and backups
 
-- Team admins manage users and details at `/team`. An invitation is a link they send themselves, valid for the invited email for two weeks.
+- Anyone on an approved team manages its account at `/team` ("חשבון הקבוצה"): the team's details and its sign-in emails. Adding an email makes a link they send themselves, valid for that email for two weeks. The last email can't be removed.
 - `/admin/reports` covers sales, purchasing, import costs, turnaround and profit, with Excel export.
 - `.github/workflows/backup.yml` backs up the database nightly. It needs a `BACKUP_PASSPHRASE` repository secret. `docs/admin-guide.md` covers restoring, and is the guide for running the site.

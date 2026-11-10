@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 
 export type OrderStatus = "submitted" | "quote_sent" | "approved" | "rejected" | "cancelled";
-export type TeamRole = "team_admin" | "buyer" | "viewer";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   submitted: "ממתינה לבדיקת הספק הישראלי",
@@ -11,14 +10,12 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: "בוטלה",
 };
 
-/** Students (buyer) and mentors (team_admin) build the team's cart. */
-export const canOrder = (role: TeamRole) => role === "team_admin" || role === "buyer";
-/** Only a mentor sends the cart as a quote request, and only a mentor approves the quote. */
-export const canSendRequest = (role: TeamRole) => role === "team_admin";
-export const canApproveQuote = (role: TeamRole) => role === "team_admin";
-
 export type TeamStatus = "pending" | "active" | "rejected" | "suspended";
-/** A new team can send its first request before it's approved: the Israeli supplier reviews both together. */
+/**
+ * Everyone signed in to a team can do everything for it (D11): build the cart, send,
+ * approve, cancel and manage the team. The team's status is the only permission.
+ * A new team can send its first request before it's approved: the Israeli supplier reviews both together.
+ */
 export const teamCanOrder = (status: TeamStatus) => status === "active" || status === "pending";
 
 /** A quote can be changed even after approval, which sends the order back for a new approval. */

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { canApproveQuote, canCancelOrder, canDecideQuote, canOrder, quoteContentHash, teamCanOrder } from "@/domain/orders";
+import { canCancelOrder, canDecideQuote, quoteContentHash, teamCanOrder } from "@/domain/orders";
 import { getViewer } from "@/lib/auth";
 import { readApproveLink } from "@/lib/quote-links";
 
@@ -21,7 +21,7 @@ const decisionSchema = z.object({
 
 /**
  * The team's explicit answer to a quote. The form names the quote it showed, so
- * if the mentor sent a newer version in the meantime the answer doesn't count.
+ * if the Israeli supplier sent a newer version in the meantime the answer doesn't count.
  */
 export async function decideQuote(_prev: DecisionState, formData: FormData): Promise<DecisionState> {
   const viewer = await getViewer();
@@ -36,7 +36,7 @@ export async function decideQuote(_prev: DecisionState, formData: FormData): Pro
 
     const [order] = await tx.select().from(teamOrders).where(eq(teamOrders.id, quote.orderId)).for("update");
     const membership = viewer.teams.find((t) => t.id === order.teamId && teamCanOrder(t.status));
-    if (!membership || !canApproveQuote(membership.role)) return { error: "רק המנטור/ית של הקבוצה יכול/ה לאשר או לדחות הצעה" };
+    if (!membership) return { error: "רק מי שמחובר/ת לחשבון הקבוצה יכול/ה לאשר או לדחות הצעה" };
 
     // Read again under the order's lock, in case a new version was sent while we waited for it.
     const [current] = await tx.select().from(quotes).where(eq(quotes.id, quoteId));
@@ -88,7 +88,7 @@ export async function cancelOrder(formData: FormData) {
   await db.transaction(async (tx) => {
     const [order] = await tx.select().from(teamOrders).where(eq(teamOrders.id, orderId)).for("update");
     const membership = order && viewer.teams.find((t) => t.id === order.teamId && teamCanOrder(t.status));
-    if (!membership || !canOrder(membership.role) || !canCancelOrder(order.status)) return;
+    if (!membership || !canCancelOrder(order.status)) return;
 
     await tx.update(teamOrders).set({ status: "cancelled" }).where(eq(teamOrders.id, orderId));
     await tx
@@ -113,7 +113,7 @@ export type LinkApprovalState = { approved?: boolean; error?: string };
 
 /**
  * Approval from a signed link, without signing in (docs/REDESIGN.md, click
- * budget). Recorded against the mentor the link was made for, and checked again
+ * budget). Recorded against the team member the link was made for, and checked again
  * under the order's lock so a quote resent meanwhile can't be approved by an old link.
  */
 export async function approveQuoteByLink(token: string): Promise<LinkApprovalState> {

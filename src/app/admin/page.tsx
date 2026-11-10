@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { Suspense } from "react";
 import { db, schema } from "@/db";
@@ -6,7 +6,7 @@ import { Button } from "@/components/form";
 import { formatDateTime } from "@/components/orders";
 import { isAvailabilityFresh } from "@/domain/reports";
 import { requireAdmin } from "@/lib/auth";
-import { countOrdersAwaitingMentor } from "@/lib/orders";
+import { countOrdersAwaitingReview } from "@/lib/orders";
 import { getSyncStatus } from "@/lib/reports";
 import { reviewTeam } from "./actions";
 import { Loading, PageSkeleton } from "@/components/skeleton";
@@ -57,18 +57,22 @@ async function SyncStatus() {
 async function TeamsTable() {
   await requireAdmin();
 
-  const rows = await db
-    .select({ team: schema.teams, email: schema.profiles.email })
-    .from(schema.teams)
-    .innerJoin(
-      schema.memberships,
-      and(eq(schema.memberships.teamId, schema.teams.id), eq(schema.memberships.role, "team_admin")),
-    )
-    .innerJoin(schema.profiles, eq(schema.profiles.id, schema.memberships.userId))
-    .orderBy(desc(schema.teams.createdAt));
+  const [teams, members] = await Promise.all([
+    db.select().from(schema.teams).orderBy(desc(schema.teams.createdAt)),
+    db
+      .select({ teamId: schema.memberships.teamId, email: schema.profiles.email })
+      .from(schema.memberships)
+      .innerJoin(schema.profiles, eq(schema.profiles.id, schema.memberships.userId))
+      .orderBy(asc(schema.memberships.createdAt)),
+  ]);
+  // Every sign-in email on a team is equal (D11), so the team shows all of them.
+  const rows = teams.map((team) => ({
+    team,
+    emails: members.filter((m) => m.teamId === team.id).map((m) => m.email),
+  }));
 
   const pending = rows.filter((r) => r.team.status === "pending");
-  const awaitingOrders = await countOrdersAwaitingMentor();
+  const awaitingOrders = await countOrdersAwaitingReview();
 
   return (
     <div className="flex flex-col gap-8">
@@ -107,7 +111,7 @@ async function TeamsTable() {
           <p className="text-muted">אין בקשות ממתינות.</p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {pending.map(({ team, email }) => (
+            {pending.map(({ team, emails }) => (
               <li key={team.id} className="rounded-lg border border-line bg-surface p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
@@ -115,8 +119,12 @@ async function TeamsTable() {
                       {team.name}, <span className="ltr">{`${team.program} ${team.number}`}</span>
                     </div>
                     <div className="text-sm text-muted">
-                      {team.contactName}, <span className="ltr">{team.contactPhone}</span>,{" "}
-                      <span className="ltr">{email}</span>
+                      {team.contactName}, <span className="ltr">{team.contactPhone}</span>
+                      {emails.map((email) => (
+                        <span key={email}>
+                          , <span className="ltr">{email}</span>
+                        </span>
+                      ))}
                     </div>
                     {team.address && <div className="text-sm text-muted">{team.address}</div>}
                   </div>
@@ -152,19 +160,23 @@ async function TeamsTable() {
               <tr>
                 <th className="px-4 py-2 text-start font-medium">קבוצה</th>
                 <th className="px-4 py-2 text-start font-medium">מספר</th>
-                <th className="px-4 py-2 text-start font-medium">איש קשר</th>
+                <th className="px-4 py-2 text-start font-medium">כתובות כניסה</th>
                 <th className="px-4 py-2 text-start font-medium">סטטוס</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ team, email }) => (
+              {rows.map(({ team, emails }) => (
                 <tr key={team.id} className="border-t border-line">
                   <td className="px-4 py-2">{team.name}</td>
                   <td className="px-4 py-2">
                     <span className="ltr">{`${team.program} ${team.number}`}</span>
                   </td>
                   <td className="px-4 py-2">
-                    <span className="ltr">{email}</span>
+                    {emails.map((email) => (
+                      <div key={email} className="ltr">
+                        {email}
+                      </div>
+                    ))}
                   </td>
                   <td className="px-4 py-2">
                     <span className={`rounded px-2 py-0.5 text-xs ${statusLabels[team.status].className}`}>

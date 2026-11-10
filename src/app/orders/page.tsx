@@ -6,7 +6,6 @@ import { StageBadge } from "@/components/order-timeline";
 import { formatDateTime } from "@/components/orders";
 import { ReorderButton } from "@/components/reorder-button";
 import { formatIls } from "@/domain/pricing";
-import { canOrder } from "@/domain/orders";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { getOrderStages, listOrders } from "@/lib/orders";
 import { Loading, PageSkeleton } from "@/components/skeleton";
@@ -49,7 +48,7 @@ async function Orders() {
               <StageBadge stage={stages.get(order.id)!} />
             </div>
           </Link>
-          {canOrder(team.role) && <ReorderButton orderId={order.id} />}
+          <ReorderButton orderId={order.id} />
         </li>
       ))}
     </ul>

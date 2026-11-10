@@ -8,7 +8,7 @@ import { PrintButton } from "@/components/print-button";
 import { OrderTimeline } from "@/components/order-timeline";
 import { ReorderButton } from "@/components/reorder-button";
 import { orderStage } from "@/domain/order-stage";
-import { canApproveQuote, canCancelOrder, canDecideQuote, canOrder, teamCanOrder } from "@/domain/orders";
+import { canCancelOrder, canDecideQuote, teamCanOrder } from "@/domain/orders";
 import { getViewer } from "@/lib/auth";
 import { getOrderForViewer } from "@/lib/orders";
 import { cancelOrder } from "../actions";
@@ -27,7 +27,8 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
 
   const { order, team, membership, items, quotes, progress, deliveries } = result;
   const [latest, previous] = quotes;
-  const role = membership && teamCanOrder(membership.status) ? membership.role : null;
+  // Anyone signed in to the team can approve, reorder and cancel (D11).
+  const onTeam = !!membership && teamCanOrder(membership.status);
   const stage = orderStage(order.status, [...progress.values()]);
   const stoppedAt = latest ? "quoted" : "requested";
   const waitingForDecision = latest?.status === "sent" && canDecideQuote(order.status);
@@ -88,10 +89,10 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           <QuoteTable quote={latest} previous={previous} items={items} progress={progress} />
           {latest.notes && <p className="whitespace-pre-wrap text-sm">הערות הספק הישראלי: {latest.notes}</p>}
           {waitingForDecision &&
-            (role && canApproveQuote(role) ? (
+            (onTeam ? (
               <QuoteDecision quoteId={latest.id} />
             ) : (
-              !viewer.isAdmin && <Alert tone="info">ההצעה ממתינה לאישור המנטור/ית של הקבוצה.</Alert>
+              !viewer.isAdmin && <Alert tone="info">ההצעה ממתינה לאישור הקבוצה.</Alert>
             ))}
         </section>
       ) : (
@@ -133,8 +134,8 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
         <Link href={viewer.isAdmin ? `/admin/orders/${order.id}` : "/orders"} className="text-sm text-brand hover:underline">
           {viewer.isAdmin ? "לניהול ההזמנה" : "לכל ההזמנות"}
         </Link>
-        {role && canOrder(role) && <ReorderButton orderId={order.id} />}
-        {role && canOrder(role) && canCancelOrder(order.status) && (
+        {onTeam && <ReorderButton orderId={order.id} />}
+        {onTeam && canCancelOrder(order.status) && (
           <form action={cancelOrder}>
             <input type="hidden" name="orderId" value={order.id} />
             <Button variant="ghost">ביטול ההזמנה</Button>

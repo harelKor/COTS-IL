@@ -13,7 +13,7 @@ async function PendingStatus() {
   if (!team) {
     return (
       <div className="flex flex-col gap-3">
-        <p className="text-muted">החשבון עוד לא משויך לקבוצה. קבוצה חדשה? צרו אותה כאן. הקבוצה כבר רשומה? בקשו מהמנטור/ית שלה הזמנה.</p>
+        <p className="text-muted">החשבון עוד לא משויך לקבוצה. קבוצה חדשה? צרו אותה כאן. הקבוצה כבר רשומה? בקשו ממי שרשם/ה אותה להוסיף את הכתובת שלכם.</p>
         <TeamStep />
       </div>
     );

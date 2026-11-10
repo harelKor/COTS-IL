@@ -1,8 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
- * A link that lets one mentor approve one version of one quote without signing
- * in. It names the quote, the mentor and the quote's content hash, and expires.
+ * A link that lets one team member (one sign-in email) approve one version of one
+ * quote without signing in. It names the quote, the member and the quote's content
+ * hash, and expires.
  * If the quote changes, its hash changes and the old link stops working.
  */
 export type QuoteLinkClaims = { quoteId: string; userId: string; contentHash: string; expiresAt: number };

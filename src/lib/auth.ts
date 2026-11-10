@@ -18,7 +18,6 @@ export type Viewer = {
     name: string;
     status: "pending" | "active" | "rejected" | "suspended";
     rejectionReason: string | null;
-    role: "team_admin" | "buyer" | "viewer";
   }[];
 };
 
@@ -36,7 +35,7 @@ export async function getViewer(): Promise<Viewer | null> {
   if (!profile) return null;
 
   const rows = await db
-    .select({ team: schema.teams, role: schema.memberships.role })
+    .select({ team: schema.teams })
     .from(schema.memberships)
     .innerJoin(schema.teams, eq(schema.teams.id, schema.memberships.teamId))
     .where(eq(schema.memberships.userId, profile.id));
@@ -46,14 +45,13 @@ export async function getViewer(): Promise<Viewer | null> {
     email: profile.email,
     fullName: profile.fullName,
     isAdmin: profile.isAdmin,
-    teams: rows.map(({ team, role }) => ({
+    teams: rows.map(({ team }) => ({
       id: team.id,
       program: team.program,
       number: team.number,
       name: team.name,
       status: team.status,
       rejectionReason: team.rejectionReason,
-      role,
     })),
   };
 }

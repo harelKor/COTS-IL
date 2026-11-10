@@ -6,20 +6,21 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { ActionState } from "@/components/action-form";
-import { canManageTeam, inviteExpiry, wouldLeaveNoAdmin } from "@/domain/teams";
+import { inviteExpiry, wouldLeaveNoMembers } from "@/domain/teams";
 import { activeTeam, getViewer } from "@/lib/auth";
 import { hashInviteToken, newInviteToken } from "@/lib/invitations";
 
 const { auditLog, memberships, profiles, teamInvitations, teams } = schema;
 
-const role = z.enum(["team_admin", "buyer", "viewer"]);
-
-/** Only an approved team's admin gets past this, checked on every action. */
-async function requireTeamAdmin() {
+/**
+ * Anyone signed in to an approved team manages its account (D11): details and
+ * sign-in emails. Checked on every action.
+ */
+async function requireTeamMember() {
   const viewer = await getViewer();
   if (!viewer) redirect("/login?next=/team");
   const team = activeTeam(viewer);
-  if (!team || !canManageTeam(team.role)) throw new Error("Only a team admin can do this");
+  if (!team) throw new Error("Only someone on an approved team can do this");
   return { viewer, team };
 }
 
@@ -27,24 +28,23 @@ export type InviteState = ActionState & { link?: string };
 
 const inviteSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),
-  role,
 });
 
 const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
-/** Creates an invitation and returns its link once. Only the hash is kept, so it can't be shown again. */
+/** Adds a sign-in email: creates an invitation and returns its link once. Only the hash is kept, so it can't be shown again. */
 export async function inviteMember(_prev: InviteState, formData: FormData): Promise<InviteState> {
-  const { viewer, team } = await requireTeamAdmin();
+  const { viewer, team } = await requireTeamMember();
   const parsed = inviteSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "נא למלא כתובת דוא״ל תקינה" };
-  const { email, role: inviteRole } = parsed.data;
+  const { email } = parsed.data;
 
   const [existing] = await db
     .select({ id: profiles.id })
     .from(memberships)
     .innerJoin(profiles, eq(profiles.id, memberships.userId))
     .where(and(eq(memberships.teamId, team.id), eq(profiles.email, email)));
-  if (existing) return { error: "המשתמש כבר חבר בקבוצה" };
+  if (existing) return { error: "הכתובת כבר בחשבון הקבוצה" };
 
   const token = newInviteToken();
   await db.transaction(async (tx) => {
@@ -65,7 +65,6 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
       .values({
         teamId: team.id,
         email,
-        role: inviteRole,
         tokenHash: hashInviteToken(token),
         invitedBy: viewer.id,
         expiresAt: inviteExpiry(new Date()),
@@ -76,7 +75,7 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
       entity: "team_invitation",
       entityId: invitation.id,
       action: "create",
-      after: { teamId: team.id, email, role: inviteRole },
+      after: { teamId: team.id, email },
     });
   });
 
@@ -85,7 +84,7 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
 }
 
 export async function revokeInvitation(formData: FormData) {
-  const { viewer, team } = await requireTeamAdmin();
+  const { viewer, team } = await requireTeamMember();
   const id = z.uuid().parse(formData.get("id"));
 
   await db.transaction(async (tx) => {
@@ -100,55 +99,45 @@ export async function revokeInvitation(formData: FormData) {
       entity: "team_invitation",
       entityId: id,
       action: "revoke",
-      before: { email: revoked.email, role: revoked.role },
+      before: { email: revoked.email },
     });
   });
   revalidatePath("/team");
 }
 
-async function changeMember(formData: FormData, newRole: "team_admin" | "buyer" | "viewer" | null): Promise<ActionState> {
-  const { viewer, team } = await requireTeamAdmin();
+/** Removes a sign-in email from the team's account. The last one stays, or nobody could sign in for the team. */
+export async function removeMember(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { viewer, team } = await requireTeamMember();
   const userId = z.uuid().safeParse(formData.get("userId"));
   if (!userId.success) return { error: "הבקשה לא תקינה" };
 
   const result = await db.transaction(async (tx): Promise<ActionState> => {
-    // Locks the team, so two admins can't each demote the other at the same moment.
+    // Locks the team, so two people can't each remove the other's email at the same moment.
     await tx.select({ id: teams.id }).from(teams).where(eq(teams.id, team.id)).for("update");
     const members = await tx
-      .select({ userId: memberships.userId, role: memberships.role })
+      .select({ userId: memberships.userId, email: profiles.email })
       .from(memberships)
+      .innerJoin(profiles, eq(profiles.id, memberships.userId))
       .where(eq(memberships.teamId, team.id));
     const member = members.find((m) => m.userId === userId.data);
-    if (!member) return { error: "המשתמש אינו חבר בקבוצה" };
-    if (wouldLeaveNoAdmin(members, userId.data, newRole)) return { error: "בקבוצה חייב להישאר לפחות מנהל אחד" };
+    if (!member) return { error: "הכתובת כבר לא בחשבון הקבוצה" };
+    if (wouldLeaveNoMembers(members.map((m) => m.userId), userId.data)) {
+      return { error: "זאת הכתובת האחרונה בחשבון הקבוצה. הוסיפו כתובת אחרת לפני שמסירים אותה." };
+    }
 
-    const where = and(eq(memberships.teamId, team.id), eq(memberships.userId, userId.data));
-    if (newRole) await tx.update(memberships).set({ role: newRole }).where(where);
-    else await tx.delete(memberships).where(where);
-
+    await tx.delete(memberships).where(and(eq(memberships.teamId, team.id), eq(memberships.userId, userId.data)));
     await tx.insert(auditLog).values({
       actorId: viewer.id,
       entity: "membership",
       entityId: `${team.id}:${userId.data}`,
-      action: newRole ? "change_role" : "remove",
-      before: { role: member.role },
-      after: newRole ? { role: newRole } : undefined,
+      action: "remove",
+      before: { email: member.email },
     });
     return {};
   });
 
   revalidatePath("/team");
   return result;
-}
-
-export async function setMemberRole(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = role.safeParse(formData.get("role"));
-  if (!parsed.success) return { error: "הרשאה לא תקינה" };
-  return changeMember(formData, parsed.data);
-}
-
-export async function removeMember(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  return changeMember(formData, null);
 }
 
 const detailsSchema = z.object({
@@ -160,7 +149,7 @@ const detailsSchema = z.object({
 });
 
 export async function updateTeamDetails(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const { viewer, team } = await requireTeamAdmin();
+  const { viewer, team } = await requireTeamMember();
   const parsed = detailsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "יש שדה לא תקין. בדקו את שם הקבוצה והדוא״ל." };
   const input = parsed.data;

@@ -18,6 +18,10 @@ import { authUsers } from "drizzle-orm/supabase";
 
 export const program = pgEnum("program", ["FRC", "FTC"]);
 export const teamStatus = pgEnum("team_status", ["pending", "active", "rejected", "suspended"]);
+/**
+ * Legacy (D11): there are no roles, everyone on a team can do everything. The code
+ * no longer reads `role`; new rows get the default. Dropped in a later cleanup (S0 step 7b).
+ */
 export const teamRole = pgEnum("team_role", ["team_admin", "buyer", "viewer"]);
 export const supplierPlatform = pgEnum("supplier_platform", ["shopify", "bigcommerce", "csv"]);
 export const productStatus = pgEnum("product_status", ["published", "review", "hidden"]);
@@ -74,7 +78,7 @@ export const memberships = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
-    role: teamRole("role").notNull(),
+    role: teamRole("role").notNull().default("team_admin"),
     createdAt,
   },
   (t) => [primaryKey({ columns: [t.teamId, t.userId] })],
@@ -397,7 +401,7 @@ export const quoteApprovals = pgTable("quote_approvals", {
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** An order the mentor places by hand on one supplier's site. */
+/** An order the Israeli supplier places by hand on one supplier's site. */
 export const supplierPos = pgTable(
   "supplier_pos",
   {
@@ -605,7 +609,7 @@ export const teamInvitations = pgTable(
       .notNull()
       .references(() => teams.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
-    role: teamRole("role").notNull(),
+    role: teamRole("role").notNull().default("team_admin"),
     tokenHash: text("token_hash").notNull().unique(),
     invitedBy: uuid("invited_by")
       .notNull()

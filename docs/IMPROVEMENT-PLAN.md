@@ -469,7 +469,7 @@ Ideas that make COTS-IL better than ordering direct, in order of value. Each is 
 
 | Session | Branch / commit | Done | Notes |
 |---|---|---|---|
-| S0 | | | 7b (drop the role column) after one deploy |
+| S0 | `claude/infallible-ramanujan-54cb97` | ✓ (7a) | Migration `team_role_legacy` must reach production before this merges. 7b after one deploy: drop `memberships.role`, `team_invitations.role` and the `team_role` enum, and stop `handle_new_user()` writing `role` |
 | S1 | | | |
 | S2 | | | |
 | S3 | | | |

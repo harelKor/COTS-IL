@@ -149,7 +149,7 @@ const recordSchema = z.object({
   notes: z.string().trim().max(2000).default(""),
 });
 
-/** Records that the mentor placed this order on the supplier's site (AT-07). */
+/** Records that the Israeli supplier placed this order on the supplier's site (AT-07). */
 export async function recordOrdered(_prev: PoFormState, formData: FormData): Promise<PoFormState> {
   const admin = await requireAdmin();
   const parsed = recordSchema.safeParse(Object.fromEntries(formData));

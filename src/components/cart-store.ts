@@ -6,7 +6,7 @@ import { useSyncExternalStore } from "react";
  * What the viewer can do with a cart. "guest" keeps one in the browser until
  * sign-in; "noteam" is signed in without a team yet; "ordering" has the team's.
  */
-export type CartMode = "loading" | "guest" | "noteam" | "pending" | "readonly" | "admin" | "ordering";
+export type CartMode = "loading" | "guest" | "noteam" | "pending" | "admin" | "ordering";
 
 export type CartSheetLine = {
   variantId: string;
@@ -32,8 +32,6 @@ export type CartTeam = {
   program: "FRC" | "FTC";
   number: number;
   status: "pending" | "active" | "rejected" | "suspended";
-  /** A mentor sends requests and approves quotes; a student builds the cart. */
-  isMentor: boolean;
 };
 
 export type CartState = { mode: CartMode; lines: CartSheetLine[]; team?: CartTeam; checkout?: Checkout; googleSignIn?: boolean };

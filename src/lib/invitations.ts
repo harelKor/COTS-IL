@@ -49,7 +49,7 @@ export async function acceptInvitationsForUser(userId: string, email: string) {
     for (const { invitation } of pending) {
       await tx
         .insert(memberships)
-        .values({ teamId: invitation.teamId, userId, role: invitation.role })
+        .values({ teamId: invitation.teamId, userId })
         .onConflictDoNothing();
       await tx.update(teamInvitations).set({ acceptedAt: new Date() }).where(eq(teamInvitations.id, invitation.id));
       await tx.insert(auditLog).values({
@@ -57,7 +57,7 @@ export async function acceptInvitationsForUser(userId: string, email: string) {
         entity: "team_invitation",
         entityId: invitation.id,
         action: "accept",
-        after: { teamId: invitation.teamId, role: invitation.role },
+        after: { teamId: invitation.teamId },
       });
     }
   });

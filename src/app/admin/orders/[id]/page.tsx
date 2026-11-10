@@ -27,7 +27,7 @@ async function AdminOrder({ params }: PageProps<"/admin/orders/[id]">) {
   const latest = quotes[0];
   const latestLines = new Map(latest?.lines.map((line) => [line.itemId, line]));
 
-  // The current catalog next to the frozen request, for the mentor's price and availability check.
+  // The current catalog next to the frozen request, for the Israeli supplier's price and availability check.
   const live = await db
     .select({ id: schema.variants.id, priceUsd: schema.variants.priceUsd, available: schema.variants.available })
     .from(schema.variants)
@@ -114,12 +114,12 @@ async function AdminOrder({ params }: PageProps<"/admin/orders/[id]">) {
           <h2 className="font-semibold">שליחת ההצעה לאישור</h2>
           {approveLinks.missingSecret ? (
             <Alert tone="info">כדי לשלוח קישורי אישור צריך להגדיר QUOTE_LINK_SECRET בסביבה.</Alert>
-          ) : approveLinks.mentors.length === 0 ? (
-            <p className="text-sm text-muted">לקבוצה אין מנטור/ית רשום/ה. אפשר לאשר מתוך האתר אחרי הצטרפות.</p>
+          ) : approveLinks.members.length === 0 ? (
+            <p className="text-sm text-muted">אין כתובות בחשבון הקבוצה. אפשר לאשר מתוך האתר אחרי הצטרפות.</p>
           ) : (
             <>
-              <p className="text-sm text-muted">הקישור פותח את ההצעה עם כפתור אישור אחד, בלי כניסה. הוא תקף לגרסה הזאת בלבד, ל-14 יום.</p>
-              <ApproveLinks mentors={approveLinks.mentors} />
+              <p className="text-sm text-muted">קישור לכל כתובת בחשבון הקבוצה. הקישור פותח את ההצעה עם כפתור אישור אחד, בלי כניסה. הוא תקף לגרסה הזאת בלבד, ל-14 יום.</p>
+              <ApproveLinks members={approveLinks.members} />
             </>
           )}
         </section>

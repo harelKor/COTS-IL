@@ -131,7 +131,8 @@ export async function getOrderForViewer(orderId: string, viewer: Viewer) {
   };
 }
 
-export async function countOrdersAwaitingMentor() {
+/** Orders waiting for the Israeli supplier to check and quote. */
+export async function countOrdersAwaitingReview() {
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(teamOrders)

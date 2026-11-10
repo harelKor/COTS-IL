@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, MessageCircle, Share2, X } from "lucide-react";
+import { Check, ChevronDown, Share2, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
@@ -77,8 +77,11 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
   );
 }
 
-/** One tap for a returning mentor: delivery and contact are remembered, and change only on request. */
-function MentorSend({ checkout, isNew, onSent }: { checkout: Checkout; isNew: boolean; onSent: (n: { orderId: string; number: number }) => void }) {
+/**
+ * One tap for anyone on the team (D11): delivery and contact are remembered, and
+ * change only on request.
+ */
+function TeamSend({ checkout, isNew, onSent }: { checkout: Checkout; isNew: boolean; onSent: (n: { orderId: string; number: number }) => void }) {
   const [editing, setEditing] = useState(!checkout.contactName || !checkout.contactPhone);
   const [changes, setChanges] = useState<Checkout & { notes: string }>({ ...checkout, notes: "" });
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
@@ -201,7 +204,7 @@ export function SignInStep({ google, next: to, intro = "כדי לשלוח צרי
   );
 }
 
-/** Signed in without a team: create it (pending approval) with this user as its mentor. */
+/** Signed in without a team: create it (pending approval) with this user's email on its account. */
 export function TeamStep() {
   const [program, setProgram] = useState<"FRC" | "FTC">("FRC");
   const [number, setNumber] = useState("");
@@ -259,7 +262,7 @@ export function TeamStep() {
         }}
       />
       {registered ? (
-        <p className="text-caption text-warning">הקבוצה כבר רשומה. בקשו מהמנטור/ית שלה הזמנה לכתובת שלכם.</p>
+        <p className="text-caption text-warning">קבוצה רשומה כבר: בקשו ממי שרשם/ה אותה להוסיף את הכתובת שלכם.</p>
       ) : (
         <input className={field} required placeholder="שם הקבוצה" aria-label="שם הקבוצה" value={name} onChange={(e) => setName(e.target.value)} />
       )}
@@ -270,24 +273,10 @@ export function TeamStep() {
   );
 }
 
-/** A student's "send": the cart goes to the mentor, who sends it. */
-function StudentSend({ shareUrl }: { shareUrl: string }) {
-  const text = `הסל לרכש ציוד: ${shareUrl}`;
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-caption text-muted">את הבקשה שולח/ת המנטור/ית. הסל משותף לכל הקבוצה, אז אפשר פשוט להודיע לו/ה:</p>
-      <a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer" className={primary}>
-        <MessageCircle size={18} aria-hidden />
-        שליחה למנטור/ית בוואטסאפ
-      </a>
-    </div>
-  );
-}
-
 /**
  * The cart and its checkout, in one place: the lines, the cost,
  * sharing, and the one primary action for whoever is looking (a guest signs in,
- * a mentor sends, a student passes it to the mentor).
+ * someone signed in to a team sends).
  */
 export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
   const cart = useCart();
@@ -314,7 +303,7 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
         </span>
         <h3 className="text-section font-semibold">הבקשה נשלחה</h3>
         <p className="text-muted">
-          בקשה מס׳ <Ltr>{sent.number}</Ltr>. הספק הישראלי יבדוק זמינות ומחירים וישלח הצעת מחיר לאישור המנטור/ית.
+          בקשה מס׳ <Ltr>{sent.number}</Ltr>. הספק הישראלי יבדוק זמינות ומחירים וישלח הצעת מחיר לאישור הקבוצה.
         </p>
         <Link href={`/orders/${sent.orderId}`} onClick={onNavigate} className="text-brand hover:underline">
           לצפייה בבקשה
@@ -381,10 +370,9 @@ export function CartPanel({ onNavigate }: { onNavigate?: () => void }) {
 
           {mode === "guest" && <SignInStep google={!!cart.googleSignIn} />}
           {mode === "noteam" && <TeamStep />}
-          {mode === "ordering" && cart.team?.isMentor && cart.checkout && (
-            <MentorSend checkout={cart.checkout} isNew={cart.team.status === "pending"} onSent={setSent} />
+          {mode === "ordering" && cart.team && cart.checkout && (
+            <TeamSend checkout={cart.checkout} isNew={cart.team.status === "pending"} onSent={setSent} />
           )}
-          {mode === "ordering" && cart.team && !cart.team.isMentor && <StudentSend shareUrl={shareUrl} />}
         </>
       )}
     </div>

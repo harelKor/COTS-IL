@@ -122,8 +122,9 @@ export type TeamSetupState = { ok?: boolean; error?: string };
 
 /**
  * A user who signed in with an email link or Google and has no team yet: creates
- * the team (pending the Israeli supplier's approval) with them as its mentor. A
- * team number that already exists is never joined this way; its mentor invites.
+ * the team (pending the Israeli supplier's approval) with their email on its account.
+ * A team number that already exists is never joined this way: someone on that team
+ * adds the email from the team's account.
  */
 export async function setUpTeam(input: { program: string; number: string | number; name: string }): Promise<TeamSetupState> {
   const viewer = await getViewer();
@@ -135,12 +136,12 @@ export async function setUpTeam(input: { program: string; number: string | numbe
 
   const result = await db.transaction(async (tx) => {
     const existing = await tx.query.teams.findFirst({ where: and(eq(schema.teams.program, program), eq(schema.teams.number, number)) });
-    if (existing) return { error: `קבוצת ${program} ${number} כבר רשומה. בקשו מהמנטור/ית של הקבוצה הזמנה לכתובת ${viewer.email}.` };
+    if (existing) return { error: `קבוצת ${program} ${number} כבר רשומה. בקשו ממי שרשם/ה אותה להוסיף את הכתובת ${viewer.email}.` };
     const [team] = await tx
       .insert(schema.teams)
       .values({ program, number, name, contactName: viewer.fullName, contactEmail: viewer.email })
       .returning({ id: schema.teams.id });
-    await tx.insert(schema.memberships).values({ teamId: team.id, userId: viewer.id, role: "team_admin" });
+    await tx.insert(schema.memberships).values({ teamId: team.id, userId: viewer.id });
     return { ok: true as const };
   });
   if ("error" in result) return { error: result.error };

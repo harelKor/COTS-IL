@@ -73,7 +73,7 @@ Open:
 - Production migrations are applied by hand with `npx supabase db push --remote` (this CLI targets the local stack without `--remote`), and every push to `main` deploys production. Apply a migration before merging code that needs it.
 - Removed on purpose, don't bring back: pasting a SKU list or dropping a BOM file into the cart (removed Nov 2026 to keep the cart and hero focused), and the dark theme (D10).
 - The local Supabase stack runs on ports 544xx (`supabase/config.toml`). Another, unrelated project on this machine uses the default 543xx ports: never point COTS-IL commands at those.
-- One kind of team account (D11, Nov 10, 2026): no student, mentor or viewer roles; everyone signed in to a team can build, send, approve and manage it. The code still has the old roles until session S0 in `docs/IMPROVEMENT-PLAN.md` removes them; don't add new role checks or role wording.
+- One kind of team account (D11, Nov 10, 2026): no student, mentor or viewer roles; everyone signed in to a team can build, send, approve, cancel and manage it. Membership in a team whose status allows ordering (`teamCanOrder`) is the only permission; the one guard is that a team can't remove its last sign-in email (`wouldLeaveNoMembers`). Copy says "הקבוצה" / "חשבון הקבוצה". The `memberships.role` / `team_invitations.role` columns and the `team_role` enum are legacy (always `team_admin`, never read) until they're dropped (S0 step 7b). Don't add role checks or role wording.
 - Prices: `src/domain/pricing.ts` only. Availability is yes/no plus its check date, never a stock count.
 - Pure logic goes in `src/domain` with Vitest tests.
 

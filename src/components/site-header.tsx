@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Boxes } from "lucide-react";
 import { signout } from "@/app/auth/actions";
-import { canOrder, canSendRequest } from "@/domain/orders";
 import { priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { googleSignInEnabled } from "@/lib/auth-providers";
@@ -27,12 +26,11 @@ async function Account() {
   let cart: CartState;
   if (!viewer) cart = { mode: "guest", lines: [], googleSignIn };
   else if (!team) cart = { mode: viewer.isAdmin ? "admin" : viewer.teams.length === 0 ? "noteam" : "pending", lines: [] };
-  else if (!canOrder(team.role)) cart = { mode: "readonly", lines: [] };
   else {
     const [lines, checkout] = await Promise.all([getCart(team.id), getCheckoutDefaults(team.id)]);
     cart = {
       mode: "ordering",
-      team: { name: team.name, program: team.program, number: team.number, status: team.status, isMentor: canSendRequest(team.role) },
+      team: { name: team.name, program: team.program, number: team.number, status: team.status },
       checkout,
       lines: lines.map((l) => ({
         variantId: l.variantId,
@@ -99,7 +97,7 @@ async function Account() {
                 הסל
               </Link>
               <Link href="/team" className={menuLink}>
-                הקבוצה
+                חשבון הקבוצה
               </Link>
             </>
           ) : (

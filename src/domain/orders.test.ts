@@ -1,22 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
-  canApproveQuote,
   canCancelOrder,
   canDecideQuote,
-  canOrder,
   canSendQuote,
   diffQuoteLines,
   quoteContentHash,
   quoteTotals,
+  teamCanOrder,
   validateQuoteLines,
 } from "./orders";
 
-describe("permissions", () => {
-  it("lets buyers order but only team admins approve", () => {
-    expect(canOrder("buyer")).toBe(true);
-    expect(canOrder("viewer")).toBe(false);
-    expect(canApproveQuote("team_admin")).toBe(true);
-    expect(canApproveQuote("buyer")).toBe(false);
+describe("teamCanOrder", () => {
+  it("lets active and new teams order, not rejected or suspended ones", () => {
+    expect(teamCanOrder("active")).toBe(true);
+    expect(teamCanOrder("pending")).toBe(true);
+    expect(teamCanOrder("rejected")).toBe(false);
+    expect(teamCanOrder("suspended")).toBe(false);
   });
 });
 

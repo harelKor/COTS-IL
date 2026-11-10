@@ -6,7 +6,6 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { SharedLine } from "@/domain/cart-share";
-import { canOrder, canSendRequest } from "@/domain/orders";
 import { DEFAULT_MULTIPLIER, priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam, type Viewer } from "@/lib/auth";
 import { getCheckoutDefaults } from "@/lib/orders";
@@ -17,16 +16,15 @@ const MAX_QTY = 9999;
 const qty = z.coerce.number().int().min(1).max(MAX_QTY);
 
 /**
- * Every cart action runs through this, so a viewer, or a team that was rejected or
- * suspended, can't order (AT-01). A new team still pending approval can: its first
- * request is reviewed together with the team.
+ * Every cart action runs through this, so a team that was rejected or suspended
+ * can't order (AT-01). Anyone signed in to the team can (D11). A new team still
+ * pending approval can too: its first request is reviewed together with the team.
  */
 async function requireOrderingTeam() {
   const viewer = await getViewer();
   if (!viewer) redirect("/login?next=/cart");
   const team = orderingTeam(viewer);
   if (!team) redirect("/pending");
-  if (!canOrder(team.role)) throw new Error("This role can't order");
   return { viewer, team };
 }
 
@@ -109,12 +107,11 @@ type Delivery = z.infer<typeof deliverySchema>;
 export type SendState = { orderId?: string; number?: number; error?: string; fieldErrors?: Record<string, string[] | undefined> };
 
 /**
- * The cart sheet's "Send quote request": one tap for a mentor. Delivery and
+ * The cart sheet's "Send quote request": one tap for anyone on the team. Delivery and
  * contact come from the team's last order (or its details) unless changed.
  */
 export async function sendQuoteRequest(changes: Partial<Delivery> = {}): Promise<SendState> {
   const { viewer, team } = await requireOrderingTeam();
-  if (!canSendRequest(team.role)) return { error: "רק מנטור/ית של הקבוצה שולח/ת בקשות. שתפו איתו/ה את הסל." };
   const parsed = deliverySchema.safeParse({ ...(await getCheckoutDefaults(team.id)), ...changes });
   if (!parsed.success) return { error: "צריך להשלים פרטי מסירה", fieldErrors: parsed.error.flatten().fieldErrors };
   const result = await createOrder(viewer, team, parsed.data);
@@ -128,7 +125,7 @@ export async function sendQuoteRequest(changes: Partial<Delivery> = {}): Promise
 /** Turns the cart into an order, copying prices and SKUs as they are right now (spec §8). */
 async function createOrder(viewer: Viewer, team: Team, input: Delivery): Promise<{ orderId: string; number: number } | { error: string }> {
   return db.transaction(async (tx) => {
-    // Locks the cart, so a double click or two buyers can't submit the same lines twice.
+    // Locks the cart, so a double click or two team members can't submit the same lines twice.
     const lines = await tx
       .select({
         variantId: cartItems.variantId,

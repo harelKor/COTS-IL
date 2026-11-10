@@ -79,7 +79,7 @@ export function consolidateDemand(rows: DemandRow[]): SupplierDemand[] {
 
 type CartLine = { supplierVariantId: string; qty: number };
 
-/** A link that opens the supplier's own Shopify cart already filled, for the mentor to pay by hand. */
+/** A link that opens the supplier's own Shopify cart already filled, for the Israeli supplier to pay by hand. */
 export function shopifyCartUrl(baseUrl: string, lines: CartLine[]): string {
   const items = lines.map((l) => `${encodeURIComponent(l.supplierVariantId)}:${l.qty}`).join(",");
   return `${baseUrl}/cart/${items}`;

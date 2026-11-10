@@ -1,8 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Alert, Button, Field, Input, Select } from "@/components/form";
-import { ROLE_LABELS } from "@/domain/teams";
+import { Alert, Button, Field, Input } from "@/components/form";
 import { inviteMember, type InviteState } from "./actions";
 
 export function InviteForm() {
@@ -14,7 +13,7 @@ export function InviteForm() {
       {state.link && (
         <div className="flex flex-col gap-1 rounded-md border border-success p-3 text-sm">
           <span>
-            שלחו את הקישור למוזמן. הוא תקף לשבועיים, עובד רק עם הדוא״ל שהוזמן, ומוצג כאן רק פעם אחת.
+            שלחו את הקישור לכתובת שהוספתם. הוא תקף לשבועיים, עובד רק עם הכתובת הזאת, ומוצג כאן רק פעם אחת.
           </span>
           <input
             dir="ltr"
@@ -26,22 +25,11 @@ export function InviteForm() {
           />
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
-        <Field label="דוא״ל" name="email">
-          <Input name="email" type="email" dir="ltr" required />
-        </Field>
-        <Field label="הרשאה" name="role">
-          <Select name="role" defaultValue="buyer">
-            {Object.entries(ROLE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
+      <Field label="דוא״ל" name="email">
+        <Input name="email" type="email" dir="ltr" required />
+      </Field>
       <Button disabled={pending} className="self-start">
-        יצירת קישור הזמנה
+        הוספת כתובת
       </Button>
     </form>
   );

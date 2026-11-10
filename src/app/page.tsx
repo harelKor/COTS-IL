@@ -7,7 +7,6 @@ import { InstallAppButton } from "@/components/install-app";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
 import { ReorderButton } from "@/components/reorder-button";
-import { canOrder } from "@/domain/orders";
 import { formatIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { listOrders } from "@/lib/orders";
@@ -39,7 +38,7 @@ async function TeamNotice() {
           הקבוצה חדשה וממתינה לאישור. אפשר כבר לבנות סל ולשלוח בקשה ראשונה: הספק הישראלי יאשר את הקבוצה יחד איתה.
         </p>
       )}
-      {last && canOrder(team.role) && (
+      {last && (
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-card bg-surface p-4 shadow-lift">
           <Link href={`/orders/${last.id}`} className="min-w-0 hover:text-brand">
             <span className="block font-medium">ההזמנה האחרונה: מס׳ {last.number}</span>

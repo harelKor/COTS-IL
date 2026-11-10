@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { Button, Field, Input } from "@/components/form";
-import { ROLE_LABELS } from "@/domain/teams";
 import { getViewer } from "@/lib/auth";
 import { findInvitation } from "@/lib/invitations";
 import { joinInvited, signupInvited } from "../actions";
@@ -21,9 +20,9 @@ async function Invite({ params }: PageProps<"/invite/[token]">) {
       <p>
         הקישור לא בתוקף: ייתכן שכבר נעשה בו שימוש, שפג תוקפו או שבוטל. אם הצטרפתם,{" "}
         <Link href="/team" className="text-brand hover:underline">
-          עברו לדף הקבוצה
+          עברו לחשבון הקבוצה
         </Link>
-        . אחרת בקשו ממנהל הקבוצה קישור חדש.
+        . אחרת בקשו ממישהו בקבוצה קישור חדש.
       </p>
     );
   }
@@ -31,8 +30,8 @@ async function Invite({ params }: PageProps<"/invite/[token]">) {
   const { invitation, team } = found;
   const intro = (
     <p>
-      הוזמנתם להצטרף ל{team.name} (<span className="ltr">{`${team.program} ${team.number}`}</span>) בהרשאת{" "}
-      {ROLE_LABELS[invitation.role]}, עם הכתובת <span className="ltr">{invitation.email}</span>.
+      הוזמנתם להצטרף לחשבון של {team.name} (<span className="ltr">{`${team.program} ${team.number}`}</span>) עם הכתובת{" "}
+      <span className="ltr">{invitation.email}</span>. אחרי ההצטרפות אפשר להזמין, לשלוח בקשות ולאשר הצעות בשם הקבוצה.
     </p>
   );
 
