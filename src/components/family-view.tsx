@@ -54,11 +54,6 @@ function linkedVariant() {
   if (href !== linked.href && href !== ownHref) linked = { href, v: new URLSearchParams(window.location.search).get("v")?.trim().toLowerCase() ?? null };
   return linked.v;
 }
-/** Shows the chosen variant in the address bar without a navigation. */
-function showInUrl(path: string) {
-  window.history.replaceState(window.history.state, "", path);
-  ownHref = window.location.href;
-}
 /** The address the router is about to show, marked as the picker's own so it doesn't reset it. */
 function claimUrl(path: string) {
   ownHref = new URL(path, window.location.href).href;
@@ -124,7 +119,6 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
   /** The URL follows the chosen variant; once one is settled the server's suggestions follow it too. */
   function follow(settled: ViewVariant | null) {
     const path = familyHref(family.slug, settled ? (settled.sku ?? settled.id) : null);
-    if (!settled) return showInUrl(path);
     claimUrl(path);
     router.replace(path, { scroll: false });
   }

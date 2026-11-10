@@ -117,7 +117,8 @@ describe("linkedKeys", () => {
 });
 
 describe("changedKeys", () => {
-  it("names the choices a tap changed elsewhere", () => {
+  it("names the choices a tap changed or cleared elsewhere", () => {
+    expect(changedKeys({ teeth: "40t", bore: "SplineXL" }, { bore: "Hex" }, "bore")).toEqual(["teeth"]);
     expect(changedKeys({ teeth: "12t", bore: "Hex" }, { teeth: "14t", bore: "Round" }, "teeth")).toEqual(["bore"]);
     expect(changedKeys({ teeth: "12t" }, { teeth: "14t" }, "teeth")).toEqual([]);
   });

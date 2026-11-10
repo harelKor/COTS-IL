@@ -135,5 +135,5 @@ export function linkedValue(variants: Pickable[], group: string[], value: string
 
 /** Keys whose choice changed (or was cleared) by a tap on another key: the picker highlights them. */
 export function changedKeys(before: Record<string, string>, after: Record<string, string>, tapped: string): string[] {
-  return Object.keys(before).filter((k) => k !== tapped && after[k] !== undefined && after[k] !== before[k]);
+  return Object.keys(before).filter((k) => k !== tapped && after[k] !== before[k]);
 }
