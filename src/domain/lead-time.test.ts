@@ -1,14 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { leadTimeText } from "./lead-time";
+import { leadTimeText, typicalLeadTime } from "./lead-time";
 
 describe("leadTimeText", () => {
-  it("hides the sentence while the lead time is unknown", () => {
+  it("hides an unknown lead time", () => {
     expect(leadTimeText(null)).toBeNull();
-    expect(leadTimeText(undefined)).toBeNull();
+    expect(leadTimeText({ minDays: 0, maxDays: 0 })).toBeNull();
   });
-  it("rounds days to weeks", () => {
-    expect(leadTimeText({ minDays: 14, maxDays: 21 })).toBe("מגיע לישראל תוך כ-2–3 שבועות");
-    expect(leadTimeText({ minDays: 20, maxDays: 22 })).toBe("מגיע לישראל תוך כ-3 שבועות");
-    expect(leadTimeText({ minDays: 3, maxDays: 6 })).toBe("מגיע לישראל תוך כשבוע");
+  it("shows a range or a single value", () => {
+    expect(leadTimeText({ minDays: 7, maxDays: 10 })).toBe("7–10 ימים");
+    expect(leadTimeText({ minDays: 10, maxDays: 7 })).toBe("7–10 ימים");
+    expect(leadTimeText({ minDays: 5, maxDays: 5 })).toBe("5 ימים");
+  });
+});
+
+describe("typicalLeadTime", () => {
+  it("spans the known suppliers and skips unknown ones", () => {
+    expect(typicalLeadTime([null, { minDays: 7, maxDays: 10 }, { minDays: 12, maxDays: 18 }])).toBe("7–18 ימים");
+    expect(typicalLeadTime([null, undefined])).toBeNull();
   });
 });

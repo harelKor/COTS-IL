@@ -3,8 +3,7 @@
  * for every session"). A value stays null until the business supplies it, and
  * the UI hides the sentence that needs it. Never show a placeholder instead.
  */
-import type { LeadTime } from "@/domain/lead-time";
-export type { LeadTime };
+export type LeadTime = { minDays: number; maxDays: number };
 
 export const business = {
   /** Business days from a request to its quote, e.g. 2. Shown after sending: "הצעת מחיר תוך N ימי עסקים". */
