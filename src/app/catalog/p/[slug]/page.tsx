@@ -1,5 +1,5 @@
 import { BackToList } from "@/components/back-to-list";
-import { ChevronLeft } from "lucide-react";
+import { ChevronDown, ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -17,7 +17,7 @@ import { getCompanions, getFamily, type FamilyVariant } from "@/lib/catalog";
 import { getUsdIlsRate, usdIlsRate } from "@/lib/fx";
 import { catalogHref } from "@/lib/catalog-filters";
 import { familyHref } from "@/lib/catalog-links";
-import { descriptionText, isRealDescription, metaDescription } from "@/lib/description";
+import { cleanDescription, descriptionText, metaDescription, type Spec } from "@/lib/description";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
 export const maxDuration = 30;
@@ -32,7 +32,8 @@ export async function generateMetadata({ params }: PageProps<"/catalog/p/[slug]"
   const suppliers = [...new Set(result.variants.map((v) => v.supplierName))].join(", ");
   const low = priceIls(family.minPriceUsd, rate);
   const price = low === null ? "" : `${family.variantCount > 1 ? "החל מ-" : ""}${formatIls(low)}, `;
-  const text = isRealDescription(family.descriptionHtml) ? descriptionText(family.descriptionHtml) : "";
+  const clean = cleanDescription(family.descriptionHtml);
+  const text = descriptionText(`${clean.lead} ${clean.more}`);
   const description = metaDescription(`${price}${suppliers}${text ? `, ${text}` : ""}`);
   const title = `${family.title}, ${suppliers}`;
   const images = family.images[0] ? [{ url: family.images[0], alt: family.title }] : undefined;
@@ -65,12 +66,74 @@ function specSummary(specs: Record<string, { key: string; value: string }[]>) {
   });
 }
 
+/** Specs from the description's tables after the variants' own, without repeating a name. */
+function mergeSpecs(own: Spec[], fromText: Spec[]) {
+  const seen = new Set(own.map((s) => s.key.toLowerCase()));
+  return [...own, ...fromText.filter((s) => !seen.has(s.key.toLowerCase()) && seen.add(s.key.toLowerCase()))].slice(0, 30);
+}
+
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cots-il.vercel.app";
+
+/** JSON-LD in a script tag: `<` escaped so the text can't close it. */
+function jsonLd(...items: object[]) {
+  return JSON.stringify(items.length === 1 ? items[0] : items).replace(/</g, "\\u003c");
+}
+
+type FamilyResult = NonNullable<Awaited<ReturnType<typeof getFamily>>>;
+
+/** Product + Offer (ILS, availability, SKU, brand) for search engines. */
+function productJsonLd({ family }: FamilyResult, variants: ViewVariant[], lead: string) {
+  const priced = variants.filter((v) => v.priceIls !== null);
+  const prices = priced.map((v) => v.priceIls!);
+  const availability = (v: ViewVariant[]) => `https://schema.org/${v.some((x) => x.available === true) ? "InStock" : "OutOfStock"}`;
+  const url = `${SITE}${familyHref(family.slug)}`;
+  const one = variants.length === 1 ? variants[0] : null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: family.title,
+    url,
+    ...(family.images.length ? { image: family.images.slice(0, 3) } : {}),
+    ...(lead ? { description: metaDescription(descriptionText(lead), 300) } : {}),
+    ...(one?.sku ? { sku: one.sku } : {}),
+    brand: { "@type": "Brand", name: [...new Set(variants.map((v) => v.supplierName))][0] },
+    ...(prices.length === 0
+      ? {}
+      : one
+        ? { offers: { "@type": "Offer", url, priceCurrency: "ILS", price: prices[0], availability: availability(priced) } }
+        : {
+            offers: {
+              "@type": "AggregateOffer",
+              url,
+              priceCurrency: "ILS",
+              lowPrice: Math.min(...prices),
+              highPrice: Math.max(...prices),
+              offerCount: priced.length,
+              availability: availability(priced),
+            },
+          }),
+  };
+}
+
+function breadcrumbJsonLd({ family, categorySlug, categoryName }: FamilyResult) {
+  const crumbs = [
+    { name: "קטלוג", item: `${SITE}/catalog` },
+    ...(categorySlug && categoryName ? [{ name: categoryName, item: `${SITE}${catalogHref({ category: categorySlug })}` }] : []),
+    { name: family.title, item: `${SITE}${familyHref(family.slug)}` },
+  ];
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, ...c })),
+  };
+}
+
 /** CAD, STEP, drawings and manuals linked from the supplier's description. */
 function documentLinks(html: string | null): { href: string; text: string }[] {
   if (!html) return [];
   const links: { href: string; text: string }[] = [];
   for (const m of html.matchAll(/<a [^>]*href="(https:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
-    const text = m[2].replace(/<[^>]+>/g, "").trim();
+    const text = descriptionText(m[2]);
     if (/\b(step|cad|onshape|drawing|manual|pdf|docs?|guide|datasheet|instructions?)\b/i.test(`${text} ${m[1]}`)) {
       if (!links.some((l) => l.href === m[1])) links.push({ href: m[1], text: text || m[1] });
     }
@@ -86,7 +149,7 @@ function byOffer(variants: FamilyVariant[], rate: number) {
 }
 
 /**
- * "Usually ordered with". The one part of the page that reads `?v=`: suggestions follow the
+ * "מתאים לשימוש עם". The one part of the page that reads `?v=`: suggestions follow the
  * variant in the link; without one, the first that has any (a keyed 8mm bore matches no
  * bearing, a 1/2" hex one does).
  */
@@ -105,7 +168,7 @@ async function Companions({ slug, searchParams }: { slug: string; searchParams: 
   if (cards.length === 0) return null;
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-section font-semibold">בדרך כלל מוזמן יחד עם</h2>
+      <h2 className="text-section font-semibold">מתאים לשימוש עם</h2>
       <ul className="-mx-6 grid auto-cols-[44%] grid-flow-col gap-4 overflow-x-auto px-6 pb-2 sm:auto-cols-[30%] md:-mx-0 md:grid-flow-row md:grid-cols-4 md:px-0">
         {cards.map((c) => (
           <FamilyCard key={c.id} family={c} />
@@ -147,12 +210,16 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
     supplierCode: v.supplierCode,
     productUrl: v.productUrl,
     image: v.image,
+    specs: result.specs[v.id] ?? [],
   }));
-  const specs = specSummary(result.specs);
+  // Our copy of the supplier's description: no sales talk; its spec tables join the spec section.
+  const description = cleanDescription(family.descriptionHtml);
+  const specs = mergeSpecs(specSummary(result.specs), description.specs);
   const docs = [...new Map(result.variants.flatMap((v) => documentLinks(v.productDescription)).map((d) => [d.href, d])).values()].slice(0, 8);
 
   return (
     <article className="flex flex-col gap-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(productJsonLd(result, viewVariants, description.lead), breadcrumbJsonLd(result)) }} />
       <nav aria-label="ניווט" className="-mb-4 text-caption text-muted">
         <ol className="flex min-w-0 items-center gap-1">
           <li className="shrink-0">
@@ -197,7 +264,7 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
             <dl className="divide-y divide-line rounded-card bg-surface text-[15px]">
               {specs.map((s) => (
                 <div key={s.key} className="flex justify-between gap-4 px-4 py-3">
-                  <dt className="text-muted">{optionLabel(s.key)}</dt>
+                  <dt className="text-muted">{/[a-z]/i.test(optionLabel(s.key)) ? <Ltr>{optionLabel(s.key)}</Ltr> : optionLabel(s.key)}</dt>
                   <dd className="text-end">
                     <Ltr>{s.value}</Ltr>
                   </dd>
@@ -219,7 +286,8 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
             {[...new Map(result.variants.map((v) => [v.supplierCode, v])).values()].map((v) => (
               <li key={v.supplierCode}>
                 <a href={v.productUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center px-4 py-2 text-brand hover:underline">
-                  עמוד המוצר, CAD ותיעוד באתר <Ltr className="ms-1">{v.supplierName}</Ltr>
+                  עמוד המוצר, CAD ותיעוד באתר{" "}
+                  <Ltr>{v.supplierName}</Ltr>
                 </a>
               </li>
             ))}
@@ -227,19 +295,30 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
         </section>
       </div>
 
-      {/* Some suppliers leave a placeholder ("This Page is for Reference Only") instead of a description. */}
-      {family.descriptionHtml && isRealDescription(family.descriptionHtml) && (
+      {/* Empty when the supplier left a placeholder ("This Page is for Reference Only") or only sales talk. */}
+      {description.lead && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-section font-semibold">תיאור הספק</h2>
-          {/* Sanitized by sanitizeDescription when it was synced. */}
-          <div dir="ltr" className="rich-text rounded-card bg-surface p-6 text-[15px]" dangerouslySetInnerHTML={{ __html: family.descriptionHtml }} />
+          <h2 className="text-section font-semibold">תיאור כללי של הספק</h2>
+          {/* Sanitized at sync, then cleaned of the supplier's promos, prices and contacts. */}
+          <div className="flex flex-col rounded-card bg-surface p-6">
+            <div dir="ltr" className="rich-text text-[15px]" dangerouslySetInnerHTML={{ __html: description.lead }} />
+            {description.more && (
+              <details className="group">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 text-brand hover:text-brand-strong group-open:hidden">
+                  קראו עוד <ChevronDown size={16} aria-hidden />
+                </summary>
+                <div dir="ltr" className="rich-text pt-3 text-[15px]" dangerouslySetInnerHTML={{ __html: description.more }} />
+              </details>
+            )}
+          </div>
         </section>
       )}
 
       {result.variants.length > 1 && (
         <OptionsTable slug={family.slug}>
-          <summary className="flex min-h-11 cursor-pointer items-center justify-between px-4 py-3 font-semibold">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 py-3 font-semibold">
             כל האפשרויות ({result.variants.length.toLocaleString("he-IL")})
+            <ChevronDown size={20} aria-hidden className="text-muted transition-transform duration-200 group-open:rotate-180" />
           </summary>
         </OptionsTable>
       )}

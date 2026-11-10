@@ -13,6 +13,6 @@ export const maxDuration = 15;
 export async function GET(_request: Request, { params }: RouteContext<"/catalog/p/[slug]/options">) {
   const result = await getFamily(decodeURIComponent((await params).slug));
   if (!result) return new Response("", { status: 404 });
-  const html = optionsTableHtml(result.variants, result.family.optionKeys, result.family.slug, await usdIlsRate());
+  const html = optionsTableHtml(result.variants, result.family, await usdIlsRate());
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": PUBLIC_CACHE } });
 }

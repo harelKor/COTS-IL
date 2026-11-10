@@ -1,10 +1,14 @@
 "use client";
 
-import { Copy, Minus, Plus, ShoppingBag } from "lucide-react";
-import { useRef, useState, useSyncExternalStore, ViewTransition } from "react";
-import { choose, NONE, pick } from "@/domain/families/pick";
+import { Copy, Maximize2, Minus, Plus, ShoppingBag, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useRef, useState, useSyncExternalStore, ViewTransition } from "react";
+import { changedKeys, chipPrice, choose, linkedKeys, linkedValue, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
+import { leadTimeText } from "@/domain/lead-time";
 import { formatIls } from "@/domain/pricing";
+import { business } from "@/lib/business";
+import { RequestPart } from "./zero-results";
 import { availabilityStatus, isFresh, useNow } from "./availability";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
 import { imageLoading, shopifyImage } from "@/lib/images";
@@ -26,6 +30,8 @@ export type ViewVariant = {
   supplierCode: string;
   productUrl: string;
   image: string | null;
+  /** This variant's own specs, shown beside Add once it's chosen. */
+  specs: { key: string; value: string }[];
 };
 
 type Props = {
@@ -52,6 +58,10 @@ function linkedVariant() {
 function showInUrl(path: string) {
   window.history.replaceState(window.history.state, "", path);
   ownHref = window.location.href;
+}
+/** The address the router is about to show, marked as the picker's own so it doesn't reset it. */
+function claimUrl(path: string) {
+  ownHref = new URL(path, window.location.href).href;
 }
 const noLinkedVariant = () => null;
 
@@ -85,7 +95,15 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
   const [supplier, setSupplier] = useState<string | null>(initial && manySuppliers ? initial.supplierName : null);
   const [qty, setQty] = useState(1);
   const [photo, setPhoto] = useState<string | null>(null);
+  /** Option groups to highlight: changed by a tap elsewhere, or the one "בחרו …" points at. */
+  const [flash, setFlash] = useState<string[]>([]);
+  const flashTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const mainImage = useRef<HTMLDivElement>(null);
+  const zoom = useRef<HTMLDialogElement>(null);
+  const swipe = useRef<{ x: number; y: number } | null>(null);
+  const router = useRouter();
+  // Keys that always go together (a bearing's ID and OD) get one picker, not two that switch each other.
+  const groups = useMemo(() => linkedKeys(variants, keys), [variants, keys]);
 
   const picked = pick(variants, keys, choices);
   const offers = picked.chosen ? picked.candidates : [];
@@ -97,19 +115,59 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
   const gallery = [...new Set([...(chosen?.image ? [chosen.image] : []), ...family.images])].slice(0, 6);
   const lowest = Math.min(...variants.flatMap((v) => (v.priceIls === null ? [] : [v.priceIls])));
 
+  function highlight(groupKeys: string[]) {
+    clearTimeout(flashTimer.current);
+    setFlash(groupKeys);
+    if (groupKeys.length) flashTimer.current = setTimeout(() => setFlash([]), 1600);
+  }
+
+  /** The URL follows the chosen variant; once one is settled the server's suggestions follow it too. */
+  function follow(settled: ViewVariant | null) {
+    const path = familyHref(family.slug, settled ? (settled.sku ?? settled.id) : null);
+    if (!settled) return showInUrl(path);
+    claimUrl(path);
+    router.replace(path, { scroll: false });
+  }
+
   function onChip(key: string, value: string) {
     const next = choose(variants, keys, choices, key, value);
     setChoices(next);
     setPhoto(null);
     const result = pick(variants, keys, next);
+    // A tap that clashed with another choice changed it: show which, instead of switching it silently.
+    const changed = changedKeys(picked.selected, result.selected, key);
+    highlight(groups.filter((g) => !g.includes(key) && g.some((k) => changed.includes(k))).map((g) => g[0]));
     const settled = result.chosen ? (result.candidates.find((v) => v.supplierName === supplier) ?? result.candidates[0]) : null;
-    showInUrl(familyHref(family.slug, settled ? (settled.sku ?? settled.id) : null));
+    if (settled?.id !== chosen?.id) follow(settled);
   }
 
   function onSupplier(name: string) {
     setSupplier(name);
     const offer = offers.find((v) => v.supplierName === name);
-    if (offer) showInUrl(familyHref(family.slug, offer.sku ?? offer.id));
+    if (offer) follow(offer);
+  }
+
+  /** "בחרו …" before the choice is complete: scroll to the first missing option and point at it. */
+  function toMissing() {
+    const group = groups.find((g) => g.some((k) => picked.selected[k] === undefined));
+    if (!group) return;
+    document.getElementById(`option-${group[0]}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    highlight([group[0]]);
+  }
+
+  /** Swipe the main photo on touch screens; a tap opens it full size. */
+  function onPhotoUp(e: React.PointerEvent) {
+    const start = swipe.current;
+    swipe.current = null;
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(e.clientY - start.y) && gallery.length > 1) {
+      const i = Math.max(0, gallery.indexOf(shown ?? ""));
+      // Right to left: a swipe to the right brings the next photo, as the thumbnails run.
+      setPhoto(gallery[(i + (dx > 0 ? 1 : -1) + gallery.length) % gallery.length]);
+    } else if (Math.abs(dx) < 8 && shown) {
+      zoom.current?.showModal();
+    }
   }
 
   function add() {
@@ -134,13 +192,16 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
   const price = chosen?.priceIls ?? null;
   const priceText = chosen ? (price === null ? "ייבדק בהצעה" : formatIls(price)) : Number.isFinite(lowest) ? `החל מ-${formatIls(lowest)}` : "ייבדק בהצעה";
   const availability = chosen ? availabilityText(chosen) : null;
-  const missing = keys.filter((k) => picked.selected[k] === undefined);
+  const missingGroup = groups.find((g) => g.some((k) => picked.selected[k] === undefined));
+  const missingLabel = missingGroup ? missingGroup.map(optionLabel).join(" × ") : "";
+  const lead = chosen ? leadTimeText(business.leadTimes[chosen.supplierCode]) : null;
+  const unpriced = chosen !== null && price === null;
   const lineQty = inCart?.qty ?? qty;
   // A "best price" badge only when the offers' prices differ.
   const offerPrices = offers.flatMap((o) => (o.priceIls === null ? [] : [o.priceIls]));
   const cheapest = offerPrices.length > 1 && Math.min(...offerPrices) < Math.max(...offerPrices) ? Math.min(...offerPrices) : null;
 
-  const addControls = !canAdd ? null : inCart ? (
+  const addControls = !canAdd || unpriced ? null : inCart ? (
     <div className="flex items-center gap-3">
       <QtyStepper variantId={inCart.variantId} qty={inCart.qty} label={family.title} />
       <span className="text-caption text-muted">בסל</span>
@@ -156,14 +217,21 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
           <Plus size={16} strokeWidth={2} aria-hidden />
         </button>
       </div>
-      <button
-        type="button"
-        onClick={add}
-        disabled={!chosen || price === null}
-        className="flex h-11 flex-1 items-center justify-center rounded-full bg-brand px-6 font-medium text-white transition-colors hover:bg-brand-strong disabled:bg-line disabled:text-muted"
-      >
-        {chosen ? "הוספה לסל" : `בחרו ${optionLabel(missing[0] ?? "")}`}
-      </button>
+      {chosen ? (
+        <button type="button" onClick={add} className="btn-brand flex h-11 flex-1 items-center justify-center rounded-full px-6 font-medium">
+          הוספה לסל
+        </button>
+      ) : (
+        // Looks disabled until the choice is complete, but points at what's missing.
+        <button
+          type="button"
+          onClick={toMissing}
+          aria-disabled
+          className="flex h-11 min-w-0 flex-1 items-center justify-center truncate rounded-full bg-line px-6 font-medium text-muted"
+        >
+          בחרו {missingLabel}
+        </button>
+      )}
     </div>
   );
 
@@ -171,15 +239,35 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
     <div className="grid gap-8 md:grid-cols-2">
       <div className="flex flex-col gap-2">
         <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
-          <div ref={mainImage} className="relative aspect-square w-full overflow-hidden rounded-card bg-tile p-8 ring-1 ring-black/5">
+          <div
+            ref={mainImage}
+            onPointerDown={(e) => (swipe.current = { x: e.clientX, y: e.clientY })}
+            onPointerUp={onPhotoUp}
+            onPointerCancel={() => (swipe.current = null)}
+            className="relative aspect-square w-full cursor-zoom-in touch-pan-y overflow-hidden rounded-card bg-tile p-8 ring-1 ring-black/5 select-none"
+          >
             {shown && (
               // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
               // eslint-disable-next-line @next/next/no-img-element
               <img {...shopifyImage(shown, 560)} alt={family.title} {...imageLoading(true)} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
             )}
+            {shown && (
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
+                onClick={() => zoom.current?.showModal()}
+                aria-label="הגדלת התמונה"
+                className="absolute end-2 bottom-2 flex size-11 items-center justify-center rounded-full bg-surface/85 text-foreground shadow-sm backdrop-blur hover:bg-surface"
+              >
+                <Maximize2 size={18} strokeWidth={1.75} aria-hidden />
+              </button>
+            )}
             {chosen?.sku && (
               <button
                 type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
                 onClick={() => navigator.clipboard?.writeText(chosen.sku!).then(() => showToast("המק״ט הועתק"))}
                 aria-label={`העתקת המק״ט ${chosen.sku}`}
                 className="group absolute start-2 top-2 flex min-h-11 items-center"
@@ -192,6 +280,20 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
             )}
           </div>
         </ViewTransition>
+        <dialog
+          ref={zoom}
+          aria-label={family.title}
+          onClick={() => zoom.current?.close()}
+          className="m-auto size-full max-h-none max-w-none bg-white p-0 backdrop:bg-foreground/60 md:size-[min(90vw,90vh)] md:rounded-card"
+        >
+          {shown && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img {...shopifyImage(shown, 1200)} alt={family.title} loading="lazy" referrerPolicy="no-referrer" className="size-full cursor-zoom-out object-contain p-4" />
+          )}
+          <button type="button" onClick={() => zoom.current?.close()} aria-label="סגירה" className="fixed end-4 top-4 flex size-11 items-center justify-center rounded-full bg-surface shadow-md md:absolute">
+            <X size={20} aria-hidden />
+          </button>
+        </dialog>
         {gallery.length > 1 && (
           <ul className="grid grid-cols-6 gap-2">
             {gallery.map((src, i) => (
@@ -222,26 +324,44 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
           </h1>
         </div>
 
-        {keys.map((key) => {
+        {groups.map((group) => {
+          const key = group[0];
           const value = picked.selected[key];
+          const linked = group.length > 1;
+          const label = (v: string) => (linked ? linkedValue(variants, group, v) : v);
+          // The price per value, only when it differs between the values that still fit.
+          const prices = picked.chips[key].map((chip) => (chip.enabled ? chipPrice(variants, picked.selected, key, chip.value) : null));
+          const known = prices.filter((p): p is number => p !== null);
+          const showPrices = known.length > 1 && Math.min(...known) < Math.max(...known);
+          const lit = flash.includes(key);
           return (
-            <section key={key} className="flex flex-col gap-3 rounded-2xl border border-line/80 bg-surface p-4">
+            <section
+              key={key}
+              id={`option-${key}`}
+              className={`flex scroll-mt-20 flex-col gap-3 rounded-2xl border bg-surface p-4 transition-[border-color,box-shadow] duration-300 ${
+                lit ? "border-brand shadow-[0_0_0_3px_var(--brand-soft)]" : "border-line/80"
+              }`}
+            >
               <header className="flex items-baseline justify-between gap-3">
-                <h2 className="text-[15px] text-muted">{optionLabel(key)}</h2>
+                <h2 className="text-[15px] text-muted">{group.map(optionLabel).join(" × ")}</h2>
                 {value === undefined ? (
                   <span className="text-[15px] text-brand">בחרו אפשרות</span>
                 ) : (
-                  <span className="min-w-0 truncate text-[15px] font-semibold">{value === NONE ? "ללא" : <Ltr>{value}</Ltr>}</span>
+                  <span className="min-w-0 truncate text-[15px] font-semibold" aria-live="polite">
+                    {lit && <span className="me-2 text-caption font-normal text-brand">עודכן</span>}
+                    {value === NONE ? "ללא" : <Ltr>{label(value)}</Ltr>}
+                  </span>
                 )}
               </header>
-              <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
-                {picked.chips[key].map((chip) => (
+              {/* Long groups wrap: the page scrolls, never a box inside it. */}
+              <div className="flex flex-wrap gap-2">
+                {picked.chips[key].map((chip, i) => (
                   <button
                     key={chip.value}
                     type="button"
                     aria-pressed={chip.selected}
                     onClick={() => onChip(key, chip.value)}
-                    className={`min-h-11 rounded-full px-4 text-[15px] transition-[color,background-color,scale] duration-150 active:scale-95 ${
+                    className={`flex min-h-11 flex-col items-center justify-center rounded-full px-4 text-[15px] leading-tight transition-[color,background-color,scale] duration-150 active:scale-95 ${
                       chip.selected
                         ? "bg-foreground font-medium text-background shadow-sm"
                         : chip.enabled
@@ -249,7 +369,10 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
                           : "bg-subtle/70 line-through opacity-35 hover:opacity-60"
                     }`}
                   >
-                    {chip.value === NONE ? "ללא" : <Ltr>{chip.value}</Ltr>}
+                    {chip.value === NONE ? "ללא" : <Ltr>{label(chip.value)}</Ltr>}
+                    {showPrices && prices[i] !== null && (
+                      <span className={`text-[12px] ${chip.selected ? "text-background/75" : "text-muted"}`}>{formatIls(prices[i]!)}</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -303,16 +426,44 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
               {availability.text}
             </p>
           )}
+          {chosen?.available === false && !unpriced && <p className="-mt-2 text-caption text-muted">לא זמין כרגע אצל הספק, נבדוק עבורכם בהצעה. אפשר להוסיף לסל.</p>}
+          {lead && !unpriced && <p className="-mt-2 text-caption text-muted">מגיע לישראל תוך {lead}</p>}
+          {unpriced && chosen && (
+            <div className="flex flex-col gap-2">
+              <p className="text-caption text-muted">לא ניתן להזמין כרגע דרך האתר: אין לנו מחיר לחלק הזה. שלחו בקשה ונבדוק אותו עבורכם.</p>
+              <RequestPart
+                key={chosen.id}
+                q={family.title}
+                url={chosen.productUrl}
+                note={[family.title, chosen.sku, ...keys.flatMap((k) => (chosen.options[k] ? [chosen.options[k]] : []))].filter(Boolean).join(", ")}
+                label="בקשה בכל זאת"
+                hint="נשלח לנו את הקישור לחלק אצל הספק. אפשר להוסיף כמות או הערה."
+                back={familyHref(family.slug, chosen.sku ?? chosen.id)}
+              />
+            </div>
+          )}
           <div className="hidden md:block">{addControls}</div>
           <div className="border-t border-line pt-3">
             <PriceNote rateDate={rateDate} />
           </div>
         </section>
 
-        {chosen && (
-          <a href={chosen.productUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center self-start text-caption text-brand hover:underline">
-            לעמוד המוצר באתר <Ltr className="ms-1">{chosen.supplierName}</Ltr>
-          </a>
+        {chosen && chosen.specs.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <h2 className="text-[15px] text-muted">
+              מפרט {chosen.sku ? <Ltr className="font-mono">{chosen.sku}</Ltr> : "האפשרות שנבחרה"}
+            </h2>
+            <dl className="divide-y divide-line rounded-2xl border border-line/80 bg-surface text-[15px]">
+              {chosen.specs.map((spec) => (
+                <div key={spec.key} className="flex justify-between gap-4 px-4 py-2.5">
+                  <dt className="text-muted">{optionLabel(spec.key)}</dt>
+                  <dd className="text-end">
+                    <Ltr>{spec.value}</Ltr>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         )}
       </div>
 

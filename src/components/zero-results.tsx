@@ -99,13 +99,28 @@ export function ZeroResults({ q, suggestions, onSuggest, onNavigate }: Props) {
   );
 }
 
-/** "לא מצאתם? שלחו לנו קישור לחלק": collapsed to one button until it's wanted. */
-function RequestPart({
+/**
+ * "לא מצאתם? שלחו לנו קישור לחלק": collapsed to one button until it's wanted. The
+ * product page reuses it as "בקשה בכל זאת" for a part we can't sell right now, with
+ * the supplier's link and the SKU filled in.
+ */
+export function RequestPart({
   q,
   onNavigate,
+  url,
+  note,
+  label = "לא מצאתם? שלחו לנו קישור לחלק",
+  hint = "קישור לדף החלק אצל הספק (כל ספק), ואם צריך גם מידה, כמות או הערה. נבדוק ונחזור אליכם.",
+  back,
 }: {
   q: string;
   onNavigate?: () => void;
+  url?: string;
+  note?: string;
+  label?: string;
+  hint?: string;
+  /** Where sign-in returns to; the search by default. */
+  back?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState<PartRequestState, FormData>(
@@ -133,7 +148,7 @@ function RequestPart({
         className="flex min-h-11 items-center gap-2 self-start text-brand hover:text-brand-strong"
       >
         <Link2 size={18} aria-hidden />
-        לא מצאתם? שלחו לנו קישור לחלק
+        {label}
       </button>
     );
   }
@@ -142,10 +157,7 @@ function RequestPart({
       action={action}
       className="flex flex-col gap-3 rounded-card border border-line bg-white p-4"
     >
-      <p className="text-caption text-muted">
-        קישור לדף החלק אצל הספק (כל ספק), ואם צריך גם מידה, כמות או הערה. נבדוק
-        ונחזור אליכם.
-      </p>
+      <p className="text-caption text-muted">{hint}</p>
       <input type="hidden" name="query" value={q} />
       <div className="flex flex-col gap-1">
         <label htmlFor={`${id}-url`} className="text-sm font-medium">
@@ -158,7 +170,8 @@ function RequestPart({
           inputMode="url"
           dir="ltr"
           required
-          autoFocus
+          autoFocus={!url}
+          defaultValue={url}
           maxLength={PART_REQUEST_LIMITS.url}
           placeholder="https://"
           className="min-h-11 rounded-xl border border-line bg-surface px-3 text-base"
@@ -172,6 +185,8 @@ function RequestPart({
           id={`${id}-note`}
           name="note"
           rows={2}
+          defaultValue={note}
+          autoFocus={!!url}
           maxLength={PART_REQUEST_LIMITS.note}
           className="rounded-xl border border-line bg-surface px-3 py-2 text-base"
         />
@@ -185,7 +200,7 @@ function RequestPart({
         <p role="alert" className="text-caption">
           צריך להתחבר לחשבון הקבוצה כדי לשלוח.{" "}
           <Link
-            href={`/login?next=${encodeURIComponent(catalogHref({ q }))}`}
+            href={`/login?next=${encodeURIComponent(back ?? catalogHref({ q }))}`}
             onClick={onNavigate}
             className="text-brand underline-offset-2 hover:underline"
           >
