@@ -3,9 +3,10 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Viewer } from "@/lib/auth";
-import { orderStage, type OrderStage } from "@/domain/order-stage";
+import { orderStatus, type OrderStatusKey } from "@/domain/order-status";
 import type { OrderStatus } from "@/domain/orders";
-import { getItemProgress, getOrderDeliveries } from "@/lib/logistics";
+import { getOrderDeliveries } from "@/lib/logistics";
+import { getOrderLines } from "@/lib/order-status";
 import type { CartSheetLine } from "@/components/cart-store";
 import { isOrderable } from "@/domain/cart";
 import { priceIls } from "@/domain/pricing";
@@ -142,7 +143,7 @@ export async function getOrderForViewer(orderId: string, viewer: Viewer) {
         )
     : [];
 
-  const progress = await getItemProgress([orderId]);
+  const progress = await getOrderLines([orderId]);
 
   return {
     ...row,
@@ -188,9 +189,9 @@ export async function getCheckoutDefaults(teamId: string): Promise<CheckoutDefau
   };
 }
 
-/** Each order's stage in the team's words, from its status and its lines' purchasing records. */
-export async function getOrderStages(orders: { id: string; status: OrderStatus }[]): Promise<Map<string, OrderStage>> {
+/** Each order's status (src/domain/order-status.ts), from its stored status and its lines' purchasing records. */
+export async function getOrderStages(orders: { id: string; status: OrderStatus }[]): Promise<Map<string, OrderStatusKey>> {
   if (orders.length === 0) return new Map();
-  const progress = await getItemProgress(orders.map((o) => o.id));
-  return new Map(orders.map((o) => [o.id, orderStage(o.status, progress.filter((p) => p.orderId === o.id))]));
+  const progress = await getOrderLines(orders.map((o) => o.id));
+  return new Map(orders.map((o) => [o.id, orderStatus(o.status, progress.filter((p) => p.orderId === o.id)).status]));
 }

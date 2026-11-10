@@ -43,7 +43,7 @@ export default function HowItWorksPage() {
           <Link href="/orders" className="text-brand hover:underline">
             ההזמנות
           </Link>{" "}
-          כל הזמנה מראה איפה היא: נשלחה בקשה, התקבלה הצעה, אושרה, הוזמנה מהספקים, בדרך, נמסרה.
+          כל הזמנה מראה איפה היא: מחכה להצעת מחיר, הצעה לאישורכם, אושרה, הוזמנה מהספק, בדרך למחסן, במחסן, מוכנה למסירה, נמסרה.
         </p>
       </InfoSection>
     </InfoPage>

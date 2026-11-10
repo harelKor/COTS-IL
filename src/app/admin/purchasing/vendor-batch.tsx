@@ -163,7 +163,7 @@ export function VendorBatch({
             aria-label="תאריך ההזמנה"
             className="h-11 rounded-full border border-line bg-surface px-4 text-base"
           />
-          <Button disabled={pending || batch.length === 0}>{pending ? "שומר…" : "סמן כנשלחה"}</Button>
+          <Button disabled={pending || batch.length === 0}>{pending ? "שומר…" : "סימון כהוזמן מהספק"}</Button>
         </div>
         <p className="text-xs text-muted">מעדכן את כל {batchOrderCount(batch)} ההזמנות שבאצווה.</p>
       </form>

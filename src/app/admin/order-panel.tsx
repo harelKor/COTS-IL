@@ -5,14 +5,16 @@ import { ActionForm } from "@/components/action-form";
 import { Alert, Button } from "@/components/form";
 import { Ltr } from "@/components/ltr";
 import { ItemDescription, QuoteTable, formatDateTime } from "@/components/orders";
-import { ADMIN_LINE_STAGE_LABELS, adminLineStage, type AdminStatus } from "@/domain/admin-orders";
+import { isFinished, LINE_LABELS, lineStatus, type OrderStatusKey } from "@/domain/order-status";
 import { canRejectOrder } from "@/domain/orders";
 import { priceIls } from "@/domain/pricing";
 import { usdIlsRate } from "@/lib/fx";
 import { requireAdmin } from "@/lib/auth";
-import { getAdminLines, getOrderDates, getOrderLogistics } from "@/lib/admin-orders";
+import { getOrderDates, getOrderLogistics } from "@/lib/admin-orders";
+import { getOrderLines } from "@/lib/order-status";
 import { getOrderDeliveries } from "@/lib/logistics";
 import { getOrderForViewer } from "@/lib/orders";
+import { orderSupplierLock } from "@/lib/purchasing";
 import { getApproveLinks } from "@/lib/quote-links";
 import { reviewTeam } from "./actions";
 import { confirmDelivery, createDelivery } from "./deliveries/actions";
@@ -120,19 +122,23 @@ async function Editor({ detail }: { detail: Detail }) {
   );
 }
 
-function LockedQuote({ detail, orderId }: { detail: Detail; orderId: string }) {
+function LockedQuote({ detail, orderId, ordered }: { detail: Detail; orderId: string; ordered: boolean }) {
   const latest = detail.quotes.find((q) => q.status !== "superseded") ?? detail.quotes[0];
   if (!latest) return null;
   return (
     <Section title={`הצעה גרסה ${latest.version}, נשלחה ${formatDateTime(latest.sentAt)}`}>
       <QuoteTable items={detail.items} quote={latest} />
-      <Link
-        href={`/admin?open=${orderId}&edit=1`}
-        scroll={false}
-        className="flex min-h-11 w-fit items-center rounded-full bg-subtle px-4 text-sm font-medium hover:bg-subtle-hover"
-      >
-        לשנות פרטים ושליחה לאישור מחדש
-      </Link>
+      {ordered ? (
+        <p className="text-sm text-muted">ההצעה נעולה: חלק מהפריטים כבר הוזמנו מהספק. שינוי נעשה בבקשה חדשה של הקבוצה.</p>
+      ) : (
+        <Link
+          href={`/admin?open=${orderId}&edit=1`}
+          scroll={false}
+          className="flex min-h-11 w-fit items-center rounded-full bg-subtle px-4 text-sm font-medium hover:bg-subtle-hover"
+        >
+          לשנות פרטים ושליחה לאישור מחדש
+        </Link>
+      )}
     </Section>
   );
 }
@@ -154,10 +160,10 @@ async function Links({ orderId }: { orderId: string }) {
 }
 
 /** The order's lines with their vendor orders, shipments and receipts, and the action for the stage. */
-async function Logistics({ detail, status }: { detail: Detail; status: AdminStatus }) {
+async function Logistics({ detail, status }: { detail: Detail; status: OrderStatusKey }) {
   const orderId = detail.order.id;
   const [lines, logistics, deliveries] = await Promise.all([
-    getAdminLines([orderId]),
+    getOrderLines([orderId]),
     getOrderLogistics(orderId),
     getOrderDeliveries(orderId),
   ]);
@@ -189,13 +195,13 @@ async function Logistics({ detail, status }: { detail: Detail; status: AdminStat
         <ul className="flex flex-col">
           {lines.map((l) => {
             const item = items.get(l.orderItemId)!;
-            const stage = adminLineStage(l);
+            const stage = lineStatus(l);
             const onPos = logistics.lines.filter((x) => x.orderItemId === l.orderItemId);
             return (
               <li key={l.orderItemId} className="flex flex-col gap-1 border-t border-line py-3 first:border-t-0">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <ItemDescription item={item} />
-                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${LINE_STYLE[stage]}`}>{ADMIN_LINE_STAGE_LABELS[stage]}</span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${LINE_STYLE[stage]}`}>{LINE_LABELS[stage]}</span>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
                   <span>כמות {l.quoted}</span>
@@ -217,7 +223,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: AdminStat
         </ul>
       </Section>
 
-      {status === "to_send" &&
+      {status === "to_order" &&
         [...vendors].map(([supplierId, v]) => {
           const others = v.draft?.others ?? [];
           if (v.waiting.length === 0 && !v.draft) return null;
@@ -242,7 +248,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: AdminStat
                   <input name="orderedAt" type="date" required defaultValue={today()} aria-label="תאריך ההזמנה" className={fieldClass} />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <Button>סמן כנשלחה</Button>
+                  <Button>סימון כהוזמן מהספק</Button>
                   {others.length > 0 && <span className="text-sm text-muted">מעדכן גם {others.length} הזמנות נוספות</span>}
                   <Link href={`/admin/purchasing#v-${supplierId}`} className="text-sm text-brand hover:underline">
                     פתיחת סל אצל הספק
@@ -281,7 +287,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: AdminStat
           </ul>
         </Section>
       )}
-      {status === "sent" && logistics.shipments.length === 0 && (
+      {status === "ordered" && logistics.shipments.length === 0 && (
         <p className="text-sm text-muted">
           עוד אין משלוח מהספק. מוסיפים משלוח בעמוד{" "}
           {logistics.pos[0] && (
@@ -381,24 +387,26 @@ async function Summary({ detail }: { detail: Detail }) {
 }
 
 /** What an open card shows: exactly what its stage needs, so the admin never leaves the page. */
-export async function OrderPanel({ orderId, status, edit }: { orderId: string; status: AdminStatus; edit: boolean }) {
+export async function OrderPanel({ orderId, status, edit }: { orderId: string; status: OrderStatusKey; edit: boolean }) {
   const admin = await requireAdmin();
   const detail = await getOrderForViewer(orderId, admin);
   if (!detail) return <Alert>ההזמנה לא נמצאה.</Alert>;
   const finished = detail.order.status === "rejected" || detail.order.status === "cancelled";
+  // Once a line is ordered from a supplier the quote can't change (S13), whatever the URL says.
+  const ordered = (await orderSupplierLock(db, orderId)) === "ordered";
 
   return (
     <div className="flex flex-col gap-5">
       <Contact detail={detail} />
-      {status === "review" || (edit && !finished) ? (
+      {status === "awaiting_quote" || (edit && !finished && !ordered) ? (
         <Editor detail={detail} />
       ) : (
-        !finished && <LockedQuote detail={detail} orderId={orderId} />
+        !finished && <LockedQuote detail={detail} orderId={orderId} ordered={ordered} />
       )}
-      {status === "team" && <Links orderId={orderId} />}
-      {["to_send", "sent", "warehouse", "out", "done"].includes(status) && !finished && <Logistics detail={detail} status={status} />}
-      {status === "done" && <Summary detail={detail} />}
-      {canRejectOrder(detail.order.status) && status !== "done" && <RejectOrderForm orderId={orderId} />}
+      {status === "quote_sent" && <Links orderId={orderId} />}
+      {detail.order.status === "approved" && <Logistics detail={detail} status={status} />}
+      {isFinished(status) && <Summary detail={detail} />}
+      {canRejectOrder(detail.order.status) && !isFinished(status) && <RejectOrderForm orderId={orderId} />}
       <Link href={`/orders/${orderId}`} className="text-sm text-brand hover:underline">
         תצוגת הקבוצה והדפסה
       </Link>

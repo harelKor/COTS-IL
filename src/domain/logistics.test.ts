@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fifoAllocate, lineStage, validateAllocations, validateReceiptLine } from "./logistics";
+import { fifoAllocate, validateAllocations, validateReceiptLine } from "./logistics";
 
 describe("fifoAllocate", () => {
   const shares = [
@@ -65,19 +65,3 @@ describe("validateAllocations", () => {
   });
 });
 
-describe("lineStage", () => {
-  const base = { quoted: 5, ordered: 0, inTransit: false, allocated: 0, delivered: 0 };
-
-  it("follows the line through its stages", () => {
-    expect(lineStage(base)).toBe("waiting");
-    expect(lineStage({ ...base, ordered: 5 })).toBe("ordered");
-    expect(lineStage({ ...base, ordered: 5, inTransit: true })).toBe("in_transit");
-    expect(lineStage({ ...base, ordered: 5, allocated: 3 })).toBe("allocated");
-    expect(lineStage({ ...base, ordered: 5, allocated: 5, delivered: 5 })).toBe("delivered");
-  });
-
-  it("keeps a partly delivered line open", () => {
-    expect(lineStage({ ...base, ordered: 5, allocated: 3, delivered: 3 })).toBe("ordered");
-    expect(lineStage({ ...base, ordered: 5, allocated: 4, delivered: 3 })).toBe("allocated");
-  });
-});

@@ -129,7 +129,7 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
                 <tr>
                   <th className="p-2 text-start font-medium">הזמנה</th>
                   <th className="p-2 text-start font-medium">קבוצה</th>
-                  <th className="p-2 text-start font-medium">נשלחה</th>
+                  <th className="p-2 text-start font-medium">תאריך הבקשה</th>
                   <th className="p-2 text-start font-medium">פריטים</th>
                   <th className="p-2 text-start font-medium">משלוח</th>
                   <th className="p-2 text-start font-medium">סה״כ</th>

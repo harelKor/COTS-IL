@@ -1,7 +1,9 @@
 import "server-only";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { adminOrderStatus, sortForAdmin, type AdminLine, type AdminOrderView, type AdminStatus } from "@/domain/admin-orders";
+import { sortForAdmin } from "@/domain/admin-orders";
+import { ORDER_STATUS_KEYS, orderStatus, type LineFacts, type OrderStatusKey, type OrderView } from "@/domain/order-status";
+import { getOrderLines } from "@/lib/order-status";
 import type { OrderStatus } from "@/domain/orders";
 
 const {
@@ -22,46 +24,6 @@ const {
   teams,
 } = schema;
 
-/**
- * Each approved line in units, for the admin's statuses. One query for any number
- * of orders: the latest approved quote gives the quantity, the rest are sums.
- */
-export async function getAdminLines(orderIds: string[]) {
-  if (orderIds.length === 0) return [];
-  return db
-    .select({
-      orderItemId: teamOrderItems.id,
-      orderId: teamOrderItems.orderId,
-      supplierName: teamOrderItems.supplierName,
-      quoted: quoteLines.qty,
-      ordered: sql<number>`(
-        SELECT coalesce(sum(a.qty), 0)::int FROM ${poAllocations} a
-        JOIN ${poLines} l ON l.id = a.po_line_id JOIN ${supplierPos} p ON p.id = l.po_id
-        WHERE a.order_item_id = ${teamOrderItems.id} AND p.status = 'ordered'
-      )`,
-      onBatch: sql<number>`(
-        SELECT coalesce(sum(a.qty), 0)::int FROM ${poAllocations} a
-        JOIN ${poLines} l ON l.id = a.po_line_id JOIN ${supplierPos} p ON p.id = l.po_id
-        WHERE a.order_item_id = ${teamOrderItems.id} AND p.status <> 'cancelled'
-      )`,
-      allocated: sql<number>`(SELECT coalesce(sum(qty), 0)::int FROM ${stockAllocations} WHERE ${stockAllocations.orderItemId} = ${teamOrderItems.id})`,
-      prepared: sql<number>`(
-        SELECT coalesce(sum(di.qty), 0)::int FROM ${deliveryItems} di
-        JOIN ${stockAllocations} sa ON sa.id = di.allocation_id JOIN ${deliveries} d ON d.id = di.delivery_id
-        WHERE sa.order_item_id = ${teamOrderItems.id} AND d.status = 'prepared'
-      )`,
-      delivered: sql<number>`(
-        SELECT coalesce(sum(di.qty), 0)::int FROM ${deliveryItems} di
-        JOIN ${stockAllocations} sa ON sa.id = di.allocation_id JOIN ${deliveries} d ON d.id = di.delivery_id
-        WHERE sa.order_item_id = ${teamOrderItems.id} AND d.status = 'delivered'
-      )`,
-    })
-    .from(quoteLines)
-    .innerJoin(quotes, and(eq(quotes.id, quoteLines.quoteId), eq(quotes.status, "approved")))
-    .innerJoin(teamOrderItems, eq(teamOrderItems.id, quoteLines.itemId))
-    .where(inArray(quotes.orderId, orderIds));
-}
-
 export type AdminOrderSummary = {
   id: string;
   number: number;
@@ -73,7 +35,7 @@ export type AdminOrderSummary = {
   teamStatus: string;
   itemCount: number;
   totalIls: number;
-  view: AdminOrderView;
+  view: OrderView;
 };
 
 /** Every order card's summary fields, in the admin's order. Two queries for any number of orders. */
@@ -102,23 +64,21 @@ export async function getOrderSummaries(): Promise<AdminOrderSummary[]> {
     .orderBy(asc(teamOrders.submittedAt));
 
   const approved = rows.filter((r) => r.status === "approved").map((r) => r.id);
-  const lines = await getAdminLines(approved);
-  const byOrder = new Map<string, AdminLine[]>();
+  const lines = await getOrderLines(approved);
+  const byOrder = new Map<string, LineFacts[]>();
   for (const l of lines) byOrder.set(l.orderId, [...(byOrder.get(l.orderId) ?? []), l]);
 
   const all = rows.map(({ teamProgram, teamNumber, ...r }) => ({
     ...r,
     teamLabel: `${teamProgram} ${teamNumber}`,
-    view: adminOrderStatus(r.status, byOrder.get(r.id) ?? []),
+    view: orderStatus(r.status, byOrder.get(r.id) ?? []),
   }));
   return sortForAdmin(all);
 }
 
 /** How many orders are in each open status, for the filter boxes and the tab badges. */
 export function countByStatus(orders: AdminOrderSummary[]) {
-  const counts = Object.fromEntries(
-    (["review", "team", "to_send", "sent", "warehouse", "out", "done"] as AdminStatus[]).map((s) => [s, 0]),
-  ) as Record<AdminStatus, number>;
+  const counts = Object.fromEntries(ORDER_STATUS_KEYS.map((s) => [s, 0])) as Record<OrderStatusKey, number>;
   for (const o of orders) counts[o.view.status]++;
   return counts;
 }

@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { Search } from "lucide-react";
 import { Ltr } from "@/components/ltr";
 import { formatDateTime } from "@/components/orders";
-import { ADMIN_STATUS_LABELS, ADMIN_STATUSES, type AdminStatus } from "@/domain/admin-orders";
+import { isFinished, ORDER_STEPS, STATUS_LABELS, type OrderStatusKey } from "@/domain/order-status";
 import { formatIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { countByStatus, getOrderSummaries, type AdminOrderSummary } from "@/lib/admin-orders";
@@ -16,16 +16,19 @@ export const metadata: Metadata = { title: "כל ההזמנות" };
 
 type Params = { status?: string; q?: string; open?: string; finished?: string; edit?: string };
 
-const OPEN_STATUSES = ADMIN_STATUSES.filter((s) => s !== "done");
+const OPEN_STATUSES = ORDER_STEPS.filter((s) => !isFinished(s));
 
-const MAIN_ACTION: Record<AdminStatus, string> = {
-  review: "אישור ושליחה לקבוצה",
-  team: "קישורי אישור",
-  to_send: "סמן כנשלחה",
-  sent: "קליטה במחסן",
-  warehouse: "הפקת תעודת משלוח",
-  out: "סימון כנמסר",
-  done: "סיכום",
+const MAIN_ACTION: Record<OrderStatusKey, string> = {
+  awaiting_quote: "אישור ושליחה לקבוצה",
+  quote_sent: "קישורי אישור",
+  to_order: "סימון כהוזמן מהספק",
+  ordered: "רישום משלוח מהספק",
+  to_warehouse: "קליטה במחסן",
+  at_warehouse: "הפקת תעודת משלוח",
+  to_team: "סימון כנמסר",
+  delivered: "סיכום",
+  rejected: "סיכום",
+  cancelled: "סיכום",
 };
 
 /** Builds this page's URL with some parameters changed, so filters, search and the open card all survive. */
@@ -49,10 +52,10 @@ function matches(order: AdminOrderSummary, q: string) {
   return String(order.number) === term || order.teamLabel.includes(term) || order.teamLabel.split(" ")[1] === term || order.teamName.includes(term);
 }
 
-function Filters({ params, counts, total }: { params: Params; counts: Record<AdminStatus, number>; total: number }) {
+function Filters({ params, counts, total }: { params: Params; counts: Record<OrderStatusKey, number>; total: number }) {
   return (
     <div className="flex flex-col gap-3">
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-8">
         <li>
           <Link
             href={href(params, { status: undefined, open: undefined })}
@@ -76,7 +79,7 @@ function Filters({ params, counts, total }: { params: Params; counts: Record<Adm
                   active ? STATUS_STYLE[s].edge : "border-transparent"
                 }`}
               >
-                <span className="text-sm font-medium">{ADMIN_STATUS_LABELS[s]}</span>
+                <span className="text-sm font-medium">{STATUS_LABELS[s].admin}</span>
                 <span className="text-2xl font-semibold tabular-nums">{counts[s]}</span>
               </Link>
             </li>
@@ -105,12 +108,7 @@ function Filters({ params, counts, total }: { params: Params; counts: Record<Adm
 function OrderCard({ order, params, now }: { order: AdminOrderSummary; params: Params; now: number }) {
   const open = params.open === order.id;
   const style = STATUS_STYLE[order.view.status];
-  const label =
-    order.view.status === "done" && order.view.ended !== "delivered"
-      ? order.view.ended === "rejected"
-        ? "נדחתה"
-        : "בוטלה"
-      : ADMIN_STATUS_LABELS[order.view.status];
+  const label = STATUS_LABELS[order.view.status].admin;
   return (
     <li id={`o-${order.id}`} className={`card-surface scroll-mt-20 rounded-[18px] border-s-4 ${style.edge}`}>
       <Link
@@ -163,8 +161,8 @@ async function AllOrders({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
   const now = new Date().getTime();
   const everything = await getOrderSummaries();
-  const all = everything.filter((o) => o.view.status !== "done");
-  const finished = everything.filter((o) => o.view.status === "done" && matches(o, params.q ?? "")).reverse();
+  const all = everything.filter((o) => !isFinished(o.view.status));
+  const finished = everything.filter((o) => isFinished(o.view.status) && matches(o, params.q ?? "")).reverse();
   const counts = countByStatus(all);
   // The open card stays in the list after its action moves it out of the filter.
   const shown = all.filter(

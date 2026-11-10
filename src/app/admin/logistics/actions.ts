@@ -1,5 +1,6 @@
 "use server";
 
+import { canAdvance } from "@/domain/order-status";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -64,9 +65,9 @@ export async function createShipment(_prev: ActionState, formData: FormData): Pr
       .map((line) => ({ line, qty: count(formData.get(`qty:${line.id}`)) }))
       .filter(({ qty }) => qty !== 0);
     if (items.length === 0) return { error: "צריך לפחות שורה אחת עם כמות" };
-    if (items.some(({ line, qty }) => !Number.isInteger(qty) || qty < 0 || qty > line.ordered - line.shipped + line.damaged)) {
-      return { error: "אי אפשר לשלוח יותר ממה שנותר בהזמנה" };
-    }
+    // Damaged units can be shipped again, so they don't count as done.
+    const refused = items.map(({ line, qty }) => canAdvance("ship", { reached: line.ordered, done: line.shipped - line.damaged }, qty)).find(Boolean);
+    if (refused) return { error: refused };
 
     const [shipment] = await tx
       .insert(shipments)

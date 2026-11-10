@@ -2,16 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PrintButton } from "@/components/print-button";
-import { LINE_STAGE_LABELS, lineStage } from "@/domain/logistics";
+import { LINE_LABELS, lineStatus } from "@/domain/order-status";
 import { requireAdmin } from "@/lib/auth";
-import { getItemProgress, getSupplierShortages } from "@/lib/logistics";
+import { getSupplierShortages } from "@/lib/logistics";
+import { getOrderLines } from "@/lib/order-status";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 
 export const metadata: Metadata = { title: "דוח חוסרים" };
 
 async function Shortages() {
   await requireAdmin();
-  const [items, lines] = await Promise.all([getItemProgress(), getSupplierShortages()]);
+  const [items, lines] = await Promise.all([getOrderLines(), getSupplierShortages()]);
   const openItems = items.filter((i) => i.quoted > i.delivered);
   const shortLines = lines.filter((l) => l.received - l.damaged < l.ordered);
 
@@ -53,7 +54,7 @@ async function Shortages() {
                     <td className="p-2">{item.allocated}</td>
                     <td className="p-2">{item.delivered}</td>
                     <td className="p-2 font-semibold text-warning">{item.quoted - item.delivered}</td>
-                    <td className="whitespace-nowrap p-2 text-xs">{LINE_STAGE_LABELS[lineStage(item)]}</td>
+                    <td className="whitespace-nowrap p-2 text-xs">{LINE_LABELS[lineStatus(item)]}</td>
                   </tr>
                 ))}
               </tbody>
@@ -74,7 +75,7 @@ async function Shortages() {
                   <th className="p-2 text-start font-medium">הזמנת ספק</th>
                   <th className="p-2 text-start font-medium">פריט</th>
                   <th className="p-2 text-start font-medium">הוזמן</th>
-                  <th className="p-2 text-start font-medium">נשלח</th>
+                  <th className="p-2 text-start font-medium">נשלח מהספק</th>
                   <th className="p-2 text-start font-medium">התקבל</th>
                   <th className="p-2 text-start font-medium">פגום</th>
                   <th className="p-2 text-start font-medium">חסר</th>

@@ -4,11 +4,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Alert, Button } from "@/components/form";
-import { formatDateTime, OrderStatusBadge, QuoteTable, RequestTable } from "@/components/orders";
+import { formatDateTime, QuoteTable, RequestTable } from "@/components/orders";
 import { PrintButton } from "@/components/print-button";
-import { OrderTimeline } from "@/components/order-timeline";
+import { OrderTimeline, StageBadge } from "@/components/order-timeline";
 import { ReorderButton } from "@/components/reorder-button";
-import { orderStage } from "@/domain/order-stage";
+import { orderStatus } from "@/domain/order-status";
 import { canCancelOrder, canDecideQuote, teamCanOrder } from "@/domain/orders";
 import { getViewer } from "@/lib/auth";
 import { getOrderForViewer } from "@/lib/orders";
@@ -30,8 +30,8 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
   const [latest, previous] = quotes;
   // Anyone signed in to the team can approve, reorder and cancel (D11).
   const onTeam = !!membership && teamCanOrder(membership.status);
-  const stage = orderStage(order.status, [...progress.values()]);
-  const stoppedAt = latest ? "quoted" : "requested";
+  const stage = orderStatus(order.status, [...progress.values()]).status;
+  const stoppedAt = latest ? "quote_sent" : "awaiting_quote";
   const waitingForDecision = latest?.status === "sent" && canDecideQuote(order.status);
 
   return (
@@ -45,7 +45,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <OrderStatusBadge status={order.status} />
+          <StageBadge stage={stage} />
           <PrintButton />
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { canAdvance } from "./order-status";
+
 export type Share = { orderItemId: string; open: number };
 
 /** Hands received units to teams, oldest order first. Any shortage lands on the newest orders. */
@@ -17,7 +19,7 @@ const isCount = (n: number) => Number.isInteger(n) && n >= 0;
 /** Hebrew message when a receipt line is impossible, otherwise null. */
 export function validateReceiptLine(line: { open: number; received: number; damaged: number }): string | null {
   if (!isCount(line.received) || !isCount(line.damaged)) return "כמות לא תקינה";
-  if (line.received > line.open) return `התקבל יותר מהיתרה במשלוח (${line.open})`;
+  if (canAdvance("receive", { reached: line.open, done: 0 }, line.received)) return `התקבל יותר מהיתרה במשלוח (${line.open})`;
   if (line.damaged > line.received) return "אי אפשר שיהיו יותר פגומים מכמות שהתקבלה";
   return null;
 }
@@ -42,28 +44,3 @@ export function validateAllocations(goodQty: number, rows: AllocationRow[]): str
   return null;
 }
 
-export type LineProgress = {
-  quoted: number;
-  ordered: number;
-  inTransit: boolean;
-  allocated: number;
-  delivered: number;
-};
-
-export type LineStage = "waiting" | "ordered" | "in_transit" | "allocated" | "delivered";
-
-export const LINE_STAGE_LABELS: Record<LineStage, string> = {
-  waiting: "ממתינה לרכש",
-  ordered: "הוזמנה מהספק",
-  in_transit: "בדרך",
-  allocated: "הגיעה, ממתינה למסירה",
-  delivered: "נמסרה",
-};
-
-/** A line's status comes from the quantities, so it can't drift away from them (spec §10). */
-export function lineStage({ quoted, ordered, inTransit, allocated, delivered }: LineProgress): LineStage {
-  if (quoted > 0 && delivered >= quoted) return "delivered";
-  if (allocated > delivered) return "allocated";
-  if (inTransit) return "in_transit";
-  return ordered > 0 ? "ordered" : "waiting";
-}

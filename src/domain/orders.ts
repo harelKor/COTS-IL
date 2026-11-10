@@ -1,14 +1,8 @@
 import { createHash } from "node:crypto";
 
+/** What is stored. What the screens show comes from orderStatus() in ./order-status.ts. */
 export type OrderStatus = "submitted" | "quote_sent" | "approved" | "rejected" | "cancelled";
 
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  submitted: "ממתינה לבדיקת הספק הישראלי",
-  quote_sent: "הצעה ממתינה לאישור הקבוצה",
-  approved: "הצעה אושרה",
-  rejected: "נדחתה",
-  cancelled: "בוטלה",
-};
 
 export type TeamStatus = "pending" | "active" | "rejected" | "suspended";
 /**

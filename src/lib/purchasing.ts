@@ -126,15 +126,19 @@ export async function getPo(id: string) {
   };
 }
 
-/** Whether an order has lines on a live supplier order. Those lines can't be re-quoted any more. */
-export async function orderHasAllocations(reader: Reader, orderId: string) {
-  const [row] = await reader
-    .select({ id: poAllocations.orderItemId })
+/**
+ * Where an order's lines are on supplier orders: `ordered` when any is on one marked
+ * ordered (the quote is locked for good, S13), `draft` when only on drafts (remove them
+ * there first), or null.
+ */
+export async function orderSupplierLock(reader: Reader, orderId: string): Promise<"ordered" | "draft" | null> {
+  const rows = await reader
+    .select({ status: supplierPos.status })
     .from(poAllocations)
     .innerJoin(poLines, eq(poLines.id, poAllocations.poLineId))
     .innerJoin(supplierPos, and(eq(supplierPos.id, poLines.poId), ne(supplierPos.status, "cancelled")))
     .innerJoin(teamOrderItems, eq(teamOrderItems.id, poAllocations.orderItemId))
-    .where(eq(teamOrderItems.orderId, orderId))
-    .limit(1);
-  return !!row;
+    .where(eq(teamOrderItems.orderId, orderId));
+  if (rows.some((r) => r.status === "ordered")) return "ordered";
+  return rows.length > 0 ? "draft" : null;
 }

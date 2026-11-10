@@ -1,9 +1,9 @@
 import ExcelJS from "exceljs";
 import type { NextRequest } from "next/server";
-import { lineStage, LINE_STAGE_LABELS } from "@/domain/logistics";
+import { LINE_LABELS, lineStatus } from "@/domain/order-status";
 import { profitSummary } from "@/domain/reports";
 import { requireAdmin } from "@/lib/auth";
-import { getItemProgress } from "@/lib/logistics";
+import { getOrderLines } from "@/lib/order-status";
 import { getImportCosts, getPurchases, getSales, parsePeriod } from "@/lib/reports";
 
 type Cell = string | number | Date | null;
@@ -21,7 +21,7 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
       columns: [
         { header: "הזמנה", width: 10 },
         { header: "קבוצה", width: 24 },
-        { header: "נשלחה", width: 20 },
+        { header: "תאריך הבקשה", width: 20 },
         { header: "הצעה ראשונה", width: 20 },
         { header: "אושרה", width: 20 },
         { header: "פריטים ₪", width: 12 },
@@ -85,7 +85,7 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
   }
 
   if (type === "shortages") {
-    const rows = (await getItemProgress()).filter((i) => i.quoted > i.delivered);
+    const rows = (await getOrderLines()).filter((i) => i.quoted > i.delivered);
     return {
       name: "חוסרים",
       columns: [
@@ -110,7 +110,7 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
         i.allocated,
         i.delivered,
         i.quoted - i.delivered,
-        LINE_STAGE_LABELS[lineStage(i)],
+        LINE_LABELS[lineStatus(i)],
       ]),
     };
   }

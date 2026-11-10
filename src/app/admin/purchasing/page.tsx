@@ -136,7 +136,7 @@ async function Purchasing() {
       )}
 
       <section id="sent" className="flex flex-col gap-3 scroll-mt-20">
-        <h2 className="text-xl font-semibold">הזמנות ספק שנשלחו</h2>
+        <h2 className="text-xl font-semibold">הזמנות ספק שבוצעו</h2>
         {sent.filter((p) => !isDone(p.id)).length === 0 ? (
           <p className="text-muted">אין הזמנות ספק בדרך.</p>
         ) : (

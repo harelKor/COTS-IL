@@ -1,18 +1,6 @@
-import { LINE_STAGE_LABELS, lineStage, type LineProgress } from "@/domain/logistics";
+import { LINE_LABELS, lineStatus, type LineFacts } from "@/domain/order-status";
 import { formatIls } from "@/domain/pricing";
-import { diffQuoteLines, ORDER_STATUS_LABELS, quoteTotals, type OrderStatus, type QuoteLine } from "@/domain/orders";
-
-const statusStyles: Record<OrderStatus, string> = {
-  submitted: "bg-warning/10 text-warning",
-  quote_sent: "bg-brand/10 text-brand",
-  approved: "bg-success/10 text-success",
-  rejected: "bg-danger/10 text-danger",
-  cancelled: "bg-subtle text-muted",
-};
-
-export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  return <span className={`rounded px-2 py-0.5 text-xs ${statusStyles[status]}`}>{ORDER_STATUS_LABELS[status]}</span>;
-}
+import { diffQuoteLines, quoteTotals, type QuoteLine } from "@/domain/orders";
 
 const dateTime = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
@@ -86,13 +74,13 @@ export function RequestTable({ items }: { items: OrderItem[] }) {
   );
 }
 
-function ProgressNote({ progress }: { progress?: LineProgress }) {
+function ProgressNote({ progress }: { progress?: LineFacts }) {
   if (!progress || progress.quoted === 0) return null;
-  const stage = lineStage(progress);
-  if (stage === "waiting") return null;
+  const stage = lineStatus(progress);
+  if (stage === "to_order") return null;
   return (
     <div className="mt-1 text-xs text-success">
-      {LINE_STAGE_LABELS[stage]}
+      {LINE_LABELS[stage]}
       {progress.delivered > 0 && stage !== "delivered" && `, נמסרו ${progress.delivered} מתוך ${progress.quoted}`}
     </div>
   );
@@ -115,7 +103,7 @@ export function QuoteTable({
   quote: QuoteView;
   previous?: QuoteView;
   items: OrderItem[];
-  progress?: Map<string, LineProgress>;
+  progress?: Map<string, LineFacts>;
 }) {
   const linesByItem = new Map(quote.lines.map((line) => [line.itemId, line]));
   const changes = diffQuoteLines(previous?.lines ?? [], quote.lines);

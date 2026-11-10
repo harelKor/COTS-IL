@@ -109,7 +109,7 @@ const batchSchema = z.object({
 });
 
 /**
- * "סמן כנשלחה" for a vendor batch: puts the chosen order lines on the supplier's
+ * "סימון כהוזמן מהספק" for a vendor batch: puts the chosen order lines on the supplier's
  * draft and marks it ordered, in one go. Every team order it serves moves on together.
  */
 export async function sendVendorBatch(_prev: PoFormState, formData: FormData): Promise<PoFormState> {

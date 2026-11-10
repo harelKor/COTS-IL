@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { canRejectOrder, canSendQuote, validateQuoteLines } from "@/domain/orders";
 import { requireAdmin } from "@/lib/auth";
-import { orderHasAllocations } from "@/lib/purchasing";
+import { orderSupplierLock } from "@/lib/purchasing";
 
 const { auditLog, quoteLines, quotes, teamOrderItems, teamOrders } = schema;
 
@@ -22,7 +22,11 @@ const headerSchema = z.object({
   notes: z.string().trim().max(2000).default(""),
 });
 
-const ON_SUPPLIER_ORDER = "יש בהזמנה שורות שנמצאות בהזמנת ספק. קודם צריך להסיר אותן משם.";
+/** Why a quote can't change, by where its lines are on supplier orders. */
+const LOCKED: Record<"ordered" | "draft", string> = {
+  ordered: "חלק מהפריטים כבר הוזמנו מהספק, ולכן ההצעה נעולה. שינוי נעשה בבקשה חדשה של הקבוצה.",
+  draft: "יש בהזמנה שורות שנמצאות בטיוטת הזמנת ספק. קודם צריך להסיר אותן משם.",
+};
 
 const toNumber = (value: FormDataEntryValue | null) => (value === null || value === "" ? NaN : Number(value));
 
@@ -37,7 +41,8 @@ export async function sendQuote(_prev: QuoteFormState, formData: FormData): Prom
     const [order] = await tx.select().from(teamOrders).where(eq(teamOrders.id, orderId)).for("update");
     if (!order) return { error: "ההזמנה לא נמצאה" };
     if (!canSendQuote(order.status)) return { error: "ההזמנה בוטלה" };
-    if (await orderHasAllocations(tx, orderId)) return { error: ON_SUPPLIER_ORDER };
+    const lock = await orderSupplierLock(tx, orderId);
+    if (lock) return { error: LOCKED[lock] };
 
     const items = await tx.select().from(teamOrderItems).where(eq(teamOrderItems.orderId, orderId));
     const lines = items.map((item) => ({
@@ -113,7 +118,8 @@ export async function rejectOrder(_prev: QuoteFormState, formData: FormData): Pr
     const [order] = await tx.select().from(teamOrders).where(eq(teamOrders.id, orderId)).for("update");
     if (!order) return { error: "ההזמנה לא נמצאה" };
     if (!canRejectOrder(order.status)) return { error: "אי אפשר לדחות הזמנה במצב הזה" };
-    if (await orderHasAllocations(tx, orderId)) return { error: ON_SUPPLIER_ORDER };
+    const lock = await orderSupplierLock(tx, orderId);
+    if (lock) return { error: LOCKED[lock] };
 
     await tx.update(teamOrders).set({ status: "rejected", rejectionReason: reason }).where(eq(teamOrders.id, orderId));
     await tx

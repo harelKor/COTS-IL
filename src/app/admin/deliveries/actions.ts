@@ -1,5 +1,6 @@
 "use server";
 
+import { canAdvance } from "@/domain/order-status";
 import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -55,9 +56,8 @@ export async function createDelivery(_prev: ActionState, formData: FormData): Pr
       })
       .filter((a) => a.take !== 0);
     if (lines.length === 0) return { error: "צריך לבחור לפחות פריט אחד" };
-    if (lines.some((a) => !Number.isInteger(a.take) || a.take < 0 || a.take > a.qty - a.delivered)) {
-      return { error: "אי אפשר למסור יותר ממה שהוקצה ונותר" };
-    }
+    const refused = lines.map((a) => canAdvance("prepare_delivery", { reached: a.qty, done: a.delivered }, a.take)).find(Boolean);
+    if (refused) return { error: refused };
 
     const [delivery] = await tx
       .insert(deliveries)

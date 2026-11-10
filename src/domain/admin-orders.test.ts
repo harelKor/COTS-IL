@@ -1,67 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { adminLineStage, adminOrderStatus, batchOrderCount, selectBatch, sortForAdmin, type AdminLine } from "./admin-orders";
+import { batchOrderCount, selectBatch, sortForAdmin } from "./admin-orders";
 import type { ConsolidatedLine } from "./purchasing";
-
-const line = (p: Partial<AdminLine> = {}): AdminLine => ({
-  supplierName: "WCP",
-  quoted: 2,
-  ordered: 0,
-  allocated: 0,
-  prepared: 0,
-  delivered: 0,
-  ...p,
-});
-
-describe("adminOrderStatus", () => {
-  it("follows the order's own status before approval", () => {
-    expect(adminOrderStatus("submitted", []).status).toBe("review");
-    expect(adminOrderStatus("quote_sent", []).status).toBe("team");
-    expect(adminOrderStatus("rejected", [])).toMatchObject({ status: "done", ended: "rejected" });
-    expect(adminOrderStatus("cancelled", [])).toMatchObject({ status: "done", ended: "cancelled" });
-  });
-
-  it("walks each stage of an approved order", () => {
-    expect(adminOrderStatus("approved", [line()]).status).toBe("to_send");
-    expect(adminOrderStatus("approved", [line({ ordered: 2 })]).status).toBe("sent");
-    expect(adminOrderStatus("approved", [line({ ordered: 2, allocated: 2 })]).status).toBe("warehouse");
-    expect(adminOrderStatus("approved", [line({ ordered: 2, allocated: 2, prepared: 2 })]).status).toBe("out");
-    expect(adminOrderStatus("approved", [line({ ordered: 2, allocated: 2, delivered: 2 })])).toMatchObject({
-      status: "done",
-      ended: "delivered",
-    });
-  });
-
-  it("shows the earliest line and the split for an order over two vendors", () => {
-    const view = adminOrderStatus("approved", [line({ ordered: 2 }), line({ supplierName: "AndyMark" })]);
-    expect(view.status).toBe("to_send");
-    expect(view.progress).toBe("1 מתוך 2 פריטים נשלחו לספק");
-    expect(view.vendors).toBe("WCP נשלח, AndyMark ממתין");
-  });
-
-  it("keeps a partly received line in נשלחה", () => {
-    const view = adminOrderStatus("approved", [line({ ordered: 2, allocated: 1 }), line({ ordered: 2, allocated: 2 })]);
-    expect(view.status).toBe("sent");
-    expect(view.progress).toBe("1 מתוך 2 פריטים הגיעו למחסן");
-    expect(adminLineStage(line({ ordered: 2, allocated: 1 }))).toBe("sent");
-  });
-
-  it("treats a line with part delivered and part on a note as on its way", () => {
-    expect(adminLineStage(line({ ordered: 2, allocated: 2, prepared: 1, delivered: 1 }))).toBe("out");
-  });
-
-  it("ignores lines quoted at zero", () => {
-    expect(adminOrderStatus("approved", [line({ quoted: 0 }), line({ ordered: 2 })]).status).toBe("sent");
-  });
-});
 
 describe("sortForAdmin", () => {
   it("puts what needs the admin first, oldest first", () => {
-    const o = (status: "review" | "team" | "to_send", day: number) => ({
+    const o = (status: "awaiting_quote" | "quote_sent" | "to_order", day: number) => ({
       view: { status, progress: null, vendors: null },
       submittedAt: new Date(2026, 10, day),
     });
-    const sorted = sortForAdmin([o("team", 1), o("to_send", 2), o("review", 5), o("review", 3)]);
-    expect(sorted.map((x) => `${x.view.status}${x.submittedAt.getDate()}`)).toEqual(["review3", "review5", "to_send2", "team1"]);
+    const sorted = sortForAdmin([o("quote_sent", 1), o("to_order", 2), o("awaiting_quote", 5), o("awaiting_quote", 3)]);
+    expect(sorted.map((x) => `${x.view.status}${x.submittedAt.getDate()}`)).toEqual([
+      "awaiting_quote3",
+      "awaiting_quote5",
+      "to_order2",
+      "quote_sent1",
+    ]);
   });
 });
 
