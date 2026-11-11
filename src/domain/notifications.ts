@@ -20,6 +20,12 @@ export type NotifyEvent =
   | "quote_approved"
   | "quote_rejected"
   | "order_cancelled"
+  /** The team asked for a change to the quote (S8): the order stays open. */
+  | "change_requested"
+  /** Someone opened an expired approve link and asked for a new one (S8). */
+  | "link_requested"
+  /** A sign-in email was added to a team: the new address gets its join link. */
+  | "invite"
   /** The order reached a stage the team hears about (see STAGE_OF). */
   | "stage"
   /** A quote has waited for the team more than REMINDER_AFTER_DAYS. Sent once. */
@@ -46,6 +52,9 @@ const AUDIENCE: Record<NotifyEvent, { team: EmailGroup | "always" | null; admin:
   quote_approved: { team: null, admin: true },
   quote_rejected: { team: null, admin: true },
   order_cancelled: { team: null, admin: true },
+  change_requested: { team: null, admin: true },
+  link_requested: { team: null, admin: true },
+  invite: { team: null, admin: false },
   stage: { team: "progress", admin: false },
   quote_reminder: { team: "reminders", admin: false },
   admin_digest: { team: null, admin: true },

@@ -138,7 +138,7 @@ export function QuoteTable({
                 </td>
                 <td className="p-3">
                   {qtyBefore !== undefined && <s className="me-1 text-caption text-muted">{qtyBefore}</s>}
-                  <span className={qtyBefore !== undefined ? "font-semibold text-warning" : ""}>{line.qty}</span>
+                  <span className={qtyBefore !== undefined ? "font-semibold text-warning" : ""}>{line.qty === 0 ? "הוסר" : line.qty}</span>
                 </td>
                 <td className="whitespace-nowrap p-3">
                   {priceBefore !== undefined && <s className="me-1 text-caption text-muted">{formatIls(priceBefore)}</s>}
@@ -146,7 +146,7 @@ export function QuoteTable({
                     {formatIls(line.unitPriceIls)}
                   </span>
                 </td>
-                <td className="whitespace-nowrap p-3">{formatIls(line.qty * line.unitPriceIls)}</td>
+                <td className="whitespace-nowrap p-3">{line.qty === 0 ? "" : formatIls(line.qty * line.unitPriceIls)}</td>
               </tr>
             );
           })}

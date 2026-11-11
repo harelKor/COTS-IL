@@ -3,22 +3,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { Alert, Button } from "@/components/form";
+import { Alert } from "@/components/form";
 import { formatDateTime, QuoteTable, RequestTable } from "@/components/orders";
+import { QuoteDecision } from "@/components/quote-decision";
+import { QuoteView } from "@/components/quote-view";
 import { PrintButton } from "@/components/print-button";
 import { OrderTimeline, StageBadge } from "@/components/order-timeline";
 import { ReorderButton } from "@/components/reorder-button";
 import { orderStatus } from "@/domain/order-status";
 import { canCancelOrder, canDecideQuote, teamCanOrder } from "@/domain/orders";
 import { getViewer } from "@/lib/auth";
-import { getOrderForViewer } from "@/lib/orders";
-import { cancelOrder } from "../actions";
-import { QuoteDecision } from "./quote-decision";
+import { getChangeRequest, getOrderForViewer, getStepDates, recentDecision } from "@/lib/orders";
+import { business } from "@/lib/business";
+import { CancelOrder } from "./cancel-order";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { TeamName } from "@/components/team-name";
-import { PaymentTerms } from "@/components/payment-terms";
 
 export const metadata: Metadata = { title: "הזמנה" };
+// A decision's email waits out the 30 s undo window in after().
+export const maxDuration = 60;
 
 async function Order({ params }: PageProps<"/orders/[id]">) {
   const { id } = await params;
@@ -35,6 +38,13 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
   const stage = orderStatus(order.status, [...progress.values()]).status;
   const stoppedAt = latest ? "quote_sent" : "awaiting_quote";
   const waitingForDecision = latest?.status === "sent" && canDecideQuote(order.status);
+  const pickup = order.deliveryMethod === "pickup";
+  const [dates, decided, cancelled, changeRequest] = await Promise.all([
+    getStepDates(order.id, order.submittedAt),
+    recentDecision("quote", latest?.id),
+    recentDecision("team_order", order.id),
+    waitingForDecision ? getChangeRequest(latest?.id) : null,
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -47,7 +57,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <StageBadge stage={stage} />
+          <StageBadge stage={stage} pickup={pickup} />
           <PrintButton />
         </div>
       </div>
@@ -75,30 +85,35 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
       </section>
 
       <section className="rounded-card bg-surface p-4 print:hidden">
-        <OrderTimeline stage={stage} stoppedAt={stoppedAt} />
+        <OrderTimeline stage={stage} stoppedAt={stoppedAt} dates={dates} pickup={pickup} />
+        {pickup && (stage === "to_team" || stage === "at_warehouse") && (business.pickupAddress || business.pickupHours) && (
+          <p className="mt-3 text-callout">
+            {stage === "to_team" ? "ההזמנה מוכנה לאיסוף" : "ההזמנה במחסן ותהיה מוכנה לאיסוף בקרוב"}
+            {business.pickupAddress && `: ${business.pickupAddress}`}
+            {business.pickupHours && `, ${business.pickupHours}`}
+          </p>
+        )}
       </section>
 
       {latest ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="font-semibold">
-            הצעה סופית, גרסה {latest.version}{" "}
-            <span className="text-caption font-normal text-muted">
-              <span className="ltr">{formatDateTime(latest.sentAt)}</span>
-            </span>
-          </h2>
-          {previous && waitingForDecision && (
-            <Alert tone="info">ההצעה עודכנה מאז הגרסה הקודמת. השינויים מסומנים בטבלה, וצריך לאשר מחדש.</Alert>
+        <QuoteView orderNumber={order.number} team={team} items={items} quote={latest} previous={previous} progress={progress}>
+          {previous && waitingForDecision && <Alert tone="info">ההצעה עודכנה מאז הגרסה הקודמת, וצריך לאשר מחדש.</Alert>}
+          {changeRequest && (
+            <Alert tone="info">
+              ביקשתם שינוי (<span className="ltr">{formatDateTime(changeRequest.at)}</span>): {changeRequest.reason}
+              <span className="block">הספק הישראלי ישלח גרסה מעודכנת.</span>
+            </Alert>
           )}
-          <QuoteTable quote={latest} previous={previous} items={items} progress={progress} />
-          <PaymentTerms />
-          {latest.notes && <p className="whitespace-pre-wrap text-sm">הערות הספק הישראלי: {latest.notes}</p>}
-          {waitingForDecision &&
+          {(waitingForDecision || decided) &&
             (onTeam ? (
-              <QuoteDecision quoteId={latest.id} />
+              <QuoteDecision
+                quoteId={latest.id}
+                decided={decided && (decided.action === "approve" || decided.action === "reject") ? { action: decided.action, at: decided.at.toISOString() } : null}
+              />
             ) : (
-              !viewer.isAdmin && <Alert tone="info">ההצעה ממתינה לאישור הקבוצה.</Alert>
+              !viewer.isAdmin && waitingForDecision && <Alert tone="info">ההצעה ממתינה לאישור הקבוצה.</Alert>
             ))}
-        </section>
+        </QuoteView>
       ) : (
         <section className="flex flex-col gap-3">
           <h2 className="font-semibold">הבקשה שנשלחה</h2>
@@ -139,12 +154,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           {viewer.isAdmin ? "לניהול ההזמנה" : "לכל ההזמנות"}
         </Link>
         {onTeam && <ReorderButton orderId={order.id} />}
-        {onTeam && canCancelOrder(order.status) && (
-          <form action={cancelOrder}>
-            <input type="hidden" name="orderId" value={order.id} />
-            <Button variant="danger">ביטול ההזמנה</Button>
-          </form>
-        )}
+        {onTeam && (canCancelOrder(order.status) || cancelled) && <CancelOrder orderId={order.id} cancelledAt={cancelled ? cancelled.at.toISOString() : null} />}
       </div>
     </div>
   );

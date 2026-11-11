@@ -8,8 +8,8 @@ import { Button, Field, Input } from "@/components/form";
 import { Ltr } from "@/components/ltr";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { EMAIL_GROUP_LABELS, EMAIL_GROUPS } from "@/domain/notifications";
-import { decideJoinRequest, removeMember, revokeInvitation, setEmailPreferences, updateTeamDetails } from "./actions";
-import { InviteForm } from "./invite-form";
+import { decideJoinRequest, revokeInvitation, setEmailPreferences, updateTeamDetails } from "./actions";
+import { InviteForm, RemoveMember } from "./invite-form";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 
 export const metadata: Metadata = { title: "חשבון הקבוצה" };
@@ -131,15 +131,7 @@ async function Team() {
                 </div>
               </div>
               {!lastEmail && (
-                <ActionForm action={removeMember}>
-                  <input type="hidden" name="userId" value={member.userId} />
-                  <button
-                    aria-label={`הסרת ${member.email}`}
-                    className="flex min-h-11 items-center px-3 text-sm text-danger hover:underline"
-                  >
-                    הסרה
-                  </button>
-                </ActionForm>
+<RemoveMember userId={member.userId} email={member.email} />
               )}
               <ActionForm action={setEmailPreferences} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                 <input type="hidden" name="userId" value={member.userId} />

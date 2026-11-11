@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { MAX_SHARED_LINES, type SharedLine } from "@/domain/cart-share";
 import { cartChanges, cartFingerprint, isOrderable, maxMerge, type CartChange } from "@/domain/cart";
+import { reorderLines } from "@/domain/quote-view";
 import { MARKUP, priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam, orderingTeams, TEAM_COOKIE, type Viewer } from "@/lib/auth";
 import { notifyLater, notifyRequest } from "@/lib/notify";
@@ -295,12 +296,40 @@ export async function reorder(orderId: string): Promise<{ added: number; skipped
   if (!id.success) return { added: 0, skipped: 0, error: "ההזמנה לא נמצאה" };
   const [order] = await db.select().from(teamOrders).where(and(eq(teamOrders.id, id.data), eq(teamOrders.teamId, team.id)));
   if (!order) return { added: 0, skipped: 0, error: "ההזמנה לא נמצאה" };
-  const items = await db.select({ variantId: teamOrderItems.variantId, qty: teamOrderItems.qty }).from(teamOrderItems).where(eq(teamOrderItems.orderId, order.id));
+  const items = await reorderItems(order.id);
   let added = 0;
   for (const item of items) if (!(await addLine(team.id, viewer.id, item.variantId, item.qty))) added++;
   // The cart as it now is, for the client store: no page re-render.
   const lines = (await getCart(team.id)).map(toSheetLine(await usdIlsRate()));
   return { added, skipped: items.length - added, lines };
+}
+
+/** What "order again" puts back: the approved quote's quantities, skipping removed lines (S8). */
+async function reorderItems(orderId: string) {
+  const items = await db.select({ id: teamOrderItems.id, variantId: teamOrderItems.variantId, qty: teamOrderItems.qty }).from(teamOrderItems).where(eq(teamOrderItems.orderId, orderId));
+  const [approved] = await db.select({ id: schema.quotes.id }).from(schema.quotes).where(and(eq(schema.quotes.orderId, orderId), eq(schema.quotes.status, "approved")));
+  const lines = approved ? await db.select().from(schema.quoteLines).where(eq(schema.quoteLines.quoteId, approved.id)) : null;
+  return reorderLines(items, lines);
+}
+
+/**
+ * Home's "הזמנה חוזרת" when the cart is empty (S8): one tap sends a new quote request
+ * with the earlier order's approved quantities and the team's usual delivery details.
+ * The answer names the new order so the toast's Undo can cancel it.
+ */
+export async function reorderAndSend(orderId: string): Promise<SendState & { skipped?: number }> {
+  const { viewer, team } = await requireOrderingTeam();
+  const id = z.uuid().safeParse(orderId);
+  if (!id.success) return { error: "ההזמנה לא נמצאה" };
+  const [order] = await db.select().from(teamOrders).where(and(eq(teamOrders.id, id.data), eq(teamOrders.teamId, team.id)));
+  if (!order) return { error: "ההזמנה לא נמצאה" };
+  if ((await getCart(team.id)).length > 0) return { error: "יש כבר פריטים בסל. פתחו את הסל ושלחו משם." };
+  const items = await reorderItems(order.id);
+  let added = 0;
+  for (const item of items) if (!(await addLine(team.id, viewer.id, item.variantId, item.qty))) added++;
+  if (added === 0) return { error: "אף פריט מההזמנה כבר לא נמכר" };
+  const result = await sendQuoteRequest();
+  return { ...result, skipped: items.length - added };
 }
 
 /** The team switcher, for users in more than one team: which team's cart and orders they act for. */

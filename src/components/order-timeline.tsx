@@ -1,5 +1,7 @@
 import { Check } from "lucide-react";
-import { orderTimeline, STATUS_LABELS, type OrderStatusKey, type OrderStep } from "@/domain/order-status";
+import { Ltr } from "@/components/ltr";
+import { formatShortDate } from "@/components/quote-view";
+import { orderTimeline, teamStepLabel, type OrderStatusKey, type OrderStep, type StepDates } from "@/domain/order-status";
 
 const STAGE_TONE: Partial<Record<OrderStatusKey, string>> = {
   quote_sent: "bg-warning/15 text-warning",
@@ -9,13 +11,17 @@ const STAGE_TONE: Partial<Record<OrderStatusKey, string>> = {
 };
 
 /** The order's stage in the team's words, as a small badge. */
-export function StageBadge({ stage }: { stage: OrderStatusKey }) {
-  return <span className={`inline-flex rounded-md px-2 py-0.5 text-caption font-medium whitespace-nowrap ${STAGE_TONE[stage] ?? "bg-brand-soft text-brand-strong"}`}>{STATUS_LABELS[stage].team}</span>;
+export function StageBadge({ stage, pickup = false }: { stage: OrderStatusKey; pickup?: boolean }) {
+  return (
+    <span className={`inline-flex rounded-md px-2 py-0.5 text-caption font-medium whitespace-nowrap ${STAGE_TONE[stage] ?? "bg-brand-soft text-brand-strong"}`}>
+      {teamStepLabel(stage, pickup)}
+    </span>
+  );
 }
 
-/** Where the order is: each step done, current or still ahead. */
-export function OrderTimeline({ stage, stoppedAt }: { stage: OrderStatusKey; stoppedAt?: OrderStep }) {
-  const steps = orderTimeline(stage, stoppedAt);
+/** Where the order is: each step done, current or still ahead, with the date it was reached. */
+export function OrderTimeline({ stage, stoppedAt, dates, pickup = false }: { stage: OrderStatusKey; stoppedAt?: OrderStep; dates?: StepDates; pickup?: boolean }) {
+  const steps = orderTimeline(stage, stoppedAt, dates, pickup);
   const stopped = stage === "rejected" || stage === "cancelled";
   return (
     <ol className="flex flex-col gap-0 sm:flex-row sm:gap-2" aria-label="מצב ההזמנה">
@@ -28,8 +34,15 @@ export function OrderTimeline({ stage, stoppedAt }: { stage: OrderStatusKey; sto
           >
             {step.state === "done" ? <Check size={14} aria-hidden /> : null}
           </span>
-          <span className={`text-caption ${step.state === "ahead" ? "text-muted" : "font-medium"}`}>
-            {step.state === "current" && stopped ? STATUS_LABELS[stage].team : step.label}
+          <span className="flex flex-col">
+            <span className={`text-caption ${step.state === "ahead" ? "text-muted" : "font-medium"}`}>
+              {step.state === "current" && stopped ? teamStepLabel(stage) : step.label}
+            </span>
+            {step.date && (
+              <span className="text-caption text-muted">
+                <Ltr>{formatShortDate(step.date)}</Ltr>
+              </span>
+            )}
           </span>
         </li>
       ))}

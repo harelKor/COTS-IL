@@ -117,14 +117,25 @@ export function isFinished(status: OrderStatusKey) {
   return status === "delivered" || status === "rejected" || status === "cancelled";
 }
 
-/** The team's stepper: each step done, current or still ahead. A stopped order shows where it stopped. */
-export function orderTimeline(status: OrderStatusKey, stoppedAt: OrderStep = "awaiting_quote") {
+/** When each step was first reached, from the order, quote, purchasing and delivery records. */
+export type StepDates = Partial<Record<OrderStep, Date>>;
+
+/** The team's word for a step: for a pickup order, "ready to hand over" is "ready for pickup". */
+export function teamStepLabel(step: OrderStatusKey, pickup = false) {
+  if (step === "to_team") return pickup ? "מוכנה לאיסוף" : "במשלוח אליכם";
+  return STATUS_LABELS[step].team;
+}
+
+/**
+ * The team's stepper: each step done, current or still ahead, with the date it was
+ * reached when the records have one. A stopped order shows where it stopped.
+ */
+export function orderTimeline(status: OrderStatusKey, stoppedAt: OrderStep = "awaiting_quote", dates: StepDates = {}, pickup = false) {
   const reached = ORDER_STEPS.indexOf(status === "rejected" || status === "cancelled" ? stoppedAt : status);
-  return ORDER_STEPS.map((s, i) => ({
-    step: s,
-    label: STATUS_LABELS[s].team,
-    state: i < reached ? ("done" as const) : i === reached ? ("current" as const) : ("ahead" as const),
-  }));
+  return ORDER_STEPS.map((s, i) => {
+    const state = i < reached ? ("done" as const) : i === reached ? ("current" as const) : ("ahead" as const);
+    return { step: s, label: teamStepLabel(s, pickup), state, date: state === "ahead" ? null : (dates[s] ?? null) };
+  });
 }
 
 /** The steps a unit goes through after the quote is approved (S13 task 3). */

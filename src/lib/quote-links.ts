@@ -2,10 +2,10 @@ import "server-only";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { canDecideQuote, quoteContentHash, teamCanOrder } from "@/domain/orders";
-import { createQuoteLinkToken, QUOTE_LINK_DAYS, readQuoteLinkToken } from "@/domain/quote-link";
+import { createQuoteLinkToken, QUOTE_LINK_DAYS, readQuoteLinkToken, readSignedQuoteLinkToken } from "@/domain/quote-link";
 import { siteUrl } from "@/lib/site-url";
 
-const { memberships, profiles, quoteLines, quotes, teamOrderItems, teamOrders, teams } = schema;
+const { memberships, profiles, quoteLines, quotes, teamOrders, teams } = schema;
 
 const secret = () => process.env.QUOTE_LINK_SECRET;
 
@@ -63,7 +63,20 @@ export async function getApproveLinks(orderId: string) {
  */
 export async function readApproveLink(token: string) {
   const claims = readQuoteLinkToken(token, secret());
-  if (!claims) return { ok: false as const, reason: "הקישור אינו תקף או שפג תוקפו." };
+  if (!claims) {
+    // An expired link still names its quote, so it can ask for a new one and point at the order.
+    const signed = readSignedQuoteLinkToken(token, secret());
+    const [old] = signed ? await db.select({ orderId: quotes.orderId }).from(quotes).where(eq(quotes.id, signed.quoteId)) : [];
+    const [order] = old ? await db.select().from(teamOrders).where(eq(teamOrders.id, old.orderId)) : [];
+    if (!signed || !order) return { ok: false as const, reason: "הקישור אינו תקף." };
+    return {
+      ok: false as const,
+      expired: true as const,
+      reason: `תוקף הקישור פג ב-${new Date(signed.expiresAt).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" })}.`,
+      orderId: order.id,
+      orderNumber: order.number,
+    };
+  }
   const [quote] = await db.select().from(quotes).where(eq(quotes.id, claims.quoteId));
   if (!quote) return { ok: false as const, reason: "ההצעה לא נמצאה." };
   const [order] = await db.select().from(teamOrders).where(eq(teamOrders.id, quote.orderId));
@@ -73,18 +86,12 @@ export async function readApproveLink(token: string) {
     .from(memberships)
     .innerJoin(profiles, eq(profiles.id, memberships.userId))
     .where(and(eq(memberships.teamId, order.teamId), eq(memberships.userId, claims.userId)));
-  const base = { orderId: order.id, orderNumber: order.number };
+  const base = { orderId: order.id, orderNumber: order.number, quoteId: quote.id };
 
   if (quote.status === "approved") return { ok: false as const, reason: "ההצעה אושרה. הספק הישראלי יזמין מהספקים ויעדכן אתכם.", ...base };
   if (quote.status !== "sent" || !canDecideQuote(order.status)) return { ok: false as const, reason: "ההצעה הזאת כבר לא בתוקף, ונשלחה גרסה חדשה.", ...base };
   if ((await hashOf(quote)) !== claims.contentHash) return { ok: false as const, reason: "ההצעה השתנתה מאז שנשלח הקישור.", ...base };
   if (!member || !team || !teamCanOrder(team.status)) return { ok: false as const, reason: "הכתובת שהקישור נשלח אליה כבר לא בחשבון הקבוצה.", ...base };
 
-  const lines = await db
-    .select({ title: teamOrderItems.title, supplierSku: teamOrderItems.supplierSku, qty: quoteLines.qty, unitPriceIls: quoteLines.unitPriceIls })
-    .from(quoteLines)
-    .innerJoin(teamOrderItems, eq(teamOrderItems.id, quoteLines.itemId))
-    .where(eq(quoteLines.quoteId, quote.id));
-
-  return { ok: true as const, claims, quote, team, member: member.name ?? member.email, lines, ...base };
+  return { ok: true as const, claims, quote, team, member: member.name ?? member.email, ...base };
 }

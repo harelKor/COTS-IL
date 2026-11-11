@@ -14,6 +14,7 @@ import {
   type TeamAddress,
 } from "@/domain/notifications";
 import { orderStatus } from "@/domain/order-status";
+import { UNDO_SECONDS } from "@/domain/quote-view";
 import { business } from "@/lib/business";
 import { deliver, resendTransport, type Transport } from "@/lib/email-transport";
 import { renderEmail, type EmailData, type EmailLine } from "@/lib/email-templates";
@@ -170,18 +171,66 @@ export async function notifyQuoteReady(orderId: string, event: "quote_ready" | "
 }
 
 /** The team answered, or cancelled: the admin hears. */
-export async function notifyDecision(orderId: string, event: "quote_approved" | "quote_rejected" | "order_cancelled", reason: string | null = null) {
+export async function notifyDecision(
+  orderId: string,
+  event: "quote_approved" | "quote_rejected" | "order_cancelled" | "change_requested",
+  reason: string | null = null,
+) {
   const row = await orderWithTeam(orderId);
   if (!row) return;
   const base = { orderNumber: row.order.number, teamName: row.teamName, adminUrl: adminOrderUrl(orderId) };
   if (event === "quote_approved") {
     const latest = await latestQuote(orderId);
     await send({ event, teamId: null, entity: "team_order", entityId: orderId, data: () => ({ ...base, totalIls: latest?.totalIls ?? 0 }) });
-  } else if (event === "quote_rejected") {
+  } else if (event === "quote_rejected" || event === "change_requested") {
     await send({ event, teamId: null, entity: "team_order", entityId: orderId, data: () => ({ ...base, reason }) });
   } else {
     await send({ event, teamId: null, entity: "team_order", entityId: orderId, data: () => base });
   }
+}
+
+/** The join link, to an address just added to the team (S8). Not in the team list yet, so sent directly. */
+export async function notifyInvite(teamId: string, invitationId: string, email: string, url: string) {
+  const t = transport();
+  if (!t) {
+    console.info(`[notify] email is off (RESEND_API_KEY or EMAIL_FROM missing): invite for ${invitationId} not sent`);
+    return 0;
+  }
+  const [team] = await db.select().from(teams).where(eq(teams.id, teamId));
+  if (!team) return 0;
+  const [r] = await deliver([{ userId: "", email, audience: "team" }], (rcpt) => renderEmail("invite", rcpt.audience, { teamName: teamDisplay(team), url }), t);
+  await db.insert(auditLog).values({
+    actorId: null,
+    entity: "team_invitation",
+    entityId: invitationId,
+    action: "email:invite",
+    after: { to: email, subject: r.subject, ok: r.ok, providerId: r.providerId, error: r.error },
+  });
+  return r.ok ? 1 : 0;
+}
+
+/** An expired approve link asked for a new one: the admin resends the quote. */
+export async function notifyLinkRequested(orderId: string, email: string) {
+  const row = await orderWithTeam(orderId);
+  if (!row) return;
+  await send({
+    event: "link_requested",
+    teamId: null,
+    entity: "team_order",
+    entityId: orderId,
+    data: () => ({ orderNumber: row.order.number, teamName: row.teamName, email, adminUrl: adminOrderUrl(orderId) }),
+  });
+}
+
+/**
+ * A decision the team can still undo (S8: 30 s) is only announced once the window has
+ * closed and the decision still stands, so an undone approval never reaches the admin.
+ */
+export function notifyAfterUndo(stillStands: () => Promise<boolean>, task: () => Promise<unknown>) {
+  notifyLater(async () => {
+    await new Promise((r) => setTimeout(r, (UNDO_SECONDS + 2) * 1000));
+    if (await stillStands()) await task();
+  });
 }
 
 export async function notifyTeamSignedUp(teamId: string, email: string) {

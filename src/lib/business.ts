@@ -33,6 +33,8 @@ export const business = {
   } as Record<string, LeadTime | null>,
   /** A short summary of the return policy. */
   returnPolicy: null as string | null,
+  /** Days a sent quote holds, e.g. 14. Shown as "ההצעה בתוקף עד <date>" on the quote. */
+  quoteValidDays: null as number | null,
   /** e.g. "העברה בנקאית או הזמנת רכש של בית הספר, תוך 30 יום". */
   paymentTerms: null as string | null,
 };

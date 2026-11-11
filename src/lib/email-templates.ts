@@ -17,6 +17,9 @@ export type EmailData = {
   quote_approved: { orderNumber: number; teamName: string; totalIls: number; adminUrl: string };
   quote_rejected: { orderNumber: number; teamName: string; reason: string | null; adminUrl: string };
   order_cancelled: { orderNumber: number; teamName: string; adminUrl: string };
+  change_requested: { orderNumber: number; teamName: string; reason: string | null; adminUrl: string };
+  invite: { teamName: string; url: string };
+  link_requested: { orderNumber: number; teamName: string; email: string; adminUrl: string };
   stage: { orderNumber: number; teamName: string; stage: Stage; pickup: boolean; orderUrl: string };
   quote_reminder: { orderNumber: number; teamName: string; days: number; approveUrl: string | null; orderUrl: string };
   admin_digest: { items: { orderNumber: number; teamName: string; hours: number; url: string }[]; adminUrl: string };
@@ -189,6 +192,36 @@ export function renderEmail<E extends NotifyEvent>(event: E, audience: Audience,
         paragraphs: [`הזמנה ${ltr(x.orderNumber)} בוטלה על ידי הקבוצה.`],
         button: { label: "פתיחת ההזמנה", url: x.adminUrl },
         textLines: [`${x.teamName} ביטלה את הזמנה ${x.orderNumber}.`],
+      });
+    }
+    case "change_requested": {
+      const x = d as EmailData["change_requested"];
+      return layout({
+        subject: `בקשת שינוי בהצעה ${x.orderNumber}`,
+        heading: `${esc(x.teamName)} מבקשת שינוי בהצעה`,
+        paragraphs: [`הזמנה ${ltr(x.orderNumber)} נשארת פתוחה${x.reason ? `. הבקשה: ${esc(x.reason)}` : "."}`, "אפשר לשלוח גרסה חדשה של ההצעה."],
+        button: { label: "פתיחת ההזמנה", url: x.adminUrl },
+        textLines: [`${x.teamName} מבקשת שינוי בהזמנה ${x.orderNumber}${x.reason ? `: ${x.reason}` : ""}.`],
+      });
+    }
+    case "invite": {
+      const x = d as EmailData["invite"];
+      return layout({
+        subject: `הוזמנתם לחשבון ${x.teamName} ב-COTS-IL`,
+        heading: `הצטרפות ל${esc(x.teamName)}`,
+        paragraphs: ["הכתובת הזאת נוספה לחשבון הקבוצה ב-COTS-IL. אחרי ההצטרפות אפשר לבנות סל, לשלוח בקשות ולאשר הצעות.", "הקישור תקף לשבועיים."],
+        button: { label: "הצטרפות לקבוצה", url: x.url },
+        textLines: [`הצטרפות לחשבון ${x.teamName} ב-COTS-IL: ${x.url}`],
+      });
+    }
+    case "link_requested": {
+      const x = d as EmailData["link_requested"];
+      return layout({
+        subject: `בקשה לקישור אישור חדש, הזמנה ${x.orderNumber}`,
+        heading: `${esc(x.teamName)} מבקשת קישור אישור חדש`,
+        paragraphs: [`הקישור של ${ltr(x.email)} להזמנה ${ltr(x.orderNumber)} פג. אפשר לשלוח את ההצעה שוב מעמוד ההזמנה.`],
+        button: { label: "פתיחת ההזמנה", url: x.adminUrl },
+        textLines: [`${x.teamName} מבקשת קישור אישור חדש להזמנה ${x.orderNumber} (${x.email}).`],
       });
     }
     case "stage": {

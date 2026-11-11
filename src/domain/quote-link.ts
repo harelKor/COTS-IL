@@ -24,6 +24,12 @@ export function createQuoteLinkToken(claims: QuoteLinkClaims, secret: string): s
 
 /** The claims of a genuine, unexpired token, or null. */
 export function readQuoteLinkToken(token: string, secret: string | undefined, now = Date.now()): QuoteLinkClaims | null {
+  const claims = readSignedQuoteLinkToken(token, secret);
+  return claims && claims.expiresAt >= now ? claims : null;
+}
+
+/** The claims of a genuine token, expired or not: an expired link can still ask for a new one. */
+export function readSignedQuoteLinkToken(token: string, secret: string | undefined): QuoteLinkClaims | null {
   if (!secret || secret.length < 16) return null;
   const [payload, signature, extra] = token.split(".");
   if (!payload || !signature || extra !== undefined) return null;
@@ -33,7 +39,6 @@ export function readQuoteLinkToken(token: string, secret: string | undefined, no
   try {
     const [quoteId, userId, contentHash, expiresAt] = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
     if (typeof quoteId !== "string" || typeof userId !== "string" || typeof contentHash !== "string" || typeof expiresAt !== "number") return null;
-    if (expiresAt < now) return null;
     return { quoteId, userId, contentHash, expiresAt };
   } catch {
     return null;

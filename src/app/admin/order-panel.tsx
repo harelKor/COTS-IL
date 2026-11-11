@@ -15,7 +15,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getOrderDates, getOrderLogistics } from "@/lib/admin-orders";
 import { getOrderLines } from "@/lib/order-status";
 import { getOrderDeliveries } from "@/lib/logistics";
-import { getOrderForViewer } from "@/lib/orders";
+import { getChangeRequest, getOrderForViewer } from "@/lib/orders";
 import { orderSupplierLock } from "@/lib/purchasing";
 import { getApproveLinks } from "@/lib/quote-links";
 import { reviewTeam } from "./actions";
@@ -369,7 +369,8 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
 }
 
 async function Summary({ detail }: { detail: Detail }) {
-  const dates = await getOrderDates(detail.order.id);
+  const latest = detail.quotes[0];
+  const [dates, changeRequest] = await Promise.all([getOrderDates(detail.order.id), latest?.status === "sent" ? getChangeRequest(latest.id) : null]);
   const rows: [string, Date | null][] = [
     ["בקשה נשלחה", detail.order.submittedAt],
     ["הצעה נשלחה", dates.quoteSent],
@@ -382,6 +383,11 @@ async function Summary({ detail }: { detail: Detail }) {
     <Section title="סיכום">
       {detail.order.status === "rejected" && <Alert tone="info">ההזמנה נדחתה{detail.order.rejectionReason ? `: ${detail.order.rejectionReason}` : "."}</Alert>}
       {detail.order.status === "cancelled" && <Alert tone="info">ההזמנה בוטלה.</Alert>}
+      {changeRequest && (
+        <Alert tone="info">
+          הקבוצה ביקשה שינוי בגרסה {latest.version} (<Ltr>{formatDateTime(changeRequest.at)}</Ltr>): {changeRequest.reason}
+        </Alert>
+      )}
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
         {rows
           .filter(([, d]) => d)

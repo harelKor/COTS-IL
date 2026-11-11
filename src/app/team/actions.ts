@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -11,6 +11,8 @@ import { inviteExpiry, wouldLeaveNoMembers } from "@/domain/teams";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { hashInviteToken, newInviteToken } from "@/lib/invitations";
 import { siteUrl } from "@/lib/site-url";
+import { emailEnabled, notifyInvite, notifyLater } from "@/lib/notify";
+import { UNDO_SECONDS } from "@/domain/quote-view";
 
 const { auditLog, memberships, profiles, teamInvitations, teamJoinRequests, teams } = schema;
 
@@ -26,7 +28,7 @@ async function requireTeamMember() {
   return { viewer, team };
 }
 
-export type InviteState = ActionState & { link?: string };
+export type InviteState = ActionState & { link?: string; email?: string; emailed?: boolean; teamName?: string };
 
 const inviteSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),
@@ -48,7 +50,7 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
   if (existing) return { error: "הכתובת כבר בחשבון הקבוצה" };
 
   const token = newInviteToken();
-  await db.transaction(async (tx) => {
+  const invitationId = await db.transaction(async (tx) => {
     // A new link replaces any earlier one for this address.
     await tx
       .update(teamInvitations)
@@ -78,10 +80,14 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
       action: "create",
       after: { teamId: team.id, email },
     });
+    return invitation.id;
   });
 
+  const link = `${siteUrl()}/invite/${token}`;
+  // S8: the new address gets its link by email (S3), and the form still offers Copy and WhatsApp.
+  notifyLater(() => notifyInvite(team.id, invitationId, email, link));
   revalidatePath("/team");
-  return { link: `${siteUrl()}/invite/${token}` };
+  return { link, email, emailed: emailEnabled(), teamName: team.name };
 }
 
 export async function revokeInvitation(formData: FormData) {
@@ -128,19 +134,42 @@ export async function removeMember(_prev: ActionState, formData: FormData): Prom
       return { error: "זאת הכתובת האחרונה בחשבון הקבוצה. הוסיפו כתובת אחרת לפני שמסירים אותה." };
     }
 
-    await tx.delete(memberships).where(and(eq(memberships.teamId, team.id), eq(memberships.userId, userId.data)));
+    const [removed] = await tx.delete(memberships).where(and(eq(memberships.teamId, team.id), eq(memberships.userId, userId.data))).returning();
     await tx.insert(auditLog).values({
       actorId: viewer.id,
       entity: "membership",
       entityId: `${team.id}:${userId.data}`,
       action: "remove",
-      before: { email: member.email },
+      before: { email: member.email, emailOff: removed?.emailOff ?? [], createdAt: removed?.createdAt },
     });
     return {};
   });
 
   revalidatePath("/team");
   return result;
+}
+
+/** Undo for "הסרה" (S8): puts an address removed in the last UNDO_SECONDS back, with its email settings. */
+export async function restoreMember(userIdInput: string): Promise<ActionState> {
+  const { viewer, team } = await requireTeamMember();
+  const userId = z.uuid().safeParse(userIdInput);
+  if (!userId.success) return { error: "הבקשה לא תקינה" };
+  const since = new Date(Date.now() - (UNDO_SECONDS + 5) * 1000);
+  const [last] = await db
+    .select()
+    .from(auditLog)
+    .where(and(eq(auditLog.entity, "membership"), eq(auditLog.entityId, `${team.id}:${userId.data}`), eq(auditLog.action, "remove"), gte(auditLog.at, since)))
+    .orderBy(desc(auditLog.at))
+    .limit(1);
+  if (!last) return { error: "עבר הזמן לביטול. אפשר להוסיף את הכתובת שוב." };
+  const before = (last.before ?? {}) as { emailOff?: string[]; createdAt?: string; email?: string };
+  await db
+    .insert(memberships)
+    .values({ teamId: team.id, userId: userId.data, emailOff: before.emailOff ?? [], createdAt: before.createdAt ? new Date(before.createdAt) : undefined })
+    .onConflictDoNothing();
+  await db.insert(auditLog).values({ actorId: viewer.id, entity: "membership", entityId: `${team.id}:${userId.data}`, action: "restore", after: { email: before.email } });
+  revalidatePath("/team");
+  return {};
 }
 
 const detailsSchema = z.object({
@@ -184,7 +213,7 @@ export async function updateTeamDetails(_prev: ActionState, formData: FormData):
   });
 
   revalidatePath("/team");
-  return {};
+  return { ok: "הפרטים נשמרו" };
 }
 
 /**
@@ -243,5 +272,5 @@ export async function setEmailPreferences(_prev: ActionState, formData: FormData
     after: { emailOff },
   });
   revalidatePath("/team");
-  return {};
+  return { ok: "ההגדרות נשמרו" };
 }

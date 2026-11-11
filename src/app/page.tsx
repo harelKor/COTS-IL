@@ -8,7 +8,7 @@ import { Loading, TileGridSkeleton } from "@/components/skeleton";
 import { ReorderButton } from "@/components/reorder-button";
 import { formatIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
-import { listOrders } from "@/lib/orders";
+import { cartCount, listOrders } from "@/lib/orders";
 import { getFacets, getLastSync } from "@/lib/catalog";
 import { business } from "@/lib/business";
 import { typicalLeadTime } from "@/domain/lead-time";
@@ -35,7 +35,7 @@ async function TeamNotice() {
     }
     return null;
   }
-  const [last] = await listOrders(team.id);
+  const [[last], inCart] = await Promise.all([listOrders(team.id), cartCount(team.id)]);
   return (
     <div className="flex flex-col gap-3">
       {team.status === "pending" && (
@@ -51,7 +51,7 @@ async function TeamNotice() {
               {last.lineCount} שורות, {formatIls(last.quoteTotal ?? last.requestTotal)}
             </span>
           </Link>
-          <ReorderButton orderId={last.id} />
+          <ReorderButton orderId={last.id} sendNow={inCart === 0} />
         </section>
       )}
     </div>
