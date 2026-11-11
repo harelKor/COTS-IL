@@ -101,7 +101,7 @@ Catalog
 
 Pricing
 - `pricing_rules` (scope default|supplier|category|product, target_id, multiplier, round_to, min_price_ils, active_from/to)
-- Note (Nov 10, 2026): as built, the price is USD × the Bank of Israel daily USD rate, no markup (`src/domain/pricing.ts`); the earlier code skipped the exchange rate. There is no `pricing_rules` table yet.
+- Note (Nov 10, 2026): as built, the price is USD × the Bank of Israel daily USD rate × 1.6, no VAT (Nov 11, 2026) (`src/domain/pricing.ts`); the earlier code skipped the exchange rate. There is no `pricing_rules` table yet.
 - Resolution: product > category > supplier > default (1.6). Price is `round(price_usd × multiplier)`, but not below the minimum. Variants missing a price or marked for review cannot be ordered.
 
 Orders

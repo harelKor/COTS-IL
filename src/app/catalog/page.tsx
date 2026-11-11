@@ -118,7 +118,7 @@ export default function CatalogPage(props: PageProps<"/catalog">) {
           <Results {...props} />
         </ViewTransition>
       </Suspense>
-      <p className="text-center text-caption text-muted">מחיר הספק בדולרים לפי השער היציג של בנק ישראל, בלי תוספת. משלוח בישראל מתומחר בהצעת המחיר.</p>
+      <p className="text-center text-caption text-muted">מחיר הספק בדולרים לפי השער היציג של בנק ישראל, כפול 1.6. משלוח בישראל מתומחר בהצעת המחיר.</p>
     </div>
   );
 }
