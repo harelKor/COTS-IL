@@ -102,3 +102,16 @@ GitHub Actions מגבה את מסד הנתונים כל לילה (זרימת ה�
 6. **בדיקה:** שולחים בקשה מחשבון קבוצת בדיקה, ובודקים ב-Resend, Emails, שההודעות יצאו, וב-`audit_log` שיש שורות `email:request_received` עם `ok: true`.
 
 אפשר להשתמש באותו דומיין גם ל-SMTP מותאם של Supabase (קודי הכניסה), ראו את הסעיף הקודם.
+
+## הגדרות Vercel Pro (פעם אחת, בלוח הבקרה)
+
+פרויקט `cotsil` בצוות COTS-IL, ‏https://vercel.com/cots-il/cotsil. הדברים האלה אי אפשר להגדיר מהקוד.
+
+1. **Skew Protection:** Settings, Advanced, Skew Protection, מדליקים. מונע שגיאות כשמישהו עם דף פתוח לוחץ אחרי פריסה חדשה.
+2. **Deployment Protection לתצוגות מקדימות:** Settings, Deployment Protection, Vercel Authentication ל-Preview Deployments (ברירת המחדל Standard Protection מספיקה). ה-Production נשאר פתוח. אם `lighthouse.yml` צריך לגשת לתצוגות מקדימות, מוסיפים Protection Bypass for Automation ושומרים אותו כסוד `VERCEL_AUTOMATION_BYPASS_SECRET` ב-GitHub.
+3. **Firewall:** Firewall, Configure, Custom Rules, ארבעת הכללים מ-`docs/S9-OPS.md` (`search-api`, `auth`, `part-requests`, `revalidate`), ואחרי יום בודקים ב-Traffic שאין חסימות שגויות. בנוסף מדליקים Bot Protection (מצב Log, ואחרי כמה ימים Challenge).
+4. **BotID:** Firewall, Rules, BotID, מדליקים Basic (חינם) לפרויקט. הקוד כבר בודק את ארבע הפעולות הציבוריות (קוד כניסה, יצירת קבוצה, בקשת הצטרפות, בקשת חלק). Deep Analysis בתשלום ולא נחוץ.
+5. **Spend Management:** Team Settings, Billing, Spend Management. לפני סיום תקופת הניסיון, בערך ב-21 בנובמבר 2026, מוסיפים כרטיס אשראי, מגדירים סכום חודשי מקסימלי (למשל 20 דולר מעבר לתוכנית) ומסמנים "Pause production deployment" או התראה בלבד, לפי הרצוי. בלי כרטיס הצוות יושהה אחרי הניסיון.
+6. **התראות Observability:** Observability, Alerts (או Settings, Notifications): התראה על שגיאות פונקציות (Error rate), על ירידה בזמינות ועל חריגת שימוש (Usage 75%/100%), במייל של האדמין.
+7. **אזור הפונקציות:** `vercel.json` קובע `fra1` (פרנקפורט), ליד מסד הנתונים. בדיקה: `curl -sI https://cots-il.vercel.app/api/team-name?program=FRC&number=1` ‏ וכותרת `X-Vercel-Id` צריכה להתחיל ב-`fra1::fra1`.
+8. **Web Analytics:** Analytics, Events: אחרי הפריסה מופיעים `search`, `add_to_cart`, `signin_code_sent`, `signin_done`, `request_sent`, `quote_approved`. אירועים מותאמים נכללים בתוכנית Pro.

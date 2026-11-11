@@ -20,6 +20,7 @@ import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
 import { showToast } from "./toast";
 import { formatAddress, missingAddressParts, parseAddress, type AddressParts } from "@/domain/display";
+import { track } from "@vercel/analytics";
 
 const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
 
@@ -169,6 +170,7 @@ function TeamSend({
         changes,
         shown.map((l) => ({ variantId: l.variantId, qty: l.qty })),
       ).catch(() => ({ error: "אין חיבור לשרת. נסו שוב בעוד רגע." }) as SendState);
+      if (result.orderId && result.number) track("request_sent", { lines: Math.min(shown.length, 50) });
       if (result.orderId && result.number) onSent({ orderId: result.orderId, number: result.number });
       else {
         setErrors(result.fieldErrors ?? {});
@@ -330,6 +332,7 @@ export function SignInStep({
     startTransition(async () => {
       const result = await sendEmailCode(address, returnTo(to, pathname)).catch(() => ({ sent: undefined, error: "אין חיבור לשרת. נסו שוב בעוד רגע." }));
       if (result.sent) {
+        track("signin_code_sent");
         const value = { email: result.sent, at: Date.now() };
         writeCodeSent(value);
         setNow(value.at);
@@ -347,6 +350,7 @@ export function SignInStep({
     startTransition(async () => {
       const result = await verifyEmailCode(sent.email, value).catch(() => ({ ok: false, error: "אין חיבור לשרת. נסו שוב בעוד רגע." }));
       if (result.ok) {
+        track("signin_done");
         writeCodeSent(null);
         // The sheet stays where it is; a sign-in page moves on to where it was asked to go.
         if (to && to.split("?")[0] !== pathname) router.replace(to);

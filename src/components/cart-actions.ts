@@ -13,6 +13,7 @@ import {
   type CartSheetLine,
 } from "./cart-store";
 import { showToast } from "./toast";
+import { track } from "@vercel/analytics";
 
 /**
  * Cart changes from anywhere on the page: the store moves first, so the pill and
@@ -118,6 +119,7 @@ function cancelQtyWrite(variantId: string) {
 
 export function addToCartNow(line: AddableLine, qty = 1, from?: Element | null) {
   const before = findLine(line.variantId);
+  track("add_to_cart");
   addOptimistic(line.variantId, qty, line);
   haptic();
   flyToCart(from ?? null);
