@@ -11,6 +11,7 @@ import { requireAdmin } from "@/lib/auth";
 import { countByStatus, getOrderSummaries, type AdminOrderSummary } from "@/lib/admin-orders";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { OrderPanel } from "./order-panel";
+import { FinishedSection, OrderCardShell } from "./order-card-shell";
 import { STATUS_STYLE } from "./status-style";
 import { BULK_FORM, BulkOrdered, InboxSearch } from "./inbox-controls";
 
@@ -125,57 +126,54 @@ function OrderCard({ order, params, now }: { order: AdminOrderSummary; params: P
   const mine = NEEDS_ADMIN.has(order.view.status);
   const selectable = order.view.status === "to_order" && order.vendorsToOrder.length > 0;
   return (
-    <li id={`o-${order.id}`} className={`card-surface flex scroll-mt-20 flex-col rounded-[18px] border-s-4 ${style.edge}`}>
-      <div className="flex">
-        {selectable && (
+    <OrderCardShell
+      orderId={order.id}
+      status={order.view.status}
+      version={`${order.itemCount}:${order.totalIls}:${order.view.progress ?? ""}:${order.view.vendors ?? ""}`}
+      edgeClass={style.edge}
+      initialOpen={open}
+      serverPanel={open ? <OrderPanel orderId={order.id} status={order.view.status} edit={params.edit === "1"} /> : null}
+      checkbox={
+        selectable ? (
           <label className="flex w-11 shrink-0 cursor-pointer items-start justify-center pt-4 ps-2" title="בחירה לסימון מרוכז">
             <input type="checkbox" form={BULK_FORM} name="orderId" value={order.id} className="size-5 accent-brand" aria-label={`בחירת הזמנה #${order.number} לסימון מרוכז`} />
           </label>
-        )}
-        <Link
-          href={href(params, { open: open ? undefined : order.id, edit: undefined })}
-          scroll={false}
-          aria-expanded={open}
-          className="flex min-w-0 flex-1 flex-col gap-2 p-4"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="font-semibold">
-                <TeamName team={{ name: order.teamName, program: order.teamProgram, number: order.teamNumber }} />
-              </div>
-              <div className="text-sm text-muted">
-                הזמנה <Ltr>#{order.number}</Ltr>, <Ltr>{formatDay(order.submittedAt, new Date(now))}</Ltr>, {age(order.submittedAt, now)}
-              </div>
+        ) : null
+      }
+      head={
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="font-semibold">
+              <TeamName team={{ name: order.teamName, program: order.teamProgram, number: order.teamNumber }} />
             </div>
-            <span className={`rounded-full px-3 py-1 text-caption font-semibold ${style.chip}`}>{label}</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <span className="text-muted">
-              {order.itemCount} פריטים, {formatIls(order.totalIls)}
-            </span>
-            {!open &&
-              (mine ? (
-                <span className="btn-brand flex min-h-11 items-center rounded-full px-5 text-sm font-medium">{MAIN_ACTION[order.view.status]}</span>
-              ) : (
-                <span className="flex min-h-11 items-center text-sm text-brand">{MAIN_ACTION[order.view.status]}</span>
-              ))}
-          </div>
-          {(order.view.progress || order.view.vendors) && (
-            <div className="flex flex-wrap gap-2 text-caption">
-              {order.view.progress && <span className="rounded-full bg-subtle px-3 py-1">{order.view.progress}</span>}
-              {order.view.vendors && <span className="rounded-full bg-subtle px-3 py-1">{order.view.vendors}</span>}
+            <div className="text-sm text-muted">
+              הזמנה <Ltr>#{order.number}</Ltr>, <Ltr>{formatDay(order.submittedAt, new Date(now))}</Ltr>, {age(order.submittedAt, now)}
             </div>
-          )}
-        </Link>
-      </div>
-      {open && (
-        <div className="border-t border-line p-4">
-          <Suspense fallback={<p className="text-sm text-muted">טוען…</p>}>
-            <OrderPanel orderId={order.id} status={order.view.status} edit={params.edit === "1"} />
-          </Suspense>
+          </div>
+          <span className={`rounded-full px-3 py-1 text-caption font-semibold ${style.chip}`}>{label}</span>
         </div>
-      )}
-    </li>
+      }
+      meta={
+        <span className="text-muted">
+          {order.itemCount} פריטים, {formatIls(order.totalIls)}
+        </span>
+      }
+      action={
+        mine ? (
+          <span className="btn-brand flex min-h-11 items-center rounded-full px-5 text-sm font-medium">{MAIN_ACTION[order.view.status]}</span>
+        ) : (
+          <span className="flex min-h-11 items-center text-sm text-brand">{MAIN_ACTION[order.view.status]}</span>
+        )
+      }
+      chips={
+        order.view.progress || order.view.vendors ? (
+          <div className="flex flex-wrap gap-2 text-caption">
+            {order.view.progress && <span className="rounded-full bg-subtle px-3 py-1">{order.view.progress}</span>}
+            {order.view.vendors && <span className="rounded-full bg-subtle px-3 py-1">{order.view.vendors}</span>}
+          </div>
+        ) : null
+      }
+    />
   );
 }
 
@@ -225,24 +223,11 @@ async function AllOrders({ searchParams }: { searchParams: Promise<Params> }) {
 
       <BulkOrdered vendors={[...vendors.values()]} today={today} />
 
-      <section className="flex flex-col gap-3">
-        <Link
-          href={href(params, { finished: finishedOpen ? undefined : "1" })}
-          scroll={false}
-          aria-expanded={finishedOpen}
-          className="flex min-h-11 items-center justify-between rounded-full bg-subtle px-4 font-semibold hover:bg-subtle-hover"
-        >
-          הזמנות שהסתיימו ({finished.length})
-          <span aria-hidden>{finishedOpen ? "▴" : "▾"}</span>
-        </Link>
-        {finishedOpen && (
-          <ul className="flex flex-col gap-3">
-            {finished.map((o) => (
-              <OrderCard key={o.id} order={o} params={params} now={now} />
-            ))}
-          </ul>
-        )}
-      </section>
+      <FinishedSection initialOpen={finishedOpen} count={finished.length}>
+        {finished.map((o) => (
+          <OrderCard key={o.id} order={o} params={params} now={now} />
+        ))}
+      </FinishedSection>
     </div>
   );
 }
