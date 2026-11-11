@@ -400,9 +400,15 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
                   {s.tracking && <>, מעקב <Ltr>{s.tracking}</Ltr></>}
                   {s.received ? ", נקלט" : ", בדרך"}
                 </span>
-                <Link href={`/admin/logistics/${s.id}`} className="flex min-h-11 items-center rounded-full bg-subtle px-4 text-sm font-medium hover:bg-subtle-hover">
-                  {s.received ? "פרטי הקליטה" : "קליטה במחסן"}
-                </Link>
+                {!s.received && (status === "ordered" || status === "to_warehouse") ? (
+                  <Link href={`/admin/logistics/${s.id}`} className="flex min-h-11 items-center rounded-full bg-subtle px-4 text-sm font-medium hover:bg-subtle-hover">
+                    קליטה במחסן
+                  </Link>
+                ) : (
+                  <Link href={`/admin/logistics/${s.id}`} className="flex min-h-11 items-center text-sm text-brand hover:underline">
+                    {s.received ? "פרטי הקליטה" : "פרטי המשלוח"}
+                  </Link>
+                )}
               </li>
             ))}
           </ul>
@@ -445,7 +451,10 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
                   <span>
                     תעודה <Ltr>#{d.number}</Ltr>, {d.status === "delivered" ? `נמסרה${d.deliveredAt ? ` ${formatDay(d.deliveredAt)}` : ""}` : "מוכנה, עוד לא נמסרה"}
                   </span>
-                  <Link href={`/admin/deliveries/${d.id}`} className="flex min-h-11 items-center rounded-full bg-subtle px-4 text-sm font-medium hover:bg-subtle-hover">
+                  <Link
+                    href={`/admin/deliveries/${d.id}`}
+                    className={d.status === "prepared" ? "flex min-h-11 items-center rounded-full bg-subtle px-4 text-sm font-medium hover:bg-subtle-hover" : "flex min-h-11 items-center text-sm text-brand hover:underline"}
+                  >
                     תעודה והדפסה
                   </Link>
                 </div>
