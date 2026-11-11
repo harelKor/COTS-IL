@@ -6,7 +6,7 @@ const dayOf = (isoDate: string) => isoDate.split("-").reverse().join("/");
 
 /**
  * At the point of decision (product Add, cart footer): adding and sending cost
- * nothing, and how the ₪ price is made (no markup, no VAT).
+ * nothing, and how the ₪ price is made (USD × rate × 1.6, no VAT).
  */
 export function PriceNote({ rateDate }: { rateDate?: string }) {
   return (
@@ -23,6 +23,7 @@ export function PriceNote({ rateDate }: { rateDate?: string }) {
           ) : (
             " (מתעדכן כל יום)"
           )}
+          , כפול 1.6
           {business.priceIncludes ? `, כולל ${business.priceIncludes}` : ""}. משלוח בישראל מתומחר בהצעת המחיר.{" "}
           <Link href="/shipping" className="text-brand underline-offset-2 hover:underline">
             משלוח וזמני אספקה
