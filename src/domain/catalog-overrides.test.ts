@@ -15,7 +15,7 @@ const product = (id: string) => ({ id, supplierCode: "wcp", title: id, categoryS
 describe("effectivePriceUsd", () => {
   it("uses the override, then priceIls prices it", () => {
     expect(effectivePriceUsd("10.00", "12.5")).toBe("12.50");
-    expect(priceIls(effectivePriceUsd("10.00", "12.5"), 3.7)).toBe(46);
+    expect(priceIls(effectivePriceUsd("10.00", "12.5"), 3.7)).toBe(priceIls(12.5, 3.7));
   });
   it("keeps the store's price with no override or a bad one", () => {
     expect(effectivePriceUsd("10.00", null)).toBe("10.00");
