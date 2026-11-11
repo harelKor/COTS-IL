@@ -85,7 +85,9 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
 
 export async function revokeInvitation(formData: FormData) {
   const { viewer, team } = await requireTeamMember();
-  const id = z.uuid().parse(formData.get("id"));
+  const idParsed = z.uuid().safeParse(formData.get("id"));
+  if (!idParsed.success) return;
+  const id = idParsed.data;
 
   await db.transaction(async (tx) => {
     const [revoked] = await tx

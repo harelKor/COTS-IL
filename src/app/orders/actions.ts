@@ -83,7 +83,9 @@ export async function decideQuote(_prev: DecisionState, formData: FormData): Pro
 export async function cancelOrder(formData: FormData) {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
-  const orderId = z.uuid().parse(formData.get("orderId"));
+  const orderIdParsed = z.uuid().safeParse(formData.get("orderId"));
+  if (!orderIdParsed.success) return;
+  const orderId = orderIdParsed.data;
 
   await db.transaction(async (tx) => {
     const [order] = await tx.select().from(teamOrders).where(eq(teamOrders.id, orderId)).for("update");

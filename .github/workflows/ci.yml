@@ -19,3 +19,12 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run design-lint
+      - run: npx drizzle-kit check
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54422/postgres
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54421
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: dummy
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54422/postgres

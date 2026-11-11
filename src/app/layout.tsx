@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CartPill } from "@/components/cart-pill";
 import { CAPTURE_INSTALL_PROMPT } from "@/lib/install-prompt";
@@ -14,6 +15,7 @@ import "./globals.css";
 const heebo = Heebo({
   variable: "--font-heebo",
   subsets: ["hebrew", "latin"],
+  preload: false,
 });
 
 const SITE_NAME = "COTS-IL";
@@ -56,6 +58,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Real-user Core Web Vitals on Vercel. Reads the route, so it waits in Suspense. */}
         <Suspense>
           <SpeedInsights />
+          <Analytics />
         </Suspense>
       </body>
     </html>

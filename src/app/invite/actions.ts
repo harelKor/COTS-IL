@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { ActionState } from "@/components/action-form";
 import { getViewer } from "@/lib/auth";
 import { acceptInvitationsForUser, findInvitation } from "@/lib/invitations";
+import { rememberSignupEmail } from "@/lib/signup-email";
 import { createClient } from "@/lib/supabase/server";
 
 const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -37,7 +38,8 @@ export async function signupInvited(_prev: ActionState, formData: FormData): Pro
   // Supabase hides existing accounts by returning a user with no identities.
   if (data.user?.identities?.length === 0) return { error: "כבר קיים חשבון לדוא״ל הזה. התחברו כדי להצטרף." };
 
-  redirect(`/signup/check-email?invited=1&email=${encodeURIComponent(email)}`);
+  await rememberSignupEmail(email);
+  redirect("/signup/check-email?invited=1");
 }
 
 /** Joins as the signed-in user, whose address has to be the invited one. */

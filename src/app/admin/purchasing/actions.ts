@@ -82,7 +82,9 @@ async function addToDraft(tx: Tx, adminId: string, supplierId: string, orderItem
 /** Puts everything a supplier still needs onto its open draft, or onto a new one. */
 export async function createPo(formData: FormData) {
   const admin = await requireAdmin();
-  const supplierId = z.uuid().parse(formData.get("supplierId"));
+  const supplierIdParsed = z.uuid().safeParse(formData.get("supplierId"));
+  if (!supplierIdParsed.success) return;
+  const supplierId = supplierIdParsed.data;
   const poId = await db.transaction((tx) => addToDraft(tx, admin.id, supplierId));
   refresh(poId ?? undefined);
   if (poId) redirect(`/admin/purchasing/${poId}`);
@@ -192,7 +194,9 @@ export async function sendDraft(_prev: PoFormState, formData: FormData): Promise
 /** Takes a line off a draft. Its units go back to the board, to be bought later. */
 export async function removePoLine(lineId: string): Promise<{ undoId?: string; error?: string }> {
   const admin = await requireAdmin();
-  const id = z.uuid().parse(lineId);
+  const idParsed = z.uuid().safeParse(lineId);
+  if (!idParsed.success) return { error: "שורה לא תקינה" };
+  const id = idParsed.data;
 
   const result = await db.transaction(async (tx) => {
     const [found] = await tx
@@ -232,7 +236,9 @@ type RemovedLine = {
 /** Undo for removePoLine: puts the line and its order shares back, while the draft is still a draft. */
 export async function restorePoLine(undoId: string): Promise<{ error?: string }> {
   const admin = await requireAdmin();
-  const logId = z.coerce.number().int().positive().parse(undoId);
+  const logParsed = z.coerce.number().int().positive().safeParse(undoId);
+  if (!logParsed.success) return { error: "פעולה לא תקינה" };
+  const logId = logParsed.data;
 
   const result = await db.transaction(async (tx): Promise<{ error?: string; poId?: string }> => {
     const [log] = await tx.select().from(auditLog).where(eq(auditLog.id, logId));

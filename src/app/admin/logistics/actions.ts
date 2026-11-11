@@ -133,7 +133,9 @@ export async function addImportCost(_prev: ActionState, formData: FormData): Pro
 
 export async function removeImportCost(formData: FormData) {
   const admin = await requireAdmin();
-  const id = z.uuid().parse(formData.get("id"));
+  const idParsed = z.uuid().safeParse(formData.get("id"));
+  if (!idParsed.success) return;
+  const id = idParsed.data;
 
   const shipmentId = await db.transaction(async (tx) => {
     const [cost] = await tx.delete(importCosts).where(eq(importCosts.id, id)).returning();
@@ -356,7 +358,9 @@ export async function setAllocations(_prev: ActionState, formData: FormData): Pr
 /** Removes a shipment entered by mistake, as long as nothing was received from it. */
 export async function deleteShipment(formData: FormData) {
   const admin = await requireAdmin();
-  const id = z.uuid().parse(formData.get("shipmentId"));
+  const idParsed = z.uuid().safeParse(formData.get("shipmentId"));
+  if (!idParsed.success) return;
+  const id = idParsed.data;
 
   const removed = await db.transaction(async (tx) => {
     const [shipment] = await tx.select().from(shipments).where(eq(shipments.id, id));

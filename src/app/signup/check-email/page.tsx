@@ -1,8 +1,11 @@
 import { Suspense } from "react";
+import { cookies } from "next/headers";
+import { SIGNUP_EMAIL_COOKIE } from "@/lib/signup-email";
 
-async function Email({ searchParams }: PageProps<"/signup/check-email">) {
-  const { email } = await searchParams;
-  return typeof email === "string" ? <span className="ltr font-medium">{email}</span> : <>שהזנתם</>;
+async function Email() {
+  // The address travels in a short-lived cookie, never in the URL (history, logs, referrers).
+  const email = (await cookies()).get(SIGNUP_EMAIL_COOKIE)?.value;
+  return email ? <span className="ltr font-medium">{email}</span> : <>שהזנתם</>;
 }
 
 /** Someone invited to a team joins as soon as they confirm. Only a new team waits for approval. */
@@ -18,7 +21,7 @@ export default function CheckEmailPage(props: PageProps<"/signup/check-email">) 
       <p className="text-muted">
         שלחנו קישור אימות לכתובת{" "}
         <Suspense>
-          <Email {...props} />
+          <Email />
         </Suspense>
         . לחצו עליו כדי להשלים את ההרשמה.{" "}
         <Suspense>

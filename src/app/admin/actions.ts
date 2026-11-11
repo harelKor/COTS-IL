@@ -15,7 +15,9 @@ const reviewSchema = z.object({
 /** Approve or reject a team's registration, recording the change in the audit log. */
 export async function reviewTeam(formData: FormData) {
   const admin = await requireAdmin();
-  const { teamId, decision, reason } = reviewSchema.parse(Object.fromEntries(formData));
+  const parsed = reviewSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+  const { teamId, decision, reason } = parsed.data;
 
   await db.transaction(async (tx) => {
     const [before] = await tx.select().from(schema.teams).where(eq(schema.teams.id, teamId)).for("update");

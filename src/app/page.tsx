@@ -244,10 +244,25 @@ function WhyUs() {
 
 const EXAMPLES = SEARCH_EXAMPLES;
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cots-il.vercel.app";
+
+/** Only facts the business has supplied (src/lib/business.ts) appear, nothing is invented. */
+const ORGANIZATION_JSON_LD = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: business.legalName ?? "COTS-IL",
+  alternateName: "COTS-IL",
+  url: SITE_URL,
+  logo: `${SITE_URL}/icon-512.png`,
+  ...(business.email ? { email: business.email } : {}),
+  ...(business.phone ? { telephone: business.phone } : {}),
+}).replace(/</g, "\u003c");
+
 export default function HomePage() {
   return (
     <ViewTransition enter="page-enter" exit="page-exit" default="none">
       <div className="flex flex-col gap-8">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ORGANIZATION_JSON_LD }} />
         <Suspense>
           <TeamNotice />
         </Suspense>

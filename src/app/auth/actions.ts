@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { getViewer } from "@/lib/auth";
 import { acceptInvitationsForUser } from "@/lib/invitations";
+import { rememberSignupEmail } from "@/lib/signup-email";
 import { createClient } from "@/lib/supabase/server";
 import { formValues, loginSchema, safeNext, signupSchema, type FormState } from "@/lib/validation";
 
@@ -50,7 +51,8 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
     return { error: "ההרשמה נכשלה. נסו שוב בעוד מספר דקות.", values };
   }
 
-  redirect(`/signup/check-email?email=${encodeURIComponent(input.email)}`);
+  await rememberSignupEmail(input.email);
+  redirect("/signup/check-email");
 }
 
 export async function login(_prev: FormState, formData: FormData): Promise<FormState> {

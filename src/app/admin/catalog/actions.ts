@@ -137,7 +137,7 @@ export type RemovedOverride = { kind: "product"; row: ProductRow } | { kind: "va
 /** Removes an override and hands it back, so the Undo toast can put it back as it was. */
 export async function removeOverride(kind: "product" | "variant", id: string): Promise<RemovedOverride | null> {
   await requireAdmin();
-  z.uuid().parse(id);
+  if (!z.uuid().safeParse(id).success) return null;
   let removed: RemovedOverride | null = null;
   if (kind === "product") {
     const [row] = await db.delete(schema.productOverrides).where(eq(schema.productOverrides.productId, id)).returning();

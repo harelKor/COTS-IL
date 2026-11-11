@@ -473,3 +473,12 @@ dialog.sheet-search[open] {
     padding-bottom: 14rem;
   }
 }
+
+/* Header and cart pill keep their own layer, so they don't cross-fade (doubled) during page transitions. */
+header.sticky {
+  view-transition-name: site-header;
+}
+
+[data-cart-pill] {
+  view-transition-name: cart-pill;
+}
