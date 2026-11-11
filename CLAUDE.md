@@ -7,13 +7,14 @@ A Hebrew (RTL) purchasing portal for FRC/FTC teams. Teams build carts from AndyM
 Read first:
 - `docs/REDESIGN.md`: the redesign plan. Work goes one phase per session (its "Roadmap" section).
 - `docs/REDESIGN-AUDIT.md`: routes, schema, the audit items mapped to files, the decisions (D1–D10) and the progress table.
-- `docs/IMPROVEMENT-PLAN.md`: the current work plan (sessions S1–S12) from the Nov 10, 2026 audit.
+- `docs/IMPROVEMENT-PLAN.md`: the Nov 10, 2026 audit and its sessions S0–S15. Its "Status (Nov 11, 2026)" paragraph and Progress table say what is done; only S12 is left.
+- `docs/admin-guide.md`: the supplier's guide, with the "Setup still needed" checklist of user-side steps. `docs/S9-OPS.md`: dashboard steps (Sentry, Firewall).
 - "Where things stand" below: what's done, what's next and what's open.
 - `README.md` (setup, access model) and `PLAN.md` (the original build plan and data model).
 
 ## Stack
 
-Next.js 16 App Router (`cacheComponents: true`, so dynamic data must sit inside `<Suspense>`) · React 19 · TypeScript · Supabase (Postgres, Auth, Storage) · Drizzle ORM · Tailwind 4 · Vitest · Vercel hosting · GitHub Actions for CI, the daily catalog sync and nightly backups. Node 24+.
+Next.js 16 App Router (`cacheComponents: true`, so dynamic data must sit inside `<Suspense>`) · React 19 · TypeScript · Supabase (Postgres, Auth, Storage) · Drizzle ORM on node-postgres (`pg` with `attachDatabasePool` and a query timeout, `src/db/index.ts`) · Tailwind 4 · Vitest · Playwright · Vercel hosting · GitHub Actions for CI, the daily catalog sync and nightly backups. Node 24+.
 
 ## Commands
 
@@ -40,16 +41,22 @@ npm run icons            # redraw the app icons in public/ (manifest and Apple t
 - **Database:** Supabase project **COTS-IL**, ref `lzpxrlvtcxyoiuwkoaha` (eu-central-1), linked in the main checkout's `supabase/.temp`. The Supabase MCP connection only sees an unrelated project (`fteplaikueznmfqfqves`): never use it for COTS-IL. For production, use the Supabase CLI from the main checkout (`npx supabase inspect db … --linked`, `db push --remote`); reads and writes on production need the user's OK each time.
 - **GitHub Actions:** `sync.yml` runs the catalog sync daily at 02:00 UTC and then calls `https://cots-il.vercel.app/api/revalidate` (secrets `DATABASE_URL`, `REVALIDATE_SECRET`). `ci.yml` runs lint, typecheck and tests; `backup.yml` backs up nightly.
 
-## Where things stand (Nov 10, 2026)
+## Where things stand (Nov 11, 2026)
 
-Done, all on `main`: redesign phases 0–4 (families, catalog, cart sheet, quote requests, sign-in, approve links), a UI pass, and the COTS-IL visual refresh: the brand, the light-only Blue & White Fade palette, commas instead of `·`, the home page (category cards with real product photos from `getFacets`, example search chips, supplier pills) and "Install the app" (`src/app/manifest.ts`, `src/components/install-app.tsx`, icons in `public/`). See the Progress table in `docs/REDESIGN-AUDIT.md`.
+Done, all on `main`: redesign phases 0–4, the UI pass and the COTS-IL visual refresh, then the whole improvement plan except S12: S0–S11, S13–S15 and S10A (one team account, cart sheet fixes, email-code sign-in, Resend notifications, trust pages and `src/lib/business.ts`, search, catalog and product-page work, quote tracking, design system, DB hang fixes, catalog overrides). Also on `main`: prices of USD × Bank of Israel rate × 1.6 with no VAT; the catalog's 16 category chips under 5 expandable groups; admin order cards that open in the browser with outlined sections and a shipments section; Vercel functions in `fra1` (`vercel.json`); BotID and analytics funnel events; Playwright (`npm run e2e`) and Lighthouse CI; `npm run admin` to grant or revoke the admin. The Nov 9 `/catalog` hangs are fixed (node-postgres, no DB call in `not-found.tsx`, `fra1`).
 
-Next: `docs/IMPROVEMENT-PLAN.md` (Nov 10, 2026 UX and platform audit). It replaces phase 5 of `docs/REDESIGN.md` with sessions S1–S12, each with findings, tasks, acceptance checks and a ready prompt; run one session at a time in its roadmap order and tick its Progress table. The business facts it needs are listed in its "What the user needs to provide"; leave them `null` in `src/lib/business.ts` until supplied.
+Next: S12 (lists, season kits, budgets, in `docs/IMPROVEMENT-PLAN.md`) is not started and is the user's pick. Bugs the user reports come first.
+
+Waiting on the user (steps in `docs/admin-guide.md`, "Setup still needed"):
+- Supabase production SMTP and Hebrew sign-in templates; `RESEND_API_KEY` and `EMAIL_FROM` in Vercel (emails stay off until then).
+- The business facts in `src/lib/business.ts` (all `null`, their sentences hidden).
+- Vercel dashboard: Firewall rules, Skew Protection, Deployment Protection, BotID, Spend Management (the Pro trial ends about Nov 21, 2026 and needs a card). Optional Sentry DSN (`docs/S9-OPS.md`).
+- A decision on Vercel Image Optimization; recommended skip, about 6,900 source images.
 
 Open:
-- On Nov 9, right after the first deploy in the new team (empty cache), three `/catalog` requests hung for the full 300 s and one query hit the database's statement timeout. Nothing since, and the database is healthy (94 MB, ~50 ms for the category count). Not investigated: watch `get_runtime_errors` after the next deploy.
-- "Install the app" is untested on a real Android phone and iPhone.
-- An Oracle Cloud self-hosting setup (commit `c567564`, `deploy/` and `docs/DEPLOY-ORACLE.md`) exists only on branch `claude/cots-il-blue-white-redesign-e93c29`, not on `main`. Whether to use it is the user's call.
+- Not yet tried by a person: the team flow on a real phone, the catalog override forms, the admin order cards on production, "Install the app" on Android and iPhone.
+- Backorder items still show as available: Shopify data can't tell backorder from in stock.
+- An Oracle Cloud self-hosting setup (commit `c567564`, `deploy/`, `docs/DEPLOY-ORACLE.md`) exists only on branch `claude/cots-il-blue-white-redesign-e93c29`, not on `main`. The user's call.
 
 ## Where code goes
 
@@ -62,9 +69,13 @@ Open:
 | Cart sheet and sending a request | `src/components/cart-pill.tsx`, `cart-panel.tsx`, `cart-store.ts`, `src/app/cart/actions.ts` |
 | Header, search panel | `src/components/site-header.tsx`, `src/components/search-panel.tsx` |
 | Orders, quotes, approvals | `src/app/orders`, `src/app/q/[token]`, `src/lib/orders.ts`, `src/domain/orders.ts` |
-| Admin | `src/app/admin/*` (guarded by `requireAdmin`) |
+| Admin: `/admin` (כל ההזמנות), `/admin/purchasing` (הזמנות ספקים), order cards | `src/app/admin/*` (guarded by `requireAdmin`), `src/lib/admin-orders.ts`, `src/domain/admin-orders.ts`, `src/lib/purchasing.ts` |
+| Catalog overrides (`/admin/catalog`: hide, photos, category, merge, pin) | `src/app/admin/catalog`, `src/domain/catalog-overrides.ts` |
+| One order status for every screen | `src/domain/order-status.ts`, `src/lib/order-status.ts` |
+| Exchange rate and prices | `src/lib/fx.ts`, `src/domain/pricing.ts`, `src/suppliers/boi.ts` |
+| Business facts (fees, phone, lead times; `null` until supplied) | `src/lib/business.ts` |
 | Supplier sync and grouping | `src/suppliers/*`, `src/domain/families/*` |
-| Email notifications (Resend, off until `RESEND_API_KEY` and `EMAIL_FROM` are set) | `src/lib/notify.ts`, `src/lib/email-templates.ts`, `src/domain/notifications.ts` |
+| Email notifications (Resend, off until `RESEND_API_KEY` and `EMAIL_FROM` are set) | `src/lib/notify.ts`, `src/lib/email-templates.ts`, `src/lib/email-transport.ts`, `src/domain/notifications.ts` |
 | Tokens and utilities (`card-surface`, `btn-brand`, `tile-fade`) | `src/app/globals.css` |
 
 ## Rules that don't change

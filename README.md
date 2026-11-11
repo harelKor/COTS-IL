@@ -2,7 +2,7 @@
 
 Teams build carts from AndyMark, WCP, CTRE and The Thrifty Bot (REV and goBILDA wait for a CSV import, see D7), and the Israeli supplier quotes, orders from each supplier, receives and delivers. See [PLAN.md](PLAN.md) for the full plan.
 
-Stack: Next.js 16 (App Router) · Supabase (Postgres, Auth, Storage) · Drizzle ORM · Tailwind (Hebrew RTL) · Vitest.
+Stack: Next.js 16 (App Router) · Supabase (Postgres, Auth, Storage) · Drizzle ORM · Tailwind (Hebrew RTL) · Vitest · Playwright.
 
 Live at https://cots-il.vercel.app, hosted on the Vercel team COTS-IL with the database on the Supabase project COTS-IL. Every push to `main` deploys production. Details, and what to work on next, are in [CLAUDE.md](CLAUDE.md).
 
@@ -46,7 +46,10 @@ Hand-written SQL (RLS policies, triggers): `npx drizzle-kit generate --custom --
 | Script | What it does |
 |---|---|
 | `npm run dev` | Dev server |
-| `npm run lint` / `npm run typecheck` / `npm test` | Checks run by CI |
+| `npm run lint` / `npm run typecheck` / `npm test` / `npm run design-lint` | Checks run by CI |
+| `npm run e2e` | Playwright smoke test on the local stack (needs `supabase:start`, `env:local`, `seed` and a synced catalog); runs its own dev server on :3100 |
+| `npm run admin` | List, grant or revoke the admin by email |
+| `npm run icons` | Redraw the app icons in `public/` |
 | `npm run db:generate` / `npm run db:reset` | Migrations |
 | `npm run env:local` / `npm run seed` | Local environment |
 | `npm run sync` / `npm run regroup` | Catalog sync / rebuild product families |

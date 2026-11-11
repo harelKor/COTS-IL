@@ -1,5 +1,8 @@
 # COTS-IL improvement plan (UX, conversion, platform)
 
+**Status (Nov 11, 2026).** Done and on `main`: S0–S9, S10A, S11, S13, S14 and S15 (S10's own row is not ticked; its admin inbox and notification parts landed through S3, S10A and S14). Also done: prices of USD × Bank of Israel rate × 1.6 with no VAT, category groups in the catalog, admin order cards that open in the browser, Vercel functions in `fra1`, BotID, analytics funnel events, Playwright (`npm run e2e`) and Lighthouse CI. Left: S12 (lists, season kits, budgets), not started and the user's pick. Waiting on the user: Supabase production SMTP and Hebrew templates, `RESEND_API_KEY` and `EMAIL_FROM` in Vercel, the business facts in `src/lib/business.ts`, an optional Sentry DSN, the Vercel dashboard settings (Firewall, Skew Protection, Deployment Protection, Spend Management; the Pro trial ends about Nov 21, 2026) and a decision on Vercel Image Optimization (recommended skip, about 6,900 source images). Not yet tried by a person: the team flow on a real phone, the catalog override forms, the admin cards on production, "Install the app". Backorder items still show as available (Shopify can't tell). The checklist is in `docs/admin-guide.md`, "Setup still needed".
+
+
 Nov 10, 2026. Written from a full audit of the code at `037f8c2` and a walkthrough of https://cots-il.vercel.app as a customer (desktop and 375px phone). It follows the redesign phases 0–4 in [REDESIGN.md](REDESIGN.md) and replaces its phase 5 prompt: phase 5's pages and admin work are sessions 4, 10 and 11 below.
 
 ## How to run this plan in Claude Code
