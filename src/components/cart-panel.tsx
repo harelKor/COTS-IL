@@ -4,13 +4,14 @@ import { shopifyImage } from "@/lib/images";
 import { PriceNote } from "./price-note";
 import { Check, ChevronDown, Share2, Trash2, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useLayoutEffect, useRef, useState, useTransition } from "react";
-import { sendEmailLink, setUpTeam, signInWithGoogle } from "@/app/auth/actions";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { requestToJoin, sendEmailCode, setUpTeam, signInWithGoogle, verifyEmailCode } from "@/app/auth/actions";
 import { sendQuoteRequest, type SendState } from "@/app/cart/actions";
 import type { TeamNameResponse } from "@/app/api/team-name/route";
 import { groupBySupplier, type CartChange } from "@/domain/cart";
-import { encodeCart } from "@/domain/cart-share";
+import { encodeCart, withPendingCart } from "@/domain/cart-share";
+import { parseTeamNumber } from "@/domain/teams";
 import { formatIls } from "@/domain/pricing";
 import { business } from "@/lib/business";
 import { flushCartWrites, removeNow } from "./cart-actions";
@@ -243,25 +244,171 @@ function TeamSend({
   );
 }
 
-/** A guest's "send": an email link signs them in (Google too, once it's switched on); the cart waits. */
-export function SignInStep({ google, next: to, intro = "כדי לשלוח צריך חשבון קבוצה. אין סיסמה: נשלח לכם קישור כניסה." }: { google: boolean; next?: string; intro?: string }) {
+const CODE_KEY = "cots-il:code-sent";
+const RESEND_SECONDS = 60;
+
+/**
+ * The address a code went to, kept for the tab (sessionStorage), so coming back
+ * from the mail app still shows the code field. A tiny store, read after hydration.
+ */
+type CodeSent = { email: string; at: number };
+const codeListeners = new Set<() => void>();
+let codeRaw: string | null | undefined;
+function codeSnapshot(): string | null {
+  if (codeRaw === undefined) {
+    try {
+      codeRaw = sessionStorage.getItem(CODE_KEY);
+    } catch {
+      codeRaw = null;
+    }
+  }
+  return codeRaw;
+}
+function subscribeCode(listener: () => void) {
+  codeListeners.add(listener);
+  return () => codeListeners.delete(listener);
+}
+function writeCodeSent(value: CodeSent | null) {
+  codeRaw = value ? JSON.stringify(value) : null;
+  try {
+    if (codeRaw) sessionStorage.setItem(CODE_KEY, codeRaw);
+    else sessionStorage.removeItem(CODE_KEY);
+  } catch {
+    // Private windows can refuse storage; the code field still shows until the tab reloads.
+  }
+  codeListeners.forEach((l) => l());
+}
+function parseCodeSent(raw: string | null): CodeSent | null {
+  try {
+    const value = raw ? (JSON.parse(raw) as CodeSent) : null;
+    return value && typeof value.email === "string" && typeof value.at === "number" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Where a sign-in returns to, with the guest's cart in it so it comes back in any browser. */
+function returnTo(to: string | undefined, pathname: string) {
+  const { mode, lines } = cartSnapshot();
+  return withPendingCart(to ?? `${pathname}?cart=open`, mode === "guest" ? lines : []);
+}
+
+/**
+ * A guest's "send": a 6-digit code to the email, typed (or pasted, or filled
+ * by the phone's keyboard) right here, so nobody leaves the page. The same email
+ * has a link that works in any browser and brings the cart along.
+ */
+export function SignInStep({
+  google,
+  next: to,
+  email: initialEmail = "",
+  intro = "כדי לשלוח צריך חשבון קבוצה. אין סיסמה: נשלח לכם קוד לדוא״ל.",
+}: {
+  google: boolean;
+  next?: string;
+  email?: string;
+  intro?: string;
+}) {
   const pathname = usePathname();
-  const next = to ?? `${pathname}?cart=open`;
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState<string | null>(null);
+  const router = useRouter();
+  const [email, setEmail] = useState(initialEmail);
+  const sentRaw = useSyncExternalStore(subscribeCode, codeSnapshot, () => null);
+  const sent = useMemo(() => parseCodeSent(sentRaw), [sentRaw]);
+  const [code, setCode] = useState("");
+  const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const wait = sent ? Math.max(0, RESEND_SECONDS - Math.floor((now - sent.at) / 1000)) : 0;
+  useEffect(() => {
+    if (wait <= 0) return;
+    const id = setTimeout(() => setNow(Date.now()), 1000);
+    return () => clearTimeout(id);
+  }, [wait, now]);
+
+  function send(address: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await sendEmailCode(address, returnTo(to, pathname)).catch(() => ({ sent: undefined, error: "אין חיבור לשרת. נסו שוב בעוד רגע." }));
+      if (result.sent) {
+        const value = { email: result.sent, at: Date.now() };
+        writeCodeSent(value);
+        setNow(value.at);
+        setCode("");
+      } else {
+        setError(result.error ?? "השליחה נכשלה");
+        showToast(result.error ?? "השליחה נכשלה", "error");
+      }
+    });
+  }
+
+  function verify(value: string) {
+    if (!sent || value.length !== 6) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await verifyEmailCode(sent.email, value).catch(() => ({ ok: false, error: "אין חיבור לשרת. נסו שוב בעוד רגע." }));
+      if (result.ok) {
+        writeCodeSent(null);
+        // The sheet stays where it is; a sign-in page moves on to where it was asked to go.
+        if (to && to.split("?")[0] !== pathname) router.replace(to);
+      } else {
+        setError(result.error ?? "הקוד לא התקבל");
+        setCode("");
+      }
+    });
+  }
 
   if (sent) {
     return (
-      <div className="flex flex-col gap-2 rounded-xl bg-subtle p-4 text-callout">
-        <span className="flex items-center gap-2 font-semibold">
-          <Check size={18} aria-hidden /> שלחנו קישור כניסה
-        </span>
-        <span className="text-caption text-muted">
-          פתחו את הקישור שנשלח ל-<Ltr>{sent}</Ltr> בדפדפן הזה. הסל שלכם יחכה כאן, ואחרי הכניסה נשאר רק לשלוח.
-        </span>
-      </div>
+      <form
+        className="flex flex-col gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          verify(code);
+        }}
+      >
+        <p className="text-caption text-muted">
+          שלחנו קוד בן 6 ספרות ל-<Ltr>{sent.email}</Ltr>. הקלידו אותו כאן, או פתחו את הקישור שבמייל בכל דפדפן.
+        </p>
+        <input
+          className={`${field} text-center text-section tracking-[0.4em] tabular-nums`}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          dir="ltr"
+          maxLength={6}
+          pattern="\d{6}"
+          required
+          autoFocus
+          placeholder="••••••"
+          aria-label="קוד מהמייל"
+          value={code}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
+            setCode(digits);
+            if (digits.length === 6) verify(digits);
+          }}
+        />
+        <InlineError message={error} />
+        <button disabled={pending || code.length !== 6} className={primary}>
+          {pending ? "בודק…" : "כניסה"}
+        </button>
+        <p className="text-caption text-muted">לא הגיע תוך דקה? בדקו בתיקיית הספאם או בקידומי מכירות.</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={pending || wait > 0} onClick={() => send(sent.email)} className="flex min-h-11 items-center rounded-full bg-subtle px-4 text-caption disabled:opacity-60">
+            {wait > 0 ? `שליחה חוזרת בעוד ${wait} שניות` : "שליחת קוד חדש"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEmail(sent.email);
+              writeCodeSent(null);
+              setError(null);
+            }}
+            className="flex min-h-11 items-center rounded-full px-4 text-caption text-brand hover:bg-subtle"
+          >
+            שינוי כתובת
+          </button>
+        </div>
+      </form>
     );
   }
   return (
@@ -269,27 +416,19 @@ export function SignInStep({ google, next: to, intro = "כדי לשלוח צרי
       className="flex flex-col gap-2"
       onSubmit={(e) => {
         e.preventDefault();
-        setError(null);
-        startTransition(async () => {
-          const result = await sendEmailLink(email, next).catch(() => ({ sent: undefined, error: "אין חיבור לשרת. נסו שוב בעוד רגע." }));
-          if (result.sent) setSent(result.sent);
-          else {
-            setError(result.error ?? "השליחה נכשלה");
-            showToast(result.error ?? "השליחה נכשלה", "error");
-          }
-        });
+        send(email);
       }}
     >
       <p className="text-caption text-muted">{intro}</p>
       <input className={field} type="email" required dir="ltr" autoComplete="email" placeholder="you@team.org" aria-label="דוא״ל" value={email} onChange={(e) => setEmail(e.target.value)} />
       <InlineError message={error} />
       <button disabled={pending} className={primary}>
-        {pending ? "שולח…" : "שליחת קישור כניסה"}
+        {pending ? "שולח…" : "שליחת קוד כניסה"}
       </button>
       {google && (
         <button
           type="button"
-          onClick={() => startTransition(() => signInWithGoogle(next))}
+          onClick={() => startTransition(() => signInWithGoogle(returnTo(to, pathname)))}
           className="flex h-11 w-full items-center justify-center rounded-full bg-surface text-callout font-medium shadow-[inset_0_0_0_1px_var(--line)] hover:bg-subtle"
         >
           המשך עם Google
@@ -299,21 +438,100 @@ export function SignInStep({ google, next: to, intro = "כדי לשלוח צרי
   );
 }
 
-/** Signed in without a team: create it (pending approval) with this user's email on its account. */
+/**
+ * Signed in without a team: create it (pending approval) with this user's email
+ * on its account and the contact its first request goes out with, so sending
+ * needs nothing more. A number that is already registered asks to join instead.
+ */
 export function TeamStep() {
   const [program, setProgram] = useState<"FRC" | "FTC">("FRC");
   const [number, setNumber] = useState("");
   const [name, setName] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
   const [registered, setRegistered] = useState(false);
+  const [asked, setAsked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // The name the lookup filled in: the next lookup replaces it only while nobody has edited it.
+  const autoName = useRef("");
+  const nameRef = useRef(name);
+  useEffect(() => {
+    nameRef.current = name;
+  }, [name]);
+  const lookup = useRef<{ timer?: ReturnType<typeof setTimeout>; abort?: AbortController }>({});
 
-  async function lookUp(n: string, p = program) {
+  useEffect(() => {
+    const current = lookup.current;
+    return () => {
+      clearTimeout(current.timer);
+      current.abort?.abort();
+    };
+  }, []);
+
+  function lookUp(n: string, p = program) {
+    clearTimeout(lookup.current.timer);
+    lookup.current.abort?.abort();
     setRegistered(false);
-    if (!/^\d{1,6}$/.test(n)) return;
-    const res = (await (await fetch(`/api/team-name?program=${p}&number=${n}`)).json()) as TeamNameResponse;
-    setRegistered(res.registered);
-    if (res.name && !name) setName(res.name);
+    setAsked(false);
+    if (parseTeamNumber(n) === null) return;
+    lookup.current.timer = setTimeout(async () => {
+      const abort = new AbortController();
+      lookup.current.abort = abort;
+      try {
+        const res = (await (await fetch(`/api/team-name?program=${p}&number=${n}`, { signal: abort.signal })).json()) as TeamNameResponse;
+        if (abort.signal.aborted) return;
+        setRegistered(res.registered);
+        if (nameRef.current === autoName.current) {
+          autoName.current = res.name ?? "";
+          setName(autoName.current);
+        }
+      } catch {
+        // Aborted by the next keystroke, or offline: the name stays as typed.
+      }
+    }, 300);
+  }
+
+  if (registered) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-caption text-muted">
+          <Ltr>{`${program} ${number}`}</Ltr> כבר רשומה{name ? ` (${name})` : ""}. אפשר לבקש מהקבוצה להוסיף את הכתובת שלכם: כל מי שמחובר לחשבון הקבוצה יאשר בלחיצה.
+        </p>
+        <InlineError message={error} />
+        {asked ? (
+          <p role="status" className="flex items-center gap-2 rounded-xl bg-subtle p-3 text-callout font-medium">
+            <Check size={18} aria-hidden /> הבקשה נשלחה. אחרי האישור תיכנסו לחשבון הקבוצה.
+          </p>
+        ) : (
+          <button
+            type="button"
+            disabled={pending}
+            className={primary}
+            onClick={() =>
+              startTransition(async () => {
+                const result = await requestToJoin({ program, number }).catch(() => ({ ok: false, error: "אין חיבור לשרת. נסו שוב בעוד רגע." }));
+                if (result.ok) setAsked(true);
+                else setError(result.error ?? "הבקשה לא נשלחה");
+              })
+            }
+          >
+            {pending ? "שולח…" : "בקשת הצטרפות"}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setNumber("");
+            setRegistered(false);
+            setAsked(false);
+          }}
+          className="flex min-h-11 items-center justify-center rounded-full text-caption text-brand hover:bg-subtle"
+        >
+          מספר אחר
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -323,15 +541,16 @@ export function TeamStep() {
         e.preventDefault();
         setError(null);
         startTransition(async () => {
-          const result = await setUpTeam({ program, number, name }).catch(() => ({ error: "אין חיבור לשרת. נסו שוב בעוד רגע." }));
-          if (result?.error) {
+          const result = await setUpTeam({ program, number, name, contactName, contactPhone }).catch(() => ({ error: "אין חיבור לשרת. נסו שוב בעוד רגע.", taken: false }));
+          if (result?.taken) setRegistered(true);
+          else if (result?.error) {
             setError(result.error);
             showToast(result.error, "error");
           }
         });
       }}
     >
-      <p className="text-caption text-muted">עוד צעד אחד: איזו קבוצה אתם?</p>
+      <p className="text-caption text-muted">עוד צעד אחד: איזו קבוצה אתם, ועם מי מדברים על ההזמנה?</p>
       <div className="flex gap-2" role="group" aria-label="תחום">
         {(["FRC", "FTC"] as const).map((p) => (
           <button
@@ -340,7 +559,7 @@ export function TeamStep() {
             aria-pressed={program === p}
             onClick={() => {
               setProgram(p);
-              void lookUp(number, p);
+              lookUp(number, p);
             }}
             className={`h-11 flex-1 rounded-full text-callout ${program === p ? "bg-brand text-white" : "bg-subtle"}`}
           >
@@ -353,21 +572,21 @@ export function TeamStep() {
         inputMode="numeric"
         dir="ltr"
         required
+        maxLength={5}
         placeholder="מספר קבוצה"
         aria-label="מספר קבוצה"
         value={number}
         onChange={(e) => {
-          setNumber(e.target.value);
-          void lookUp(e.target.value);
+          const digits = e.target.value.replace(/\D/g, "");
+          setNumber(digits);
+          lookUp(digits);
         }}
       />
-      {registered ? (
-        <p className="text-caption text-warning">קבוצה רשומה כבר: בקשו ממי שרשם/ה אותה להוסיף את הכתובת שלכם.</p>
-      ) : (
-        <input className={field} required placeholder="שם הקבוצה" aria-label="שם הקבוצה" value={name} onChange={(e) => setName(e.target.value)} />
-      )}
+      <input className={field} required placeholder="שם הקבוצה" aria-label="שם הקבוצה" value={name} onChange={(e) => setName(e.target.value)} />
+      <input className={field} required autoComplete="name" placeholder="איש קשר להזמנות" aria-label="שם איש קשר" value={contactName} onChange={(e) => setContactName(e.target.value)} />
+      <input className={field} required type="tel" dir="ltr" autoComplete="tel" placeholder="טלפון" aria-label="טלפון" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
       <InlineError message={error} />
-      <button disabled={pending || registered} className={primary}>
+      <button disabled={pending} className={primary}>
         {pending ? "יוצר…" : "יצירת הקבוצה"}
       </button>
     </form>

@@ -7,20 +7,21 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import type { ActionState } from "@/components/action-form";
 import { inviteExpiry, wouldLeaveNoMembers } from "@/domain/teams";
-import { activeTeam, getViewer } from "@/lib/auth";
+import { getViewer, orderingTeam } from "@/lib/auth";
 import { hashInviteToken, newInviteToken } from "@/lib/invitations";
+import { siteUrl } from "@/lib/site-url";
 
-const { auditLog, memberships, profiles, teamInvitations, teams } = schema;
+const { auditLog, memberships, profiles, teamInvitations, teamJoinRequests, teams } = schema;
 
 /**
- * Anyone signed in to an approved team manages its account (D11): details and
- * sign-in emails. Checked on every action.
+ * Anyone signed in to a team manages its account (D11): details, sign-in emails
+ * and join requests, also while the team waits for approval. Checked on every action.
  */
 async function requireTeamMember() {
   const viewer = await getViewer();
   if (!viewer) redirect("/login?next=/team");
-  const team = activeTeam(viewer);
-  if (!team) throw new Error("Only someone on an approved team can do this");
+  const team = orderingTeam(viewer);
+  if (!team) throw new Error("Only someone on a team that can order can do this");
   return { viewer, team };
 }
 
@@ -30,7 +31,6 @@ const inviteSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),
 });
 
-const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 /** Adds a sign-in email: creates an invitation and returns its link once. Only the hash is kept, so it can't be shown again. */
 export async function inviteMember(_prev: InviteState, formData: FormData): Promise<InviteState> {
@@ -184,4 +184,36 @@ export async function updateTeamDetails(_prev: ActionState, formData: FormData):
 
   revalidatePath("/team");
   return {};
+}
+
+/**
+ * "בקשת הצטרפות" from someone signed in: one tap adds their address to the
+ * team's account, or declines. Either way the request is closed.
+ */
+export async function decideJoinRequest(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { viewer, team } = await requireTeamMember();
+  const id = z.uuid().safeParse(formData.get("id"));
+  if (!id.success) return { error: "הבקשה לא תקינה" };
+  const accept = formData.get("accept") === "1";
+
+  const done = await db.transaction(async (tx) => {
+    const [request] = await tx
+      .update(teamJoinRequests)
+      .set({ decidedAt: new Date(), decidedBy: viewer.id, accepted: accept })
+      .where(and(eq(teamJoinRequests.id, id.data), eq(teamJoinRequests.teamId, team.id), isNull(teamJoinRequests.decidedAt)))
+      .returning();
+    if (!request) return false;
+    if (accept) await tx.insert(memberships).values({ teamId: team.id, userId: request.userId }).onConflictDoNothing();
+    await tx.insert(auditLog).values({
+      actorId: viewer.id,
+      entity: "team_join_request",
+      entityId: request.id,
+      action: accept ? "accept" : "decline",
+      after: { teamId: team.id, email: request.email },
+    });
+    return true;
+  });
+
+  revalidatePath("/team");
+  return done ? {} : { error: "הבקשה כבר טופלה" };
 }

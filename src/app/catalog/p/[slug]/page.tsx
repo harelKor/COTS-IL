@@ -18,6 +18,7 @@ import { getUsdIlsRate, usdIlsRate } from "@/lib/fx";
 import { catalogHref } from "@/lib/catalog-filters";
 import { familyHref } from "@/lib/catalog-links";
 import { cleanDescription, descriptionText, metaDescription, type Spec } from "@/lib/description";
+import { siteUrl } from "@/lib/site-url";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
 export const maxDuration = 30;
@@ -72,7 +73,7 @@ function mergeSpecs(own: Spec[], fromText: Spec[]) {
   return [...own, ...fromText.filter((s) => !seen.has(s.key.toLowerCase()) && seen.add(s.key.toLowerCase()))].slice(0, 30);
 }
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cots-il.vercel.app";
+const SITE = siteUrl();
 
 /** JSON-LD in a script tag: `<` escaped so the text can't close it. */
 function jsonLd(...items: object[]) {

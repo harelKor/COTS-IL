@@ -84,6 +84,21 @@ export function clearGuestCart() {
   saveGuestCart([]);
 }
 
+/**
+ * Puts a cart a sign-in link brought back into the browser's guest cart, each
+ * part at the larger quantity, so opening the link twice doubles nothing. The
+ * normal sign-in merge then takes it into the team's cart.
+ */
+export function stashGuestLines(incoming: CartSheetLine[]) {
+  const current = readGuestCart();
+  const changes = new Map(maxMerge(current, incoming).map((c) => [c.variantId, c.qty]));
+  const merged = [
+    ...current.map((l) => (changes.has(l.variantId) ? { ...l, qty: changes.get(l.variantId)! } : l)),
+    ...incoming.filter((l) => !current.some((c) => c.variantId === l.variantId)),
+  ];
+  saveGuestCart(merged);
+}
+
 /** Modes whose cart lives in the browser: a guest's, and one signed in but without a team yet. */
 const isLocal = (mode: CartMode) => mode === "guest" || mode === "noteam";
 

@@ -29,3 +29,27 @@ export function decodeCart(value: string | null | undefined): SharedLine[] {
   }
   return [...byId].map(([variantId, qty]) => ({ variantId, qty }));
 }
+
+/** The query parameter a sign-in link carries the guest's cart in, so it comes back in any browser. */
+export const PENDING_CART_PARAM = "pending";
+
+/** `next` with the guest's cart added, so signing in from another browser (or the installed app) still finds it. */
+export function withPendingCart(next: string, lines: SharedLine[]): string {
+  const encoded = encodeCart(lines);
+  if (!encoded) return next;
+  const [path, hash = ""] = next.split("#");
+  const [base, query = ""] = path.split("?");
+  const params = new URLSearchParams(query);
+  params.set(PENDING_CART_PARAM, encoded);
+  // URLSearchParams escapes "~"; the cart reads fine either way, but this keeps links short.
+  return `${base}?${params.toString().replace(/%7E/gi, "~")}${hash ? `#${hash}` : ""}`;
+}
+
+/** The cart a sign-in link brought back, and the address without it. */
+export function takePendingCart(url: URL): { lines: SharedLine[]; cleaned: string } | null {
+  const value = url.searchParams.get(PENDING_CART_PARAM);
+  if (value === null) return null;
+  const copy = new URL(url);
+  copy.searchParams.delete(PENDING_CART_PARAM);
+  return { lines: decodeCart(value), cleaned: `${copy.pathname}${copy.search}${copy.hash}` };
+}

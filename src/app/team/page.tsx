@@ -6,19 +6,19 @@ import { db, schema } from "@/db";
 import { ActionForm } from "@/components/action-form";
 import { Button, Field, Input } from "@/components/form";
 import { Ltr } from "@/components/ltr";
-import { activeTeam, getViewer } from "@/lib/auth";
-import { removeMember, revokeInvitation, updateTeamDetails } from "./actions";
+import { getViewer, orderingTeam } from "@/lib/auth";
+import { decideJoinRequest, removeMember, revokeInvitation, updateTeamDetails } from "./actions";
 import { InviteForm } from "./invite-form";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 
 export const metadata: Metadata = { title: "חשבון הקבוצה" };
 
-const { memberships, profiles, teamInvitations, teams } = schema;
+const { memberships, profiles, teamInvitations, teamJoinRequests, teams } = schema;
 
 async function Team() {
   const viewer = await getViewer();
   if (!viewer) redirect("/login?next=/team");
-  const team = activeTeam(viewer);
+  const team = orderingTeam(viewer);
   if (!team) redirect(viewer.isAdmin ? "/admin" : "/pending");
 
   const [details] = await db.select().from(teams).where(eq(teams.id, team.id));
@@ -40,6 +40,12 @@ async function Team() {
       ),
     )
     .orderBy(asc(teamInvitations.email));
+  const joinRequests = await db
+    .select({ id: teamJoinRequests.id, email: teamJoinRequests.email, fullName: profiles.fullName })
+    .from(teamJoinRequests)
+    .innerJoin(profiles, eq(profiles.id, teamJoinRequests.userId))
+    .where(and(eq(teamJoinRequests.teamId, team.id), isNull(teamJoinRequests.decidedAt)))
+    .orderBy(asc(teamJoinRequests.createdAt));
   const lastEmail = members.length === 1;
 
   return (
@@ -47,6 +53,39 @@ async function Team() {
       <p className="text-sm text-muted">
         {details.name}, <Ltr>{`${details.program} ${details.number}`}</Ltr>
       </p>
+
+      {joinRequests.length > 0 && (
+        <section className="flex flex-col gap-3 card-surface p-4" aria-label="בקשות הצטרפות">
+          <h2 className="font-semibold">בקשות הצטרפות</h2>
+          <ul className="flex flex-col">
+            {joinRequests.map((request) => (
+              <li key={request.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-2 first:border-t-0">
+                <div className="min-w-0 text-sm">
+                  {request.fullName && <div className="font-medium">{request.fullName}</div>}
+                  <div className="break-all text-muted">
+                    <Ltr>{request.email}</Ltr>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <ActionForm action={decideJoinRequest}>
+                    <input type="hidden" name="id" value={request.id} />
+                    <input type="hidden" name="accept" value="1" />
+                    <Button variant="secondary" aria-label={`הוספת ${request.email} לחשבון הקבוצה`}>
+                      הוספה
+                    </Button>
+                  </ActionForm>
+                  <ActionForm action={decideJoinRequest}>
+                    <input type="hidden" name="id" value={request.id} />
+                    <button aria-label={`דחיית הבקשה של ${request.email}`} className="flex min-h-11 items-center px-3 text-sm text-danger hover:underline">
+                      דחייה
+                    </button>
+                  </ActionForm>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <ActionForm action={updateTeamDetails} className="flex flex-col gap-3 card-surface p-4">
         <h2 className="font-semibold">פרטי הקבוצה</h2>

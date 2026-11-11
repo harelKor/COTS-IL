@@ -662,6 +662,30 @@ export const teamInvitations = pgTable(
 );
 
 /**
+ * "בקשת הצטרפות" (S2): someone signed in asks to join a team that is already
+ * registered. Anyone on that team adds the address with one tap, or declines.
+ * S3 emails the team and the admin when one comes in.
+ */
+export const teamJoinRequests = pgTable(
+  "team_join_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedBy: uuid("decided_by").references(() => profiles.id),
+    accepted: boolean("accepted"),
+    createdAt,
+  },
+  (t) => [index("team_join_requests_team_id_idx").on(t.teamId), unique("team_join_requests_team_user_key").on(t.teamId, t.userId)],
+);
+
+/**
  * "לא מצאתם? שלחו לנו קישור לחלק" (S5 task 8): one part a team couldn't find in the
  * catalog, as a link and a note, for the admin to look into. Not an order and not a SKU list.
  */

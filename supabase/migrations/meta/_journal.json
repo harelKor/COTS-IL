@@ -162,6 +162,13 @@
       "when": 1794387908673,
       "tag": "20261111090508_drop_team_role",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794389584455,
+      "tag": "20261111093304_team_join_requests",
+      "breakpoints": true
     }
   ]
 }

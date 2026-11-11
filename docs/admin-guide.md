@@ -58,3 +58,20 @@ GitHub Actions מגבה את מסד הנתונים כל לילה (זרימת ה�
    ```
 
 מומלץ לתרגל שחזור פעם בחודש על פרויקט ריק.
+
+## כניסה בקוד מהמייל: הגדרות ייצור ב-Supabase
+
+מאז S2 (נובמבר 2026) קבוצות נכנסות בקוד בן 6 ספרות שנשלח לדוא״ל, בלי לצאת מחלון הסל. אותו מייל כולל גם קישור שעובד מכל דפדפן ומביא איתו את הסל. כדי שזה יעבוד בייצור צריך לעשות פעם אחת, בלוח הבקרה של Supabase (פרויקט COTS-IL, `lzpxrlvtcxyoiuwkoaha`) וב-Vercel:
+
+1. **שרת דואר (SMTP) משלכם.** Authentication → Emails → SMTP Settings. השולח המובנה של Supabase שולח רק לכתובות של חברי הארגון ב-Supabase ומעט מיילים בשעה, כך שקבוצות חדשות לא יקבלו קוד. ספק מומלץ: Resend (או כל SMTP אחר). שם שולח: `COTS-IL`, כתובת שולח למשל `no-reply@<הדומיין שלכם>`.
+2. **דומיין שולח.** אצל ספק ה-SMTP מוסיפים את הדומיין ומעתיקים לרשומות ה-DNS את SPF, DKIM ו-DMARC שהוא נותן. בלי זה המיילים נוחתים בספאם.
+3. **תבניות המייל בעברית.** Authentication → Emails → Templates. בשתי התבניות **Confirm signup** ו-**Magic Link**:
+   - נושא: `קוד הכניסה ל-COTS-IL: {{ .Token }}`
+   - גוף: כל התוכן של `supabase/templates/sign-in.html` מהמאגר (מקומית הוא כבר מחובר דרך `supabase/config.toml`).
+4. **אורך הקוד ותוקפו.** Authentication → Providers → Email: ‏Email OTP Length = ‏6, ‏Email OTP Expiration = ‏3600 שניות. המסך מצפה ל-6 ספרות בדיוק.
+5. **כתובות חזרה.** Authentication → URL Configuration: ‏Site URL = `https://cots-il.vercel.app`, וב-Redirect URLs להוסיף `https://cots-il.vercel.app/auth/confirm**` (הכוכביות מאפשרות את `?next=` שמחזיר לדף ולסל). בלי זה הקישור במייל נשבר.
+6. **מגבלת מיילים.** אחרי שה-SMTP מחובר: Authentication → Rate Limits, ‏"Rate limit for sending emails" לפחות 30 בשעה.
+7. **Google.** Authentication → Providers → Google: להפעיל רק אם רוצים כפתור "המשך עם Google" (צריך Client ID ו-Secret מ-Google Cloud). האתר מזהה לבד אם הספק פעיל ומציג או מסתיר את הכפתור.
+8. **Vercel.** לוודא ש-`NEXT_PUBLIC_SITE_URL` = `https://cots-il.vercel.app` מוגדר ב-Production. אם הוא חסר, האתר משתמש בכתובת הייצור של Vercel (`VERCEL_PROJECT_PRODUCTION_URL`), לא ב-localhost.
+
+בקשות הצטרפות: מי שמנסה לרשום מספר קבוצה שכבר קיים יכול לשלוח "בקשת הצטרפות". הבקשה מופיעה בדף "חשבון הקבוצה" של אותה קבוצה, וכל מי שמחובר אליה מאשר או דוחה בלחיצה. התראה במייל לקבוצה ולספק תתווסף ב-S3.

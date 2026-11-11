@@ -1,25 +1,5 @@
 import { z } from "zod";
 
-export const signupSchema = z.object({
-  program: z.enum(["FRC", "FTC"], { error: "יש לבחור FRC או FTC" }),
-  teamNumber: z.coerce
-    .number({ error: "מספר קבוצה לא תקין" })
-    .int("מספר קבוצה לא תקין")
-    .min(1, "מספר קבוצה לא תקין")
-    .max(99999, "מספר קבוצה לא תקין"),
-  teamName: z.string().trim().min(2, "יש להזין שם קבוצה"),
-  fullName: z.string().trim().min(2, "יש להזין שם איש קשר"),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\+?[0-9][0-9\- ]{7,14}$/, "מספר טלפון לא תקין"),
-  email: z.string().trim().toLowerCase().pipe(z.email("כתובת דוא״ל לא תקינה")),
-  password: z.string().min(8, "הסיסמה צריכה להכיל לפחות 8 תווים"),
-  address: z.string().trim().max(300).optional().default(""),
-});
-
-export type SignupInput = z.infer<typeof signupSchema>;
-
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email("כתובת דוא״ל לא תקינה")),
   password: z.string().min(1, "יש להזין סיסמה"),

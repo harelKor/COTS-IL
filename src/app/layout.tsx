@@ -10,6 +10,7 @@ import { FooterGate } from "@/components/footer-gate";
 import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/toast";
 import "./globals.css";
+import { siteUrl } from "@/lib/site-url";
 
 // Only the fallback: Apple devices get SF and Windows gets Segoe (see --font-sans).
 const heebo = Heebo({
@@ -21,7 +22,7 @@ const heebo = Heebo({
 const SITE_NAME = "COTS-IL";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://cots-il.vercel.app"),
+  metadataBase: new URL(siteUrl()),
   title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
   description: "ציוד FRC ו-FTC מכל הספקים בהזמנה אחת, במחירים בשקלים לפי שער בנק ישראל",
   openGraph: { siteName: SITE_NAME, locale: "he_IL", type: "website" },

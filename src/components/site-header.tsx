@@ -13,6 +13,7 @@ import { CartSync } from "./cart-sync";
 import { InstallAppButton } from "./install-app";
 import { Ltr } from "./ltr";
 import { SearchPanel } from "./search-panel";
+import { SignInLink } from "./sign-in-link";
 
 const menuLink = "flex h-11 items-center rounded-lg px-3 hover:bg-subtle";
 
@@ -41,9 +42,7 @@ async function Account() {
     return (
       <>
         <CartSync cart={cart} />
-        <Link href="/login" className="flex h-11 shrink-0 items-center px-2 text-callout text-brand hover:underline">
-          כניסה
-        </Link>
+        <SignInLink />
       </>
     );
   }

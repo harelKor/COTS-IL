@@ -3,10 +3,10 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { canDecideQuote, quoteContentHash, teamCanOrder } from "@/domain/orders";
 import { createQuoteLinkToken, QUOTE_LINK_DAYS, readQuoteLinkToken } from "@/domain/quote-link";
+import { siteUrl } from "@/lib/site-url";
 
 const { memberships, profiles, quoteLines, quotes, teamOrderItems, teamOrders, teams } = schema;
 
-const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 const secret = () => process.env.QUOTE_LINK_SECRET;
 
 /** An Israeli number ("050-123-4567") as WhatsApp wants it ("972501234567"). */

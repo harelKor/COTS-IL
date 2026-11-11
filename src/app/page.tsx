@@ -16,6 +16,7 @@ import { HowItWorksSteps } from "@/components/how-it-works-steps";
 import { BadgeCheck, Boxes, Coins, FileCheck2, Truck, Undo2 } from "lucide-react";
 import { catalogHref } from "@/lib/catalog-filters";
 import { SEARCH_EXAMPLES } from "@/lib/search-examples";
+import { siteUrl } from "@/lib/site-url";
 
 /**
  * A signed-in team sees its last order first, with "Order again" (one tap), and a
@@ -244,7 +245,7 @@ function WhyUs() {
 
 const EXAMPLES = SEARCH_EXAMPLES;
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cots-il.vercel.app";
+const SITE_URL = siteUrl();
 
 /** Only facts the business has supplied (src/lib/business.ts) appear, nothing is invented. */
 const ORGANIZATION_JSON_LD = JSON.stringify({

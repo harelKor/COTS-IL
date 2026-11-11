@@ -12,6 +12,7 @@ import { getViewer, orderingTeam, orderingTeams, TEAM_COOKIE, type Viewer } from
 import { cookies } from "next/headers";
 import { usdIlsRate } from "@/lib/fx";
 import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
+import { getSharedLines } from "@/lib/catalog";
 import type { CartSheetLine } from "@/components/cart-store";
 import { missingAddressParts, parseAddress } from "@/domain/display";
 
@@ -307,4 +308,18 @@ export async function switchTeam(teamId: string): Promise<void> {
   if (!orderingTeams(viewer).some((t) => t.id === teamId)) return;
   (await cookies()).set(TEAM_COOKIE, teamId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 365 });
   refresh();
+}
+
+/**
+ * A cart a sign-in link brought back (S2), as sheet lines for a cart kept in the
+ * browser. Parts that left the catalog are dropped. Read-only, no viewer needed.
+ */
+export async function pendingCartLines(lines: SharedLine[]): Promise<CartSheetLine[]> {
+  const parsed = z.array(z.object({ variantId: z.uuid(), qty })).max(MAX_SHARED_LINES).safeParse(lines);
+  if (!parsed.success) return [];
+  const found = await getSharedLines(parsed.data.map((l) => l.variantId));
+  return parsed.data.flatMap((l) => {
+    const line = found.find((f) => f.variantId === l.variantId);
+    return line ? [{ ...line, qty: l.qty }] : [];
+  });
 }

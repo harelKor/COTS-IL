@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, or, isNotNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 
 const { auditLog, memberships, teamInvitations, teams } = schema;
@@ -8,7 +8,13 @@ const { auditLog, memberships, teamInvitations, teams } = schema;
 export const newInviteToken = () => randomBytes(32).toString("base64url");
 export const hashInviteToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
-/** A usable invitation for a link's token, with its team. */
+/** Teams that can take in sign-in emails: approved ones, and new ones still waiting for approval. */
+const OPEN_TEAM = inArray(teams.status, ["active", "pending"]);
+
+/**
+ * An invitation for a link's token, with its team: a usable one, or one already
+ * accepted (so the page can say "you joined" instead of "invalid").
+ */
 export async function findInvitation(token: string) {
   const [row] = await db
     .select({ invitation: teamInvitations, team: teams })
@@ -17,10 +23,9 @@ export async function findInvitation(token: string) {
     .where(
       and(
         eq(teamInvitations.tokenHash, hashInviteToken(token)),
-        isNull(teamInvitations.acceptedAt),
         isNull(teamInvitations.revokedAt),
-        gt(teamInvitations.expiresAt, new Date()),
-        eq(teams.status, "active"),
+        or(isNotNull(teamInvitations.acceptedAt), gt(teamInvitations.expiresAt, new Date())),
+        OPEN_TEAM,
       ),
     );
   return row ?? null;
@@ -35,7 +40,7 @@ export async function acceptInvitationsForUser(userId: string, email: string) {
     const pending = await tx
       .select({ invitation: teamInvitations })
       .from(teamInvitations)
-      .innerJoin(teams, and(eq(teams.id, teamInvitations.teamId), eq(teams.status, "active")))
+      .innerJoin(teams, and(eq(teams.id, teamInvitations.teamId), OPEN_TEAM))
       .where(
         and(
           eq(teamInvitations.email, email.toLowerCase()),

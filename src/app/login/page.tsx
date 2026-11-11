@@ -6,7 +6,7 @@ import { safeNext } from "@/lib/validation";
 import { LoginForm } from "./login-form";
 
 const notices: Record<string, string> = {
-  confirm: "קישור האימות אינו תקף או שפג תוקפו. התחברו או הירשמו מחדש.",
+  confirm: "הקישור לא עבד: אולי פג תוקפו או שכבר נעשה בו שימוש. הזינו את הכתובת ונשלח קוד חדש, הסל מחכה.",
   google: "הכניסה עם Google לא הצליחה. נסו שוב או היכנסו בקישור לדוא״ל.",
 };
 
@@ -16,7 +16,7 @@ async function LoginContent({ searchParams }: PageProps<"/login">) {
   return (
     <div className="flex flex-col gap-6">
       {typeof error === "string" && notices[error] && <p className="rounded-xl bg-warning/10 p-3 text-sm text-warning">{notices[error]}</p>}
-      <SignInStep google={google} next={safeNext(to)} intro="הכי מהיר: נשלח לכם קישור כניסה לדוא״ל, בלי סיסמה." />
+      <SignInStep google={google} next={safeNext(to)} intro="בלי סיסמה: נשלח לכם קוד כניסה לדוא״ל." />
       <details className="text-sm">
         <summary className="cursor-pointer text-muted">כניסה עם סיסמה</summary>
         <div className="mt-4">

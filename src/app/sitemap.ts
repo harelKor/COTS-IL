@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 import { INFO_LINKS } from "@/components/site-footer";
+import { siteUrl } from "@/lib/site-url";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cots-il.vercel.app";
+const SITE = siteUrl();
 
 /** The static pages. Product pages join in S9 (SEO), from the families table. */
 export default function sitemap(): MetadataRoute.Sitemap {

@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
-import { Button, Field, Input } from "@/components/form";
+import { Button } from "@/components/form";
+import { SignInStep } from "@/components/cart-panel";
+import { googleSignInEnabled } from "@/lib/auth-providers";
 import { getViewer } from "@/lib/auth";
 import { findInvitation } from "@/lib/invitations";
-import { joinInvited, signupInvited } from "../actions";
+import { joinInvited } from "../actions";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { TeamName } from "@/components/team-name";
 
@@ -13,8 +15,7 @@ export const metadata: Metadata = { title: "הזמנה לקבוצה", robots: { 
 
 async function Invite({ params }: PageProps<"/invite/[token]">) {
   const { token } = await params;
-  const viewer = await getViewer();
-  const found = await findInvitation(token);
+  const [viewer, found, google] = await Promise.all([getViewer(), findInvitation(token), googleSignInEnabled()]);
 
   if (!found) {
     return (
@@ -29,6 +30,17 @@ async function Invite({ params }: PageProps<"/invite/[token]">) {
   }
 
   const { invitation, team } = found;
+  const joined = viewer?.teams.some((t) => t.id === team.id);
+  if (invitation.acceptedAt || joined) {
+    return (
+      <p>
+        הצטרפתם ל<TeamName team={team} />.{" "}
+        <Link href={joined ? "/team" : `/login?next=${encodeURIComponent("/team")}`} className="text-brand hover:underline">
+          {joined ? "לחשבון הקבוצה" : "כניסה לחשבון הקבוצה"}
+        </Link>
+      </p>
+    );
+  }
   const intro = (
     <p>
       הוזמנתם להצטרף לחשבון של <TeamName team={team} /> עם הכתובת{" "}
@@ -56,30 +68,11 @@ async function Invite({ params }: PageProps<"/invite/[token]">) {
     );
   }
 
+  // Signing in with the invited address joins the team right away (acceptInvitationsForUser).
   return (
     <div className="flex flex-col gap-4">
       {intro}
-      <p className="text-sm">
-        כבר יש לכם חשבון?{" "}
-        <Link href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`} className="text-brand hover:underline">
-          התחברו
-        </Link>{" "}
-        ותצטרפו אוטומטית.
-      </p>
-      <ActionForm action={signupInvited} className="flex flex-col gap-3 border-t border-line pt-4">
-        <h2 className="font-semibold">פתיחת חשבון</h2>
-        <input type="hidden" name="token" value={token} />
-        <Field label="שם מלא" name="fullName">
-          <Input name="fullName" required />
-        </Field>
-        <Field label="טלפון" name="phone">
-          <Input name="phone" dir="ltr" required />
-        </Field>
-        <Field label="סיסמה" name="password" hint="לפחות 8 תווים">
-          <Input name="password" type="password" dir="ltr" autoComplete="new-password" required minLength={8} />
-        </Field>
-        <Button>פתיחת חשבון</Button>
-      </ActionForm>
+      <SignInStep google={google} next={`/invite/${token}`} email={invitation.email} intro="נשלח קוד כניסה לכתובת שהוזמנה, בלי סיסמה." />
     </div>
   );
 }
