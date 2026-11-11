@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
-import { ScrollRow } from "@/components/scroll-row";
+import { CategoryGroups } from "@/components/category-groups";
 import { CardGridSkeleton, Loading } from "@/components/skeleton";
 import { getFacets, getSpecFacets, getSupplierCounts, resolveSearch, searchCards } from "@/lib/catalog";
 import { Ltr } from "@/components/ltr";
@@ -44,22 +43,7 @@ export const maxDuration = 30;
 async function CategoryChips({ searchParams }: PageProps<"/catalog">) {
   const filters = parseFilters(await searchParams);
   const { categories } = await getFacets();
-  const chip = (on: boolean) =>
-    `flex min-h-11 shrink-0 items-center rounded-full px-4 text-callout whitespace-nowrap transition-colors ${
-      on ? "bg-brand text-white" : "bg-subtle text-foreground hover:bg-line/60"
-    }`;
-  return (
-    <ScrollRow label="קטגוריות">
-      <Link href={catalogHref({ q: filters.q })} className={chip(!filters.category)}>
-        הכל
-      </Link>
-      {categories.map((c) => (
-        <Link key={c.slug} href={catalogHref({ q: filters.q, category: c.slug })} className={chip(filters.category === c.slug)} aria-current={filters.category === c.slug ? "page" : undefined}>
-          {c.name}
-        </Link>
-      ))}
-    </ScrollRow>
-  );
+  return <CategoryGroups categories={categories.map((c) => ({ slug: c.slug, name: c.name, count: c.count }))} category={filters.category} q={filters.q} />;
 }
 
 /** Pages of cards the server renders at most. */
