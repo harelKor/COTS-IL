@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { isPhone, parseTeamNumber } from "@/domain/teams";
 import { getViewer } from "@/lib/auth";
+import { notifyJoinRequest, notifyLater, notifyTeamSignedUp } from "@/lib/notify";
 import { acceptInvitationsForUser } from "@/lib/invitations";
 import { siteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
@@ -127,9 +128,10 @@ export async function setUpTeam(input: { program: string; number: string; name: 
       .returning({ id: schema.teams.id });
     await tx.insert(schema.memberships).values({ teamId: team.id, userId: viewer.id });
     await tx.update(schema.profiles).set({ fullName: contactName, phone: contactPhone }).where(eq(schema.profiles.id, viewer.id));
-    return { ok: true as const };
+    return { ok: true as const, teamId: team.id };
   });
   if ("error" in result) return result;
+  notifyLater(() => notifyTeamSignedUp(result.teamId, viewer.email));
   refresh();
   return { ok: true };
 }
@@ -146,7 +148,7 @@ export async function requestToJoin(input: { program: string; number: string }):
   if (!number) return { error: "מספר קבוצה לא תקין" };
   const team = await db.query.teams.findFirst({ where: and(eq(schema.teams.program, program), eq(schema.teams.number, number)) });
   if (!team) return { error: "הקבוצה לא נמצאה" };
-  await db.transaction(async (tx) => {
+  const requestId = await db.transaction(async (tx) => {
     const [request] = await tx
       .insert(schema.teamJoinRequests)
       .values({ teamId: team.id, userId: viewer.id, email: viewer.email.toLowerCase() })
@@ -156,6 +158,8 @@ export async function requestToJoin(input: { program: string; number: string }):
       })
       .returning({ id: schema.teamJoinRequests.id });
     await tx.insert(schema.auditLog).values({ actorId: viewer.id, entity: "team_join_request", entityId: request.id, action: "create", after: { teamId: team.id } });
+    return request.id;
   });
+  notifyLater(() => notifyJoinRequest(team.id, requestId, { email: viewer.email, name: viewer.fullName }));
   return { ok: true };
 }

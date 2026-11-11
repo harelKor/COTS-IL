@@ -8,11 +8,14 @@ import { db, schema } from "@/db";
 import { selectBatch } from "@/domain/admin-orders";
 import { consolidateDemand, looksLikeCardNumber } from "@/domain/purchasing";
 import { requireAdmin } from "@/lib/auth";
+import { notifyStagesLater } from "@/lib/notify";
 import { getDemandForUpdate } from "@/lib/purchasing";
 
 const { auditLog, poAllocations, poLines, shipments, suppliers, supplierPos } = schema;
 
 function refresh(poId?: string) {
+  // A supplier order marked ordered can move its teams' orders to "הוזמנה מהספק" (S3).
+  if (poId) notifyStagesLater({ poId });
   revalidatePath("/admin", "layout");
   if (poId) revalidatePath(`/admin/purchasing/${poId}`);
 }

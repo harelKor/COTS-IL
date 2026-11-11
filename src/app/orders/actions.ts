@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { canCancelOrder, canDecideQuote, quoteContentHash, teamCanOrder } from "@/domain/orders";
 import { getViewer } from "@/lib/auth";
+import { notifyDecision, notifyLater } from "@/lib/notify";
 import { readApproveLink } from "@/lib/quote-links";
 
 const { auditLog, quoteApprovals, quoteLines, quotes, teamOrders } = schema;
@@ -75,6 +76,7 @@ export async function decideQuote(_prev: DecisionState, formData: FormData): Pro
   });
 
   if ("error" in result) return { error: result.error };
+  notifyLater(() => notifyDecision(result.orderId, decision === "approve" ? "quote_approved" : "quote_rejected", reason || null));
   revalidatePath(`/orders/${result.orderId}`);
   revalidatePath("/admin", "layout");
   return {};
@@ -87,10 +89,10 @@ export async function cancelOrder(formData: FormData) {
   if (!orderIdParsed.success) return;
   const orderId = orderIdParsed.data;
 
-  await db.transaction(async (tx) => {
+  const cancelled = await db.transaction(async (tx) => {
     const [order] = await tx.select().from(teamOrders).where(eq(teamOrders.id, orderId)).for("update");
     const membership = order && viewer.teams.find((t) => t.id === order.teamId && teamCanOrder(t.status));
-    if (!membership || !canCancelOrder(order.status)) return;
+    if (!membership || !canCancelOrder(order.status)) return false;
 
     await tx.update(teamOrders).set({ status: "cancelled" }).where(eq(teamOrders.id, orderId));
     await tx
@@ -105,7 +107,9 @@ export async function cancelOrder(formData: FormData) {
       before: { status: order.status },
       after: { status: "cancelled" },
     });
+    return true;
   });
+  if (cancelled) notifyLater(() => notifyDecision(orderId, "order_cancelled"));
 
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/admin", "layout");
@@ -146,6 +150,7 @@ export async function approveQuoteByLink(token: string): Promise<LinkApprovalSta
   });
 
   if ("error" in result) return { error: result.error };
+  notifyLater(() => notifyDecision(result.orderId, "quote_approved"));
   revalidatePath(`/orders/${result.orderId}`);
   revalidatePath("/admin", "layout");
   return { approved: true };

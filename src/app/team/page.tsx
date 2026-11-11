@@ -7,7 +7,8 @@ import { ActionForm } from "@/components/action-form";
 import { Button, Field, Input } from "@/components/form";
 import { Ltr } from "@/components/ltr";
 import { getViewer, orderingTeam } from "@/lib/auth";
-import { decideJoinRequest, removeMember, revokeInvitation, updateTeamDetails } from "./actions";
+import { EMAIL_GROUP_LABELS, EMAIL_GROUPS } from "@/domain/notifications";
+import { decideJoinRequest, removeMember, revokeInvitation, setEmailPreferences, updateTeamDetails } from "./actions";
 import { InviteForm } from "./invite-form";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 
@@ -23,7 +24,7 @@ async function Team() {
 
   const [details] = await db.select().from(teams).where(eq(teams.id, team.id));
   const members = await db
-    .select({ userId: memberships.userId, email: profiles.email, fullName: profiles.fullName })
+    .select({ userId: memberships.userId, email: profiles.email, fullName: profiles.fullName, emailOff: memberships.emailOff })
     .from(memberships)
     .innerJoin(profiles, eq(profiles.id, memberships.userId))
     .where(eq(memberships.teamId, team.id))
@@ -116,6 +117,9 @@ async function Team() {
         <p className="text-sm text-muted">
           כל כתובת בחשבון הקבוצה יכולה להזמין, לשלוח בקשות, לאשר הצעות ולנהל את החשבון. אפשר כתובת משותפת אחת או כמה.
         </p>
+        <p className="text-sm text-muted">
+          כל כתובת מקבלת בדוא״ל עותק של כל בקשה ואת הצעת המחיר עם קישור אישור. את העדכונים והתזכורות אפשר לכבות לכל כתובת.
+        </p>
         <ul className="flex flex-col">
           {members.map((member) => (
             <li key={member.userId} className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-2">
@@ -137,6 +141,17 @@ async function Team() {
                   </button>
                 </ActionForm>
               )}
+              <ActionForm action={setEmailPreferences} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                <input type="hidden" name="userId" value={member.userId} />
+                <span className="text-muted">דוא״ל לכתובת הזאת:</span>
+                {EMAIL_GROUPS.map((group) => (
+                  <label key={group} className="flex min-h-11 items-center gap-2">
+                    <input type="checkbox" name="on" value={group} defaultChecked={!member.emailOff.includes(group)} className="size-5" />
+                    {EMAIL_GROUP_LABELS[group]}
+                  </label>
+                ))}
+                <Button variant="ghost">שמירה</Button>
+              </ActionForm>
             </li>
           ))}
           {invitations.map((invitation) => (

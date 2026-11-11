@@ -169,6 +169,13 @@
       "when": 1794389584455,
       "tag": "20261111093304_team_join_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794391612212,
+      "tag": "20261111100652_notify_email_off",
+      "breakpoints": true
     }
   ]
 }

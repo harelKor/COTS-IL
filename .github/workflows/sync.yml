@@ -29,5 +29,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           curl --fail-with-body -sS -X POST -H "Authorization: Bearer $REVALIDATE_SECRET" https://cots-il.vercel.app/api/revalidate
+          # Quote reminders and the admin digest (S3); does nothing until email is set up.
+          curl --fail-with-body -sS -X POST -H "Authorization: Bearer $REVALIDATE_SECRET" https://cots-il.vercel.app/api/notify/daily || true
         env:
           REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}

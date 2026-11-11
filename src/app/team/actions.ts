@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { ActionState } from "@/components/action-form";
+import { emailOffFromForm } from "@/domain/notifications";
 import { inviteExpiry, wouldLeaveNoMembers } from "@/domain/teams";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { hashInviteToken, newInviteToken } from "@/lib/invitations";
@@ -216,4 +217,31 @@ export async function decideJoinRequest(_prev: ActionState, formData: FormData):
 
   revalidatePath("/team");
   return done ? {} : { error: "הבקשה כבר טופלה" };
+}
+
+/**
+ * Which emails one address on the team's account gets (S3). Anyone on the team can set
+ * it for any of its addresses (D11). The request receipt and the quote itself always go.
+ */
+export async function setEmailPreferences(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { viewer, team } = await requireTeamMember();
+  const userId = z.uuid().safeParse(formData.get("userId"));
+  if (!userId.success) return { error: "הבקשה לא תקינה" };
+  const emailOff = emailOffFromForm(formData.getAll("on").map(String));
+
+  const [updated] = await db
+    .update(memberships)
+    .set({ emailOff })
+    .where(and(eq(memberships.teamId, team.id), eq(memberships.userId, userId.data)))
+    .returning({ userId: memberships.userId });
+  if (!updated) return { error: "הכתובת כבר לא בחשבון הקבוצה" };
+  await db.insert(auditLog).values({
+    actorId: viewer.id,
+    entity: "membership",
+    entityId: `${team.id}:${userId.data}`,
+    action: "email_preferences",
+    after: { emailOff },
+  });
+  revalidatePath("/team");
+  return {};
 }

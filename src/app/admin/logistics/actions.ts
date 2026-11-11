@@ -9,6 +9,7 @@ import { db, schema } from "@/db";
 import type { ActionState } from "@/components/action-form";
 import { fifoAllocate, validateAllocations, validateReceiptLine } from "@/domain/logistics";
 import { requireAdmin } from "@/lib/auth";
+import { notifyStagesLater } from "@/lib/notify";
 import { getShares } from "@/lib/logistics";
 
 const {
@@ -226,6 +227,7 @@ export async function receiveShipment(_prev: ActionState, formData: FormData): P
     return {};
   });
 
+  if (!result.error) notifyStagesLater({ shipmentId: id });
   refresh(id);
   return result;
 }

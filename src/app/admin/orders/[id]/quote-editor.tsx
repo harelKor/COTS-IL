@@ -79,7 +79,13 @@ export function QuoteEditor(props: {
   return (
     <form action={action} className="flex flex-col gap-4 rounded-[18px] border border-line bg-surface p-4">
       <h2 className="font-semibold">{props.version > 1 ? `טיוטת הצעה, גרסה ${props.version}` : "טיוטת הצעה"}</h2>
-      {state.sent && <Alert tone="info">ההצעה נשלחה לקבוצה.</Alert>}
+      {state.sent && (
+        <Alert tone="info">
+          {state.emailed
+            ? "ההצעה שמורה, והיא נשלחת עכשיו בדוא״ל לכל כתובת בחשבון הקבוצה, כל אחת עם קישור אישור משלה."
+            : "ההצעה שמורה ומחכה לאישור הקבוצה. דוא״ל לא מוגדר, אז לא נשלח כלום: שלחו לקבוצה את קישורי האישור בוואטסאפ."}
+        </Alert>
+      )}
       <input type="hidden" name="orderId" value={props.orderId} />
 
       <ul className="flex flex-col">

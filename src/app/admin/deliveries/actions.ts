@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import type { ActionState } from "@/components/action-form";
 import { requireAdmin } from "@/lib/auth";
+import { notifyStagesLater } from "@/lib/notify";
 
 const { auditLog, deliveries, deliveryItems, stockAllocations, teamOrderItems, teamOrders } = schema;
 
@@ -77,6 +78,7 @@ export async function createDelivery(_prev: ActionState, formData: FormData): Pr
   });
 
   if (result.error) return result;
+  if (result.id) notifyStagesLater({ deliveryId: result.id });
   refresh(result.id);
   // From an order card the admin stays on the card.
   if (formData.get("stay")) return {};
@@ -117,6 +119,7 @@ export async function confirmDelivery(_prev: ActionState, formData: FormData): P
     return {};
   });
 
+  if (!result.error) notifyStagesLater({ deliveryId });
   refresh(deliveryId);
   return result;
 }

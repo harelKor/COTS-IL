@@ -1,0 +1,1 @@
+ALTER TABLE "memberships" ADD COLUMN "email_off" text[] DEFAULT '{}'::text[] NOT NULL;

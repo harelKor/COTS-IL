@@ -79,6 +79,8 @@ export const memberships = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
+    /** Email groups this address turned off on /team (EMAIL_GROUPS in src/domain/notifications.ts). */
+    emailOff: text("email_off").array().notNull().default(sql`'{}'::text[]`),
     createdAt,
   },
   (t) => [primaryKey({ columns: [t.teamId, t.userId] })],

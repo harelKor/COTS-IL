@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { canRejectOrder, canSendQuote, validateQuoteLines } from "@/domain/orders";
 import { requireAdmin } from "@/lib/auth";
+import { emailEnabled, notifyLater, notifyQuoteReady } from "@/lib/notify";
 import { orderSupplierLock } from "@/lib/purchasing";
 
 const { auditLog, quoteLines, quotes, teamOrderItems, teamOrders } = schema;
@@ -14,6 +15,8 @@ export type QuoteFormState = {
   error?: string;
   lineErrors?: Record<string, string>;
   sent?: boolean;
+  /** After a quote: whether the team is being emailed, so the editor says what was sent. */
+  emailed?: boolean;
 };
 
 const headerSchema = z.object({
@@ -96,6 +99,9 @@ export async function sendQuote(_prev: QuoteFormState, formData: FormData): Prom
   });
 
   if (result.sent) {
+    const emailed = emailEnabled();
+    if (emailed) notifyLater(() => notifyQuoteReady(orderId));
+    result.emailed = emailed;
     revalidatePath(`/admin/orders/${orderId}`);
     revalidatePath(`/orders/${orderId}`);
     revalidatePath("/admin", "layout");

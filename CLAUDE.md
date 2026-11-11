@@ -63,6 +63,7 @@ Open:
 | Orders, quotes, approvals | `src/app/orders`, `src/app/q/[token]`, `src/lib/orders.ts`, `src/domain/orders.ts` |
 | Admin | `src/app/admin/*` (guarded by `requireAdmin`) |
 | Supplier sync and grouping | `src/suppliers/*`, `src/domain/families/*` |
+| Email notifications (Resend, off until `RESEND_API_KEY` and `EMAIL_FROM` are set) | `src/lib/notify.ts`, `src/lib/email-templates.ts`, `src/domain/notifications.ts` |
 | Tokens and utilities (`card-surface`, `btn-brand`, `tile-fade`) | `src/app/globals.css` |
 
 ## Rules that don't change

@@ -9,6 +9,7 @@ import { MAX_SHARED_LINES, type SharedLine } from "@/domain/cart-share";
 import { cartChanges, cartFingerprint, isOrderable, maxMerge, type CartChange } from "@/domain/cart";
 import { MARKUP, priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam, orderingTeams, TEAM_COOKIE, type Viewer } from "@/lib/auth";
+import { notifyLater, notifyRequest } from "@/lib/notify";
 import { cookies } from "next/headers";
 import { usdIlsRate } from "@/lib/fx";
 import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
@@ -144,6 +145,7 @@ export async function sendQuoteRequest(changes: Partial<Delivery> = {}, seen?: S
   const result = await createOrder(viewer, team, parsed.data, seenLines.success ? seenLines.data : null);
   if ("changed" in result && result.changed) return { ...result, lines: (await getCart(team.id)).map(toSheetLine(await usdIlsRate())) };
   if ("error" in result) return result;
+  notifyLater(() => notifyRequest(result.orderId));
   revalidatePath("/cart");
   revalidatePath("/orders");
   refresh();
