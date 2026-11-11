@@ -90,6 +90,8 @@ export async function createShipment(_prev: ActionState, formData: FormData): Pr
   if (result.error) return result;
   refresh(result.id);
   revalidatePath(`/admin/purchasing/${poId}`);
+  // From an order card the admin stays on the card.
+  if (formData.get("stay")) return {};
   redirect(`/admin/logistics/${result.id}`);
 }
 

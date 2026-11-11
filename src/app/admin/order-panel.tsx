@@ -2,7 +2,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db, schema } from "@/db";
 import { ActionForm } from "@/components/action-form";
-import { Alert, Button } from "@/components/form";
+import { Alert, Button, Field, Input } from "@/components/form";
 import { Ltr } from "@/components/ltr";
 import { formatDay } from "@/domain/display";
 import { business } from "@/lib/business";
@@ -13,8 +13,9 @@ import { priceIls } from "@/domain/pricing";
 import { usdIlsRate } from "@/lib/fx";
 import { requireAdmin } from "@/lib/auth";
 import { getOrderDates, getOrderLogistics } from "@/lib/admin-orders";
+import { getPo } from "@/lib/purchasing";
 import { getOrderLines } from "@/lib/order-status";
-import { getOrderDeliveries } from "@/lib/logistics";
+import { getOrderDeliveries, getPoShipping } from "@/lib/logistics";
 import { getChangeRequest, getOrderForViewer } from "@/lib/orders";
 import { orderSupplierLock } from "@/lib/purchasing";
 import { getApproveLinks } from "@/lib/quote-links";
@@ -22,6 +23,7 @@ import { reviewTeam } from "./actions";
 import { confirmDelivery, createDelivery } from "./deliveries/actions";
 import { ApproveLinks } from "./orders/[id]/approve-links";
 import { OrderMenu, QuoteEditor, type EditorLine } from "./orders/[id]/quote-editor";
+import { createShipment } from "./logistics/actions";
 import { addLinesToDraft, sendDraft, sendVendorBatch } from "./purchasing/actions";
 import { LINE_STYLE } from "./status-style";
 
@@ -33,8 +35,8 @@ const fieldClass = "h-11 min-w-0 rounded-full border border-line bg-surface px-4
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-3">
-      <h3 className="font-semibold">{title}</h3>
+    <section className="card-surface flex flex-col gap-3 rounded-[18px] p-4" aria-label={title}>
+      <h3 className="text-section font-semibold tracking-[-0.02em]">{title}</h3>
       {children}
     </section>
   );
@@ -92,7 +94,7 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
 function Contact({ detail }: { detail: Detail }) {
   const { order, team } = detail;
   return (
-    <div className="grid gap-1 rounded-[14px] bg-subtle p-3 text-sm">
+    <div className="grid gap-1 text-sm">
       <div>
         <span className="text-muted">מסירה: </span>
         {order.deliveryMethod === "ship" ? `משלוח לכתובת: ${order.address}` : "איסוף עצמי"}
@@ -171,7 +173,86 @@ async function Links({ orderId }: { orderId: string }) {
   );
 }
 
-/** The order's lines with their vendor orders, shipments and receipts, and the action for the stage. */
+/** One vendor order's shipments, and the form to open another for what hasn't shipped yet. */
+async function PoShipments({ po }: { po: { id: string; number: number; supplierName: string; status: string; others: { orderId: string; orderNumber: number }[] } }) {
+  const [result, shipping] = await Promise.all([getPo(po.id), getPoShipping(po.id)]);
+  if (!result) return null;
+  const unshipped = result.lines
+    .map((line) => ({ ...line, open: line.qty - (shipping.shipped.get(line.id) ?? 0) }))
+    .filter((line) => line.open > 0);
+  const canOpen = po.status === "ordered" && unshipped.length > 0;
+  return (
+    <div className="flex flex-col gap-3 border-t border-line pt-3 first:border-t-0 first:pt-0">
+      <div className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">
+          הזמנת ספק <Ltr>#{po.number}</Ltr>, <bdi>{po.supplierName}</bdi>
+        </span>
+        {po.others.length > 0 && (
+          <span className="flex flex-wrap items-center gap-2 text-muted">
+            כולל גם הזמנות{" "}
+            {po.others.map((o) => (
+              <Ltr key={o.orderId}>#{o.orderNumber}</Ltr>
+            ))}
+          </span>
+        )}
+      </div>
+      {shipping.shipments.length > 0 ? (
+        <ul className="flex flex-col gap-1 text-sm">
+          {shipping.shipments.map((s) => (
+            <li key={s.id} className="flex flex-wrap gap-x-3">
+              <Link href={`/admin/logistics/${s.id}`} className="text-brand hover:underline">
+                משלוח <Ltr>#{s.number}</Ltr>
+              </Link>
+              <span className="text-muted">
+                {[s.carrier, s.tracking].filter(Boolean).length > 0 ? <Ltr>{[s.carrier, s.tracking].filter(Boolean).join(" ")}</Ltr> : "בלי פרטי שילוח"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">עוד אין משלוח מהספק.</p>
+      )}
+      {canOpen ? (
+        <ActionForm action={createShipment} className="flex flex-col gap-3">
+          <input type="hidden" name="poId" value={po.id} />
+          <input type="hidden" name="stay" value="1" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="חברת שילוח" name={`carrier-${po.id}`}>
+              <Input name="carrier" id={`carrier-${po.id}`} dir="ltr" maxLength={100} />
+            </Field>
+            <Field label="מספר מעקב" name={`tracking-${po.id}`}>
+              <Input name="tracking" id={`tracking-${po.id}`} dir="ltr" maxLength={200} />
+            </Field>
+          </div>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-sm font-medium">כמות במשלוח הזה (אפשר לפצל)</legend>
+            {unshipped.map((line) => (
+              <label key={line.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 text-start">
+                  <Ltr>{line.supplierSku ?? line.title}</Ltr>
+                </span>
+                <input
+                  name={`qty:${line.id}`}
+                  type="number"
+                  min={0}
+                  max={line.open}
+                  defaultValue={line.open}
+                  aria-label={`כמות ${line.supplierSku ?? line.title}`}
+                  className="h-11 w-24 shrink-0 rounded-xl border border-line bg-surface px-2 text-sm"
+                />
+              </label>
+            ))}
+          </fieldset>
+          <Button className="self-start">פתיחת משלוח</Button>
+        </ActionForm>
+      ) : (
+        po.status === "ordered" && <p className="text-sm text-muted">כל הכמויות כבר במשלוחים.</p>
+      )}
+    </div>
+  );
+}
+
+/** The order's lines with their vendor orders, shipments and receipts, one outlined section per stage. */
 async function Logistics({ detail, status }: { detail: Detail; status: OrderStatusKey }) {
   const orderId = detail.order.id;
   const [lines, logistics, deliveries] = await Promise.all([
@@ -200,9 +281,10 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
     v.draft ??= logistics.pos.find((p) => p.supplierId === supplierId && p.status === "draft");
     vendors.set(supplierId, v);
   }
+  const orderedPos = logistics.pos.filter((p) => p.status === "ordered");
 
   return (
-    <div className="flex flex-col gap-5">
+    <>
       <Section title="פריטים">
         <ul className="flex flex-col">
           {lines.map((l) => {
@@ -240,7 +322,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
           const others = v.draft?.others ?? [];
           if (v.waiting.length === 0 && !v.draft) return null;
           return (
-            <Section key={supplierId} title={`הזמנה מ-${v.name}`}>
+            <Section key={supplierId} title={`הזמנת ספק, ${v.name}`}>
               {others.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <span className="text-muted">באותה הזמנת ספק גם:</span>
@@ -280,8 +362,35 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
           );
         })}
 
+      {status !== "to_order" && orderedPos.length > 0 && (
+        <Section title="הזמנת ספק">
+          <ul className="flex flex-col gap-2 text-sm">
+            {orderedPos.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  <bdi>{p.supplierName}</bdi>, <Ltr>#{p.number}</Ltr>
+                  {p.supplierOrderRef && <>, מספר אצל הספק <Ltr>{p.supplierOrderRef}</Ltr></>}
+                  {p.orderedAt && `, הוזמן ${formatDay(p.orderedAt)}`}
+                </span>
+                <Link href={`/admin/purchasing/${p.id}`} className="text-brand hover:underline">
+                  פתיחת ההזמנה
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {orderedPos.length > 0 && (
+        <Section title="משלוחים">
+          {orderedPos.map((p) => (
+            <PoShipments key={p.id} po={p} />
+          ))}
+        </Section>
+      )}
+
       {logistics.shipments.length > 0 && (
-        <Section title="משלוחים מהספק">
+        <Section title="קליטה במחסן">
           <ul className="flex flex-col gap-2 text-sm">
             {logistics.shipments.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center justify-between gap-2">
@@ -298,17 +407,6 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
             ))}
           </ul>
         </Section>
-      )}
-      {status === "ordered" && logistics.shipments.length === 0 && (
-        <p className="text-sm text-muted">
-          עוד אין משלוח מהספק. מוסיפים משלוח בעמוד{" "}
-          {logistics.pos[0] && (
-            <Link href={`/admin/purchasing/${logistics.pos[0].id}`} className="text-brand hover:underline">
-              הזמנת הספק
-            </Link>
-          )}
-          .
-        </p>
       )}
 
       {logistics.ready.length > 0 && (
@@ -339,7 +437,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
       )}
 
       {deliveries.length > 0 && (
-        <Section title="תעודות משלוח">
+        <Section title="מסירה">
           <ul className="flex flex-col gap-3 text-sm">
             {deliveries.map((d) => (
               <li key={d.id} className="flex flex-col gap-2">
@@ -364,7 +462,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
           </ul>
         </Section>
       )}
-    </div>
+    </>
   );
 }
 
@@ -414,15 +512,19 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
   const ordered = (await orderSupplierLock(db, orderId)) === "ordered";
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <Contact detail={detail} />
+    <div className="flex flex-col gap-4">
+      <Section title="פרטי ההזמנה">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <Contact detail={detail} />
+          </div>
+          {canRejectOrder(detail.order.status) && !isFinished(status) && <OrderMenu orderId={orderId} />}
         </div>
-        {canRejectOrder(detail.order.status) && !isFinished(status) && <OrderMenu orderId={orderId} />}
-      </div>
+      </Section>
       {status === "awaiting_quote" || (edit && !finished && !ordered) ? (
-        <Editor detail={detail} />
+        <Section title="הצעה">
+          <Editor detail={detail} />
+        </Section>
       ) : (
         !finished && <LockedQuote detail={detail} orderId={orderId} ordered={ordered} />
       )}

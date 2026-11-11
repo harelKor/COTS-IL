@@ -14,7 +14,7 @@ function setUrl(name: string, value: string | null) {
   if (value) url.searchParams.set(name, value);
   else url.searchParams.delete(name);
   if (name === "open") url.searchParams.delete("edit");
-  window.history.replaceState(window.history.state, "", url);
+  window.history.replaceState(null, "", url);
 }
 
 /** Same layout as the details, shown while they load. */
