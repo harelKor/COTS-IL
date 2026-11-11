@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/db";
 import { parsePartRequest } from "@/domain/part-request";
 import { getViewer, orderingTeam } from "@/lib/auth";
+import { BOT_ERROR, isBot } from "@/lib/botid";
 
 export type PartRequestState =
   | { status: "idle" }
@@ -23,6 +24,7 @@ export async function requestPart(
   _prev: PartRequestState,
   formData: FormData,
 ): Promise<PartRequestState> {
+  if (await isBot()) return { status: "error", error: BOT_ERROR };
   const viewer = await getViewer();
   if (!viewer) return { status: "signed-out" };
   const parsed = parsePartRequest({

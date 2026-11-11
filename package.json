@@ -27,6 +27,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/functions": "^3.11.1",
     "@vercel/speed-insights": "^2.1.0",
+    "botid": "^1.5.13",
     "drizzle-orm": "^0.45.4",
     "exceljs": "^4.4.0",
     "lucide-react": "^1.69.0",

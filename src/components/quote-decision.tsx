@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { decideQuote, undoDecision, type Decision } from "@/app/orders/actions";
 import { UNDO_SECONDS } from "@/domain/quote-view";
 import { Alert, Button } from "./form";
+import { track } from "@vercel/analytics";
 
 /** Seconds left from `at` (an ISO time) until the undo window closes, ticking each second. */
 export function useCountdown(at: string | null) {
@@ -52,6 +53,7 @@ export function QuoteDecision({
       setError(null);
       const res = await decideQuote({ quoteId, token, decision, reason });
       if (res.error) return setError(res.error);
+      if (decision === "approve") track("quote_approved");
       setLocal({ action: decision, at: new Date().toISOString() });
       setMode("idle");
     });

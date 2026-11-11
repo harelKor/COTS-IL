@@ -12,6 +12,7 @@ import { acceptInvitationsForUser } from "@/lib/invitations";
 import { siteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { formValues, loginSchema, safeNext, type FormState } from "@/lib/validation";
+import { BOT_ERROR, isBot } from "@/lib/botid";
 
 export async function login(_prev: FormState, formData: FormData): Promise<FormState> {
   const values = formValues(formData, ["password"]);
@@ -52,6 +53,7 @@ export type EmailCodeState = { sent?: string; error?: string };
  * carries the guest's cart (withPendingCart).
  */
 export async function sendEmailCode(email: string, next: string): Promise<EmailCodeState> {
+  if (await isBot()) return { error: BOT_ERROR };
   const parsed = emailSchema.safeParse(email);
   if (!parsed.success) return { error: "כתובת דוא״ל לא תקינה" };
   const supabase = await createClient();
@@ -112,6 +114,7 @@ export type TeamSetupState = { ok?: boolean; error?: string; taken?: boolean };
  * that already exists is never joined this way: requestToJoin asks the team.
  */
 export async function setUpTeam(input: { program: string; number: string; name: string; contactName: string; contactPhone: string }): Promise<TeamSetupState> {
+  if (await isBot()) return { error: BOT_ERROR };
   const viewer = await getViewer();
   if (!viewer) return { error: "צריך להתחבר קודם" };
   if (viewer.teams.length > 0) return { ok: true };
@@ -141,6 +144,7 @@ export async function setUpTeam(input: { program: string; number: string; name: 
  * on the team adds it with one tap on the team page. Asking twice is one request.
  */
 export async function requestToJoin(input: { program: string; number: string }): Promise<{ ok?: boolean; error?: string }> {
+  if (await isBot()) return { error: BOT_ERROR };
   const viewer = await getViewer();
   if (!viewer) return { error: "צריך להתחבר קודם" };
   const program = input.program === "FTC" ? "FTC" : "FRC";

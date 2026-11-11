@@ -24,6 +24,7 @@ import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
 import { showToast } from "./toast";
 import { ZeroResults } from "./zero-results";
+import { track } from "@vercel/analytics";
 
 /** Opens the search panel from anywhere on the site. */
 export const openSearch = () => window.dispatchEvent(new Event("search:open"));
@@ -181,6 +182,7 @@ export function SearchPanel() {
         );
         const body = (await response.json()) as SearchResponse;
         setFound({ text: query, ...body });
+        track("search", { results: Math.min(body.results.length, 20) });
         setActive(null);
         setExpanded(null);
       } catch (error) {
