@@ -118,7 +118,8 @@ function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
     // Browsing with no search: what a team came for first, the screws and spacers filed with it after.
     // Then the lines with the most sizes (the staple gear or bearing families), then names
     // that are words before names that start with a size ("1/2in Hex Bore…").
-    order.push(...mainItemsFirst());
+    // The admin's pinned favourites come first (S15).
+    order.push(sql`${families.pinnedRank} ASC NULLS LAST`, ...mainItemsFirst());
     if (!filters.category) order.push(sql`${categories.slug} = 'other' ASC NULLS LAST`);
     order.push(sql`(cardinality(${families.images}) > 0) DESC`, desc(families.variantCount), sql`${families.title} ~ '^[0-9#]' ASC`);
   }

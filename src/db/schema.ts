@@ -178,7 +178,10 @@ export const variants = pgTable(
     familyOptions: jsonb("family_options").$type<Record<string, string>>().notNull().default({}),
     position: integer("position").notNull().default(0),
     grams: integer("grams"),
+    /** The price everything reads: the admin's override (variant_overrides) if any, else the store's. */
     priceUsd: numeric("price_usd", { precision: 10, scale: 2 }),
+    /** The store's own price as last synced, so removing an override brings it back (S15). */
+    supplierPriceUsd: numeric("supplier_price_usd", { precision: 10, scale: 2 }),
     compareAtUsd: numeric("compare_at_usd", { precision: 10, scale: 2 }),
     available: boolean("available"),
     checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
@@ -223,6 +226,8 @@ export const productFamilies = pgTable(
     available: boolean("available"),
     status: productStatus("status").notNull().default("published"),
     searchText: text("search_text").notNull(),
+    /** The admin's "מומלץ" order (lowest pin of its products, product_overrides.pin_rank); null when not pinned. */
+    pinnedRank: integer("pinned_rank"),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
     /** Set when no listed product is left in the family. */
     missingSince: timestamp("missing_since", { withTimezone: true }),
@@ -678,3 +683,39 @@ export const partRequests = pgTable(
   },
   (t) => [index("part_requests_open_idx").on(t.handledAt, t.createdAt)],
 );
+
+/**
+ * The admin's fixes to a supplier product (S15). Keyed by products.id, which survives
+ * every sync, so the nightly sync and regroup apply them again (src/domain/catalog-overrides.ts).
+ */
+export const productOverrides = pgTable("product_overrides", {
+  productId: uuid("product_id")
+    .primaryKey()
+    .references(() => products.id, { onDelete: "cascade" }),
+  /** Left out of the catalog. */
+  hidden: boolean("hidden").notNull().default(false),
+  /** Replaces the store's photos; the first is the main one. */
+  images: text("images").array(),
+  /** Files the product under another category. */
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+  /** Split: this product's variants join no other family. */
+  alone: boolean("alone").notNull().default(false),
+  /** Merge: products with the same key make one family. */
+  mergeKey: text("merge_key"),
+  /** "מומלץ": pinned families come first, lowest rank first. */
+  pinRank: integer("pin_rank"),
+  note: text("note"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid("updated_by").references(() => profiles.id, { onDelete: "set null" }),
+});
+
+/** The admin's USD price for a variant (S15); it then goes through priceIls like any price. */
+export const variantOverrides = pgTable("variant_overrides", {
+  variantId: uuid("variant_id")
+    .primaryKey()
+    .references(() => variants.id, { onDelete: "cascade" }),
+  priceUsd: numeric("price_usd", { precision: 10, scale: 2 }).notNull(),
+  note: text("note"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid("updated_by").references(() => profiles.id, { onDelete: "set null" }),
+});

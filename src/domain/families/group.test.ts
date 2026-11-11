@@ -187,3 +187,38 @@ describe("same name at several suppliers", () => {
     expect(sameName("Hub")).toBeNull();
   });
 });
+
+describe("groupFamilies with the admin's overrides (S15)", () => {
+  it("splits a reseller's copy of a SKU into its own family", () => {
+    const ctre = { ...flat("ctre", 'WCP 12t Steel Spur Gear (20 DP, 8mm SplineXS Bore)', "WCP-0749"), alone: true };
+    const { families } = groupFamilies([
+      ctre,
+      flat("wcp", '12t Steel Spur Gear (20 DP, 8mm SplineXS Bore)', "WCP-0749"),
+      flat("wcp", '36t Steel Spur Gear (20 DP, 1/2" Hex Bore)', "WCP-0543"),
+    ]);
+    expect(families).toHaveLength(2);
+    const alone = families.find((f) => f.productIds.includes(ctre.id))!;
+    expect(alone.productIds).toEqual([ctre.id]);
+    expect(alone.key).toBe(`p:${ctre.id}`);
+    expect(families.find((f) => f !== alone)!.suppliers).toEqual(["wcp"]);
+  });
+
+  it("lets the next-ranked copy own a SKU when its owner is split off", () => {
+    const wcp = { ...flat("wcp", "Widget Plate", "X-1", "structure"), alone: true };
+    const am = flat("andymark", "Widget Plate", "X-1", "structure");
+    const ctre = flat("ctre", "Widget Plate", "X-1", "structure");
+    const { families } = groupFamilies([wcp, am, ctre]);
+    expect(families).toHaveLength(2);
+    expect(families.find((f) => f.productIds.includes(am.id))!.productIds.sort()).toEqual([am.id, ctre.id].sort());
+  });
+
+  it("merges products that share a merge key under a stable key", () => {
+    const a = { ...flat("wcp", "Battery Strap", "S-1", "electronics"), mergeKey: "battery-strap" };
+    const b = { ...flat("andymark", "Battery Hold-down Strap", "S-2", "electronics"), mergeKey: "battery-strap" };
+    const { families } = groupFamilies([a, b, flat("ctre", "Something Else", "S-3", "electronics")]);
+    expect(families).toHaveLength(2);
+    const f = families.find((x) => x.key === "m:battery-strap")!;
+    expect(f.productIds.sort()).toEqual([a.id, b.id].sort());
+    expect(f.suppliers.sort()).toEqual(["andymark", "wcp"]);
+  });
+});

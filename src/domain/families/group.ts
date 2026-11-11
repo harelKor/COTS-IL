@@ -25,6 +25,10 @@ export type GroupProduct = {
   categorySlug: string | null;
   descriptionHtml: string | null;
   variants: GroupVariant[];
+  /** The admin's split (S15): this product's variants join no other family. */
+  alone?: boolean;
+  /** The admin's merge (S15): products with the same key make one family. */
+  mergeKey?: string | null;
 };
 
 export type Grouping = "title" | "supplier" | "single";
@@ -145,6 +149,7 @@ export function groupFamilies(input: GroupProduct[]): { families: FamilyDraft[];
     const parse = parseTitle(p.title);
     parsed.set(p.id, parse);
     const hasSize = Object.keys(parse.options).length > 0;
+    if (p.alone) continue;
     if (hasSize && parse.key && p.categorySlug && TITLE_GROUPED.has(p.categorySlug)) {
       titleKey.set(p.id, `t:${p.categorySlug}:${parse.key}`);
     } else if (!hasSize && p.categorySlug && SIZE_EXPECTED.has(p.categorySlug) && /\d/.test(p.title)) {
@@ -186,10 +191,11 @@ export function groupFamilies(input: GroupProduct[]): { families: FamilyDraft[];
     for (const v of p.variants) {
       productOf.set(v.id, p);
       const sku = normalizeSku(v.sku);
-      if (sku && !owner.has(sku)) owner.set(sku, { product: p, variant: v });
+      if (sku && !p.alone && !owner.has(sku)) owner.set(sku, { product: p, variant: v });
     }
   }
   const ownerOf = (v: GroupVariant) => {
+    if (productOf.get(v.id)?.alone) return null;
     const sku = normalizeSku(v.sku);
     const found = sku ? owner.get(sku) : undefined;
     return found && found.variant.id !== v.id ? found : null;
@@ -214,13 +220,20 @@ export function groupFamilies(input: GroupProduct[]): { families: FamilyDraft[];
   const byName = new Map<string, GroupProduct[]>();
   for (const p of products) {
     const parse = parsed.get(p.id);
-    if (!parse || Object.keys(parse.options).length > 0 || titleKey.has(p.id) || ownerOf(p.variants[0])) continue;
+    if (!parse || p.alone || Object.keys(parse.options).length > 0 || titleKey.has(p.id) || ownerOf(p.variants[0])) continue;
     const name = sameName(p.title);
     if (name) byName.set(name, [...(byName.get(name) ?? []), p]);
   }
   for (const members of byName.values()) {
     const supplierCount = new Set(members.map((m) => m.supplierCode)).size;
     if (supplierCount < 2 || supplierCount !== members.length) continue;
+    for (const p of members.slice(1)) uf.union(members[0].variants[0].id, p.variants[0].id);
+  }
+
+  // The admin's merges: every product with the same key joins one family.
+  const merged = new Map<string, GroupProduct[]>();
+  for (const p of products) if (p.mergeKey) merged.set(p.mergeKey, [...(merged.get(p.mergeKey) ?? []), p]);
+  for (const members of merged.values()) {
     for (const p of members.slice(1)) uf.union(members[0].variants[0].id, p.variants[0].id);
   }
 
@@ -247,7 +260,14 @@ export function groupFamilies(input: GroupProduct[]): { families: FamilyDraft[];
     const primary = owners[0] ?? members[0];
     const titledMembers = owners.filter((p) => titleKey.has(p.id));
     const titled = titledMembers.length >= 2 ? titledMembers[0] : undefined;
-    const key = titled ? titleKey.get(titled.id)! : titledMembers.length === 1 && owners.length === 1 ? titleKey.get(primary.id)! : `p:${primary.id}`;
+    const mergeKey = members.flatMap((p) => (p.mergeKey ? [p.mergeKey] : [])).sort()[0];
+    const key = mergeKey
+      ? `m:${mergeKey}`
+      : titled
+        ? titleKey.get(titled.id)!
+        : titledMembers.length === 1 && owners.length === 1
+          ? titleKey.get(primary.id)!
+          : `p:${primary.id}`;
 
     const variantOptions: Record<string, Record<string, string>> = {};
     const specs: FamilyDraft["specs"] = [];

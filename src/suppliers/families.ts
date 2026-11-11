@@ -1,12 +1,13 @@
 import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import * as schema from "../db/schema";
+import { applyProductOverrides, familyPinRank, type ProductOverride } from "../domain/catalog-overrides";
 import { categoryPhotos } from "../domain/catalog-rank";
 import { groupFamilies, type FamilyDraft, type GroupProduct } from "../domain/families/group";
 import { isRealDescription } from "../lib/description";
 
-type Db = PostgresJsDatabase<typeof schema>;
-type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+/** Any driver's transaction: the sync and `npm run regroup` use postgres.js, the admin's actions node-postgres. */
+type Tx = PgDatabase<PgQueryResultHKT, typeof schema>;
 
 const BATCH = 500;
 
@@ -33,6 +34,16 @@ export type RegroupCounts = {
 export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
   const now = new Date();
   const { products, variants, suppliers, categories } = schema;
+
+  // The admin's prices (S15): a new override applies, a removed one gives the store's price back.
+  await tx.execute(sql`
+    WITH target AS (
+      SELECT v.id, coalesce(o.price_usd, v.supplier_price_usd) AS price
+        FROM variants v LEFT JOIN variant_overrides o ON o.variant_id = v.id
+    )
+    UPDATE variants AS v SET price_usd = t.price FROM target t
+     WHERE t.id = v.id AND v.price_usd IS DISTINCT FROM t.price`);
+  const overrides = await loadOverrides(tx);
 
   const productRows = await tx
     .select({
@@ -68,22 +79,31 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
   for (const v of variantRows) variantsByProduct.set(v.productId, [...(variantsByProduct.get(v.productId) ?? []), v]);
   const productById = new Map(productRows.map((p) => [p.id, p]));
 
-  const input: GroupProduct[] = productRows
-    .filter((p) => variantsByProduct.has(p.id))
-    .map((p) => ({
-      id: p.id,
-      supplierCode: p.supplierCode,
-      title: p.title,
-      categorySlug: p.categorySlug,
-      descriptionHtml: p.descriptionHtml,
-      variants: variantsByProduct.get(p.id)!.map((v) => ({ id: v.id, sku: v.sku, options: v.options })),
-    }));
+  const input = applyProductOverrides(
+    productRows
+      .filter((p) => variantsByProduct.has(p.id))
+      .map((p) => ({
+        id: p.id,
+        supplierCode: p.supplierCode,
+        title: p.title,
+        categorySlug: p.categorySlug,
+        descriptionHtml: p.descriptionHtml,
+        images: p.images,
+        variants: variantsByProduct.get(p.id)!.map((v) => ({ id: v.id, sku: v.sku, options: v.options })),
+      })),
+    overrides,
+  );
+  // The family takes its photos from the products as the admin left them.
+  for (const p of input) productById.get(p.id)!.images = p.images;
 
-  const { families, issues } = groupFamilies(input);
+  const { families, issues } = groupFamilies(input satisfies GroupProduct[]);
   const categoryIds = new Map((await tx.select().from(categories)).map((c) => [c.slug, c.id]));
 
   const variantById = new Map(variantRows.map((v) => [v.id, v]));
-  const familyValues = families.map((f) => familyRow(f, productById, variantById, categoryIds, now));
+  const familyValues = families.map((f) => ({
+    ...familyRow(f, productById, variantById, categoryIds, now),
+    pinnedRank: familyPinRank(f.productIds, overrides),
+  }));
 
   // Slugs move between families when titles change, so free them all first.
   await tx.update(schema.productFamilies).set({ slug: sql`'old-' || ${schema.productFamilies.id}` });
@@ -150,6 +170,23 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
   for (const [slug, id] of categoryIds) await tx.update(categories).set({ images: photos.get(slug) ?? [] }).where(eq(categories.id, id));
 
   return summarize(families, productById, variantById, variantsByProduct, issues);
+}
+
+/** Every product override, with its category as a slug like the grouping uses. */
+async function loadOverrides(tx: Tx): Promise<Map<string, ProductOverride>> {
+  const rows = await tx
+    .select({
+      productId: schema.productOverrides.productId,
+      hidden: schema.productOverrides.hidden,
+      images: schema.productOverrides.images,
+      categorySlug: schema.categories.slug,
+      alone: schema.productOverrides.alone,
+      mergeKey: schema.productOverrides.mergeKey,
+      pinRank: schema.productOverrides.pinRank,
+    })
+    .from(schema.productOverrides)
+    .leftJoin(schema.categories, eq(schema.categories.id, schema.productOverrides.categoryId));
+  return new Map(rows.map((r) => [r.productId, r]));
 }
 
 /** Drizzle's property names to the table's column names, for the upsert's `excluded.` references. */

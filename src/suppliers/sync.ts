@@ -197,6 +197,7 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
         supplierId: supplier.id,
         productId: productIds.get(p.supplierProductId)!,
         ...v,
+        supplierPriceUsd: v.priceUsd,
         checkedAt: now,
         missingSince: null,
       })),
@@ -216,7 +217,9 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
             options: excluded("options"),
             position: excluded("position"),
             grams: excluded("grams"),
-            priceUsd: excluded("price_usd"),
+            // The admin's price wins (S15), so the history doesn't flip back and forth each night.
+            priceUsd: sql`coalesce((SELECT o.price_usd FROM variant_overrides o WHERE o.variant_id = ${schema.variants.id}), excluded.price_usd)`,
+            supplierPriceUsd: excluded("supplier_price_usd"),
             compareAtUsd: excluded("compare_at_usd"),
             available: excluded("available"),
             checkedAt: excluded("checked_at"),
