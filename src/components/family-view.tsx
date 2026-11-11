@@ -238,7 +238,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
             onPointerDown={(e) => (swipe.current = { x: e.clientX, y: e.clientY })}
             onPointerUp={onPhotoUp}
             onPointerCancel={() => (swipe.current = null)}
-            className="relative aspect-square w-full cursor-zoom-in touch-pan-y overflow-hidden rounded-card bg-tile p-8 ring-1 ring-black/5 select-none"
+            className="relative aspect-square w-full cursor-zoom-in touch-pan-y overflow-hidden rounded-card bg-tile p-8 ring-1 ring-line select-none"
           >
             {shown && (
               // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
@@ -266,7 +266,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
                 aria-label={`העתקת המק״ט ${chosen.sku}`}
                 className="group absolute start-2 top-2 flex min-h-11 items-center"
               >
-                <span className="flex h-8 items-center gap-1.5 rounded-full bg-surface/85 px-3 text-[12px] text-foreground shadow-sm backdrop-blur transition-colors group-hover:bg-surface">
+                <span className="flex h-8 items-center gap-1.5 rounded-full bg-surface/85 px-3 text-caption text-foreground shadow-sm backdrop-blur transition-colors group-hover:bg-surface">
                   <Ltr className="font-mono">{chosen.sku}</Ltr>
                   <Copy size={13} strokeWidth={1.75} aria-hidden className="text-muted" />
                 </span>
@@ -297,7 +297,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
                   onClick={() => setPhoto(src)}
                   aria-label={`תמונה ${i + 1}`}
                   aria-pressed={src === shown}
-                  className={`aspect-square w-full overflow-hidden rounded-xl bg-tile p-1 ${src === shown ? "ring-2 ring-foreground" : "ring-1 ring-black/5"}`}
+                  className={`aspect-square w-full overflow-hidden rounded-xl bg-tile p-1 ${src === shown ? "ring-2 ring-brand" : "ring-1 ring-line"}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img {...shopifyImage(src, 80)} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
@@ -337,11 +337,11 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
               }`}
             >
               <header className="flex items-baseline justify-between gap-3">
-                <h2 className="text-[15px] text-muted">{group.map(optionLabel).join(" × ")}</h2>
+                <h2 className="text-callout text-muted">{group.map(optionLabel).join(" × ")}</h2>
                 {value === undefined ? (
-                  <span className="text-[15px] text-brand">בחרו אפשרות</span>
+                  <span className="text-callout text-brand">בחרו אפשרות</span>
                 ) : (
-                  <span className="min-w-0 truncate text-[15px] font-semibold" aria-live="polite">
+                  <span className="min-w-0 truncate text-callout font-semibold" aria-live="polite">
                     {lit && <span className="me-2 text-caption font-normal text-brand">עודכן</span>}
                     {value === NONE ? "ללא" : <Ltr>{label(value)}</Ltr>}
                   </span>
@@ -355,9 +355,9 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
                     type="button"
                     aria-pressed={chip.selected}
                     onClick={() => onChip(key, chip.value)}
-                    className={`flex min-h-11 flex-col items-center justify-center rounded-full px-4 text-[15px] leading-tight transition-[color,background-color,scale] duration-150 active:scale-95 ${
+                    className={`flex min-h-11 flex-col items-center justify-center rounded-full px-4 text-callout leading-tight transition-[color,background-color,scale] duration-150 active:scale-95 ${
                       chip.selected
-                        ? "bg-foreground font-medium text-background shadow-sm"
+                        ? "bg-brand font-medium text-white shadow-sm"
                         : chip.enabled
                           ? "bg-subtle/70 hover:bg-subtle"
                           : "bg-subtle/70 line-through opacity-35 hover:opacity-60"
@@ -365,7 +365,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
                   >
                     {chip.value === NONE ? "ללא" : <Ltr>{label(chip.value)}</Ltr>}
                     {showPrices && prices[i] !== null && (
-                      <span className={`text-[12px] ${chip.selected ? "text-background/75" : "text-muted"}`}>{formatIls(prices[i]!)}</span>
+                      <span className={`text-caption ${chip.selected ? "text-background/75" : "text-muted"}`}>{formatIls(prices[i]!)}</span>
                     )}
                   </button>
                 ))}
@@ -376,7 +376,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
 
         {manySuppliers && offers.length > 1 && (
           <section className="flex flex-col gap-2">
-            <h2 className="text-[15px] text-muted">ספק</h2>
+            <h2 className="text-callout text-muted">ספק</h2>
             <div className="grid grid-cols-2 gap-2">
               {offers.map((offer) => {
                 const on = offer === chosen;
@@ -388,16 +388,16 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
                     aria-pressed={on}
                     onClick={() => onSupplier(offer.supplierName)}
                     className={`flex min-h-11 flex-col items-start gap-1.5 rounded-2xl border p-3 text-start transition-[border-color,box-shadow] duration-150 ${
-                      on ? "border-foreground shadow-[inset_0_0_0_1px_var(--foreground)]" : "border-line/80 bg-surface hover:border-muted"
+                      on ? "border-brand bg-brand-soft/40 shadow-[inset_0_0_0_1px_var(--brand)]" : "border-line/80 bg-surface hover:border-muted"
                     }`}
                   >
                     <span className="flex w-full items-center justify-between gap-2">
-                      <Ltr className="truncate font-semibold">{offer.supplierName}</Ltr>
+                      <Ltr className="font-semibold break-words">{offer.supplierName}</Ltr>
                       {cheapest !== null && offer.priceIls === cheapest && (
-                        <span className="shrink-0 rounded-full bg-success/12 px-2 py-0.5 text-[11px] font-medium text-success">המשתלם ביותר</span>
+                        <span className="shrink-0 rounded-md bg-success/10 px-2 py-0.5 text-caption font-medium text-success">המשתלם ביותר</span>
                       )}
                     </span>
-                    <span className="text-[17px] font-semibold">{offer.priceIls === null ? <span className="text-caption font-normal text-muted">ייבדק בהצעה</span> : formatIls(offer.priceIls)}</span>
+                    <span className="text-body font-semibold">{offer.priceIls === null ? <span className="text-caption font-normal text-muted">ייבדק בהצעה</span> : formatIls(offer.priceIls)}</span>
                     <span className="flex items-center gap-1.5 text-caption text-muted">
                       <span className={`size-2 rounded-full ${status.dot}`} aria-hidden />
                       {status.short}
@@ -412,7 +412,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
         <section aria-label="רכישה" className="card-surface flex flex-col gap-4 p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <span className="text-title font-semibold">{priceText}</span>
-            {price !== null && lineQty > 1 && <span className="text-[15px] text-muted">סה״כ: {formatIls(price * lineQty)}</span>}
+            {price !== null && lineQty > 1 && <span className="text-callout text-muted">סה״כ: {formatIls(price * lineQty)}</span>}
           </div>
           {availability && (
             <p className={`flex items-center gap-2 text-caption ${availability.tone}`}>
@@ -444,10 +444,10 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
 
         {chosen && chosen.specs.length > 0 && (
           <section className="flex flex-col gap-2">
-            <h2 className="text-[15px] text-muted">
+            <h2 className="text-callout text-muted">
               מפרט {chosen.sku ? <Ltr className="font-mono">{chosen.sku}</Ltr> : "האפשרות שנבחרה"}
             </h2>
-            <dl className="divide-y divide-line rounded-2xl border border-line/80 bg-surface text-[15px]">
+            <dl className="divide-y divide-line rounded-2xl border border-line/80 bg-surface text-callout">
               {chosen.specs.map((spec) => (
                 <div key={spec.key} className="flex justify-between gap-4 px-4 py-2.5">
                   <dt className="text-muted">{optionLabel(spec.key)}</dt>
@@ -465,12 +465,12 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
         // On phones the buy controls stay under the thumb; the cart pill moves up out of the way.
         <div data-buy-bar className="fixed inset-x-0 bottom-0 z-30 flex flex-col gap-2 border-t border-line bg-glass px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:hidden">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[15px] font-semibold">{priceText}</span>
+            <span className="text-callout font-semibold">{priceText}</span>
             {cartCount > 0 && (
               <button
                 type="button"
                 onClick={() => window.dispatchEvent(new Event("cart:open"))}
-                className="flex h-9 items-center gap-2 rounded-full bg-foreground px-3 text-caption font-medium text-background"
+                className="flex h-11 items-center gap-2 rounded-full bg-brand-soft px-4 text-caption font-semibold text-brand-strong"
               >
                 <ShoppingBag size={16} strokeWidth={1.75} aria-hidden />
                 סל <span className="rounded-full bg-background/20 px-1.5 tabular-nums">{cartCount}</span>

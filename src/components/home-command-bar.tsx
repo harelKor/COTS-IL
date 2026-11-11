@@ -25,10 +25,10 @@ export function HomeCommandBar() {
         <span className="btn-brand flex size-10 shrink-0 items-center justify-center rounded-full" aria-hidden>
           <Search size={20} strokeWidth={2} />
         </span>
-        <span className="min-w-0 flex-1 truncate text-[15px]">
+        <span className="min-w-0 flex-1 truncate text-callout">
           חיפוש מהיר לפי שם מוצר, מק״ט (למשל <Ltr className="font-mono">WCP-0749</Ltr>) או <Ltr>x4</Ltr> לכמות…
         </span>
-        <kbd className="hidden shrink-0 rounded-md bg-subtle px-2 py-0.5 font-sans text-[12px] text-muted sm:inline" dir="ltr">
+        <kbd className="hidden shrink-0 rounded-md bg-subtle px-2 py-0.5 font-sans text-caption text-muted sm:inline" dir="ltr">
           {keys}
         </kbd>
       </button>

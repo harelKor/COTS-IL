@@ -41,8 +41,8 @@ async function PendingStatus() {
 
 export default function PendingPage() {
   return (
-    <div className="mx-auto max-w-md rounded-lg border border-line bg-surface p-6">
-      <h1 className="mb-3 text-xl font-bold">ממתין לאישור</h1>
+    <div className="mx-auto max-w-md card-surface p-6">
+      <h1 className="mb-3 text-xl font-semibold">ממתין לאישור</h1>
       <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <PendingStatus />
       </Suspense>

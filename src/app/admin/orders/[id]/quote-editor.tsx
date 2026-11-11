@@ -92,7 +92,7 @@ export function QuoteEditor(props: {
                 <Thumb src={line.image} />
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <ItemDescription item={line} />
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption">
                     <span className="text-muted">
                       ביקשו: {line.requestedQty} × {formatIls(line.requestedPrice)}
                     </span>
@@ -104,11 +104,11 @@ export function QuoteEditor(props: {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-1 text-xs">
+                <label className="flex items-center gap-1 text-caption">
                   כמות
                   <input name={`qty:${line.id}`} type="number" min={0} inputMode="numeric" value={v.qty} onChange={(e) => set(line.id, { qty: e.target.value })} className={`${inputClass} w-20`} />
                 </label>
-                <label className="flex items-center gap-1 text-xs">
+                <label className="flex items-center gap-1 text-caption">
                   מחיר ליחידה ₪
                   <input name={`price:${line.id}`} type="number" min={0} inputMode="numeric" value={v.price} onChange={(e) => set(line.id, { price: e.target.value })} className={`${inputClass} w-24`} />
                 </label>
@@ -116,7 +116,7 @@ export function QuoteEditor(props: {
                   <button
                     type="button"
                     onClick={() => set(line.id, { price: String(live), reason: v.reason || (live !== line.requestedPrice ? "מחיר מעודכן אצל הספק" : "") })}
-                    className="inline-flex min-h-11 items-center gap-1 rounded-full bg-subtle px-3 text-xs font-medium text-brand-strong hover:bg-subtle-hover"
+                    className="inline-flex min-h-11 items-center gap-1 rounded-full bg-subtle px-3 text-caption font-medium text-brand-strong hover:bg-subtle-hover"
                   >
                     <RefreshCw size={16} aria-hidden />
                     רענון מחיר ({formatIls(live)})
@@ -132,7 +132,7 @@ export function QuoteEditor(props: {
                   className={`${inputClass} min-w-0 flex-1 basis-48`}
                 />
               </div>
-              {state.lineErrors?.[line.id] && <p className="text-xs text-danger">{state.lineErrors[line.id]}</p>}
+              {state.lineErrors?.[line.id] && <p className="text-caption text-danger">{state.lineErrors[line.id]}</p>}
             </li>
           );
         })}

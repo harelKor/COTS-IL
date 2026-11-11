@@ -99,7 +99,7 @@ async function Purchasing() {
             </span>
           )}
         </div>
-        <div className="text-xs text-muted">
+        <div className="text-caption text-muted">
           נוצרה <Ltr>{formatDay(po.createdAt, nowDate)}</Ltr>
           {changed && (
             <>
@@ -111,7 +111,7 @@ async function Purchasing() {
           {progress.served
             .filter((s) => s.poId === po.id)
             .map((s) => (
-              <Link key={s.orderId} href={`/admin?open=${s.orderId}`} className="inline-flex min-h-8 items-center rounded-full bg-brand-soft px-3 text-xs font-medium text-brand-strong">
+              <Link key={s.orderId} href={`/admin?open=${s.orderId}`} className="inline-flex min-h-11 items-center rounded-full bg-brand-soft px-3 text-caption font-medium text-brand-strong">
                 <Ltr>{`${s.teamProgram} ${s.teamNumber} #${s.orderNumber}`}</Ltr>
               </Link>
             ))}
@@ -189,7 +189,7 @@ async function Purchasing() {
 export default function PurchasingPage() {
   return (
     <div>
-      <h1 className="mb-6 text-[28px] font-semibold tracking-[-0.02em]">הזמנות ספקים</h1>
+      <h1 className="mb-6 text-title font-semibold tracking-[-0.02em]">הזמנות ספקים</h1>
       <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Purchasing />
       </Suspense>

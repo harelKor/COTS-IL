@@ -10,6 +10,7 @@ import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
 import type { CartState } from "./cart-store";
 import { CartButton } from "./cart-pill";
 import { CartSync } from "./cart-sync";
+import { InstallAppButton } from "./install-app";
 import { Ltr } from "./ltr";
 import { SearchPanel } from "./search-panel";
 
@@ -40,7 +41,7 @@ async function Account() {
     return (
       <>
         <CartSync cart={cart} />
-        <Link href="/login" className="flex h-11 shrink-0 items-center px-2 text-[15px] text-brand hover:underline">
+        <Link href="/login" className="flex h-11 shrink-0 items-center px-2 text-callout text-brand hover:underline">
           כניסה
         </Link>
       </>
@@ -60,14 +61,14 @@ async function Account() {
         aria-label="החשבון שלי"
         className="group flex size-11 shrink-0 items-center justify-center"
       >
-        <span className="flex h-9 min-w-9 items-center justify-center rounded-full border border-line bg-white/90 px-1.5 text-[12px] font-semibold tabular-nums shadow-2xs transition-colors group-hover:bg-subtle">
+        <span className="flex h-9 min-w-9 items-center justify-center rounded-full border border-line bg-white/90 px-1.5 text-caption font-semibold tabular-nums shadow-2xs transition-colors group-hover:bg-subtle">
           {initial}
         </span>
       </button>
       <div
         id="account-menu"
         popover="auto"
-        className="fixed inset-auto end-4 top-[60px] m-0 w-64 rounded-card border border-line bg-surface p-2 text-[15px] text-foreground shadow-lift"
+        className="fixed inset-auto end-4 top-[60px] m-0 w-64 rounded-card border border-line bg-surface p-2 text-callout text-foreground shadow-lift"
       >
         <div className="border-b border-line px-3 pt-1 pb-2 text-caption text-muted">
           {shown ? (
@@ -123,6 +124,7 @@ async function Account() {
               ניהול
             </Link>
           )}
+          <InstallAppButton variant="menu" />
           <form action={signout}>
             <button className={`${menuLink} w-full text-start text-danger`}>יציאה</button>
           </form>
@@ -141,23 +143,25 @@ export function SiteHeader() {
           <span aria-hidden className="btn-brand flex size-9 items-center justify-center rounded-xl">
             <Boxes size={20} strokeWidth={1.75} />
           </span>
-          <Ltr className="bg-gradient-to-r from-[#1E3A8A] to-[#2563EB] bg-clip-text text-[19px] font-extrabold tracking-tight text-transparent">
+          <Ltr className="text-brand-gradient text-section font-extrabold tracking-tight">
             COTS-IL
           </Ltr>
-          <span className="hidden rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-semibold text-brand sm:inline-flex">
+          <span className="hidden rounded-full bg-brand-soft px-2 py-0.5 text-caption font-semibold text-brand sm:inline-flex">
             <Ltr>FRC / FTC</Ltr>
           </span>
         </Link>
-        <Link href="/catalog" className="hidden h-11 shrink-0 items-center px-2 text-[15px] text-foreground hover:text-brand sm:flex">
+        <Link href="/catalog" className="hidden h-11 shrink-0 items-center px-2 text-callout text-foreground hover:text-brand sm:flex">
           קטלוג
         </Link>
         <div className="flex min-w-0 flex-1 justify-end sm:justify-center">
           <SearchPanel />
         </div>
         <CartButton />
-        <Suspense fallback={<span className="skeleton size-9 shrink-0 rounded-full" aria-hidden />}>
-          <Account />
-        </Suspense>
+        <div className="flex w-14 shrink-0 justify-end">
+          <Suspense fallback={<span className="skeleton m-1 size-9 rounded-full" aria-hidden />}>
+            <Account />
+          </Suspense>
+        </div>
       </div>
     </header>
   );

@@ -40,7 +40,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">הזמנה {order.number}</h1>
+          <h1 className="text-title font-semibold">הזמנה {order.number}</h1>
           <p className="text-sm text-muted">
             <TeamName team={team} />, נשלחה{" "}
             <span className="ltr">{formatDateTime(order.submittedAt)}</span>
@@ -57,7 +57,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
         <Alert tone="info">הקבוצה דחתה את ההצעה: {latest.rejectionReason}</Alert>
       )}
 
-      <section className="grid gap-1 rounded-lg border border-line bg-surface p-4 text-sm">
+      <section className="grid gap-1 card-surface p-4 text-sm">
         <div>
           <span className="text-muted">מסירה: </span>
           {order.deliveryMethod === "ship" ? `משלוח לכתובת: ${order.address}` : "איסוף עצמי"}
@@ -82,7 +82,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
         <section className="flex flex-col gap-3">
           <h2 className="font-semibold">
             הצעה סופית, גרסה {latest.version}{" "}
-            <span className="text-xs font-normal text-muted">
+            <span className="text-caption font-normal text-muted">
               <span className="ltr">{formatDateTime(latest.sentAt)}</span>
             </span>
           </h2>
@@ -108,7 +108,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
       )}
 
       {deliveries.length > 0 && (
-        <section className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-4 text-sm print:hidden">
+        <section className="flex flex-col gap-2 card-surface p-4 text-sm print:hidden">
           <h2 className="font-semibold">תעודות משלוח</h2>
           {deliveries.map((d) => (
             <Link key={d.id} href={`/deliveries/${d.id}`} className="text-brand hover:underline">
@@ -119,7 +119,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
       )}
 
       {quotes.length > 1 && (
-        <details className="rounded-lg border border-line bg-surface p-4 text-sm print:hidden">
+        <details className="card-surface p-4 text-sm print:hidden">
           <summary className="cursor-pointer">גרסאות קודמות ({quotes.length - 1})</summary>
           <div className="mt-3 flex flex-col gap-4">
             {quotes.slice(1).map((quote, i) => (
@@ -142,7 +142,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
         {onTeam && canCancelOrder(order.status) && (
           <form action={cancelOrder}>
             <input type="hidden" name="orderId" value={order.id} />
-            <Button variant="ghost">ביטול ההזמנה</Button>
+            <Button variant="danger">ביטול ההזמנה</Button>
           </form>
         )}
       </div>

@@ -20,10 +20,10 @@ const hoursLabel = (hours: number | null) => (hours === null ? "—" : `${(hours
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="rounded-lg border border-line bg-surface p-4">
-      <div className="text-xs text-muted">{label}</div>
-      <div className="text-xl font-bold">{value}</div>
-      {note && <div className="text-xs text-muted">{note}</div>}
+    <div className="card-surface p-4">
+      <div className="text-caption text-muted">{label}</div>
+      <div className="text-xl font-semibold">{value}</div>
+      {note && <div className="text-caption text-muted">{note}</div>}
     </div>
   );
 }
@@ -57,7 +57,7 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
 
   return (
     <div className="flex flex-col gap-8">
-      <Form action="/admin/reports" className="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-surface p-4 print:hidden">
+      <Form action="/admin/reports" className="flex flex-wrap items-end gap-3 card-surface p-4 print:hidden">
         <Field label="מתאריך" name="from">
           <Input name="from" type="date" lang="he-IL" defaultValue={period.from} />
         </Field>
@@ -67,7 +67,7 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
         <Field label="שער דולר לרווחיות" name="rate">
           <Input name="rate" type="number" min={0} step="0.001" dir="ltr" defaultValue={usdIlsRate ?? undefined} />
         </Field>
-        <Button variant="ghost">הצגה</Button>
+        <Button variant="secondary">הצגה</Button>
       </Form>
 
       <section className="flex flex-col gap-3">
@@ -101,7 +101,7 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
             עדיין לא נקנו {unboughtUnits} יחידות מההזמנות האלה, אז עלות הרכש חסרה והרווח כאן גבוה מהצפוי.
           </p>
         )}
-        <p className="text-xs text-muted">
+        <p className="text-caption text-muted">
           הכנסות ורכש לפי הזמנות שנשלחו בתקופה. עלויות יבוא לפי תאריך הרישום שלהן, ולכן בתקופה קצרה הן עשויות לא להתאים בדיוק
           להזמנות.
         </p>
@@ -123,7 +123,7 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
           />
         </div>
         {sales.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+          <div className="overflow-x-auto card-surface">
             <table className="w-full text-sm">
               <thead className="bg-subtle text-muted">
                 <tr>
@@ -168,7 +168,7 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
         {purchases.length === 0 ? (
           <p className="text-muted">אין הזמנות ספק שבוצעו בתקופה.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+          <div className="overflow-x-auto card-surface">
             <table className="w-full text-sm">
               <thead className="bg-subtle text-muted">
                 <tr>
@@ -207,7 +207,7 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
         {costs.length === 0 ? (
           <p className="text-muted">אין עלויות יבוא בתקופה.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+          <div className="overflow-x-auto card-surface">
             <table className="w-full text-sm">
               <thead className="bg-subtle text-muted">
                 <tr>
@@ -225,10 +225,10 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
                       <Link href={`/admin/logistics/${c.shipmentId}`} className="text-brand hover:underline">
                         {c.shipmentNumber}
                       </Link>{" "}
-                      <span className="ltr text-xs text-muted">{c.supplierName}</span>
+                      <span className="ltr text-caption text-muted">{c.supplierName}</span>
                     </td>
                     <td className="p-2">{COST_LABELS[c.type]}</td>
-                    <td className="whitespace-nowrap p-2">₪{c.amountIls.toLocaleString("he-IL")}</td>
+                    <td className="whitespace-nowrap p-2">{formatIls(c.amountIls)}</td>
                     <td className="p-2">{c.vatReclaimable ? "כן" : "לא"}</td>
                     <td className="ltr p-2">{c.reference}</td>
                   </tr>
@@ -253,7 +253,7 @@ export default function ReportsPage(props: PageProps<"/admin/reports">) {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">דוחות</h1>
+        <h1 className="text-title font-semibold">דוחות</h1>
         <div className="flex items-center gap-3">
           <Link href="/admin" className="text-sm text-brand hover:underline print:hidden">
             לניהול

@@ -62,12 +62,12 @@ export function SharedCart({ lines, children }: { lines: SharedLine[]; children?
                 {l.image && <img {...shopifyImage(l.image, 56)} loading="lazy" alt={l.title} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />}
               </span>
               <Link href={l.href} className="min-w-0 flex-1 hover:text-brand">
-                <Ltr className="line-clamp-2 text-start text-[15px] font-medium">{l.title}</Ltr>
+                <Ltr className="line-clamp-2 text-start text-callout font-medium">{l.title}</Ltr>
                 <span className="block truncate text-caption text-muted">
                   <Ltr>{[l.supplierName, l.options, l.sku].filter(Boolean).join(", ")}</Ltr>
                 </span>
                 {inCart > 0 && (
-                  <span className="mt-1 inline-flex rounded-full bg-brand-soft px-2 py-0.5 text-[12px] font-medium text-brand">
+                  <span className="mt-1 inline-flex rounded-md bg-brand-soft px-2 py-0.5 text-caption font-medium text-brand">
                     {inCart >= l.qty ? "כבר בסל" : `בסל: ${inCart}`}
                   </span>
                 )}

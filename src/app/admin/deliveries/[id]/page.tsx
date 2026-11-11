@@ -34,7 +34,7 @@ async function AdminDelivery({ params }: PageProps<"/admin/deliveries/[id]">) {
 
       {result.delivery.status === "prepared" && (
         <>
-          <ActionForm action={confirmDelivery} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 print:hidden">
+          <ActionForm action={confirmDelivery} className="flex flex-col gap-3 card-surface p-4 print:hidden">
             <h2 className="font-semibold">אישור מסירה</h2>
             <input type="hidden" name="deliveryId" value={result.delivery.id} />
             <div className="grid gap-3 sm:grid-cols-2">
@@ -52,7 +52,7 @@ async function AdminDelivery({ params }: PageProps<"/admin/deliveries/[id]">) {
           </ActionForm>
           <ActionForm action={cancelDelivery} className="print:hidden">
             <input type="hidden" name="deliveryId" value={result.delivery.id} />
-            <Button variant="ghost">ביטול התעודה</Button>
+            <Button variant="danger">ביטול התעודה</Button>
           </ActionForm>
         </>
       )}

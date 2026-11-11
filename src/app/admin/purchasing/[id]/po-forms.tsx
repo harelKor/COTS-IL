@@ -44,7 +44,7 @@ export function RecordOrderedForm({ poId, lines, today }: { poId: string; lines:
   const [ref, setRef] = useState("");
 
   return (
-    <form action={action} className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-4 print:hidden">
+    <form action={action} className="flex flex-col gap-4 card-surface p-4 print:hidden">
       <h2 className="font-semibold">רישום הזמנה שבוצעה באתר הספק</h2>
       {state.error && <Alert>{state.error}</Alert>}
       <input type="hidden" name="poId" value={poId} />
@@ -70,7 +70,7 @@ export function RecordOrderedForm({ poId, lines, today }: { poId: string; lines:
               step="0.01"
               required
               defaultValue={line.cost ?? ""}
-              className="h-9 w-24 shrink-0 rounded-md border border-line bg-surface px-2 text-sm"
+              className="h-11 w-24 shrink-0 rounded-xl border border-line bg-surface px-2 text-sm"
             />
           </label>
         ))}
@@ -100,10 +100,10 @@ export function CancelPoForm({ poId, needsReason }: { poId: string; needsReason:
             placeholder="סיבת הביטול"
             required
             maxLength={500}
-            className="h-10 min-w-48 flex-1 rounded-md border border-line bg-surface px-3 text-sm"
+            className="h-11 min-w-48 flex-1 rounded-xl border border-line bg-surface px-3 text-sm"
           />
         )}
-        <Button variant="ghost" disabled={pending}>
+        <Button variant="secondary" disabled={pending}>
           ביטול ההזמנה והחזרת השורות לרכש
         </Button>
       </div>
@@ -115,7 +115,7 @@ export function CancelPoForm({ poId, needsReason }: { poId: string; needsReason:
 export function PoRecordForm({ poId, record }: { poId: string; record: PoRecord }) {
   const [state, action, pending] = useActionState(updatePoRecord, {} as PoFormState);
   return (
-    <form action={action} className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-4 print:hidden">
+    <form action={action} className="flex flex-col gap-4 card-surface p-4 print:hidden">
       <h2 className="font-semibold">פרטי ההזמנה אצל הספק</h2>
       {state.error && <Alert>{state.error}</Alert>}
       {state.saved && <Alert tone="info">נשמר.</Alert>}
@@ -124,7 +124,7 @@ export function PoRecordForm({ poId, record }: { poId: string; record: PoRecord 
         <Input name="supplierOrderRef" dir="ltr" required maxLength={100} defaultValue={record.supplierOrderRef ?? ""} />
       </Field>
       <ChargeFields record={record} />
-      <Button variant="ghost" disabled={pending}>
+      <Button variant="secondary" disabled={pending}>
         {pending ? "שומר…" : "שמירת הפרטים"}
       </Button>
     </form>
@@ -139,7 +139,7 @@ export function RemoveLineButton({ lineId, label }: { lineId: string; label: str
       type="button"
       disabled={pending}
       aria-label={`הסרת ${label} מהטיוטה`}
-      className="min-h-11 rounded-full px-3 text-xs text-danger hover:bg-danger/10 disabled:opacity-50"
+      className="min-h-11 rounded-full px-3 text-caption text-danger hover:bg-danger/10 disabled:opacity-50"
       onClick={() =>
         start(async () => {
           const result = await removePoLine(lineId);

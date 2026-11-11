@@ -128,7 +128,7 @@ async function Requests() {
 export default function PartRequestsPage() {
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">בקשות חלקים</h1>
+      <h1 className="mb-6 text-title font-semibold">בקשות חלקים</h1>
       <Suspense
         fallback={
           <Loading>

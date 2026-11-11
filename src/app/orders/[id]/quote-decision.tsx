@@ -8,7 +8,7 @@ export function QuoteDecision({ quoteId }: { quoteId: string }) {
   const [state, action, pending] = useActionState(decideQuote, {} as DecisionState);
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-brand bg-surface p-4 print:hidden">
+    <div className="flex flex-col gap-3 card-surface p-4 ring-2 ring-brand print:hidden">
       <p className="text-sm">
         אישור ההצעה הוא התחייבות של הקבוצה לסכום הזה. התשלום מתבצע מחוץ לאתר, והספק הישראלי יזמין מהספקים רק לאחר האישור.
       </p>
@@ -26,9 +26,9 @@ export function QuoteDecision({ quoteId }: { quoteId: string }) {
           aria-label="סיבת דחייה"
           placeholder="סיבה או שינוי מבוקש"
           maxLength={1000}
-          className="h-10 min-w-48 flex-1 rounded-md border border-line bg-surface px-3 text-sm"
+          className="h-11 min-w-48 flex-1 rounded-xl border border-line bg-surface px-3 text-sm"
         />
-        <Button variant="ghost" disabled={pending}>
+        <Button variant="secondary" disabled={pending}>
           דחיית ההצעה
         </Button>
       </form>

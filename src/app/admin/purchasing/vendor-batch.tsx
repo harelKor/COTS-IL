@@ -97,7 +97,7 @@ export function VendorBatch({
                 <div className={`min-w-0 flex-1 ${included ? "" : "opacity-50"}`}>
                   <div dir="ltr" className="text-start">
                     <div className="font-medium">{line.title}</div>
-                    <div className="text-xs text-muted">
+                    <div className="text-caption text-muted">
                       {[line.supplierSku ?? "no supplier SKU", describeOptions(line.options)].filter(Boolean).join(", ")}
                     </div>
                   </div>
@@ -125,7 +125,7 @@ export function VendorBatch({
                           className="size-4 accent-brand"
                         />
                       </label>
-                      <Link href={`/admin?open=${a.orderId}`} className="flex min-h-11 items-center px-3 text-xs font-medium text-brand-strong">
+                      <Link href={`/admin?open=${a.orderId}`} className="flex min-h-11 items-center px-3 text-caption font-medium text-brand-strong">
                         <Ltr>{`${a.teamLabel} #${a.orderNumber} ×${a.qty}`}</Ltr>
                       </Link>
                     </li>
@@ -165,7 +165,7 @@ export function VendorBatch({
           />
           <Button disabled={pending || batch.length === 0}>{pending ? "שומר…" : "סימון כהוזמן מהספק"}</Button>
         </div>
-        <p className="text-xs text-muted">מעדכן את כל {batchOrderCount(batch)} ההזמנות שבאצווה.</p>
+        <p className="text-caption text-muted">מעדכן את כל {batchOrderCount(batch)} ההזמנות שבאצווה.</p>
       </form>
     </section>
   );

@@ -37,8 +37,9 @@ const isApple = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator
  * Safari has no such dialog, so on iPhone and iPad the tap shows the two steps instead.
  * Hidden inside the installed app.
  */
-export function InstallAppButton() {
-  const installed = useSyncExternalStore(subscribe, isInstalled, () => false);
+export function InstallAppButton({ variant = "pill" }: { variant?: "pill" | "menu" }) {
+  // Counts as installed until hydrated, so the button never flashes inside the installed app.
+  const installed = useSyncExternalStore(subscribe, isInstalled, () => true);
   const prompt = useSyncExternalStore(subscribe, () => window.__installPrompt ?? null, () => null);
   const [help, setHelp] = useState<"apple" | "other" | null>(null);
 
@@ -64,19 +65,23 @@ export function InstallAppButton() {
   }
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className={variant === "menu" ? "flex flex-col gap-2" : "flex flex-col items-center gap-3"}>
       <button
         type="button"
         onClick={install}
         aria-expanded={prompt ? undefined : help !== null}
-        className="flex h-11 items-center gap-2 rounded-full border border-line bg-white/90 px-5 text-[15px] font-medium text-brand shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle"
+        className={
+          variant === "menu"
+            ? "flex h-11 w-full items-center gap-2 rounded-lg px-3 text-start hover:bg-subtle"
+            : "btn-soft flex h-11 items-center gap-2 rounded-full px-5 text-callout font-medium text-brand"
+        }
       >
-        <Download size={20} strokeWidth={1.75} aria-hidden />
+        <Download size={variant === "menu" ? 18 : 20} strokeWidth={1.75} aria-hidden />
         התקנת אפליקציה
       </button>
 
       {help && (
-        <div className="card-surface relative w-full max-w-sm p-4 pe-12 text-start text-[15px]" role="status">
+        <div className={`relative w-full max-w-sm p-4 pe-12 text-start text-callout ${variant === "menu" ? "rounded-xl bg-subtle" : "card-surface"}`} role="status">
           <button
             type="button"
             onClick={() => setHelp(null)}

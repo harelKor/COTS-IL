@@ -27,8 +27,8 @@ export function ItemDescription({ item }: { item: Pick<OrderItem, "title" | "sup
   return (
     <div dir="ltr" className="text-start">
       <div className="font-medium">{item.title}</div>
-      {item.options.length > 0 && <div className="text-xs">{item.options.map((o) => o.value).join(" / ")}</div>}
-      <div className="text-xs text-muted">
+      {item.options.length > 0 && <div className="text-caption">{item.options.map((o) => o.value).join(" / ")}</div>}
+      <div className="text-caption text-muted">
         {item.supplierName}, {item.supplierSku ?? "no supplier SKU"}
       </div>
     </div>
@@ -39,7 +39,7 @@ export function ItemDescription({ item }: { item: Pick<OrderItem, "title" | "sup
 export function RequestTable({ items }: { items: OrderItem[] }) {
   const { subtotal } = quoteTotals(items, 0);
   return (
-    <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+    <div className="overflow-x-auto card-surface">
       <table className="w-full text-sm">
         <thead className="bg-subtle text-muted">
           <tr>
@@ -79,7 +79,7 @@ function ProgressNote({ progress }: { progress?: LineFacts }) {
   const stage = lineStatus(progress);
   if (stage === "to_order") return null;
   return (
-    <div className="mt-1 text-xs text-success">
+    <div className="mt-1 text-caption text-success">
       {LINE_LABELS[stage]}
       {progress.delivered > 0 && stage !== "delivered" && `, נמסרו ${progress.delivered} מתוך ${progress.quoted}`}
     </div>
@@ -111,7 +111,7 @@ export function QuoteTable({
   const shippingChanged = previous && previous.shippingIls !== quote.shippingIls;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+    <div className="overflow-x-auto card-surface">
       <table className="w-full text-sm">
         <thead className="bg-subtle text-muted">
           <tr>
@@ -133,15 +133,15 @@ export function QuoteTable({
               <tr key={line.itemId} className={`border-t border-line align-top ${line.qty === 0 ? "opacity-60" : ""}`}>
                 <td className="p-3">
                   <ItemDescription item={item} />
-                  {line.changeReason && <div className="mt-1 text-xs text-warning">סיבת השינוי: {line.changeReason}</div>}
+                  {line.changeReason && <div className="mt-1 text-caption text-warning">סיבת השינוי: {line.changeReason}</div>}
                   <ProgressNote progress={progress?.get(line.itemId)} />
                 </td>
                 <td className="p-3">
-                  {qtyBefore !== undefined && <s className="me-1 text-xs text-muted">{qtyBefore}</s>}
+                  {qtyBefore !== undefined && <s className="me-1 text-caption text-muted">{qtyBefore}</s>}
                   <span className={qtyBefore !== undefined ? "font-semibold text-warning" : ""}>{line.qty}</span>
                 </td>
                 <td className="whitespace-nowrap p-3">
-                  {priceBefore !== undefined && <s className="me-1 text-xs text-muted">{formatIls(priceBefore)}</s>}
+                  {priceBefore !== undefined && <s className="me-1 text-caption text-muted">{formatIls(priceBefore)}</s>}
                   <span className={priceBefore !== undefined ? "font-semibold text-warning" : ""}>
                     {formatIls(line.unitPriceIls)}
                   </span>
@@ -163,7 +163,7 @@ export function QuoteTable({
               משלוח בישראל
             </td>
             <td className="whitespace-nowrap p-3">
-              {shippingChanged && <s className="me-1 text-xs text-muted">{formatIls(previous.shippingIls)}</s>}
+              {shippingChanged && <s className="me-1 text-caption text-muted">{formatIls(previous.shippingIls)}</s>}
               <span className={shippingChanged ? "font-semibold text-warning" : ""}>{formatIls(quote.shippingIls)}</span>
             </td>
           </tr>

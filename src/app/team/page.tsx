@@ -48,7 +48,7 @@ async function Team() {
         {details.name}, <Ltr>{`${details.program} ${details.number}`}</Ltr>
       </p>
 
-      <ActionForm action={updateTeamDetails} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+      <ActionForm action={updateTeamDetails} className="flex flex-col gap-3 card-surface p-4">
         <h2 className="font-semibold">פרטי הקבוצה</h2>
         <Field label="שם הקבוצה" name="name">
           <Input name="name" required defaultValue={details.name} />
@@ -67,12 +67,12 @@ async function Team() {
         <Field label="כתובת למשלוח" name="address">
           <Input name="address" defaultValue={details.address ?? ""} />
         </Field>
-        <Button variant="ghost" className="self-start">
+        <Button variant="secondary" className="self-start">
           שמירה
         </Button>
       </ActionForm>
 
-      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+      <section className="flex flex-col gap-3 card-surface p-4">
         <h2 className="font-semibold">כתובות כניסה</h2>
         <p className="text-sm text-muted">
           כל כתובת בחשבון הקבוצה יכולה להזמין, לשלוח בקשות, לאשר הצעות ולנהל את החשבון. אפשר כתובת משותפת אחת או כמה.
@@ -128,7 +128,7 @@ async function Team() {
 export default function TeamPage() {
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">חשבון הקבוצה</h1>
+      <h1 className="mb-6 text-title font-semibold">חשבון הקבוצה</h1>
       <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Team />
       </Suspense>

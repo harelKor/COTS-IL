@@ -38,7 +38,7 @@ async function SyncStatus() {
               className={`rounded-lg border bg-surface p-3 text-sm ${stale || failed ? "border-warning" : "border-line"}`}
             >
               <div className="ltr font-medium">{row.supplierName}</div>
-              <div className="text-xs text-muted">
+              <div className="text-caption text-muted">
                 {row.lastSuccessAt ? (
                   <>
                     עודכן: <span className="ltr">{formatDateTime(row.lastSuccessAt)}</span>
@@ -47,8 +47,8 @@ async function SyncStatus() {
                   "עדיין לא עודכן"
                 )}
               </div>
-              {failed && <div className="text-xs text-warning">הריצה האחרונה נכשלה</div>}
-              {stale && <div className="text-xs text-warning">הזמינות מוצגת כלא מאומתת</div>}
+              {failed && <div className="text-caption text-warning">הריצה האחרונה נכשלה</div>}
+              {stale && <div className="text-caption text-warning">הזמינות מוצגת כלא מאומתת</div>}
             </li>
           );
         })}
@@ -87,7 +87,7 @@ async function TeamsTable() {
         ) : (
           <ul className="flex flex-col gap-3">
             {pending.map(({ team, emails }) => (
-              <li key={team.id} className="rounded-lg border border-line bg-surface p-4">
+              <li key={team.id} className="card-surface p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <div className="font-medium">
@@ -107,7 +107,7 @@ async function TeamsTable() {
                     <form action={reviewTeam}>
                       <input type="hidden" name="teamId" value={team.id} />
                       <input type="hidden" name="decision" value="active" />
-                      <Button>אישור</Button>
+                      <Button variant="secondary">אישור</Button>
                     </form>
                     <form action={reviewTeam} className="flex items-center gap-2">
                       <input type="hidden" name="teamId" value={team.id} />
@@ -115,9 +115,9 @@ async function TeamsTable() {
                       <input
                         name="reason"
                         placeholder="סיבת דחייה (לא חובה)"
-                        className="h-10 w-44 rounded-md border border-line bg-surface px-3 text-sm"
+                        className="h-11 w-44 rounded-xl border border-line bg-surface px-3 text-sm"
                       />
-                      <Button variant="ghost">דחייה</Button>
+                      <Button variant="danger">דחייה</Button>
                     </form>
                   </div>
                 </div>
@@ -129,7 +129,7 @@ async function TeamsTable() {
 
       <section>
         <h2 className="mb-3 font-semibold">כל הקבוצות</h2>
-        <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+        <div className="overflow-x-auto card-surface">
           <table className="w-full text-sm">
             <thead className="bg-subtle text-start text-muted">
               <tr>
@@ -154,7 +154,7 @@ async function TeamsTable() {
                     ))}
                   </td>
                   <td className="px-4 py-2">
-                    <span className={`rounded px-2 py-0.5 text-xs ${statusLabels[team.status].className}`}>
+                    <span className={`rounded px-2 py-0.5 text-caption ${statusLabels[team.status].className}`}>
                       {statusLabels[team.status].text}
                     </span>
                   </td>
@@ -171,7 +171,7 @@ async function TeamsTable() {
 export default function TeamsPage() {
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">קבוצות</h1>
+      <h1 className="mb-6 text-title font-semibold">קבוצות</h1>
       <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <TeamsTable />
       </Suspense>

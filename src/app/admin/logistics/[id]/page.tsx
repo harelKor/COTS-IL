@@ -1,3 +1,4 @@
+import { formatIls } from "@/domain/pricing";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,7 +16,7 @@ export const metadata: Metadata = { title: "משלוח" };
 
 const COST_LABELS = { customs: "מכס", freight: "הובלה", broker: "עמיל מכס", vat: "מע״מ יבוא" } as const;
 
-const smallInput = "h-9 rounded-md border border-line bg-surface px-2 text-sm";
+const smallInput = "h-11 rounded-xl border border-line bg-surface px-2 text-sm";
 
 async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
   await requireAdmin();
@@ -38,7 +39,7 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold">משלוח {shipment.number}</h1>
+        <h1 className="text-title font-semibold">משלוח {shipment.number}</h1>
         <p className="text-sm text-muted">
           <Link href={`/admin/purchasing/${po.id}`} className="hover:text-brand">
             הזמנת ספק {po.number}, <span className="ltr">{supplierName}</span>
@@ -53,7 +54,7 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
       </div>
 
       {open.length > 0 && (
-        <ActionForm action={receiveShipment} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+        <ActionForm action={receiveShipment} className="flex flex-col gap-3 card-surface p-4">
           <h2 className="font-semibold">קליטה</h2>
           <p className="text-sm text-muted">
             אפשר לקלוט חלק מהכמות. יחידות תקינות מוקצות אוטומטית להזמנות הוותיקות קודם, ואפשר לשנות את זה אחר כך.
@@ -63,11 +64,11 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
             <div key={item.poLineId} className="flex flex-col gap-2 border-t border-line pt-3">
               <div dir="ltr" className="text-start text-sm">
                 <div className="font-medium">{item.title}</div>
-                <div className="text-xs text-muted">
+                <div className="text-caption text-muted">
                   {[describeOptions(item.options), item.supplierSku ?? "no supplier SKU"].filter(Boolean).join(", ")}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-3 text-caption">
                 <span className="text-muted">יתרה במשלוח: {item.open}</span>
                 <label className="flex items-center gap-1">
                   התקבל
@@ -105,14 +106,14 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
       )}
 
       {receiptGroups.map(([receiptId, rows]) => (
-        <section key={receiptId} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+        <section key={receiptId} className="flex flex-col gap-3 card-surface p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-semibold">
               קליטה, <span className="ltr">{formatDateTime(rows[0].receivedAt)}</span>
             </h2>
             <ActionForm action={reverseReceipt}>
               <input type="hidden" name="receiptId" value={receiptId} />
-              <button className="text-xs text-danger hover:underline">ביטול הקליטה</button>
+              <button className="text-caption text-danger hover:underline">ביטול הקליטה</button>
             </ActionForm>
           </div>
           {rows[0].notes && <p className="text-sm">{rows[0].notes}</p>}
@@ -127,13 +128,13 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
                 <div dir="ltr" className="text-start text-sm font-medium">
                   {titleOf.get(row.poLineId)?.title}
                 </div>
-                <div className="flex flex-wrap gap-x-3 text-xs text-muted">
+                <div className="flex flex-wrap gap-x-3 text-caption text-muted">
                   <span>התקבל: {row.qtyReceived}</span>
                   {row.qtyDamaged > 0 && <span className="text-warning">פגומים: {row.qtyDamaged}</span>}
                   {row.location && <span>מיקום: {row.location}</span>}
                   {good > allocated && <span className="text-warning">לא הוקצו: {good - allocated}</span>}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs">
+                <div className="flex flex-wrap items-center gap-3 text-caption">
                   {lineShares.map((share) => {
                     const mine = here.find((a) => a.orderItemId === share.orderItemId);
                     return (
@@ -150,7 +151,7 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
                       </label>
                     );
                   })}
-                  <button className="h-9 rounded-md border border-line px-3 hover:bg-subtle">עדכון הקצאה</button>
+                  <button className="btn-soft min-h-11 rounded-full px-4">עדכון הקצאה</button>
                 </div>
               </ActionForm>
             );
@@ -158,7 +159,7 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
         </section>
       ))}
 
-      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+      <section className="flex flex-col gap-3 card-surface p-4">
         <h2 className="font-semibold">עלויות יבוא</h2>
         {costs.length > 0 && (
           <ul className="flex flex-col gap-1 text-sm">
@@ -166,21 +167,21 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
               <li key={cost.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-1">
                 <span>
                   {COST_LABELS[cost.type]}
-                  {cost.vatReclaimable && <span className="text-xs text-muted"> (בר קיזוז)</span>}
-                  {cost.reference && <span className="ltr text-xs text-muted"> {cost.reference}</span>}
+                  {cost.vatReclaimable && <span className="text-caption text-muted"> (בר קיזוז)</span>}
+                  {cost.reference && <span className="ltr text-caption text-muted"> {cost.reference}</span>}
                 </span>
                 <span className="flex items-center gap-3">
-                  ₪{Number(cost.amountIls).toLocaleString("he-IL")}
+                  {formatIls(Number(cost.amountIls))}
                   <form action={removeImportCost}>
                     <input type="hidden" name="id" value={cost.id} />
-                    <button className="text-xs text-danger hover:underline">הסרה</button>
+                    <button className="text-caption text-danger hover:underline">הסרה</button>
                   </form>
                 </span>
               </li>
             ))}
             <li className="flex justify-between pt-1 font-semibold">
               <span>סה״כ</span>
-              <span>₪{costTotal.toLocaleString("he-IL")}</span>
+              <span>{formatIls(costTotal)}</span>
             </li>
           </ul>
         )}
@@ -207,7 +208,7 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
             <input type="checkbox" name="vatReclaimable" />
             מע״מ בר קיזוז (לא נספר כעלות ברווחיות)
           </label>
-          <Button variant="ghost" className="self-start">
+          <Button variant="secondary" className="self-start">
             הוספת עלות
           </Button>
         </ActionForm>

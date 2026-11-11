@@ -47,7 +47,7 @@ async function Approval({ params }: PageProps<"/q/[token]">) {
         {link.lines.map((l, i) => (
           <li key={i} className="flex items-center gap-3 border-b border-line py-3 last:border-b-0">
             <span className="min-w-0 flex-1">
-              <Ltr className="line-clamp-2 text-start text-[15px]">{l.title}</Ltr>
+              <Ltr className="line-clamp-2 text-start text-callout">{l.title}</Ltr>
               {l.supplierSku && <Ltr className="block font-mono text-caption text-muted">{l.supplierSku}</Ltr>}
             </span>
             <span className="shrink-0 text-caption text-muted tabular-nums">×{l.qty}</span>

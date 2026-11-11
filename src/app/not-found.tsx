@@ -29,7 +29,7 @@ export default function NotFound() {
         />
         <button className="h-12 rounded-full bg-brand px-6 text-white hover:bg-brand-strong">חיפוש</button>
       </Form>
-      <Link href="/catalog" className="flex h-11 items-center rounded-full bg-surface px-5 text-[15px] shadow-lift">
+      <Link href="/catalog" className="flex h-11 items-center rounded-full bg-surface px-5 text-callout shadow-lift">
         לכל הקטלוג
       </Link>
       <Link href="/" className="text-brand hover:underline">

@@ -23,8 +23,8 @@ import { formatAddress, missingAddressParts, parseAddress, type AddressParts } f
 const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
 
 const primary =
-  "flex h-11 w-full items-center justify-center gap-2 rounded-full bg-brand px-6 font-medium text-white transition-colors hover:bg-brand-strong disabled:opacity-60";
-const field = "h-11 w-full rounded-xl bg-subtle px-4 text-[15px] outline-none focus:ring-2 focus:ring-brand";
+  "flex h-11 w-full items-center justify-center gap-2 rounded-full btn-brand px-6 font-semibold disabled:opacity-60";
+const field = "h-11 w-full rounded-xl bg-subtle px-4 text-callout outline-none focus:ring-2 focus:ring-brand";
 
 /** "X: היה 2, עכשיו 3, Y נוסף (1), Z הוסר" for the stale-cart message (words, since arrows flip next to English titles). */
 function describeChanges(changes: CartChange[], lines: CartSheetLine[]) {
@@ -81,7 +81,7 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <Link href={line.href} onClick={onNavigate} className="hover:text-brand">
-            <Ltr className="line-clamp-2 text-start text-[15px] font-medium">{line.title}</Ltr>
+            <Ltr className="line-clamp-2 text-start text-callout font-medium">{line.title}</Ltr>
           </Link>
           <span className="truncate text-caption text-muted">
             <Ltr>{[line.options, line.sku].filter(Boolean).join(", ")}</Ltr>
@@ -117,7 +117,7 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
                     </button>
                   )}
                 </div>
-                <span className="flex flex-col items-end text-[15px] font-semibold tabular-nums">
+                <span className="flex flex-col items-end text-callout font-semibold tabular-nums">
                   {line.unitPriceIls === null ? <span className="text-caption font-normal text-muted">אין מחיר</span> : formatIls(line.unitPriceIls * line.qty)}
                   {line.unitPriceIls !== null && line.qty > 1 && <span className="text-caption font-normal text-muted">{formatIls(line.unitPriceIls)} ליח׳</span>}
                 </span>
@@ -205,7 +205,7 @@ function TeamSend({
                 type="button"
                 aria-pressed={changes.deliveryMethod === m}
                 onClick={() => setChanges({ ...changes, deliveryMethod: m })}
-                className={`h-11 flex-1 rounded-full text-[15px] ${changes.deliveryMethod === m ? "bg-foreground text-background" : "bg-subtle"}`}
+                className={`h-11 flex-1 rounded-full text-callout ${changes.deliveryMethod === m ? "bg-brand text-white" : "bg-subtle"}`}
               >
                 {m === "pickup" ? "איסוף עצמי" : "משלוח לקבוצה"}
               </button>
@@ -227,7 +227,7 @@ function TeamSend({
           </div>
           {err("contactName")}
           {err("contactPhone")}
-          <textarea className="rounded-xl bg-subtle p-3 text-[15px] outline-none focus:ring-2 focus:ring-brand" rows={2} placeholder="הערות לספק הישראלי (לא חובה)" aria-label="הערות" value={changes.notes} onChange={(e) => setChanges({ ...changes, notes: e.target.value })} />
+          <textarea className="rounded-xl bg-subtle p-3 text-callout outline-none focus:ring-2 focus:ring-brand" rows={2} placeholder="הערות לספק הישראלי (לא חובה)" aria-label="הערות" value={changes.notes} onChange={(e) => setChanges({ ...changes, notes: e.target.value })} />
         </div>
       ) : (
         <button type="button" onClick={() => setEditing(true)} className="flex min-h-11 items-center justify-between gap-2 rounded-xl bg-subtle px-4 text-start text-caption">
@@ -254,7 +254,7 @@ export function SignInStep({ google, next: to, intro = "כדי לשלוח צרי
 
   if (sent) {
     return (
-      <div className="flex flex-col gap-2 rounded-xl bg-subtle p-4 text-[15px]">
+      <div className="flex flex-col gap-2 rounded-xl bg-subtle p-4 text-callout">
         <span className="flex items-center gap-2 font-semibold">
           <Check size={18} aria-hidden /> שלחנו קישור כניסה
         </span>
@@ -290,7 +290,7 @@ export function SignInStep({ google, next: to, intro = "כדי לשלוח צרי
         <button
           type="button"
           onClick={() => startTransition(() => signInWithGoogle(next))}
-          className="flex h-11 w-full items-center justify-center rounded-full bg-surface text-[15px] font-medium shadow-[inset_0_0_0_1px_var(--line)] hover:bg-subtle"
+          className="flex h-11 w-full items-center justify-center rounded-full bg-surface text-callout font-medium shadow-[inset_0_0_0_1px_var(--line)] hover:bg-subtle"
         >
           המשך עם Google
         </button>
@@ -342,7 +342,7 @@ export function TeamStep() {
               setProgram(p);
               void lookUp(number, p);
             }}
-            className={`h-11 flex-1 rounded-full text-[15px] ${program === p ? "bg-foreground text-background" : "bg-subtle"}`}
+            className={`h-11 flex-1 rounded-full text-callout ${program === p ? "bg-brand text-white" : "bg-subtle"}`}
           >
             <Ltr>{p}</Ltr>
           </button>
@@ -475,11 +475,11 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
             לצפייה בבקשה
           </Link>
           {onContinue ? (
-            <button type="button" onClick={onContinue} className="flex h-11 items-center justify-center rounded-full text-[15px] font-medium text-brand hover:bg-subtle">
+            <button type="button" onClick={onContinue} className="flex h-11 items-center justify-center rounded-full text-callout font-medium text-brand hover:bg-subtle">
               המשך קנייה
             </button>
           ) : (
-            <Link href="/catalog" className="flex h-11 items-center justify-center rounded-full text-[15px] font-medium text-brand hover:bg-subtle">
+            <Link href="/catalog" className="flex h-11 items-center justify-center rounded-full text-callout font-medium text-brand hover:bg-subtle">
               המשך קנייה
             </Link>
           )}
@@ -496,7 +496,7 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
         <Link
           href="/catalog"
           onClick={onNavigate}
-          className="flex h-11 items-center rounded-full border border-line bg-white/90 px-5 text-[15px] font-medium text-brand shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle"
+          className="flex h-11 items-center rounded-full border border-line bg-white/90 px-5 text-callout font-medium text-brand shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle"
         >
           לקטלוג
         </Link>
@@ -553,7 +553,7 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
             סה״כ משוער
             <ChevronDown size={14} aria-hidden className={`transition-transform ${costOpen ? "rotate-180" : ""}`} />
           </span>
-          <span className="text-section font-semibold tabular-nums">{formatIls(totalIls)}</span>
+          <span aria-live="polite" className="text-section font-semibold tabular-nums">{formatIls(totalIls)}</span>
         </button>
         {costOpen && (
           <dl className="flex flex-col gap-1 rounded-xl bg-subtle p-3 text-caption">

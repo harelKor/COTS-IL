@@ -261,7 +261,7 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
         {specs.length > 0 && (
           <section className="flex flex-col gap-3">
             <h2 className="text-section font-semibold">מפרט</h2>
-            <dl className="divide-y divide-line rounded-card bg-surface text-[15px]">
+            <dl className="divide-y divide-line rounded-card bg-surface text-callout">
               {specs.map((s) => (
                 <div key={s.key} className="flex justify-between gap-4 px-4 py-3">
                   <dt className="text-muted">{/[a-z]/i.test(optionLabel(s.key)) ? <Ltr>{optionLabel(s.key)}</Ltr> : optionLabel(s.key)}</dt>
@@ -275,7 +275,7 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
         )}
         <section className="flex flex-col gap-3">
           <h2 className="text-section font-semibold">תיעוד</h2>
-          <ul className="flex flex-col divide-y divide-line rounded-card bg-surface text-[15px]">
+          <ul className="flex flex-col divide-y divide-line rounded-card bg-surface text-callout">
             {docs.map((d) => (
               <li key={d.href}>
                 <a href={d.href} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center px-4 py-2 text-brand hover:underline">
@@ -301,13 +301,13 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
           <h2 className="text-section font-semibold">תיאור כללי של הספק</h2>
           {/* Sanitized at sync, then cleaned of the supplier's promos, prices and contacts. */}
           <div className="flex flex-col rounded-card bg-surface p-6">
-            <div dir="ltr" className="rich-text text-[15px]" dangerouslySetInnerHTML={{ __html: description.lead }} />
+            <div dir="ltr" className="rich-text text-callout" dangerouslySetInnerHTML={{ __html: description.lead }} />
             {description.more && (
               <details className="group">
                 <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 text-brand hover:text-brand-strong group-open:hidden">
                   קראו עוד <ChevronDown size={16} aria-hidden />
                 </summary>
-                <div dir="ltr" className="rich-text pt-3 text-[15px]" dangerouslySetInnerHTML={{ __html: description.more }} />
+                <div dir="ltr" className="rich-text pt-3 text-callout" dangerouslySetInnerHTML={{ __html: description.more }} />
               </details>
             )}
           </div>

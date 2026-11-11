@@ -42,7 +42,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function OrderBadge({ id, number, label }: { id: string; number: number; label: string }) {
   return (
-    <Link href={`/admin?open=${id}`} className="inline-flex min-h-8 items-center rounded-full bg-brand-soft px-3 text-xs font-medium text-brand-strong">
+    <Link href={`/admin?open=${id}`} className="inline-flex min-h-11 items-center rounded-full bg-brand-soft px-3 text-caption font-medium text-brand-strong">
       <Ltr>{`${label} #${number}`}</Ltr>
     </Link>
   );
@@ -213,9 +213,9 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
               <li key={l.orderItemId} className="flex flex-col gap-1 border-t border-line py-3 first:border-t-0">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <ItemDescription item={item} />
-                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${LINE_STYLE[stage]}`}>{LINE_LABELS[stage]}</span>
+                  <span className={`rounded-full px-3 py-1 text-caption font-medium ${LINE_STYLE[stage]}`}>{LINE_LABELS[stage]}</span>
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-muted">
                   <span>כמות {l.quoted}</span>
                   {onPos.length === 0 && <span>עדיין לא בהזמנת ספק</span>}
                   {onPos.map((p) => (
@@ -273,7 +273,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
                   {v.waiting.map((id) => (
                     <input key={id} type="hidden" name="orderItemId" value={id} />
                   ))}
-                  <Button variant="ghost">הוספה להזמנת ספק</Button>
+                  <Button variant="secondary">הוספה להזמנת ספק</Button>
                 </ActionForm>
               )}
             </Section>
@@ -325,7 +325,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
                 return (
                   <li key={r.allocationId} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-2 first:border-t-0">
                     <ItemDescription item={item} />
-                    <label className="flex items-center gap-2 text-xs">
+                    <label className="flex items-center gap-2 text-caption">
                       למסירה (עד {left})
                       <input name={`qty:${r.allocationId}`} type="number" min={0} max={left} defaultValue={left} className="h-11 w-20 rounded-full border border-line bg-surface px-3 text-base" />
                     </label>

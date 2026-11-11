@@ -16,7 +16,8 @@ export const openCart = () => window.dispatchEvent(new Event("cart:open"));
  */
 export function CartButton() {
   const { mode, lines } = useCart();
-  if (mode !== "loading" && !canEditCart(mode)) return null;
+  // The slot stays, so the header doesn't jump when an admin's header finishes loading.
+  if (mode !== "loading" && !canEditCart(mode)) return <span className="size-11 shrink-0" aria-hidden />;
   const { count } = cartTotals(lines);
   return (
     <button
@@ -27,7 +28,7 @@ export function CartButton() {
     >
       <ShoppingBag size={20} strokeWidth={1.75} aria-hidden />
       {count > 0 && (
-        <span className="absolute -end-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[11px] font-semibold text-white tabular-nums ring-2 ring-white">
+        <span className="absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-caption font-semibold text-white tabular-nums ring-2 ring-white">
           {count > 99 ? "99+" : count}
         </span>
       )}
@@ -82,11 +83,11 @@ export function CartPill() {
           className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-12 w-max items-center gap-3 rounded-full bg-foreground ps-5 pe-6 text-background shadow-lift transition-transform duration-300 ease-spring starting:scale-75 active:scale-95 md:inset-x-auto md:end-8 md:bottom-8 md:mx-0 print:hidden"
         >
           <ShoppingBag size={20} strokeWidth={1.75} aria-hidden />
-          <span className="text-[15px] font-medium">
-            סל <span className="rounded-full bg-background/20 px-2 py-0.5 text-[13px] tabular-nums">{count}</span>
+          <span className="text-callout font-medium">
+            סל <span className="rounded-full bg-background/20 px-2 py-0.5 text-caption tabular-nums">{count}</span>
           </span>
           <span className="h-4 w-px bg-current opacity-30" aria-hidden />
-          <span className="text-[15px] font-semibold tabular-nums">{formatIls(totalIls)}</span>
+          <span className="text-callout font-semibold tabular-nums">{formatIls(totalIls)}</span>
         </button>
       )}
 

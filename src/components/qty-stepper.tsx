@@ -51,10 +51,10 @@ export function QtyStepper({ variantId, qty, label, size = "md" }: { variantId: 
               e.currentTarget.blur();
             }
           }}
-          className="h-11 w-12 bg-transparent text-center text-[15px] font-medium tabular-nums outline-none focus:rounded-lg focus:bg-surface focus:ring-2 focus:ring-brand"
+          className="h-11 w-12 bg-transparent text-center text-callout font-medium tabular-nums outline-none focus:rounded-lg focus:bg-surface focus:ring-2 focus:ring-brand"
         />
       ) : (
-        <span className="min-w-6 text-center text-[15px] font-medium tabular-nums" aria-live="polite">
+        <span className="min-w-6 text-center text-callout font-medium tabular-nums" aria-live="polite">
           {qty}
         </span>
       )}

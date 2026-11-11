@@ -22,7 +22,7 @@ export function ReorderButton({ orderId, className = "" }: { orderId: string; cl
           if (added > 0) window.dispatchEvent(new Event("cart:open"));
         })
       }
-      className={`flex min-h-11 items-center gap-2 rounded-full bg-subtle px-4 text-[15px] hover:bg-line/60 disabled:opacity-60 ${className}`}
+      className={`flex min-h-11 items-center gap-2 rounded-full bg-subtle px-4 text-callout hover:bg-line/60 disabled:opacity-60 ${className}`}
     >
       <RotateCcw size={16} strokeWidth={1.75} aria-hidden />
       {pending ? "מוסיף…" : "הזמנה חוזרת"}

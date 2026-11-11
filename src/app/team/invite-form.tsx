@@ -21,7 +21,7 @@ export function InviteForm() {
             value={state.link}
             aria-label="קישור הזמנה"
             onFocus={(e) => e.currentTarget.select()}
-            className="h-9 rounded-md border border-line bg-subtle px-2 font-mono text-xs"
+            className="h-11 rounded-xl border border-line bg-subtle px-3 font-mono text-caption"
           />
         </div>
       )}

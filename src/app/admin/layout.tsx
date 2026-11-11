@@ -57,7 +57,7 @@ async function Badge({ kind }: { kind: "orders" | "vendor" }) {
   const count = (await waitingCounts())[kind];
   if (count <= 0) return null;
   return (
-    <span className="rounded-full bg-brand px-2 py-0.5 text-xs font-semibold text-white tabular-nums">{count}</span>
+    <span className="rounded-full bg-brand px-2 py-0.5 text-caption font-semibold text-white tabular-nums">{count}</span>
   );
 }
 

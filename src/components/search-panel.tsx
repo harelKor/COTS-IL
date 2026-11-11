@@ -268,7 +268,7 @@ export function SearchPanel() {
           חיפוש מוצר או מק״ט
         </span>
         <kbd
-          className="hidden font-sans text-[11px] text-muted sm:inline"
+          className="hidden font-sans text-caption text-muted sm:inline"
           dir="ltr"
         >
           {shortcut}
@@ -374,7 +374,7 @@ export function SearchPanel() {
                         className="flex min-h-11 items-center gap-3 rounded-xl p-1 hover:bg-subtle"
                       >
                         <CategoryIcon slug={c.slug} />
-                        <span className="text-[15px]">{c.name}</span>
+                        <span className="text-callout">{c.name}</span>
                       </Link>
                     </li>
                   ))}
@@ -432,7 +432,7 @@ export function SearchPanel() {
                           )}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <Ltr className="block truncate text-start text-[15px] font-medium">
+                          <Ltr className="block truncate text-start text-callout font-medium">
                             {r.title}
                           </Ltr>
                           <span className="block truncate text-caption text-muted">
@@ -447,7 +447,7 @@ export function SearchPanel() {
                               `, ${r.variantCount} אפשרויות`}
                           </span>
                         </span>
-                        <span className="shrink-0 text-[15px] font-semibold">
+                        <span className="shrink-0 text-callout font-semibold">
                           {r.priceIls === null ? (
                             <span className="text-caption font-normal text-muted">
                               ייבדק בהצעה

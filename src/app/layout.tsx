@@ -40,8 +40,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col font-sans">
         {/* Before hydration, so the browser's install prompt isn't missed (src/components/install-app.tsx). */}
         <script dangerouslySetInnerHTML={{ __html: CAPTURE_INSTALL_PROMPT }} />
+        <a href="#main" className="skip-link">
+          דילוג לתוכן
+        </a>
         <SiteHeader />
-        <main className="mx-auto w-full max-w-[1200px] flex-1 px-6 pt-8 pb-16 md:px-12">{children}</main>
+        <main id="main" tabIndex={-1} className="mx-auto outline-none w-full max-w-[1200px] flex-1 px-6 pt-8 pb-16 md:px-12">{children}</main>
         {/* Reads the path, so it waits in Suspense (cacheComponents). */}
         <Suspense>
           <FooterGate>

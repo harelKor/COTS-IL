@@ -40,7 +40,7 @@ async function Results({ q }: { q: string }) {
   const rows = await search(q);
   if (rows.length === 0) return <p className="text-sm text-muted">לא נמצאה משפחה.</p>;
   return (
-    <ul className="divide-y divide-line rounded-card border border-line bg-surface text-sm">
+    <ul className="divide-y divide-line card-surface text-sm">
       {rows.map((r) => (
         <li key={r.slug}>
           <Link href={`/admin/catalog?family=${encodeURIComponent(r.slug)}`} className="flex min-h-11 flex-wrap items-center justify-between gap-2 p-3 hover:bg-subtle">
@@ -213,7 +213,7 @@ async function ActiveOverrides() {
      ORDER BY updated_at DESC`);
   if (rows.length === 0) return <p className="text-sm text-muted">אין עדיין תיקונים. חפשו משפחה כדי להתחיל.</p>;
   return (
-    <ul className="divide-y divide-line rounded-card border border-line bg-surface text-sm">
+    <ul className="divide-y divide-line card-surface text-sm">
       {rows.map((r) => (
         <li key={`${r.kind}-${r.id}`} className="flex flex-wrap items-center justify-between gap-2 p-3">
           <div className="flex min-w-0 flex-col">
@@ -266,7 +266,7 @@ async function MultiSupplier() {
         <p className="text-sm text-muted">משפחות שהמוצרים בהן לא חולקים שם, שאותו מק״ט עולה בהן סכום שונה מאוד, או שהספקים מתייקים אחרת. אם זה לא אותו חלק: פתחו ובחרו ״הפרדה למשפחה נפרדת״.</p>
       </div>
       {flagged.length > 0 && (
-        <ul className="divide-y divide-line rounded-card border border-line bg-surface text-sm">
+        <ul className="divide-y divide-line card-surface text-sm">
           {flagged.map((f) => (
             <li key={f.slug}>
               <Link href={`/admin/catalog?family=${encodeURIComponent(f.slug)}`} className="flex min-h-11 flex-col gap-1 p-3 hover:bg-subtle">

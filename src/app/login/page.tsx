@@ -30,8 +30,8 @@ async function LoginContent({ searchParams }: PageProps<"/login">) {
 export default function LoginPage(props: PageProps<"/login">) {
   return (
     <div className="mx-auto max-w-sm">
-      <h1 className="mb-6 text-2xl font-bold">כניסה</h1>
-      <div className="rounded-lg border border-line bg-surface p-6">
+      <h1 className="mb-6 text-title font-semibold">כניסה</h1>
+      <div className="card-surface p-6">
         <Suspense>
           <LoginContent {...props} />
         </Suspense>

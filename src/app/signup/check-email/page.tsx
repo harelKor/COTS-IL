@@ -13,8 +13,8 @@ async function NextStep({ searchParams }: PageProps<"/signup/check-email">) {
 
 export default function CheckEmailPage(props: PageProps<"/signup/check-email">) {
   return (
-    <div className="mx-auto max-w-md rounded-lg border border-line bg-surface p-6">
-      <h1 className="mb-3 text-xl font-bold">בדקו את תיבת הדואר</h1>
+    <div className="mx-auto max-w-md card-surface p-6">
+      <h1 className="mb-3 text-xl font-semibold">בדקו את תיבת הדואר</h1>
       <p className="text-muted">
         שלחנו קישור אימות לכתובת{" "}
         <Suspense>

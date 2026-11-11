@@ -88,7 +88,7 @@ export function ZeroResults({ q, suggestions, onSuggest, onNavigate }: Props) {
                 className="flex min-h-11 items-center gap-3 rounded-xl p-1 hover:bg-subtle"
               >
                 <CategoryIcon slug={c.slug} />
-                <span className="text-[15px]">{c.name}</span>
+                <span className="text-callout">{c.name}</span>
               </Link>
             </li>
           ))}

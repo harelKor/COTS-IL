@@ -39,7 +39,7 @@ async function Orders() {
           <Link href={`/orders/${order.id}`} className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3 hover:text-brand">
             <div>
               <div className="font-medium">הזמנה {order.number}</div>
-              <div className="text-xs text-muted">
+              <div className="text-caption text-muted">
                 {formatDateTime(order.submittedAt)}, {order.lineCount} שורות
               </div>
             </div>
@@ -58,7 +58,7 @@ async function Orders() {
 export default function OrdersPage() {
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">ההזמנות שלנו</h1>
+      <h1 className="mb-6 text-title font-semibold">ההזמנות שלנו</h1>
       <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Orders />
       </Suspense>

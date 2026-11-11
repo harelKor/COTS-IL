@@ -19,7 +19,7 @@ function TeamBoard({ rows }: { rows: Ready[] }) {
   const [first] = rows;
   const shipping = rows.find((r) => r.deliveryMethod === "ship");
   return (
-    <ActionForm action={createDelivery} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+    <ActionForm action={createDelivery} className="flex flex-col gap-3 card-surface p-4">
       <h3 className="font-semibold">
         <TeamName team={{ name: first.teamName, program: first.teamProgram, number: first.teamNumber }} />
       </h3>
@@ -31,13 +31,13 @@ function TeamBoard({ rows }: { rows: Ready[] }) {
             <li key={row.allocationId} className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-2">
               <div dir="ltr" className="min-w-48 flex-1 text-start text-sm">
                 <div className="font-medium">{row.title}</div>
-                <div className="text-xs text-muted">
+                <div className="text-caption text-muted">
                   {[describeOptions(row.options), row.supplierSku ?? "no supplier SKU", `#${row.orderNumber}`, row.location]
                     .filter(Boolean)
                     .join(", ")}
                 </div>
               </div>
-              <label className="flex items-center gap-1 text-xs">
+              <label className="flex items-center gap-1 text-caption">
                 למסירה (עד {available})
                 <input
                   name={`qty:${row.allocationId}`}
@@ -45,7 +45,7 @@ function TeamBoard({ rows }: { rows: Ready[] }) {
                   min={0}
                   max={available}
                   defaultValue={available}
-                  className="h-9 w-20 rounded-md border border-line bg-surface px-2 text-sm"
+                  className="h-11 w-20 rounded-xl border border-line bg-surface px-2 text-sm"
                 />
               </label>
             </li>
@@ -91,7 +91,7 @@ async function Deliveries() {
         {list.length === 0 ? (
           <p className="text-muted">עדיין אין תעודות.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+          <div className="overflow-x-auto card-surface">
             <table className="w-full text-sm">
               <thead className="bg-subtle text-muted">
                 <tr>
@@ -131,7 +131,7 @@ export default function DeliveriesPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">מסירות</h1>
+        <h1 className="text-title font-semibold">מסירות</h1>
         <Link href="/admin" className="text-sm text-brand hover:underline">
           לניהול
         </Link>

@@ -45,8 +45,8 @@ const SORT_LABELS: Record<Sort, string> = {
 const PROGRAMS = ["", "FRC", "FTC"] as const;
 
 const chip = (on: boolean) =>
-  `flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-[15px] transition-colors ${
-    on ? "bg-foreground text-background" : "bg-surface text-foreground shadow-[inset_0_0_0_1px_var(--line)] hover:bg-subtle"
+  `flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-callout transition-colors ${
+    on ? "bg-brand text-white" : "bg-surface text-foreground shadow-[inset_0_0_0_1px_var(--line)] hover:bg-subtle"
   }`;
 
 /** An on/off switch; the whole row is the tap target. */
@@ -57,7 +57,7 @@ function Toggle({ on, onChange, children }: { on: boolean; onChange: (on: boolea
       role="switch"
       aria-checked={on}
       onClick={() => onChange(!on)}
-      className="flex min-h-11 w-full items-center justify-between gap-3 text-start text-[15px]"
+      className="flex min-h-11 w-full items-center justify-between gap-3 text-start text-callout"
     >
       {children}
       <span className={`relative h-[26px] w-[44px] shrink-0 rounded-full transition-colors duration-200 ${on ? "bg-success" : "bg-line"}`} aria-hidden>
@@ -81,7 +81,7 @@ function ProgramControl({ value, onChange }: { value: CatalogFilters["program"];
           type="button"
           aria-pressed={value === p}
           onClick={() => onChange(p)}
-          className={`h-10 rounded-full text-caption font-medium transition-colors ${
+          className={`h-11 rounded-full text-caption font-medium transition-colors ${
             value === p ? "bg-surface text-foreground shadow-sm" : "text-muted hover:text-foreground"
           }`}
         >
@@ -98,7 +98,7 @@ function SortSelect({ value, onChange }: { value: Sort; onChange: (s: Sort) => v
       value={value}
       onChange={(e) => onChange(e.target.value as Sort)}
       aria-label="מיון"
-      className="h-11 w-full rounded-xl bg-subtle px-3 text-[15px] outline-none focus:ring-2 focus:ring-brand"
+      className="h-11 w-full rounded-xl bg-subtle px-3 text-callout outline-none focus:ring-2 focus:ring-brand"
     >
       {(Object.keys(SORT_LABELS) as Sort[]).map((s) => (
         <option key={s} value={s}>
@@ -112,7 +112,7 @@ function SortSelect({ value, onChange }: { value: Sort; onChange: (s: Sort) => v
 /** Suppliers as a list with their product counts; the chosen one is ticked, and a second tap clears it. */
 function SupplierList({ suppliers, value, onChange }: { suppliers: Supplier[]; value: string; onChange: (code: string) => void }) {
   const row = (on: boolean) =>
-    `flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 text-start text-[15px] transition-colors ${
+    `flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 text-start text-callout transition-colors ${
       on ? "bg-subtle font-medium" : "hover:bg-subtle"
     }`;
   return (
@@ -161,9 +161,9 @@ function FacetValues({ facet, chosen, onToggle, large = false }: { facet: SpecFa
             aria-pressed={on}
             disabled={empty}
             onClick={() => onToggle(v.value)}
-            className={`flex items-center gap-1.5 rounded-full px-3 transition-colors ${large ? "min-h-11 text-[15px]" : "min-h-9 text-caption"} ${
+            className={`flex items-center gap-1.5 rounded-full px-3 transition-colors ${large ? "min-h-11 text-callout" : "min-h-11 text-caption"} ${
               on
-                ? "bg-foreground text-background"
+                ? "bg-brand text-white"
                 : empty
                   ? "bg-subtle text-muted opacity-50"
                   : large
@@ -172,7 +172,7 @@ function FacetValues({ facet, chosen, onToggle, large = false }: { facet: SpecFa
             }`}
           >
             <Ltr>{v.value}</Ltr>
-            <span className={`text-[12px] tabular-nums ${on ? "text-background/70" : "text-muted"}`}>{v.count.toLocaleString("he-IL")}</span>
+            <span className={`text-caption tabular-nums ${on ? "text-background/70" : "text-muted"}`}>{v.count.toLocaleString("he-IL")}</span>
           </button>
         );
       })}
@@ -181,7 +181,7 @@ function FacetValues({ facet, chosen, onToggle, large = false }: { facet: SpecFa
 }
 
 const moreButton =
-  "flex h-11 items-center rounded-full border border-line bg-white px-6 text-[15px] font-medium text-foreground shadow-card hover:border-brand/40 hover:text-brand disabled:opacity-60";
+  "flex h-11 items-center rounded-full border border-line bg-white px-6 text-callout font-medium text-foreground shadow-card hover:border-brand/40 hover:text-brand disabled:opacity-60";
 
 const sidebarHeading = "mb-2 text-caption font-semibold text-muted";
 
@@ -336,7 +336,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                     type="button"
                     popoverTarget={id}
                     popoverTargetAction="hide"
-                    className="mt-4 flex h-11 w-full items-center justify-center rounded-full bg-brand font-medium text-white"
+                    className="mt-4 flex h-11 w-full items-center justify-center rounded-full btn-brand font-semibold"
                   >
                     הצגת {total.toLocaleString("he-IL")} מוצרים
                   </button>
@@ -357,7 +357,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
         {active.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             {active.map((a, i) => (
-              <button key={i} type="button" onClick={() => go(a.clear)} className="flex min-h-9 items-center gap-1 rounded-full bg-subtle ps-3 pe-2 text-caption">
+              <button key={i} type="button" onClick={() => go(a.clear)} className="flex min-h-11 items-center gap-1 rounded-full bg-subtle ps-3 pe-2 text-caption">
                 {a.label}
                 <X size={14} aria-label="הסרה" />
               </button>
@@ -366,7 +366,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
               <button
                 type="button"
                 onClick={() => go({ ...filters, q: "", supplier: "", program: "", availableOnly: false, specs: {} })}
-                className="min-h-9 px-2 text-caption text-brand hover:underline"
+                className="min-h-11 px-2 text-caption text-brand hover:underline"
               >
                 נקה הכל
               </button>
@@ -390,7 +390,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                 type="button"
                 aria-pressed={filters.view === view}
                 onClick={() => startTransition(() => router.replace(catalogHref({ ...filters, view, page: pages }), { scroll: false }))}
-                className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-caption ${filters.view === view ? "bg-surface shadow-sm" : "text-muted"}`}
+                className={`flex h-11 items-center gap-1.5 rounded-full px-3 text-caption ${filters.view === view ? "bg-surface shadow-sm" : "text-muted"}`}
               >
                 <Icon size={16} strokeWidth={1.75} aria-hidden />
                 {label}
@@ -410,7 +410,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                 <button
                   type="button"
                   onClick={() => go({ ...filters, supplier: "", program: "", availableOnly: false, specs: {} })}
-                  className="flex h-11 items-center rounded-full bg-brand px-5 font-medium text-white"
+                  className="flex h-11 items-center rounded-full btn-brand px-5 font-semibold"
                 >
                   ניקוי הסינונים
                 </button>
@@ -507,7 +507,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
             <button
               type="button"
               onClick={() => more.current?.close()}
-              className="flex h-11 w-full items-center justify-center rounded-full bg-brand font-medium text-white"
+              className="flex h-11 w-full items-center justify-center rounded-full btn-brand font-semibold"
             >
               הצגת {total.toLocaleString("he-IL")} מוצרים
             </button>

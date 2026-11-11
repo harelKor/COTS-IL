@@ -9,10 +9,10 @@ type Delivery = NonNullable<Awaited<ReturnType<typeof getDeliveryForViewer>>>;
 /** The printable note. "Remaining" counts every note for the line, so a partial delivery shows its balance. */
 export function DeliveryNote({ delivery, team, items }: Delivery) {
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 print:border-0 print:p-0">
+    <section className="flex flex-col gap-4 card-surface p-5 print:border-0 print:p-0">
       <div className="flex flex-wrap justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">תעודת משלוח {delivery.number}</h1>
+          <h1 className="text-title font-semibold">תעודת משלוח {delivery.number}</h1>
           <p className="text-sm text-muted">
             <TeamName team={team} />
           </p>

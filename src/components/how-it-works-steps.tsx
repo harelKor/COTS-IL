@@ -14,10 +14,10 @@ export function HowItWorksSteps() {
       {HOW_STEPS.map((s, i) => (
         <li key={s.title} className="card-surface flex flex-col gap-2 rounded-card p-5">
           <span className="flex items-center gap-2">
-            <span className="btn-brand flex size-8 items-center justify-center rounded-full text-caption font-bold tabular-nums">{i + 1}</span>
+            <span className="btn-brand flex size-8 items-center justify-center rounded-full text-caption font-semibold tabular-nums">{i + 1}</span>
             <s.icon size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
           </span>
-          <h3 className="text-[17px] font-semibold">{s.title}</h3>
+          <h3 className="text-body font-semibold">{s.title}</h3>
           <p className="text-caption leading-relaxed text-muted">{s.text}</p>
         </li>
       ))}

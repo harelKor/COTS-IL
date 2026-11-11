@@ -23,7 +23,7 @@ async function Shortages() {
         {openItems.length === 0 ? (
           <p className="text-muted">כל השורות המאושרות נמסרו.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+          <div className="overflow-x-auto card-surface">
             <table className="w-full text-sm">
               <thead className="bg-subtle text-muted">
                 <tr>
@@ -47,14 +47,14 @@ async function Shortages() {
                     </td>
                     <td dir="ltr" className="p-2 text-start">
                       {item.title}
-                      <div className="text-xs text-muted">{item.supplierSku ?? "no supplier SKU"}</div>
+                      <div className="text-caption text-muted">{item.supplierSku ?? "no supplier SKU"}</div>
                     </td>
                     <td className="p-2">{item.quoted}</td>
                     <td className="p-2">{item.ordered}</td>
                     <td className="p-2">{item.allocated}</td>
                     <td className="p-2">{item.delivered}</td>
                     <td className="p-2 font-semibold text-warning">{item.quoted - item.delivered}</td>
-                    <td className="whitespace-nowrap p-2 text-xs">{LINE_LABELS[lineStatus(item)]}</td>
+                    <td className="whitespace-nowrap p-2 text-caption">{LINE_LABELS[lineStatus(item)]}</td>
                   </tr>
                 ))}
               </tbody>
@@ -68,7 +68,7 @@ async function Shortages() {
         {shortLines.length === 0 ? (
           <p className="text-muted">כל מה שהוזמן התקבל תקין.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+          <div className="overflow-x-auto card-surface">
             <table className="w-full text-sm">
               <thead className="bg-subtle text-muted">
                 <tr>
@@ -91,7 +91,7 @@ async function Shortages() {
                     </td>
                     <td dir="ltr" className="p-2 text-start">
                       {line.title}
-                      <div className="text-xs text-muted">{line.supplierSku ?? "no supplier SKU"}</div>
+                      <div className="text-caption text-muted">{line.supplierSku ?? "no supplier SKU"}</div>
                     </td>
                     <td className="p-2">{line.ordered}</td>
                     <td className="p-2">{line.shipped}</td>
@@ -113,7 +113,7 @@ export default function ShortagesPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">דוח חוסרים</h1>
+        <h1 className="text-title font-semibold">דוח חוסרים</h1>
         <div className="flex items-center gap-3">
           <Link href="/admin" className="text-sm text-brand hover:underline print:hidden">
             לניהול

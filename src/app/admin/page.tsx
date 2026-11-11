@@ -69,7 +69,7 @@ function Filters({ params, counts, total }: { params: Params; counts: Record<Ord
             }`}
           >
             <span className="text-sm font-medium">הכל</span>
-            <span className="text-2xl font-semibold tabular-nums">{total}</span>
+            <span className="text-title font-semibold tabular-nums">{total}</span>
           </Link>
         </li>
         {OPEN_STATUSES.map((s) => {
@@ -84,7 +84,7 @@ function Filters({ params, counts, total }: { params: Params; counts: Record<Ord
                 }`}
               >
                 <span className="text-sm font-medium">{STATUS_LABELS[s].admin}</span>
-                <span className="text-2xl font-semibold tabular-nums">{counts[s]}</span>
+                <span className="text-title font-semibold tabular-nums">{counts[s]}</span>
               </Link>
             </li>
           );
@@ -147,7 +147,7 @@ function OrderCard({ order, params, now }: { order: AdminOrderSummary; params: P
                 הזמנה <Ltr>#{order.number}</Ltr>, <Ltr>{formatDay(order.submittedAt, new Date(now))}</Ltr>, {age(order.submittedAt, now)}
               </div>
             </div>
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${style.chip}`}>{label}</span>
+            <span className={`rounded-full px-3 py-1 text-caption font-semibold ${style.chip}`}>{label}</span>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="text-muted">
@@ -161,7 +161,7 @@ function OrderCard({ order, params, now }: { order: AdminOrderSummary; params: P
               ))}
           </div>
           {(order.view.progress || order.view.vendors) && (
-            <div className="flex flex-wrap gap-2 text-xs">
+            <div className="flex flex-wrap gap-2 text-caption">
               {order.view.progress && <span className="rounded-full bg-subtle px-3 py-1">{order.view.progress}</span>}
               {order.view.vendors && <span className="rounded-full bg-subtle px-3 py-1">{order.view.vendors}</span>}
             </div>
@@ -250,7 +250,7 @@ async function AllOrders({ searchParams }: { searchParams: Promise<Params> }) {
 export default function AdminPage({ searchParams }: PageProps<"/admin">) {
   return (
     <div>
-      <h1 className="mb-6 text-[28px] font-semibold tracking-[-0.02em]">כל ההזמנות</h1>
+      <h1 className="mb-6 text-title font-semibold tracking-[-0.02em]">כל ההזמנות</h1>
       <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <AllOrders searchParams={searchParams as Promise<Params>} />
       </Suspense>

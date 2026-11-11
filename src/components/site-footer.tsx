@@ -23,7 +23,7 @@ export function SiteFooter() {
           <ul className="grid grid-cols-2 gap-x-6 sm:grid-cols-4">
             {INFO_LINKS.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="flex min-h-11 items-center text-[15px] text-muted hover:text-brand">
+                <Link href={l.href} className="flex min-h-11 items-center text-callout text-muted hover:text-brand">
                   {l.label}
                 </Link>
               </li>

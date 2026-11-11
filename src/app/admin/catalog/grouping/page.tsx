@@ -39,7 +39,7 @@ async function Report() {
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <h2 className="text-section font-semibold">מק״טים למשפחות, לפי ספק</h2>
-        <div className="overflow-x-auto rounded-card border border-line bg-surface">
+        <div className="overflow-x-auto card-surface">
           <table className="w-full text-sm">
             <thead className="bg-subtle text-muted">
               <tr>
@@ -86,7 +86,7 @@ async function Report() {
               </h2>
               <p className="text-sm text-muted">{REASON_LABELS[reason].help}</p>
             </div>
-            <ul className="divide-y divide-line rounded-card border border-line bg-surface text-sm">
+            <ul className="divide-y divide-line card-surface text-sm">
               {rows.map((row) => (
                 <li key={`${row.supplierCode}/${row.handle}`} className="flex flex-wrap items-baseline justify-between gap-2 p-3">
                   <Link href={productHref(row.supplierCode, row.handle)} className="hover:text-brand">

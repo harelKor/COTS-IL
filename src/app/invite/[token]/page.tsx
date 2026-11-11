@@ -86,8 +86,8 @@ async function Invite({ params }: PageProps<"/invite/[token]">) {
 
 export default function InvitePage(props: PageProps<"/invite/[token]">) {
   return (
-    <div className="mx-auto max-w-md rounded-lg border border-line bg-surface p-6">
-      <h1 className="mb-3 text-xl font-bold">הזמנה לקבוצה</h1>
+    <div className="mx-auto max-w-md card-surface p-6">
+      <h1 className="mb-3 text-xl font-semibold">הזמנה לקבוצה</h1>
       <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <Invite {...props} />
       </Suspense>

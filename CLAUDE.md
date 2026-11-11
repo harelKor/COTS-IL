@@ -90,13 +90,13 @@ Open:
 | Token | Value |
 |---|---|
 | Font | `-apple-system, "SF Pro Text", "SF Hebrew", "Segoe UI", Heebo, sans-serif`; mono `ui-monospace, "SF Mono", "JetBrains Mono"` |
-| Type scale | 48/40 hero, 28 page title, 20 section, 17 body, 13 caption; headlines 600, tracking −0.02em |
+| Type scale | 48/40 hero, 28 page title (`text-title`), 20 section, 17 body, 15 callout (`text-callout`), 13 caption (the minimum); headlines 600, tracking −0.02em |
 | Brand | **COTS-IL** everywhere (never "פורטל רכש FIRST"); header mark = `.btn-brand` badge + gradient "COTS-IL" in `<Ltr>` + "FRC / FTC" pill |
 | Palette (light only, "Blue & White Fade") | background #F6F9FF, surface #FFFFFF, subtle #ECF3FF / hover #DCE8FF, text #0B1528, secondary #52658A, hairline #D8E4FA, brand #1D4ED8 (strong #1E3A8A, soft #DBEAFE), tile #F2F7FF. No dark theme, no `dark:` variants: supplier photos are shot on white |
 | Backdrop | `body` has an ice-blue radial fade at the top; `theme-color` #EBF3FF |
-| Status | green #1E8E3E, amber #B26A00, red #D70015 |
+| Status | green #177A33, amber #995A00, red #D70015 (AA at 13px). Status is a small square `StatusTag`, never a pill that looks like a button |
 | Cards | `.card-surface` (white-to-#F9FBFF fade, inner blue hairline, soft cobalt shadow), radius 18, hover lift 2px + `shadow-lift`; photos on `.tile-fade` |
-| Buttons | pill (radius 980), 44px tall; `.btn-brand` for the one primary action, plain text or soft white pills for the rest |
+| Buttons | `Button`/`buttonClass` in `src/components/form.tsx`: pill, 44px; primary = `.btn-brand` (one per screen), secondary = `.btn-soft`, ghost, danger. Cards: `Card` / `.card-surface`. Fields 44px `rounded-xl bg-subtle`. `npm run design-lint` (CI) fails on text under 13px, targets under 44px, `font-bold`, hex in TSX and ₪ outside `formatIls` |
 | Header | sticky, translucent with backdrop blur, 52px, hairline bottom border |
 | Motion | 200–300ms ease-out fades, spring for sheets and the stepper; none under `prefers-reduced-motion` |
 | Icons | Lucide line icons, 20px, never the only label on a primary action |

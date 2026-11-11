@@ -53,7 +53,7 @@ function AvailabilityDot({ available, checkedAt, partial }: { available: boolean
 
 /** The lowest price a chip leads to, small under its value. */
 function ChipPrice({ value }: { value: number | null }) {
-  return value === null ? null : <span className="text-[12px] opacity-70">{formatIls(value)}</span>;
+  return value === null ? null : <span className="text-caption opacity-70">{formatIls(value)}</span>;
 }
 
 type Props = {
@@ -164,7 +164,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       aria-expanded={singlePart ? undefined : open}
       aria-label={singlePart ? `הוספה לסל: ${family.title}` : `בחירת אפשרות והוספה לסל: ${family.title}`}
       className={`flex size-11 shrink-0 items-center justify-center rounded-full transition duration-200 active:scale-90 ${
-        open && !asSheet ? "bg-foreground text-background" : "bg-brand text-white"
+        open && !asSheet ? "bg-brand-strong text-white" : "bg-brand text-white"
       }`}
     >
       <Plus size={20} strokeWidth={2} aria-hidden className={`transition-transform duration-200 ${open && !asSheet ? "rotate-45" : ""}`} />
@@ -190,10 +190,10 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
               aria-pressed={chip.selected}
               onClick={() => onChip(key, chip.value)}
               className={`min-h-11 rounded-full px-3 text-caption transition-colors ${
-                prices ? "flex flex-col items-center justify-center px-3.5 py-1 text-[15px] leading-tight" : ""
+                prices ? "flex flex-col items-center justify-center px-3.5 py-1 text-callout leading-tight" : ""
               } ${
                 chip.selected
-                  ? "bg-foreground text-background"
+                  ? "bg-brand text-white"
                   : chip.enabled
                     ? "bg-surface text-foreground shadow-[inset_0_0_0_1px_var(--line)] hover:bg-background"
                     : "bg-surface text-muted line-through opacity-50"
@@ -217,7 +217,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   const photo_ = photo && (
     // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={photo.src} srcSet={photo.srcSet} alt={family.title} {...imageLoading(eager)} referrerPolicy="no-referrer" className="size-full object-contain" />
+    <img src={photo.src} srcSet={photo.srcSet} alt="" {...imageLoading(eager)} referrerPolicy="no-referrer" className="size-full object-contain" />
   );
 
   // "3 מתוך 8 אפשרויות זמינות" when only some sizes are in stock, until one is chosen.
@@ -243,8 +243,8 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
         <div className="flex items-center gap-3 border-b border-line px-4 py-3">
           <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-white p-1 ring-1 ring-line">{photo_}</div>
           <div className="flex min-w-0 flex-1 flex-col">
-            <Ltr className="line-clamp-2 text-start text-[15px] font-medium">{family.title}</Ltr>
-            <span className="text-[15px] font-semibold">{price}</span>
+            <Ltr className="line-clamp-2 text-start text-callout font-medium">{family.title}</Ltr>
+            <span className="text-callout font-semibold">{price}</span>
           </div>
           <button
             type="button"
@@ -260,7 +260,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
           {inCart ? (
             <>
               <QtyStepper variantId={inCart.variantId} qty={inCart.qty} label={family.title} />
-              <button type="button" onClick={closeSheet} className="flex h-11 items-center rounded-full bg-brand px-6 font-medium text-white">
+              <button type="button" onClick={closeSheet} className="flex h-11 items-center rounded-full btn-brand px-6 font-semibold">
                 סיום
               </button>
             </>
@@ -285,7 +285,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
             </div>
           </Link>
           <Link href={href} className="min-w-0 flex-1 hover:text-brand">
-            <Ltr className="line-clamp-2 text-start text-[15px] font-medium">{family.title}</Ltr>
+            <Ltr className="line-clamp-2 text-start text-callout font-medium">{family.title}</Ltr>
             <span className="block truncate text-caption text-muted">
               <Ltr>{family.supplierNames.join(", ")}</Ltr>
               {current?.sku && (
@@ -297,10 +297,10 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
               {!current && family.variantCount > 1 && `, ${family.variantCount.toLocaleString("he-IL")} אפשרויות`}
             </span>
             {/* Under the title on a phone; its own column from 640px. */}
-            <span className="block text-[15px] font-semibold sm:hidden">{price}</span>
+            <span className="block text-callout font-semibold sm:hidden">{price}</span>
           </Link>
           <div className="hidden w-32 sm:block">{availability}</div>
-          <span className="hidden w-20 shrink-0 text-end text-[15px] font-semibold sm:block">{price}</span>
+          <span className="hidden w-20 shrink-0 text-end text-callout font-semibold sm:block">{price}</span>
           <div className="flex shrink-0 justify-end sm:w-28">{action}</div>
         </div>
         {showPicker && !asSheet && (
@@ -322,15 +322,15 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
           <div ref={image} className="relative aspect-square w-full overflow-hidden rounded-xl bg-white p-3 ring-1 ring-line">
             {photo_}
             {familyInCart > 0 && (
-              <span className="absolute end-2 top-2 rounded-full bg-foreground px-2 py-0.5 text-[12px] font-medium text-background tabular-nums">
+              <span className="absolute end-2 top-2 rounded-full bg-brand px-2 py-0.5 text-caption font-medium text-white tabular-nums">
                 בסל: {familyInCart}
               </span>
             )}
           </div>
         </ViewTransition>
         <div className="flex flex-col gap-1">
-          <Ltr className="truncate text-start text-caption text-muted">{family.supplierNames.join(", ")}</Ltr>
-          <h2 dir="ltr" className="line-clamp-2 text-start text-[15px] leading-snug font-medium tracking-normal" title={family.title}>
+          <Ltr className="text-start text-caption text-muted">{family.supplierNames.join(", ")}</Ltr>
+          <h2 dir="ltr" className="line-clamp-2 text-start text-callout leading-snug font-medium tracking-normal" title={family.title}>
             {family.title}
           </h2>
           {current && keys.length > 0 && (
@@ -345,7 +345,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       {/* In the cart, the stepper wraps to its own row on a narrow card instead of covering the price. */}
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-[15px] font-semibold">{price}</span>
+          <span className="text-callout font-semibold">{price}</span>
           {/* What tells the options apart (teeth, bore), since the title is the same for all of them. */}
           {!current && family.variantCount > 1 && (
             <span className="truncate text-caption text-muted">

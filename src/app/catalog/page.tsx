@@ -43,8 +43,8 @@ async function CategoryChips({ searchParams }: PageProps<"/catalog">) {
   const filters = parseFilters(await searchParams);
   const { categories } = await getFacets();
   const chip = (on: boolean) =>
-    `flex min-h-11 shrink-0 items-center rounded-full px-4 text-[15px] whitespace-nowrap transition-colors ${
-      on ? "bg-foreground text-background" : "bg-subtle text-foreground hover:bg-line/60"
+    `flex min-h-11 shrink-0 items-center rounded-full px-4 text-callout whitespace-nowrap transition-colors ${
+      on ? "bg-brand text-white" : "bg-subtle text-foreground hover:bg-line/60"
     }`;
   return (
     <ScrollRow label="קטגוריות">

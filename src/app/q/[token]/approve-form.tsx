@@ -19,7 +19,7 @@ export function ApproveForm({ token }: { token: string }) {
       {state.error && <p className="text-caption text-danger">{state.error}</p>}
       <button
         disabled={pending}
-        className="flex h-12 w-full items-center justify-center rounded-full bg-brand text-[17px] font-medium text-white hover:bg-brand-strong disabled:opacity-60"
+        className="flex h-12 w-full items-center justify-center rounded-full bg-brand text-body font-medium text-white hover:bg-brand-strong disabled:opacity-60"
       >
         {pending ? "מאשר…" : "אישור ההצעה"}
       </button>

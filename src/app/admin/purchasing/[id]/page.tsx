@@ -30,7 +30,7 @@ async function PoMargin({ po, linesUsd }: { po: Parameters<typeof poCostUsd>[1] 
   const costUsd = poCostUsd(linesUsd, po);
   const m = poMargin(costUsd, rate, revenueIls);
   return (
-    <section className="flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-lg border border-line bg-surface p-4 text-sm print:hidden">
+    <section className="flex flex-wrap items-baseline gap-x-6 gap-y-1 card-surface p-4 text-sm print:hidden">
       <h2 className="font-semibold">עלות / הכנסה</h2>
       <span>
         עלות {formatIls(m.costIls)} <span className="text-muted">({usd.format(costUsd)})</span>
@@ -70,7 +70,7 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
         <div className="flex flex-wrap items-center gap-2">
           <a
             href={`/admin/purchasing/${po.id}/export`}
-            className="inline-flex h-10 items-center rounded-md border border-line bg-surface px-4 text-sm font-medium hover:bg-subtle"
+            className="btn-soft inline-flex min-h-11 items-center rounded-full px-5 text-callout font-medium"
           >
             Excel
           </a>
@@ -79,10 +79,10 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
       </div>
 
       {/* The document itself is in English, since it goes to the supplier. */}
-      <section dir="ltr" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 text-start print:border-0 print:p-0">
+      <section dir="ltr" className="flex flex-col gap-4 card-surface p-5 text-start print:border-0 print:p-0">
         <div className="flex flex-wrap justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Purchase Order {po.number}</h1>
+            <h1 className="text-title font-semibold">Purchase Order {po.number}</h1>
             <p className="text-sm text-muted">Supplier: {supplier.name}</p>
           </div>
           <div className="text-end text-sm">
@@ -107,12 +107,12 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
             <tbody>
               {lines.map((line) => (
                 <tr key={line.id} className="border-t border-line align-top">
-                  <td className="whitespace-nowrap p-2 text-xs">{line.supplierSku ?? "no supplier SKU"}</td>
+                  <td className="whitespace-nowrap p-2 text-caption">{line.supplierSku ?? "no supplier SKU"}</td>
                   <td className="p-2">
                     <a href={line.productUrl} target="_blank" rel="noopener noreferrer" className="hover:text-brand">
                       {line.title}
                     </a>
-                    {line.options.length > 0 && <div className="text-xs text-muted">{describeOptions(line.options)}</div>}
+                    {line.options.length > 0 && <div className="text-caption text-muted">{describeOptions(line.options)}</div>}
                   </td>
                   <td className="p-2 font-semibold">{line.qty}</td>
                   <td className="whitespace-nowrap p-2">{usd.format(Number(line.unitCostUsd ?? 0))}</td>
@@ -139,10 +139,10 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
       </section>
 
       {/* Which team orders each line serves: for the admin only, never on the supplier's copy. */}
-      <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 print:hidden">
+      <section className="flex flex-col gap-3 card-surface p-4 print:hidden">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="font-semibold">שיוך לקבוצות</h2>
-          <span className="text-xs text-muted">
+          <span className="text-caption text-muted">
             נוצרה <Ltr>{formatDay(po.createdAt)}</Ltr>, עודכנה <Ltr>{formatDay(updatedAt)}</Ltr>
           </span>
         </div>
@@ -154,7 +154,7 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
                 <Link
                   key={a.orderId}
                   href={`/admin?open=${a.orderId}`}
-                  className="inline-flex min-h-8 items-center rounded-full bg-brand-soft px-3 text-xs font-medium text-brand-strong"
+                  className="inline-flex min-h-11 items-center rounded-full bg-brand-soft px-3 text-caption font-medium text-brand-strong"
                 >
                   <Ltr>{`${a.teamProgram} ${a.teamNumber} #${a.orderNumber} ×${a.qty}`}</Ltr>
                 </Link>
@@ -165,14 +165,14 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
       </section>
 
       {isDraft && lines.length > 0 && (
-        <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 print:hidden">
+        <section className="flex flex-col gap-3 card-surface p-4 print:hidden">
           <h2 className="font-semibold">ביצוע ההזמנה באתר הספק</h2>
           {supplier.platform === "shopify" && (
             <a
               href={shopifyCartUrl(supplier.baseUrl, lines)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 w-fit items-center rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand-strong"
+              className="btn-brand inline-flex min-h-11 w-fit items-center rounded-full px-5 text-callout font-semibold"
             >
               פתיחת סל מלא באתר <span className="ltr ms-1">{supplier.name}</span>
             </a>
@@ -184,10 +184,10 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
               readOnly
               rows={Math.min(lines.length + 1, 10)}
               value={skuList(lines)}
-              className="rounded-md border border-line bg-subtle p-2 font-mono text-xs"
+              className="rounded-md border border-line bg-subtle p-2 font-mono text-caption"
             />
           </label>
-          <p className="text-xs text-muted">בדקו את הסל באתר הספק לפני התשלום. המחירים כאן הם מהסנכרון האחרון.</p>
+          <p className="text-caption text-muted">בדקו את הסל באתר הספק לפני התשלום. המחירים כאן הם מהסנכרון האחרון.</p>
         </section>
       )}
 
@@ -209,7 +209,7 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
       {po.status === "ordered" && <PoRecordForm poId={po.id} record={po} />}
 
       {po.status === "ordered" && (
-        <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 print:hidden">
+        <section className="flex flex-col gap-3 card-surface p-4 print:hidden">
           <h2 className="font-semibold">משלוחים</h2>
           {shipping.shipments.length > 0 && (
             <ul className="flex flex-col gap-1 text-sm">
@@ -247,7 +247,7 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
                       min={0}
                       max={line.open}
                       defaultValue={line.open}
-                      className="h-9 w-24 shrink-0 rounded-md border border-line bg-surface px-2 text-sm"
+                      className="h-11 w-24 shrink-0 rounded-xl border border-line bg-surface px-2 text-sm"
                     />
                   </label>
                 ))}
