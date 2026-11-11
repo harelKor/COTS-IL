@@ -1,0 +1,22 @@
+name: Lighthouse
+
+# Runs on every Vercel preview (and production) deploy that succeeds.
+on:
+  deployment_status:
+
+jobs:
+  lighthouse:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx lhci autorun
+        env:
+          LHCI_BASE_URL: ${{ github.event.deployment_status.environment_url }}
+          # Optional: Vercel "Protection Bypass for Automation" secret, if previews are password-protected.
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}

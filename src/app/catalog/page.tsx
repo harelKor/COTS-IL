@@ -23,8 +23,10 @@ async function catalogTitle(filters: ReturnType<typeof parseFilters>) {
 export async function generateMetadata({ searchParams }: PageProps<"/catalog">): Promise<Metadata> {
   const filters = parseFilters(await searchParams);
   const variation = !!(filters.q || hasFilters(filters) || filters.sort !== "relevance" || filters.view !== "grid" || filters.page > 1);
+  const title = await catalogTitle(filters);
   return {
-    title: await catalogTitle(filters),
+    title,
+    description: `${title}: חלקים לקבוצות FRC ו-FTC מ-AndyMark, WCP, CTRE ומ-The Thrifty Bot, במחירים בשקלים, עם הצעת מחיר מהספק הישראלי.`,
     alternates: { canonical: catalogHref({ category: filters.category }) },
     ...(variation ? { robots: { index: false, follow: true } } : {}),
   };

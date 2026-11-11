@@ -14,9 +14,9 @@ Rate limit rules use a fixed window per IP; action "Deny" (or "Challenge" for th
 Publish the rules, then check Firewall, Traffic for false positives after a day.
 
 ## Lighthouse CI
-Not set up. Run it by hand against a preview: `npx lighthouse <url> --preset=desktop` and mobile (default) for `/`, `/catalog` and one `/catalog/p/<slug>`.
+Done: `lighthouserc.js` and `.github/workflows/lighthouse.yml` run on each successful Vercel deployment. If previews are password-protected, add the repo secret `VERCEL_AUTOMATION_BYPASS_SECRET` (Vercel, Settings, Deployment Protection, Protection Bypass for Automation). By hand: `LHCI_BASE_URL=<url> npx lhci collect`.
 
 ## Not done, on purpose
 - **CSP nonce.** A nonce needs per-request rendering for every page, which undoes the static shells. `next.config.ts` ships a CSP with `script-src 'unsafe-inline'` plus framing, object, base and form restrictions. Revisit only if pages go fully dynamic anyway.
-- **Playwright smoke test in CI.** Needs the Supabase stack (Docker) plus seeding on the runner; not written blind. Locally: `npm run supabase:start && npm run env:local && npm run seed`, then drive guest cart, sign in, send, admin quote and the approve link by hand.
+- **Playwright smoke test in CI.** `npm run e2e` exists and runs locally (needs `npm run supabase:start`, `env:local`, `seed` and a synced catalog). Not in CI: a runner has no catalog.
 - **Supplier images copied or proxied.** Not cheap (storage, sync step, hotlink fallback); open.

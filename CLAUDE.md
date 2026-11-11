@@ -24,6 +24,7 @@ npm run env:local        # writes .env.local from the local stack
 npm run seed             # demo admin, teams and suppliers
 npm run dev              # http://localhost:3000
 npm run lint && npm run typecheck && npm test   # what CI runs
+npm run e2e              # Playwright smoke test on the local stack (own dev server on :3100)
 npm run db:generate      # migration from src/db/schema.ts
 npm run db:reset         # rebuild local DB from migrations, then seed again
 npm run sync             # sync Shopify suppliers (npm run sync -- wcp for one), then regroup families

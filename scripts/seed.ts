@@ -69,6 +69,8 @@ async function main() {
       if (error) throw error;
       id = data.user.id;
       console.log(`created ${u.email}`);
+    } else {
+      await supabase.auth.admin.updateUserById(id, { password }); // keeps logins working after `npm run env:local`
     }
     ids.set(u.email, id);
     if (u.isAdmin) await db.update(schema.profiles).set({ isAdmin: true }).where(eq(schema.profiles.id, id));
