@@ -558,6 +558,88 @@ Ideas that make COTS-IL better than ordering direct, in order of value. Each is 
 
 ---
 
+## S16. Admin settings: run the site without touching code (Plan first; user request Nov 12, 2026)
+
+**Goal:** everything the site's operator needs to change lives in the admin as clear settings pages, not in code: suppliers, their products, pricing, business details, site content, categories, admins, and the health of sync and email. Changes take effect without a deploy, and the nightly sync never undoes them.
+
+**What's still in code today:**
+- `MARKUP = 1.6` in `src/domain/pricing.ts`.
+- All business details in `src/lib/business.ts`.
+- The catalog group map in `src/domain`.
+- The home example chips.
+- The info-page text.
+- Suppliers can only be added by a code change; the `suppliers` table has no logo, notes, lead time or price settings.
+- Admins are managed by `npm run admin`.
+- Sync can only be started from GitHub.
+
+S15 already has product and variant overrides (`product_overrides`, `variant_overrides`) and a catalog overrides page; S16 builds on them.
+
+### Settings area
+
+A new admin tab, **הגדרות**, with sections for ספקים, מוצרים, תמחור, פרטי העסק, תוכן האתר, קטגוריות, מנהלים and מערכת.
+- Every page uses the existing admin layout, path bar and card styles, and works at 360px.
+- Every save shows feedback, is written to `audit_log`, and has Undo where it can be undone.
+
+1. **ספקים (suppliers)**
+   - **List:** one card per supplier with logo, name, URL, platform, product count, last sync time and result, and an active/hidden switch.
+   - **Adding a supplier:** paste the store URL. The app then:
+     - fetches the page and reads the name (`og:site_name` / `<title>`) and the logo (`og:image`, apple-touch-icon or favicon);
+     - probes `/products.json` to detect a Shopify store;
+     - fills the form: code, name, logo, platform, FRC/FTC.
+
+     The admin checks it and saves. A Shopify supplier is synced right away; any other store becomes a **manual** supplier whose parts are added by hand.
+   - **Editing:** name, logo (URL or upload to Supabase Storage), URL, FRC/FTC, lead time to Israel, an optional price multiplier for this supplier, free-shipping threshold, notes, and "sync nightly" on/off.
+   - **"סנכרון עכשיו":** runs the GitHub `sync.yml` workflow for that supplier through the GitHub API (`GITHUB_TOKEN` env var), with its status shown live on the card.
+   - **Removing a supplier:**
+     - "הסתרה" hides the supplier and all its parts.
+     - "מחיקה" is only allowed when no order or supplier order points to its parts; otherwise it offers hiding, because order history must stay intact.
+2. **מוצרים (products per supplier)**
+   - Pick a supplier, then see its parts as cards with photo, name, price, availability and badges ("מוסתר", "מחיר ידני", "חלק ידני"). Search, category filter, and "show hidden".
+   - Tapping a card opens an **edit window** (a sheet; full screen on a phone). Editable: name, description, category, photos (add, reorder, remove), price (a USD override, or a fixed ₪ price that ignores the multiplier), availability override, hidden, and the variants (options, SKU, price per variant, hide a variant).
+   - Synced parts are edited through overrides, so the nightly sync keeps the changes (S15 tables, extended). A "חזרה לנתוני הספק" link removes an override.
+   - **"הוספת חלק":** add a custom part with its options and variants to any supplier, including a manual supplier. Custom parts are real `products`/`variants` rows with `source = 'custom'`, so the cart, quotes and supplier orders work unchanged. The sync never touches them.
+   - **Deleting:** a custom part with no orders is deleted; otherwise it's hidden. A synced part is hidden, never deleted.
+3. **תמחור (pricing)**
+   - **The multiplier** (today 1.6) is an editable number, with optional overrides per supplier and per category. Precedence: part (fixed price) > category > supplier > global.
+   - **Exchange rate:** show the current Bank of Israel rate and its date, with an optional manual rate that overrides it until cleared.
+   - **Rounding** (whole shekels) and an optional minimum price.
+   - **Live preview** of 5 sample parts with the current and new price before saving.
+   - Saving recomputes catalog prices (regroup and revalidate). Existing orders and quotes keep their saved prices.
+   - `src/domain/pricing.ts` stays the only price code; it receives the resolved multiplier.
+4. **פרטי העסק (business details):** every field in `src/lib/business.ts` becomes a form field stored in the database: legal name, company number, email, phone, WhatsApp, pickup address and hours, handling fee, what the price includes, lead time per supplier, quote turnaround and validity, payment terms, return policy. Empty fields stay hidden on the site, as today. The footer, info pages, cart, quote and emails read from the database, cached and refreshed on save.
+5. **תוכן האתר (site content)**
+   - The home example chips.
+   - An optional announcement banner (text, link, on/off, end date).
+   - The "מומלץ" pins (S15).
+   - The text of the info pages (FAQ, shipping, returns, about, contact), as simple formatted text with a preview.
+6. **קטגוריות (categories):** rename, reorder, set each category's group (replacing the map in code), choose the photo shown on home, and hide a category.
+7. **מנהלים (admins):** list the admins, add one by email (the person must have signed in once), and remove one (never the last). This replaces `npm run admin` for daily use.
+8. **מערכת (system status):** per-supplier sync history and errors, the exchange rate and its date, whether email (Resend) is configured, with a "שליחת מייל בדיקה" button, the last deploy, and links to the Vercel and Supabase dashboards.
+
+### Data
+
+- **`site_settings`:** one row of JSON checked by a zod schema in `src/domain/settings.ts`, holding the business details, content, the global multiplier and the rate override. Read through a cached loader with a `settings` cache tag that saves invalidate.
+- **`pricing_rules`:** scope (supplier / category), target id, multiplier.
+- **`suppliers` gets new columns:** `logo_url`, `lead_min_days`, `lead_max_days`, `free_shipping_usd`, `notes`, `sync_enabled`. The platform enum gains `manual`.
+- **`products` gets** `source` (`synced` / `custom`). Overrides are extended for name, description, category, photos, USD or fixed ₪ price, availability, and hidden variants.
+- **Categories** get `group`, `sort` and `hidden`.
+- Each migration is applied to production before its code merges. Today's values (1.6, the current groups, the current text) are copied in as the starting data, so nothing changes on the site until the admin edits it.
+
+### Sessions (run one after another; they share admin files)
+
+| Session | Contents |
+|---|---|
+| S16a | The settings area and its tab, `site_settings`, פרטי העסק, תמחור, מנהלים. Moves `business.ts` and `MARKUP` into the database |
+| S16b | ספקים: cards, add by URL with auto-detection, edit, hide or delete, sync now |
+| S16c | מוצרים: card grid per supplier, the edit window, custom parts, delete or hide |
+| S16d | קטגוריות, תוכן האתר, מערכת |
+
+Acceptance for each session:
+- every change is visible on the site without a deploy and survives `npm run sync` and `npm run regroup`;
+- no setting is left that requires a code change;
+- tests cover the precedence rules, URL detection (Shopify vs manual), settings validation, and "delete only without orders";
+- the new pages work at 360px.
+
 ## Second audit (Nov 10, 2026, "COTS-IL — UX & Logic Audit"): triage
 
 An external review after S0–S4, S10A, the pricing fix and the speed pass, written while signed in as admin, so the team-side flow and phone width were not covered. Each finding is placed in a session below. New sessions are S13–S15; additions to existing sessions are listed under them. Items it found already done (OG image, sitemap, contact page shell, 404) are left out.
