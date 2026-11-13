@@ -6,6 +6,7 @@ import { Button, Field, Input, StatusTag } from "@/components/form";
 import { Ltr } from "@/components/ltr";
 import { showToast } from "@/components/toast";
 import type { SupplierDraft } from "@/domain/supplier-detect";
+import { accentColor, DEFAULT_ACCENT } from "@/domain/vendors";
 import type { SupplierCardData, SyncJobView } from "@/lib/supplier-admin";
 import { SettingsForm } from "../settings-form";
 import { createSupplier, deleteSupplier, detectSupplier, setSupplierActive, syncStatus, syncSupplierNow, updateSupplier } from "./actions";
@@ -13,6 +14,43 @@ import { createSupplier, deleteSupplier, detectSupplier, setSupplierActive, sync
 const PLATFORM: Record<SupplierCardData["platform"], string> = { shopify: "Shopify", manual: "ידני", bigcommerce: "BigCommerce", csv: "CSV" };
 
 const when = new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jerusalem" });
+
+/**
+ * The vendor box's glow and outline tint on the home page and in its store. Empty: brand blue.
+ * A hex code (6 digits) with a picker beside it; the swatch shows the colour as typed.
+ */
+function AccentField({ id, initial }: { id: string; initial: string }) {
+  const [value, setValue] = useState(initial);
+  const color = accentColor(value);
+  return (
+    <Field label="צבע הדגשה בדף הבית" name={`accentColor-${id}`} hint="קוד צבע בן 6 ספרות (הקס). ריק: הכחול של האתר.">
+      <div className="flex items-center gap-2">
+        <Input
+          id={`accentColor-${id}`}
+          name="accentColor"
+          dir="ltr"
+          maxLength={7}
+          pattern="#[0-9a-fA-F]{6}"
+          value={value}
+          onChange={(e) => setValue(e.target.value.trim())}
+          className="w-32 font-mono"
+        />
+        <input
+          type="color"
+          aria-label="בחירת צבע"
+          value={color ?? DEFAULT_ACCENT}
+          onChange={(e) => setValue(e.target.value)}
+          className="size-11 cursor-pointer rounded-xl border border-line bg-surface p-1"
+        />
+        {value && (
+          <button type="button" onClick={() => setValue("")} className="flex min-h-11 items-center px-2 text-caption text-brand hover:underline">
+            ברירת מחדל
+          </button>
+        )}
+      </div>
+    </Field>
+  );
+}
 
 function Logo({ src, name }: { src: string | null; name: string }) {
   return (
@@ -299,6 +337,7 @@ export function SupplierCard({
               <Field label="כתובת הלוגו" name={`logoUrl-${supplier.id}`} hint="או העלו קובץ (PNG, JPG או WebP, עד 700KB)">
                 <Input id={`logoUrl-${supplier.id}`} name="logoUrl" type="url" dir="ltr" defaultValue={supplier.logoUrl ?? ""} />
               </Field>
+              <AccentField id={supplier.id} initial={supplier.accentColor ?? ""} />
               <Field label="העלאת לוגו" name={`logoFile-${supplier.id}`}>
                 <Input id={`logoFile-${supplier.id}`} name="logoFile" type="file" accept="image/png,image/jpeg,image/webp" className="py-2" />
               </Field>

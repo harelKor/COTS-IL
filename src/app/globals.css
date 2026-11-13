@@ -39,12 +39,8 @@
     radial-gradient(120% 70% at 50% 0%, rgb(56 189 248 / 0.22) 0%, transparent 60%),
     linear-gradient(180deg, #dbeafe 0%, #eef5ff 45%, #ffffff 100%);
   --gradient-outline: linear-gradient(140deg, var(--accent) 0%, var(--sky) 50%, var(--brand) 100%);
-  /* The accent a box glows in: brand blue unless a vendor sets its own (.accent-<code>). */
+  /* The accent a box glows in: brand blue unless the vendor has its own (suppliers.accent_color, set inline). */
   --accent: var(--brand);
-  --accent-andymark: #dc2626;
-  --accent-wcp: #16a34a;
-  --accent-ctre: #2563eb;
-  --accent-ttb: #ea580c;
   --glow: 0 10px 30px -10px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
   --glow-strong: 0 18px 44px -10px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 24px -4px color-mix(in srgb, var(--sky) 55%, transparent);
   --shadow-lift: 0 14px 34px -8px rgb(29 78 216 / 0.14), 0 4px 12px -2px rgb(11 21 40 / 0.05);
@@ -550,11 +546,7 @@ dialog.sheet-side.sheet-wide {
 
 /* ---------- Glow look ---------- */
 
-/* A vendor's accent: only its box's glow and outline tint; photos stay on white tiles. */
-.accent-andymark { --accent: var(--accent-andymark); }
-.accent-wcp { --accent: var(--accent-wcp); }
-.accent-ctre { --accent: var(--accent-ctre); }
-.accent-ttb { --accent: var(--accent-ttb); }
+/* A vendor's accent comes from the suppliers table (accent_color), set inline as --accent on its box. */
 
 /* Re-declared where they're used, so a vendor's --accent (set on the box itself) tints them. */
 .glow-box,

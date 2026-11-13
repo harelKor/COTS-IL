@@ -12,7 +12,7 @@ import { FamilyCard } from "@/components/family-card";
 import { Ltr } from "@/components/ltr";
 import { PriceNote } from "@/components/price-note";
 import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skeleton";
-import { isStoreFront, vendorBlurb, vendorHref } from "@/domain/vendors";
+import { accentStyle, isStoreFront, vendorBlurb, vendorHref } from "@/domain/vendors";
 import { getSpecFacets, getVendorDiscovery, getVendorPopular, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
 import { hasFilters, PAGE_SIZE, parseFilters, type CatalogFilters } from "@/lib/catalog-filters";
 
@@ -32,7 +32,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const title = filters.q ? `חיפוש ב-${store.name}: ${filters.q}` : category ? `${store.name}: ${category}` : `החנות של ${store.name}`;
   return {
     title,
-    description: `${store.name} בשקלים לקבוצות FRC ו-FTC: ${vendorBlurb(store.code) ?? "חלקים לרובוט"}, עם הצעת מחיר מהספק הישראלי.`,
+    description: `${store.name} בשקלים לקבוצות FRC ו-FTC: ${vendorBlurb(store.categories) ?? "חלקים לרובוט"}, עם הצעת מחיר מהספק הישראלי.`,
     alternates: { canonical: vendorHref(store.code, { category: filters.category }) },
     ...(filters.q || hasFilters(filters) || filters.page > 1 ? { robots: { index: false, follow: true } } : {}),
   };
@@ -117,12 +117,17 @@ async function Discover({ store }: { store: Store }) {
 }
 
 function StoreFront({ store }: { store: Store }) {
-  const blurb = vendorBlurb(store.code);
+  const blurb = vendorBlurb(store.categories);
   return (
     <>
       <Breadcrumb store={store} />
-      <header className={`glow-box accent-${store.code} flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between lg:p-6`}>
+      <header style={accentStyle(store.accentColor)} className="glow-box flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between lg:p-6">
         <div className="flex flex-col items-start gap-2">
+          {store.logoUrl && (
+            // The vendor's own logo (S16b).
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={store.logoUrl} alt="" referrerPolicy="no-referrer" className="h-10 max-w-[180px] object-contain object-start" />
+          )}
           <h1 className="text-title font-semibold">
             <Ltr className="text-brand-gradient">{store.name}</Ltr>
           </h1>

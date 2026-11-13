@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { normalizeStoreUrl, SUPPLIER_CODE, type SupplierDraft } from "@/domain/supplier-detect";
 import { parseSettings } from "@/domain/settings";
+import { accentColor } from "@/domain/vendors";
 import { requireAdmin } from "@/lib/auth";
 import { regroupNow } from "@/lib/regroup";
 import { createClient } from "@/lib/supabase/server";
@@ -105,6 +106,7 @@ const editInput = supplierInput.extend({
   multiplier: z.union([z.literal(""), z.coerce.number().min(1).max(5)]),
   freeShippingUsd: optionalNumber(100000),
   notes: z.string().trim().max(2000),
+  accentColor: z.union([z.literal(""), z.string().trim().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
 });
 
 /** Saves one supplier's card: details, lead time (פרטי העסק), multiplier (pricing_rules), shipping, notes, nightly sync. */
@@ -138,6 +140,7 @@ export async function updateSupplier(_: SettingsResult | null, formData: FormDat
         name: d.name,
         baseUrl,
         logoUrl,
+        accentColor: accentColor(d.accentColor),
         programs: d.programs,
         freeShippingUsd: d.freeShippingUsd === "" ? null : String(d.freeShippingUsd),
         notes: d.notes || null,
@@ -195,6 +198,7 @@ const LABELS: Record<string, string> = {
   multiplier: "מקדם (1 עד 5)",
   freeShippingUsd: "משלוח חינם",
   notes: "הערות",
+  accentColor: "צבע הדגשה",
 };
 
 /** "הסתרה" / "הצגה": a hidden supplier and all its parts leave the catalog; orders keep their lines. */

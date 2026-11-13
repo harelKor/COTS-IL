@@ -100,6 +100,8 @@ export const suppliers = pgTable("suppliers", {
   active: boolean("active").notNull().default(true),
   /** The supplier's logo (S16b; also read by the home page). A URL from the store or the `supplier-logos` bucket. */
   logoUrl: text("logo_url"),
+  /** The vendor box's glow and outline tint on the home page and its store ("#16a34a"); null: brand blue. */
+  accentColor: text("accent_color"),
   /** Orders above this many dollars ship free from the supplier; for the admin's notes. */
   freeShippingUsd: numeric("free_shipping_usd", { precision: 10, scale: 2 }),
   notes: text("notes"),
