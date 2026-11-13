@@ -1013,7 +1013,7 @@ export async function getVendorStore(code: string) {
   "use cache";
   catalogCache();
   const [vendor] = await db
-    .select({ code: suppliers.code, name: suppliers.name, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor, accentColor2: suppliers.accentColor2 })
+    .select({ code: suppliers.code, name: suppliers.name, baseUrl: suppliers.baseUrl, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor, accentColor2: suppliers.accentColor2 })
     .from(suppliers)
     .where(and(eq(suppliers.code, code), eq(suppliers.active, true)))
     .limit(1);

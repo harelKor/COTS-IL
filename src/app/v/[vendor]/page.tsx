@@ -1,4 +1,4 @@
-import { ChevronLeft, Search } from "lucide-react";
+import { ChevronLeft, ExternalLink, Search } from "lucide-react";
 import type { Metadata } from "next";
 import Form from "next/form";
 import Link from "next/link";
@@ -123,13 +123,25 @@ function StoreFront({ store }: { store: Store }) {
       <Breadcrumb store={store} />
       <header style={accentStyle(store.accentColor, store.accentColor2)} className="glow-box flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between lg:p-6">
         <div className="flex flex-col items-start gap-2">
-          {store.logoUrl && (
-            // The vendor's own logo (S16b).
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={store.logoUrl} alt="" referrerPolicy="no-referrer" className="h-10 max-w-[180px] object-contain object-start" />
-          )}
+          {/* The vendor's own site (suppliers.base_url), in a new tab: its logo and name are the link. */}
           <h1 className="text-title font-semibold">
-            <Ltr className="text-brand-gradient">{store.name}</Ltr>
+            <a
+              href={store.baseUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`לאתר ${store.name} (נפתח בכרטיסייה חדשה)`}
+              className="group inline-flex min-h-11 flex-col items-start gap-2 rounded-xl focus-visible:outline-2 focus-visible:outline-brand"
+            >
+              {store.logoUrl && (
+                // The vendor's own logo (S16b).
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={store.logoUrl} alt="" referrerPolicy="no-referrer" className="h-10 max-w-[180px] object-contain object-start" />
+              )}
+              <span className="inline-flex items-center gap-2">
+                <Ltr className="text-brand-gradient">{store.name}</Ltr>
+                <ExternalLink size={20} strokeWidth={1.75} aria-hidden className="text-brand opacity-70 transition-opacity group-hover:opacity-100" />
+              </span>
+            </a>
           </h1>
           {blurb && <p className="text-callout text-muted">{blurb}</p>}
           <span className="rounded-full bg-brand-soft/70 px-2.5 py-0.5 text-caption font-semibold text-brand tabular-nums">
