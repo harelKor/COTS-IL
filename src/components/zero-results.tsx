@@ -8,7 +8,7 @@ import { requestPart, type PartRequestState } from "@/app/catalog/actions";
 import { PART_REQUEST_LIMITS } from "@/domain/part-request";
 import { catalogHref } from "@/lib/catalog-filters";
 import { normalizeSearch } from "@/lib/quick-query";
-import { SEARCH_CATEGORIES } from "@/lib/search-examples";
+import { useSiteFacts } from "./site-facts";
 import { CategoryIcon } from "./category-icon";
 import { Ltr } from "./ltr";
 
@@ -31,6 +31,7 @@ const chip =
  * and "send us a link to the part", one link and a note to the admin.
  */
 export function ZeroResults({ q, suggestions, onSuggest, onNavigate }: Props) {
+  const { searchCategories } = useSiteFacts();
   const [fetched, setFetched] = useState<{ q: string; list: string[] } | null>(
     null,
   );
@@ -80,7 +81,7 @@ export function ZeroResults({ q, suggestions, onSuggest, onNavigate }: Props) {
       <section>
         <h2 className="mb-2 text-caption text-muted">קטגוריות</h2>
         <ul className="grid gap-1 sm:grid-cols-2">
-          {SEARCH_CATEGORIES.map((c) => (
+          {searchCategories.map((c) => (
             <li key={c.slug}>
               <Link
                 href={catalogHref({ category: c.slug })}

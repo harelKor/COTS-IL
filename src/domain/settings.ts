@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { DEFAULT_CATEGORY_GROUPS } from "./category-groups";
+import { DEFAULT_SEARCH_EXAMPLES } from "./content";
+import { DEFAULT_PAGES, INFO_PAGES } from "./info-text";
 import { DEFAULT_MARKUP } from "./pricing";
 
 /**
@@ -73,9 +76,46 @@ export const pricingSettingsSchema = z.object({
 });
 export type PricingSettings = z.infer<typeof pricingSettingsSchema>;
 
+
+export const bannerSchema = z.object({
+  enabled: z.boolean().default(false),
+  text: z.string().trim().max(200).default(""),
+  /** A site path ("/v/wcp") or an https link; null for none. */
+  href: z
+    .string()
+    .trim()
+    .max(300)
+    .regex(/^(\/[^\s]*|https:\/\/[^\s]+)$/)
+    .nullable()
+    .default(null),
+  /** The last day it shows (Israel time), YYYY-MM-DD; null for no end. */
+  endsOn: z.iso.date().nullable().default(null),
+});
+export type Banner = z.infer<typeof bannerSchema>;
+
+const pagesShape = Object.fromEntries(INFO_PAGES.map((p) => [p.key, z.string().max(20000).nullable().default(null)])) as Record<
+  (typeof INFO_PAGES)[number]["key"],
+  z.ZodDefault<z.ZodNullable<z.ZodString>>
+>;
+
+export const contentSchema = z.object({
+  /** The catalog's groups in order; each category points at one by id (categories.group_id). */
+  categoryGroups: z
+    .array(z.object({ id: z.string().regex(/^[a-z0-9-]{1,30}$/), name: z.string().trim().min(1).max(40) }))
+    .min(1)
+    .max(12)
+    .default(() => DEFAULT_CATEGORY_GROUPS.map(({ id, name }) => ({ id, name }))),
+  searchExamples: z.array(z.string().trim().min(1).max(40)).max(8).default(() => [...DEFAULT_SEARCH_EXAMPLES]),
+  banner: bannerSchema.default(() => bannerSchema.parse({})),
+  /** Each info page's text; null shows the built-in text (DEFAULT_PAGES). */
+  pages: z.object(pagesShape).default(() => z.object(pagesShape).parse({})),
+});
+export type Content = z.infer<typeof contentSchema>;
+
 export const settingsSchema = z.object({
   business: businessSchema.default(() => businessSchema.parse({})),
   pricing: pricingSettingsSchema.default(() => pricingSettingsSchema.parse({})),
+  content: contentSchema.default(() => contentSchema.parse({})),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 
@@ -89,10 +129,17 @@ export function parseSettings(data: unknown): Settings {
   const raw = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
   const business = businessSchema.safeParse(raw.business ?? {});
   const pricing = pricingSettingsSchema.safeParse(raw.pricing ?? {});
+  const content = contentSchema.safeParse(raw.content ?? {});
   return {
     business: business.success ? business.data : DEFAULT_SETTINGS.business,
     pricing: pricing.success ? pricing.data : DEFAULT_SETTINGS.pricing,
+    content: content.success ? content.data : DEFAULT_SETTINGS.content,
   };
+}
+
+/** The page text the site shows: the admin's, or the built-in one. */
+export function pageText(content: Content, key: (typeof INFO_PAGES)[number]["key"]): string {
+  return content.pages[key] ?? DEFAULT_PAGES[key];
 }
 
 /** The WhatsApp chat link, or null while there's no number. */

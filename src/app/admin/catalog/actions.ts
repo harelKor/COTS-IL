@@ -163,15 +163,3 @@ export async function restoreOverride(removed: RemovedOverride) {
   await regroup();
 }
 
-const categoryInput = z.object({ id: z.uuid(), name: z.string().trim().min(1).max(60) });
-
-/** Renames a category. Only migrations write category names, so nothing overwrites it. */
-export async function renameCategory(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
-  const parsed = categoryInput.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, error: "שם לא תקין" };
-  await db.update(schema.categories).set({ name: parsed.data.name }).where(eq(schema.categories.id, parsed.data.id));
-  revalidateTag("catalog", "max");
-  revalidatePath("/admin/catalog");
-  return { ok: true };
-}

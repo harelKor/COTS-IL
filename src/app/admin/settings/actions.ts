@@ -4,9 +4,10 @@ import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { businessFromForm, parseSettings, pricingSettingsSchema, ROUND_STEPS, type Settings } from "@/domain/settings";
+import { businessFromForm, pricingSettingsSchema, ROUND_STEPS } from "@/domain/settings";
 import { requireAdmin } from "@/lib/auth";
 import { regroupNow } from "@/lib/regroup";
+import { currentSettings, writeSettings } from "@/lib/settings-write";
 
 /**
  * The admin's settings (S16a). Every save checks the admin first, writes audit_log, and
@@ -33,22 +34,6 @@ const FIELD_LABELS: Record<string, string> = {
   quoteValidDays: "תוקף הצעה",
   paymentTerms: "תנאי תשלום",
 };
-
-async function currentSettings(): Promise<Settings> {
-  const [row] = await db.select({ data: schema.siteSettings.data }).from(schema.siteSettings).where(eq(schema.siteSettings.id, 1));
-  return parseSettings(row?.data);
-}
-
-async function writeSettings(actorId: string, action: string, before: Settings, after: Settings) {
-  await db.transaction(async (tx) => {
-    await tx
-      .insert(schema.siteSettings)
-      .values({ id: 1, data: after, updatedBy: actorId })
-      .onConflictDoUpdate({ target: schema.siteSettings.id, set: { data: after, updatedAt: new Date(), updatedBy: actorId } });
-    await tx.insert(schema.auditLog).values({ actorId, entity: "site_settings", entityId: "1", action, before, after });
-  });
-  updateTag("settings");
-}
 
 /** Saves פרטי העסק. An empty field stays hidden on the site. */
 export async function saveBusiness(_: SettingsResult | null, formData: FormData): Promise<SettingsResult> {

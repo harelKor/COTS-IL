@@ -1,26 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { CATEGORY_GROUPS, groupCategories, groupOfCategory } from "./category-groups";
+import { DEFAULT_CATEGORY_GROUPS, groupCategories, groupOf, moveId, newGroupId } from "./category-groups";
 
 const ALL = ["bearings", "belts-chain", "drivetrain", "electronics", "fasteners", "gearboxes", "gears", "mechanisms", "motors", "other", "pneumatics", "sensors", "shafts", "structure", "tools", "wheels"];
+const GROUPS = DEFAULT_CATEGORY_GROUPS.map(({ id, name }) => ({ id, name }));
 
 describe("category groups", () => {
-  it("puts every category in exactly one group", () => {
-    const mapped = CATEGORY_GROUPS.flatMap((g) => [...g.slugs]);
+  it("seeds every category in exactly one group", () => {
+    const mapped = DEFAULT_CATEGORY_GROUPS.flatMap((g) => [...g.slugs]);
     expect(new Set(mapped).size).toBe(mapped.length);
     expect([...mapped].sort()).toEqual(ALL);
   });
 
-  it("sends an unmapped slug to כלים ושונות", () => {
-    expect(groupOfCategory("brand-new")).toBe("misc");
-    expect(groupOfCategory("motors")).toBe("electrical");
+  it("sends a category of a removed group to the last group", () => {
+    expect(groupOf("gone", GROUPS)).toBe("misc");
+    expect(groupOf("electrical", GROUPS)).toBe("electrical");
+    expect(groupOf("x", [])).toBeNull();
   });
 
-  it("sums counts and keeps unmapped categories", () => {
-    const groups = groupCategories([
-      { slug: "motors", count: 3 },
-      { slug: "sensors", count: 2 },
-      { slug: "new-thing", count: 4 },
-    ]);
-    expect(groups.map((g) => [g.id, g.count])).toEqual([["electrical", 5], ["misc", 4]]);
+  it("follows the admin's group order, sums counts, and sends a lost group to the last one", () => {
+    const groups = groupCategories(
+      [
+        { slug: "motors", group: "electrical", count: 3 },
+        { slug: "sensors", group: "electrical", count: 2 },
+        { slug: "new-thing", group: "deleted", count: 4 },
+        { slug: "tools", group: "misc", count: 1 },
+      ],
+      [GROUPS[4], GROUPS[0]],
+    );
+    expect(groups.map((g) => [g.id, g.count])).toEqual([["misc", 1], ["electrical", 9]]);
+  });
+
+  it("moves an id and stops at the ends", () => {
+    expect(moveId(["a", "b", "c"], "b", -1)).toEqual(["b", "a", "c"]);
+    expect(moveId(["a", "b", "c"], "c", 1)).toEqual(["a", "b", "c"]);
+    expect(moveId(["a"], "z", 1)).toEqual(["a"]);
+  });
+
+  it("makes a unique id", () => {
+    expect(newGroupId(["g2", "a"])).toBe("g3");
+    expect(newGroupId(["g1"])).toBe("g2");
   });
 });

@@ -264,3 +264,13 @@ export function renderEmail<E extends NotifyEvent>(event: E, audience: Audience,
   }
   throw new Error(`unknown email event ${event}`);
 }
+
+/** The test email from /admin/settings/system: proves Resend and EMAIL_FROM work. */
+export function renderTestEmail(): RenderedEmail {
+  return layout({
+    subject: "מייל בדיקה מ-COTS-IL",
+    heading: "המייל עובד",
+    paragraphs: ["זה מייל בדיקה מעמוד מערכת בהגדרות. אם הוא הגיע, הודעות לקבוצות ולמנהלים יוצאות כרגיל."],
+    textLines: ["המייל עובד.", "זה מייל בדיקה מעמוד מערכת בהגדרות. אם הוא הגיע, הודעות לקבוצות ולמנהלים יוצאות כרגיל."],
+  });
+}

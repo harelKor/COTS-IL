@@ -32,6 +32,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
+  // When this build ran, for "הפריסה האחרונה" in /admin/settings/system.
+  env: { BUILD_TIME: new Date().toISOString() },
   partialPrefetching: true,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

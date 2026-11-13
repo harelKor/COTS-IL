@@ -45,7 +45,7 @@ export const maxDuration = 30;
 async function CategoryChips({ searchParams }: PageProps<"/catalog">) {
   const filters = parseFilters(await searchParams);
   const { categories } = await getFacets();
-  return <CategoryGroups categories={categories.map((c) => ({ slug: c.slug, name: c.name, count: c.count }))} category={filters.category} q={filters.q} />;
+  return <CategoryGroups categories={categories.map((c) => ({ slug: c.slug, name: c.name, group: c.group, count: c.count }))} category={filters.category} q={filters.q} />;
 }
 
 /** Pages of cards the server renders at most. */

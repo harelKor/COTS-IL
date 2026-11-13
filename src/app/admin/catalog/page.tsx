@@ -10,7 +10,7 @@ import { formatIls, priceIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { familyHref } from "@/lib/catalog-links";
 import { priceContext } from "@/lib/settings";
-import { renameCategory, saveProductOverride, saveVariantPrice } from "./actions";
+import { saveProductOverride, saveVariantPrice } from "./actions";
 import { OverrideForm, RemoveOverrideButton } from "./catalog-forms";
 
 export const metadata: Metadata = { title: "קטלוג: תיקונים" };
@@ -284,25 +284,6 @@ async function MultiSupplier() {
   );
 }
 
-async function Categories() {
-  const rows = await db.select({ id: categories.id, slug: categories.slug, name: categories.name }).from(categories).orderBy(asc(categories.sortOrder));
-  return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-section font-semibold">שמות קטגוריות</h2>
-      <ul className="grid gap-2 sm:grid-cols-2">
-        {rows.map((c) => (
-          <li key={c.id}>
-            <OverrideForm action={renameCategory} label="שינוי שם" className="flex flex-wrap items-center gap-2">
-              <input type="hidden" name="id" value={c.id} />
-              <input name="name" defaultValue={c.name} aria-label={`שם הקטגוריה ${c.slug}`} className={`${input} min-w-0 flex-1`} />
-            </OverrideForm>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 async function Content({ searchParams }: { searchParams: PageProps<"/admin/catalog">["searchParams"] }) {
   await requireAdmin();
   const params = await searchParams;
@@ -323,7 +304,13 @@ async function Content({ searchParams }: { searchParams: PageProps<"/admin/catal
         <ActiveOverrides />
       </section>
       <MultiSupplier />
-      <Categories />
+      <p className="text-callout text-muted">
+        שמות, סדר, קבוצות ותמונות של קטגוריות:{" "}
+        <Link href="/admin/settings/categories" className="text-brand hover:underline">
+          הגדרות, קטגוריות
+        </Link>
+        .
+      </p>
     </div>
   );
 }

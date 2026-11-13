@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 
 /** The shared frame of the static info pages (/how-it-works, /faq, /shipping, …). */
-export function InfoPage({ title, intro, children }: { title: string; intro?: ReactNode; children: ReactNode }) {
+/** `intro` is one paragraph; `lead` is rendered as given (the editable pages' intro blocks). */
+export function InfoPage({ title, intro, lead, children }: { title: string; intro?: ReactNode; lead?: ReactNode; children: ReactNode }) {
   return (
     <article className="mx-auto flex max-w-2xl flex-col gap-8">
       <header className="flex flex-col gap-3">
         <h1 className="text-title font-semibold">{title}</h1>
         {intro && <p className="text-muted">{intro}</p>}
+        {lead}
       </header>
       {children}
     </article>

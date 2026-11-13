@@ -6,8 +6,9 @@ import { Fragment, useEffect, useId, useRef, useState, useSyncExternalStore } fr
 import { groupCategories } from "@/domain/category-groups";
 import { shopifyImage } from "@/lib/images";
 import { PhotoFan } from "./category-showcase";
+import { useSiteFacts } from "./site-facts";
 
-export type GroupTile = { slug: string; name: string; count: number; images: string[]; href: string };
+export type GroupTile = { slug: string; name: string; group: string; count: number; images: string[]; href: string };
 
 /** Columns of the group grid at each width; must match the grid classes below. */
 const COLUMNS = [
@@ -75,11 +76,11 @@ function Panel({ id, labelledBy, items }: { id: string; labelledBy: string; item
 }
 
 /**
- * The five groups as big photo boxes. Tapping one opens its categories in a full-width panel
+ * The admin's groups (קטגוריות in the settings) as big photo boxes. Tapping one opens its categories in a full-width panel
  * under that row of the grid; one group at a time, tapping it again closes it.
  */
 export function GroupBoxes({ categories }: { categories: GroupTile[] }) {
-  const groups = groupCategories(categories);
+  const groups = groupCategories(categories, useSiteFacts().categoryGroups);
   const [openId, setOpenId] = useState<string | null>(null);
   const cols = useSyncExternalStore(onResize, columns, () => 2);
   const base = useId();

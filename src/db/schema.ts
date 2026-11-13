@@ -127,6 +127,12 @@ export const categories = pgTable("categories", {
   sortOrder: integer("sort_order").notNull().default(0),
   /** The home page's photos for this category, worked out by each regroup (categoryPhotos). */
   images: text("images").array().notNull().default([]),
+  /** The group it shows under (S16d): an id from the settings' `content.categoryGroups`. */
+  groupId: text("group_id").notNull().default("misc"),
+  /** Hidden from the home page, the stores' and the catalog's category lists (its parts stay searchable). */
+  hidden: boolean("hidden").notNull().default(false),
+  /** The admin's photo for the home page, shown before the regroup's own picks. */
+  homeImage: text("home_image"),
 });
 
 /** One row per supplier product, updated by the sync job (scripts/sync.ts). */

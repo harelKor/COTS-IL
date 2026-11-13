@@ -507,11 +507,14 @@ export async function getFacets() {
 
   // One after another, not in parallel: on a cold instance this fills the cache while other
   // renders need the same 5 connections (src/db/index.ts).
+  // The admin's home photo (S16d) leads the regroup's own picks.
+  const images = sql<string[]>`CASE WHEN ${categories.homeImage} IS NULL THEN ${categories.images}
+    ELSE (array_prepend(${categories.homeImage}, array_remove(${categories.images}, ${categories.homeImage})))[1:3] END`;
   const categoryRows = await db
-    .select({ slug: categories.slug, name: categories.name, images: categories.images, count })
+    .select({ slug: categories.slug, name: categories.name, group: categories.groupId, images, count })
     .from(families)
     .innerJoin(categories, eq(categories.id, families.categoryId))
-    .where(visible)
+    .where(and(visible, eq(categories.hidden, false)))
     .groupBy(categories.id)
     .orderBy(asc(categories.sortOrder));
   const supplierRows = await db
@@ -986,10 +989,10 @@ export async function getVendorStore(code: string) {
   if (!vendor) return null;
   const ofVendor = and(visible, sql`${code} = ANY(${families.supplierCodes})`);
   const counts = await db
-    .select({ slug: categories.slug, name: categories.name, sortOrder: categories.sortOrder, count: sql<number>`count(*)::int` })
+    .select({ slug: categories.slug, name: categories.name, group: categories.groupId, sortOrder: categories.sortOrder, count: sql<number>`count(*)::int` })
     .from(families)
     .innerJoin(categories, eq(categories.id, families.categoryId))
-    .where(ofVendor)
+    .where(and(ofVendor, eq(categories.hidden, false)))
     .groupBy(categories.id)
     .orderBy(asc(categories.sortOrder));
   const photos = await db.execute<{ slug: string; image: string }>(sql`
@@ -1002,6 +1005,6 @@ export async function getVendorStore(code: string) {
   return {
     ...vendor,
     count: counts.reduce((n, c) => n + c.count, 0),
-    categories: counts.map((c) => ({ slug: c.slug, name: c.name, count: c.count, images: image.has(c.slug) ? [image.get(c.slug)!] : [] })),
+    categories: counts.map((c) => ({ slug: c.slug, name: c.name, group: c.group, count: c.count, images: image.has(c.slug) ? [image.get(c.slug)!] : [] })),
   };
 }

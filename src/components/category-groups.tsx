@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { groupCategories, groupOfCategory } from "@/domain/category-groups";
+import { groupCategories, groupOf } from "@/domain/category-groups";
 import { catalogHref, type CatalogFilters } from "@/lib/catalog-filters";
 import { vendorHref } from "@/domain/vendors";
+import { useSiteFacts } from "./site-facts";
 
 const chip = (on: boolean) =>
   `flex min-h-11 items-center justify-center gap-1.5 text-center leading-tight sm:justify-start sm:text-start rounded-full px-2.5 text-caption transition-colors sm:gap-2 sm:px-4 sm:text-callout ${
@@ -12,7 +13,7 @@ const chip = (on: boolean) =>
   }`;
 
 /**
- * "הכל" and five groups; pressing a group opens a second row with only its categories. The
+ * "הכל" and the admin's groups; pressing a group opens a second row with only its categories. The
  * chosen category's group starts open. A group alone doesn't filter.
  */
 export function CategoryGroups({
@@ -21,15 +22,17 @@ export function CategoryGroups({
   q,
   vendor,
 }: {
-  categories: { slug: string; name: string; count: number }[];
+  categories: { slug: string; name: string; group: string; count: number }[];
   category: string;
   q: string;
   /** In a vendor's store: the chips stay in the store. */
   vendor?: string;
 }) {
   const href = (f: Partial<CatalogFilters>) => (vendor ? vendorHref(vendor, f) : catalogHref(f));
-  const groups = groupCategories(categories);
-  const activeGroup = category ? groupOfCategory(category) : null;
+  const { categoryGroups } = useSiteFacts();
+  const groups = groupCategories(categories, categoryGroups);
+  const current = categories.find((c) => c.slug === category);
+  const activeGroup = current ? groupOf(current.group, categoryGroups) : null;
   // The user's own choice wins until the URL's category changes.
   const [picked, setPicked] = useState<{ category: string; open: string | null } | null>(null);
   const open = picked && picked.category === category ? picked.open : activeGroup;

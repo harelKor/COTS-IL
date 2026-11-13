@@ -12,12 +12,11 @@ import { cartCount, listOrders } from "@/lib/orders";
 import { getDiscovery, getFacets, getLastSync, getVendors } from "@/lib/catalog";
 import { DiscoveryStrip } from "@/components/discovery-strip";
 import { markupText } from "@/domain/pricing";
-import { getBusiness, getSiteFacts } from "@/lib/settings";
+import { getBusiness, getSettings, getSiteFacts } from "@/lib/settings";
 import { typicalLeadTime } from "@/domain/lead-time";
 import { HowItWorksSteps } from "@/components/how-it-works-steps";
 import { BadgeCheck, Boxes, Coins, FileCheck2, Truck, Undo2 } from "lucide-react";
 import { catalogHref } from "@/lib/catalog-filters";
-import { SEARCH_EXAMPLES } from "@/lib/search-examples";
 import { siteUrl } from "@/lib/site-url";
 
 /**
@@ -161,7 +160,25 @@ async function WhyUs() {
   );
 }
 
-const EXAMPLES = SEARCH_EXAMPLES;
+/** The admin's one-tap search examples (תוכן האתר). */
+async function Examples() {
+  const { content } = await getSettings();
+  if (content.searchExamples.length === 0) return null;
+  return (
+    <ul aria-label="דוגמאות לחיפוש" className="no-scrollbar flex w-full gap-2 overflow-x-auto sm:flex-wrap sm:justify-center">
+      {content.searchExamples.map((q) => (
+        <li key={q} className="shrink-0">
+          <Link
+            href={catalogHref({ q })}
+            className="flex h-11 items-center rounded-full border border-line bg-white/90 px-4 text-sm font-medium text-muted shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle hover:text-brand"
+          >
+            <Ltr>{q}</Ltr>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 const SITE_URL = siteUrl();
 
@@ -203,18 +220,9 @@ export default function HomePage() {
           <p className="hidden max-w-xl text-muted sm:block">בוחרים ספק, מוסיפים לסל, והספק הישראלי מזמין ומוסר לקבוצה. הרשמה רק כשמזמינים.</p>
           <div className="flex w-full flex-col items-center gap-4 pt-2">
             <HomeCommandBar />
-            <ul aria-label="דוגמאות לחיפוש" className="no-scrollbar flex w-full gap-2 overflow-x-auto sm:flex-wrap sm:justify-center">
-              {EXAMPLES.map((q) => (
-                <li key={q} className="shrink-0">
-                  <Link
-                    href={catalogHref({ q })}
-                    className="flex h-11 items-center rounded-full border border-line bg-white/90 px-4 text-sm font-medium text-muted shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle hover:text-brand"
-                  >
-                    <Ltr>{q}</Ltr>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <Suspense>
+              <Examples />
+            </Suspense>
           </div>
         </section>
 

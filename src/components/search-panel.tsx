@@ -16,7 +16,7 @@ import { catalogHref } from "@/lib/catalog-filters";
 import type { CardFamily } from "@/lib/catalog";
 import { shopifyImage } from "@/lib/images";
 import { normalizeSearch, parseQuickQuery } from "@/lib/quick-query";
-import { SEARCH_CATEGORIES, SEARCH_EXAMPLES } from "@/lib/search-examples";
+import { useSiteFacts } from "./site-facts";
 import { addToCartNow } from "./cart-actions";
 import { canEditCart, useCart } from "./cart-store";
 import { CategoryIcon } from "./category-icon";
@@ -112,6 +112,7 @@ export function SearchPanel() {
     shortcutLabel,
     serverShortcut,
   );
+  const { searchExamples, searchCategories } = useSiteFacts();
   const [text, setText] = useState("");
   // Results are kept with the text they answer: while the next ones load, these stay, dimmed.
   const [found, setFound] = useState<{ text: string } & SearchResponse>({
@@ -353,7 +354,7 @@ export function SearchPanel() {
               <section className="mb-5">
                 <h2 className="mb-2 text-caption text-muted">לדוגמה</h2>
                 <ul className="flex flex-wrap gap-2">
-                  {SEARCH_EXAMPLES.map((r) => (
+                  {searchExamples.map((r) => (
                     <li key={r}>
                       <button
                         type="button"
@@ -369,7 +370,7 @@ export function SearchPanel() {
               <section>
                 <h2 className="mb-2 text-caption text-muted">קטגוריות</h2>
                 <ul className="grid gap-1 sm:grid-cols-2">
-                  {SEARCH_CATEGORIES.map((c) => (
+                  {searchCategories.map((c) => (
                     <li key={c.slug}>
                       <Link
                         href={catalogHref({ category: c.slug })}

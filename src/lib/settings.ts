@@ -1,10 +1,11 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { db, schema } from "@/db";
 import type { PriceContext } from "@/domain/pricing";
 import { parseSettings, type Business, type Settings } from "@/domain/settings";
 import { getUsdIlsRate } from "./fx";
+import { SEARCH_CATEGORIES } from "./search-examples";
 
 /**
  * The admin's settings (S16), cached under the `settings` tag that every save in
@@ -57,11 +58,28 @@ export async function getPricingRules(): Promise<PricingRuleRow[]> {
   return rows.map((r) => ({ id: r.id, scope: r.scope, targetId: r.targetId, multiplier: Number(r.multiplier) }));
 }
 
-/** What the browser's cart sheet and product page quote (SiteFactsProvider). */
+/** Every category's name and whether it's hidden, in the admin's order (renames show at once). */
+export async function getCategoryList(): Promise<{ slug: string; name: string; hidden: boolean }[]> {
+  "use cache";
+  cacheLife("days");
+  cacheTag("catalog");
+  return db
+    .select({ slug: schema.categories.slug, name: schema.categories.name, hidden: schema.categories.hidden })
+    .from(schema.categories)
+    .orderBy(asc(schema.categories.sortOrder));
+}
+
+/** What the browser's cart sheet, product page, search panel and category groups need (SiteFactsProvider). */
 export async function getSiteFacts() {
-  const [{ business, pricing }, rules] = await Promise.all([getSettings(), getPricingRules()]);
+  const [{ business, pricing, content }, rules, categoryList] = await Promise.all([getSettings(), getPricingRules(), getCategoryList()]);
   const all = [pricing.markup, ...rules.map((r) => r.multiplier)];
+  const shown = new Map(categoryList.filter((c) => !c.hidden).map((c) => [c.slug, c.name]));
   return {
+    banner: content.banner,
+    categoryGroups: content.categoryGroups,
+    searchExamples: content.searchExamples,
+    /** The empty search panel's categories: SEARCH_CATEGORIES with the admin's names, hidden ones left out. */
+    searchCategories: SEARCH_CATEGORIES.flatMap((slug) => (shown.has(slug) ? [{ slug, name: shown.get(slug)! }] : [])),
     quoteLeadBusinessDays: business.quoteLeadBusinessDays,
     priceIncludes: business.priceIncludes,
     leadTimes: business.leadTimes,
