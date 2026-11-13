@@ -1,6 +1,6 @@
 import { PUBLIC_CACHE } from "@/lib/cache-headers";
 import { getFamily } from "@/lib/catalog";
-import { usdIlsRate } from "@/lib/fx";
+import { priceContext } from "@/lib/settings";
 import { optionsTableHtml } from "@/lib/options-table";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
@@ -13,6 +13,6 @@ export const maxDuration = 15;
 export async function GET(_request: Request, { params }: RouteContext<"/catalog/p/[slug]/options">) {
   const result = await getFamily(decodeURIComponent((await params).slug));
   if (!result) return new Response("", { status: 404 });
-  const html = optionsTableHtml(result.variants, result.family, await usdIlsRate());
+  const html = optionsTableHtml(result.variants, result.family, await priceContext());
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": PUBLIC_CACHE } });
 }

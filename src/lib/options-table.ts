@@ -1,6 +1,6 @@
 import "server-only";
 import { optionLabel, sortByOptions } from "@/domain/families/sort";
-import { formatIls, priceIls } from "@/domain/pricing";
+import { formatIls, priceIls, type PriceContext } from "@/domain/pricing";
 import { availabilityStatus } from "./availability-text";
 import type { FamilyVariant } from "./catalog";
 import { familyHref } from "./catalog-links";
@@ -17,7 +17,7 @@ type TableFamily = { slug: string; title: string; images: string[]; optionKeys: 
  * of the page's weight. Styles match the rest of the page; OptionsTable fixes stale statuses,
  * sorts by a column and adds a row to the cart (McMaster-style: quantity and Add on each row).
  */
-export function optionsTableHtml(all: FamilyVariant[], family: TableFamily, rate: number) {
+export function optionsTableHtml(all: FamilyVariant[], family: TableFamily, rate: PriceContext) {
   const keys = family.optionKeys;
   const variants = sortByOptions(all, keys);
   const manySuppliers = new Set(all.map((v) => v.supplierCode)).size > 1;
@@ -31,7 +31,7 @@ export function optionsTableHtml(all: FamilyVariant[], family: TableFamily, rate
     `<th><span class="sr-only">הוספה לסל</span></th>`,
   ].join("");
   const rows = variants.map((v) => {
-    const price = priceIls(v.priceUsd, rate);
+    const price = priceIls(v.priceUsd, rate, v.markup);
     const status = availabilityStatus(v.available, v.checkedAt.toISOString(), true);
     const options = keys.flatMap((k) => (v.familyOptions[k] ? [v.familyOptions[k]] : [])).join(" / ");
     const href = familyHref(family.slug, v.sku ?? v.id);

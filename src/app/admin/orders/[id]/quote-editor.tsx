@@ -61,7 +61,7 @@ export function QuoteEditor(props: {
   shippingIls: number | null;
   notes: string;
   version: number;
-  /** From src/lib/business.ts; null hides the line. */
+  /** From the admin's settings (פרטי העסק); null hides the line. */
   paymentTerms: string | null;
 }) {
   const [state, action, pending] = useActionState(sendQuote, {} as QuoteFormState);

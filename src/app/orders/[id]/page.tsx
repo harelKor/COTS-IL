@@ -14,7 +14,7 @@ import { orderStatus } from "@/domain/order-status";
 import { canCancelOrder, canDecideQuote, teamCanOrder } from "@/domain/orders";
 import { getViewer } from "@/lib/auth";
 import { getChangeRequest, getOrderForViewer, getStepDates, recentDecision } from "@/lib/orders";
-import { business } from "@/lib/business";
+import { getBusiness } from "@/lib/settings";
 import { CancelOrder } from "./cancel-order";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { TeamName } from "@/components/team-name";
@@ -25,6 +25,7 @@ export const maxDuration = 60;
 
 async function Order({ params }: PageProps<"/orders/[id]">) {
   const { id } = await params;
+  const business = await getBusiness();
   const viewer = await getViewer();
   if (!viewer) redirect(`/login?next=/orders/${encodeURIComponent(id)}`);
 

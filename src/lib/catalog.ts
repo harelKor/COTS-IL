@@ -6,7 +6,8 @@ import { ACCESSORY_TITLE_PATTERN, HARDWARE_CATEGORIES, MAIN_ITEM_MIN_USD } from 
 import { facetCountPlans, isRelevantFacet } from "@/domain/facets";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
-import { usdIlsRate } from "./fx";
+import { priceContext } from "./settings";
+import type { PriceContext } from "@/domain/pricing";
 import { correctQuery, englishQuery, likePatterns, looksLikeSku, normalizeSku, searchTerms } from "@/domain/search-query";
 import type { CatalogFilters } from "./catalog-filters";
 import { familyHref } from "./catalog-links";
@@ -100,8 +101,8 @@ function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
   const where = and(...conditions);
 
   const order: SQL[] = [];
-  if (filters.sort === "price-asc") order.push(sql`${families.minPriceUsd} ASC NULLS LAST`);
-  else if (filters.sort === "price-desc") order.push(sql`${families.minPriceUsd} DESC NULLS LAST`);
+  if (filters.sort === "price-asc") order.push(sql`${families.minListUsd} ASC NULLS LAST`);
+  else if (filters.sort === "price-desc") order.push(sql`${families.minListUsd} DESC NULLS LAST`);
   else if (filters.sort === "relevance" && text) {
     // An exact SKU first, then families named for every word, then the part itself ahead of
     // its accessories and cheap bits (Kraken X60 before "Kraken Wire Bundle"), in stock, closest title.
@@ -175,8 +176,8 @@ const cardColumns = {
   slug: families.slug,
   title: families.title,
   images: families.images,
-  minPriceUsd: families.minPriceUsd,
-  maxPriceUsd: families.maxPriceUsd,
+  minListUsd: families.minListUsd,
+  maxListUsd: families.maxListUsd,
   available: families.available,
   lastSeenAt: families.lastSeenAt,
   supplierCodes: families.supplierCodes,
@@ -189,8 +190,9 @@ type CardRow = {
   slug: string;
   title: string;
   images: string[];
-  minPriceUsd: string | null;
-  maxPriceUsd: string | null;
+  /** USD × each variant's multiplier (S16a): priceIls(…, rate, 1) gives the ₪ range. */
+  minListUsd: string | null;
+  maxListUsd: string | null;
   available: boolean | null;
   lastSeenAt: Date;
   supplierCodes: string[];
@@ -199,7 +201,7 @@ type CardRow = {
 };
 
 /** Orderable variants of these families, cheapest in stock first. */
-async function variantsOf(familyIds: string[], rate: number) {
+async function variantsOf(familyIds: string[], rate: PriceContext) {
   if (familyIds.length === 0) return [];
   const rows = await db
     .select({
@@ -208,6 +210,7 @@ async function variantsOf(familyIds: string[], rate: number) {
       sku: variants.supplierSku,
       options: variants.familyOptions,
       priceUsd: variants.priceUsd,
+      markup: variants.markup,
       available: variants.available,
       supplierName: suppliers.name,
       image: sql<string | null>`${products.images}[1]`,
@@ -227,7 +230,7 @@ async function variantsOf(familyIds: string[], rate: number) {
     .orderBy(sql`${variants.available} IS TRUE DESC`, asc(variants.priceUsd));
   return rows.map((v) => ({
     familyId: v.familyId!,
-    variant: { id: v.id, sku: v.sku, options: v.options, priceIls: priceIls(v.priceUsd, rate), available: v.available, supplierName: v.supplierName, image: v.image } satisfies CardVariant,
+    variant: { id: v.id, sku: v.sku, options: v.options, priceIls: priceIls(v.priceUsd, rate, v.markup), available: v.available, supplierName: v.supplierName, image: v.image } satisfies CardVariant,
   }));
 }
 
@@ -235,14 +238,14 @@ async function variantsOf(familyIds: string[], rate: number) {
 export async function getCardVariants(familyId: string): Promise<CardVariant[]> {
   "use cache";
   catalogCache();
-  const rate = await usdIlsRate();
+  const rate = await priceContext();
   return (await variantsOf([familyId], rate)).map((r) => r.variant);
 }
 
 /** What family cards need, keeping the rows' order. Only single-part families carry their variant. */
 async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
   if (rows.length === 0) return [];
-  const rate = await usdIlsRate();
+  const rate = await priceContext();
   const names = await supplierNames();
   const ids = rows.map((r) => r.id);
   // Per family: how many option sets can be ordered, and the best offer.
@@ -268,8 +271,8 @@ async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
     title: r.title,
     image: r.images[0] ?? null,
     supplierNames: r.supplierCodes.map((c) => names.get(c) ?? c),
-    minPriceIls: priceIls(r.minPriceUsd, rate),
-    maxPriceIls: priceIls(r.maxPriceUsd, rate),
+    minPriceIls: priceIls(r.minListUsd, rate, 1),
+    maxPriceIls: priceIls(r.maxListUsd, rate, 1),
     available: r.available,
     checkedAt: r.lastSeenAt.toISOString(),
     variantCount: r.variantCount,
@@ -506,6 +509,7 @@ export async function getFamily(slug: string) {
       familyOptions: variants.familyOptions,
       options: variants.options,
       priceUsd: variants.priceUsd,
+      markup: variants.markup,
       available: variants.available,
       checkedAt: variants.checkedAt,
       productTitle: products.title,
@@ -662,8 +666,8 @@ async function quickRows(q: string) {
       slug: families.slug,
       title: families.title,
       image: sql<string | null>`${families.images}[1]`,
-      minPriceUsd: families.minPriceUsd,
-      maxPriceUsd: families.maxPriceUsd,
+      minListUsd: families.minListUsd,
+      maxListUsd: families.maxListUsd,
       available: families.available,
       optionKeys: families.optionKeys,
       lastSeenAt: families.lastSeenAt,
@@ -675,8 +679,8 @@ async function quickRows(q: string) {
             ORDER BY ${variants.available} IS TRUE DESC, ${variants.priceUsd} ASC))[1]
         END ${fromFamily})`,
       matchedVariant: sku
-        ? sql<{ id: string; sku: string; priceUsd: string } | null>`(
-          SELECT json_build_object('id', ${variants.id}, 'sku', ${variants.supplierSku}, 'priceUsd', ${variants.priceUsd})
+        ? sql<{ id: string; sku: string; priceUsd: string; markup: string | null } | null>`(
+          SELECT json_build_object('id', ${variants.id}, 'sku', ${variants.supplierSku}, 'priceUsd', ${variants.priceUsd}, 'markup', ${variants.markup})
           ${fromFamily} AND ${skuNorm} = ${sku}
           ORDER BY ${variants.available} IS TRUE DESC, ${variants.priceUsd} ASC LIMIT 1)`
         : sql<null>`NULL`,
@@ -737,13 +741,14 @@ export async function getSharedLines(variantIds: string[]) {
   "use cache";
   catalogCache();
   if (variantIds.length === 0) return [];
-  const rate = await usdIlsRate();
+  const rate = await priceContext();
   const rows = await db
     .select({
       variantId: variants.id,
       sku: variants.supplierSku,
       options: variants.familyOptions,
       priceUsd: variants.priceUsd,
+      markup: variants.markup,
       title: products.title,
       image: sql<string | null>`${products.images}[1]`,
       supplierName: suppliers.name,
@@ -763,7 +768,7 @@ export async function getSharedLines(variantIds: string[]) {
     image: r.image,
     href: r.familySlug ? familyHref(r.familySlug, r.sku ?? r.variantId) : "/catalog",
     supplierName: r.supplierName,
-    unitPriceIls: priceIls(r.priceUsd, rate),
+    unitPriceIls: priceIls(r.priceUsd, rate, r.markup),
   }));
 }
 

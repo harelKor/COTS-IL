@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { markupText } from "@/domain/pricing";
+import { getSiteFacts } from "@/lib/settings";
 import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
 import { CategoryGroups } from "@/components/category-groups";
@@ -78,6 +80,16 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
   );
 }
 
+/** How the ₪ prices are made, with the admin's multiplier (cached under `settings`). */
+async function PriceLine() {
+  const { markupRange } = await getSiteFacts();
+  return (
+    <p className="text-center text-caption text-muted">
+      מחיר הספק בדולרים לפי השער היציג של בנק ישראל, כפול <bdi dir="ltr">{markupText(markupRange)}</bdi>. משלוח בישראל מתומחר בהצעת המחיר.
+    </p>
+  );
+}
+
 export default function CatalogPage(props: PageProps<"/catalog">) {
   return (
     // A little wider than other pages on a desktop, for four columns beside the filters.
@@ -104,7 +116,7 @@ export default function CatalogPage(props: PageProps<"/catalog">) {
           <Results {...props} />
         </ViewTransition>
       </Suspense>
-      <p className="text-center text-caption text-muted">מחיר הספק בדולרים לפי השער היציג של בנק ישראל, כפול 1.6. משלוח בישראל מתומחר בהצעת המחיר.</p>
+      <PriceLine />
     </div>
   );
 }

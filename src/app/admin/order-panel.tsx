@@ -5,12 +5,12 @@ import { ActionForm } from "@/components/action-form";
 import { Alert, Button, Field, Input } from "@/components/form";
 import { Ltr } from "@/components/ltr";
 import { formatDay } from "@/domain/display";
-import { business } from "@/lib/business";
+import { getBusiness } from "@/lib/settings";
 import { ItemDescription, QuoteTable, formatDateTime } from "@/components/orders";
 import { isFinished, LINE_LABELS, lineStatus, type OrderStatusKey } from "@/domain/order-status";
 import { canRejectOrder } from "@/domain/orders";
 import { priceIls } from "@/domain/pricing";
-import { usdIlsRate } from "@/lib/fx";
+import { priceContext } from "@/lib/settings";
 import { requireAdmin } from "@/lib/auth";
 import { getOrderDates, getOrderLogistics } from "@/lib/admin-orders";
 import { getPo } from "@/lib/purchasing";
@@ -58,6 +58,7 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
         .select({
           id: schema.variants.id,
           priceUsd: schema.variants.priceUsd,
+          markup: schema.variants.markup,
           available: schema.variants.available,
           checkedAt: schema.variants.checkedAt,
           image: sql<string | null>`${schema.products.images}[1]`,
@@ -67,7 +68,7 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
         .where(inArray(schema.variants.id, detail.items.map((i) => i.variantId)))
     : [];
   const liveById = new Map(live.map((v) => [v.id, v]));
-  const rate = await usdIlsRate();
+  const rate = await priceContext();
   return detail.items.map((item) => {
     const line = latestLines.get(item.id);
     const variant = liveById.get(item.variantId);
@@ -84,7 +85,7 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
       unitPriceIls: line?.unitPriceIls ?? item.unitPriceIls,
       changeReason: line?.changeReason ?? "",
       image: variant?.image ?? null,
-      livePriceIls: priceIls(variant?.priceUsd, rate),
+      livePriceIls: priceIls(variant?.priceUsd, rate, variant?.markup),
       liveAvailable: variant?.available ?? null,
       checkedAt: variant?.checkedAt.toISOString() ?? null,
     };
@@ -131,7 +132,7 @@ async function Editor({ detail }: { detail: Detail }) {
       shippingIls={latest?.shippingIls ?? (detail.order.deliveryMethod === "pickup" ? 0 : null)}
       notes={latest?.notes ?? ""}
       version={(latest?.version ?? 0) + 1}
-      paymentTerms={business.paymentTerms}
+      paymentTerms={(await getBusiness()).paymentTerms}
     />
   );
 }

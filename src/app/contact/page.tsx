@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { InfoPage, InfoSection } from "@/components/info-page";
 import { Ltr } from "@/components/ltr";
 import { WhatsAppLink } from "@/components/whatsapp-link";
-import { business } from "@/lib/business";
+import { getBusiness } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "צור קשר", description: "איך מגיעים לאדם ב-COTS-IL." };
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const business = await getBusiness();
   const any = business.email || business.phone || business.whatsapp || business.pickupAddress;
   return (
     <InfoPage title="צור קשר" intro="שאלה על חלק, על הצעה או על הזמנה? צרפו את מספר ההזמנה אם יש.">

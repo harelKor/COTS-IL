@@ -9,7 +9,7 @@ import { suspiciousMultiSupplier, type Suspicion } from "@/domain/catalog-overri
 import { formatIls, priceIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { familyHref } from "@/lib/catalog-links";
-import { usdIlsRate } from "@/lib/fx";
+import { priceContext } from "@/lib/settings";
 import { renameCategory, saveProductOverride, saveVariantPrice } from "./actions";
 import { OverrideForm, RemoveOverrideButton } from "./catalog-forms";
 
@@ -71,13 +71,13 @@ async function FamilyEditor({ slug }: { slug: string }) {
         LEFT JOIN product_overrides o ON o.product_id = p.id
        WHERE p.id IN (SELECT product_id FROM variants WHERE family_id = ${family.id})
        ORDER BY p.id = ${family.primaryProductId} DESC, s.name`),
-    db.execute<{ id: string; sku: string | null; product_id: string; options: Record<string, string>; supplier_price_usd: string | null; o_price: string | null }>(sql`
-      SELECT v.id, v.supplier_sku AS sku, v.product_id, v.family_options AS options, v.supplier_price_usd, o.price_usd AS o_price
+    db.execute<{ id: string; sku: string | null; product_id: string; options: Record<string, string>; supplier_price_usd: string | null; markup: string | null; o_price: string | null }>(sql`
+      SELECT v.id, v.supplier_sku AS sku, v.product_id, v.family_options AS options, v.supplier_price_usd, v.markup, o.price_usd AS o_price
         FROM variants v LEFT JOIN variant_overrides o ON o.variant_id = v.id
        WHERE v.family_id = ${family.id} AND v.missing_since IS NULL
        ORDER BY v.supplier_sku NULLS LAST`),
     db.select({ id: categories.id, name: categories.name }).from(categories).orderBy(asc(categories.sortOrder)),
-    usdIlsRate(),
+    priceContext(),
   ]);
 
   return (
@@ -157,7 +157,7 @@ async function FamilyEditor({ slug }: { slug: string }) {
             {variants
               .filter((v) => v.product_id === p.id)
               .map((v) => {
-                const ils = priceIls(v.o_price ?? v.supplier_price_usd, rate);
+                const ils = priceIls(v.o_price ?? v.supplier_price_usd, rate, v.markup);
                 return (
                   <li key={v.id} className="py-2">
                     <OverrideForm action={saveVariantPrice} label="שמירת מחיר" className="flex flex-wrap items-center gap-3">

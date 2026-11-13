@@ -3,6 +3,8 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import * as schema from "../db/schema";
 import { applyProductOverrides, familyPinRank, type ProductOverride } from "../domain/catalog-overrides";
 import { categoryPhotos } from "../domain/catalog-rank";
+import { resolveMarkup, type PricingRuleSet } from "../domain/pricing";
+import { parseSettings } from "../domain/settings";
 import { groupFamilies, type FamilyDraft, type GroupProduct } from "../domain/families/group";
 import { isRealDescription } from "../lib/description";
 
@@ -43,6 +45,7 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
     )
     UPDATE variants AS v SET price_usd = t.price FROM target t
      WHERE t.id = v.id AND v.price_usd IS DISTINCT FROM t.price`);
+  await applyPricingRules(tx);
   const overrides = await loadOverrides(tx);
 
   const productRows = await tx
@@ -69,6 +72,7 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
       sku: variants.supplierSku,
       options: variants.options,
       priceUsd: variants.priceUsd,
+      markup: variants.markup,
       available: variants.available,
     })
     .from(variants)
@@ -172,6 +176,45 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
   return summarize(families, productById, variantById, variantsByProduct, issues);
 }
 
+/** The admin's multipliers (S16a): the global one from site_settings, the rest from pricing_rules. */
+export async function loadPricingRules(tx: Tx): Promise<PricingRuleSet> {
+  const [row] = await tx.select({ data: schema.siteSettings.data }).from(schema.siteSettings).where(eq(schema.siteSettings.id, 1));
+  const rules = await tx.select().from(schema.pricingRules);
+  const of = (scope: "supplier" | "category") => new Map(rules.filter((r) => r.scope === scope).map((r) => [r.targetId, Number(r.multiplier)]));
+  return { global: parseSettings(row?.data).pricing.markup, bySupplier: of("supplier"), byCategory: of("category") };
+}
+
+/**
+ * Writes each variant's multiplier (variants.markup) from the rules, by its supplier and
+ * its product's category as the admin left it. Every price reads it (priceIls), so a
+ * changed rule reprices the catalog once this runs; order snapshots keep their own.
+ */
+export async function applyPricingRules(tx: Tx): Promise<void> {
+  const rules = await loadPricingRules(tx);
+  // Not tx.execute: postgres.js and node-postgres return its rows differently.
+  const rows = await tx
+    .select({
+      id: schema.variants.id,
+      supplierId: schema.variants.supplierId,
+      categoryId: sql<string | null>`coalesce(${schema.productOverrides.categoryId}, ${schema.products.categoryId})`,
+      markup: schema.variants.markup,
+    })
+    .from(schema.variants)
+    .innerJoin(schema.products, eq(schema.products.id, schema.variants.productId))
+    .leftJoin(schema.productOverrides, eq(schema.productOverrides.productId, schema.products.id));
+  const byMarkup = new Map<string, string[]>();
+  for (const r of rows) {
+    const resolved = resolveMarkup(rules, { supplierId: r.supplierId, categoryId: r.categoryId });
+    if (resolved.kind !== "markup") continue;
+    const value = resolved.markup.toFixed(3);
+    if (r.markup !== null && Number(r.markup).toFixed(3) === value) continue;
+    byMarkup.set(value, [...(byMarkup.get(value) ?? []), r.id]);
+  }
+  for (const [value, ids] of byMarkup)
+    for (const batch of chunks(ids, 1000))
+      await tx.execute(sql`UPDATE variants SET markup = ${value} WHERE id IN (${sql.join(batch.map((id) => sql`${id}::uuid`), sql`, `)})`);
+}
+
 /** Every product override, with its category as a slug like the grouping uses. */
 async function loadOverrides(tx: Tx): Promise<Map<string, ProductOverride>> {
   const rows = await tx
@@ -204,7 +247,7 @@ type ProductRow = {
   programs: ("FRC" | "FTC")[];
   status: "published" | "review" | "hidden";
 };
-type VariantRow = { id: string; productId: string; sku: string | null; options: { name: string; value: string }[]; priceUsd: string | null; available: boolean | null };
+type VariantRow = { id: string; productId: string; sku: string | null; options: { name: string; value: string }[]; priceUsd: string | null; markup: string | null; available: boolean | null };
 
 function familyRow(
   f: FamilyDraft,
@@ -217,7 +260,10 @@ function familyRow(
   const primary = productById.get(f.primaryProductId)!;
   const ordered = [primary, ...members.filter((m) => m.id !== primary.id)];
   const memberVariants = f.variantIds.map((id) => variantById.get(id)!);
-  const prices = memberVariants.flatMap((v) => (v.priceUsd && Number(v.priceUsd) > 0 ? [Number(v.priceUsd)] : []));
+  const priced = memberVariants.filter((v) => v.priceUsd && Number(v.priceUsd) > 0);
+  const prices = priced.map((v) => Number(v.priceUsd));
+  // USD × the variant's own multiplier, so a family whose suppliers are priced differently still shows its true ₪ range.
+  const lists = priced.map((v) => Number(v.priceUsd) * Number(v.markup ?? 1));
   const availability = memberVariants.map((v) => v.available);
 
   return {
@@ -235,6 +281,8 @@ function familyRow(
     variantCount: memberVariants.length,
     minPriceUsd: prices.length ? Math.min(...prices).toFixed(2) : null,
     maxPriceUsd: prices.length ? Math.max(...prices).toFixed(2) : null,
+    minListUsd: lists.length ? Math.min(...lists).toFixed(2) : null,
+    maxListUsd: lists.length ? Math.max(...lists).toFixed(2) : null,
     available: availability.every((a) => a === null) ? null : availability.some((a) => a === true),
     status: members.some((m) => m.status === "published") ? ("published" as const) : ("review" as const),
     // Only this family's own variants, so a reseller product spanning families doesn't

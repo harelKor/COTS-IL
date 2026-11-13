@@ -176,6 +176,13 @@
       "when": 1794391612212,
       "tag": "20261111100652_notify_email_off",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794506546822,
+      "tag": "20261112180226_settings_pricing",
+      "breakpoints": true
     }
   ]
 }

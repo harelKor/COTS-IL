@@ -3,25 +3,27 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { InfoPage } from "@/components/info-page";
 import { Ltr } from "@/components/ltr";
-import { business } from "@/lib/business";
+import { markupText } from "@/domain/pricing";
+import type { Business } from "@/domain/settings";
+import { getBusiness, getSiteFacts } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "שאלות נפוצות",
   description: "מחירים, הצעות מחיר, חשבון הקבוצה וזמני אספקה ב-COTS-IL.",
 };
 
-const ITEMS: { q: string; a: ReactNode; show?: boolean }[] = [
+const items = (business: Business, times: string): { q: string; a: ReactNode; show?: boolean }[] => [
   {
     q: "האם הוספה לסל או שליחת בקשה מחייבות?",
     a: "לא. הוספה לסל ושליחת בקשה לא מחייבות תשלום. ההזמנה יוצאת לספקים רק אחרי שהקבוצה מאשרת את הצעת המחיר.",
   },
   {
     q: "איך נקבע המחיר בשקלים?",
-    a: `המחיר בקטלוג הוא מחיר הספק בדולרים, כפול השער היציג של בנק ישראל (מתעדכן כל יום), כפול 1.6${business.priceIncludes ? `, כולל ${business.priceIncludes}` : ""}. משלוח בתוך ישראל מתומחר בהצעת המחיר, והמחיר המחייב הוא זה שבהצעה שאישרתם.`,
+    a: `המחיר בקטלוג הוא מחיר הספק בדולרים, כפול השער היציג של בנק ישראל (מתעדכן כל יום), כפול ${times}${business.priceIncludes ? `, כולל ${business.priceIncludes}` : ""}. משלוח בתוך ישראל מתומחר בהצעת המחיר, והמחיר המחייב הוא זה שבהצעה שאישרתם.`,
   },
   {
     q: "למה לא להזמין ישירות מהספק?",
-    a: "כאן יש הזמנה אחת לכל הספקים, מחיר בשקלים לפי השער היציג כפול 1.6, ומשלוח מרוכז, ואנחנו מטפלים ביבוא. לא צריך כרטיס אשראי בדולרים או לעקוב אחרי כמה משלוחים מחו״ל.",
+    a: `כאן יש הזמנה אחת לכל הספקים, מחיר בשקלים לפי השער היציג כפול ${times}, ומשלוח מרוכז, ואנחנו מטפלים ביבוא. לא צריך כרטיס אשראי בדולרים או לעקוב אחרי כמה משלוחים מחו״ל.`,
   },
   {
     q: "מתי מגיעה הצעת המחיר?",
@@ -63,7 +65,9 @@ const ITEMS: { q: string; a: ReactNode; show?: boolean }[] = [
   },
 ];
 
-export default function FaqPage() {
+export default async function FaqPage() {
+  const [business, { markupRange }] = await Promise.all([getBusiness(), getSiteFacts()]);
+  const ITEMS = items(business, markupText(markupRange));
   return (
     <InfoPage title="שאלות נפוצות">
       <div className="card-surface flex flex-col divide-y divide-line rounded-card px-5 sm:px-6">

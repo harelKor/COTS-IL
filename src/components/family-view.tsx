@@ -7,7 +7,7 @@ import { changedKeys, chipPrice, choose, linkedKeys, linkedValue, NONE, pick } f
 import { optionLabel } from "@/domain/families/sort";
 import { leadTimeText } from "@/domain/lead-time";
 import { formatIls } from "@/domain/pricing";
-import { business } from "@/lib/business";
+import { useSiteFacts } from "./site-facts";
 import { RequestPart } from "./zero-results";
 import { availabilityStatus, isFresh, useNow } from "./availability";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
@@ -24,6 +24,8 @@ export type ViewVariant = {
   sku: string | null;
   options: Record<string, string>;
   priceIls: number | null;
+  /** The multiplier behind priceIls, for "איך נקבע המחיר?". */
+  markup: number;
   available: boolean | null;
   checkedAt: string;
   supplierName: string;
@@ -78,6 +80,7 @@ export function FamilyView({ family, variants, rateDate }: Props) {
  */
 function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerProps) {
   const { mode, lines } = useCart();
+  const { leadTimes } = useSiteFacts();
   const now = useNow();
   const availabilityText = (v: ViewVariant) => availabilityStatus(v.available, v.checkedAt, isFresh(v.checkedAt, now));
   const manySuppliers = new Set(variants.map((v) => v.supplierCode)).size > 1;
@@ -188,7 +191,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
   const availability = chosen ? availabilityText(chosen) : null;
   const missingGroup = groups.find((g) => g.some((k) => picked.selected[k] === undefined));
   const missingLabel = missingGroup ? missingGroup.map(optionLabel).join(" × ") : "";
-  const lead = chosen ? leadTimeText(business.leadTimes[chosen.supplierCode]) : null;
+  const lead = chosen ? leadTimeText(leadTimes[chosen.supplierCode] ?? null) : null;
   const unpriced = chosen !== null && price === null;
   const lineQty = inCart?.qty ?? qty;
   // A "best price" badge only when the offers' prices differ.
@@ -438,7 +441,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
           )}
           <div className="hidden md:block">{addControls}</div>
           <div className="border-t border-line pt-3">
-            <PriceNote rateDate={rateDate} />
+            <PriceNote rateDate={rateDate} markup={chosen?.markup} />
           </div>
         </section>
 

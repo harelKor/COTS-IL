@@ -8,11 +8,11 @@ import { db, schema } from "@/db";
 import { MAX_SHARED_LINES, type SharedLine } from "@/domain/cart-share";
 import { cartChanges, cartFingerprint, isOrderable, maxMerge, type CartChange } from "@/domain/cart";
 import { reorderLines } from "@/domain/quote-view";
-import { MARKUP, priceIls } from "@/domain/pricing";
+import { priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam, orderingTeams, TEAM_COOKIE, type Viewer } from "@/lib/auth";
 import { notifyLater, notifyRequest } from "@/lib/notify";
 import { cookies } from "next/headers";
-import { usdIlsRate } from "@/lib/fx";
+import { priceContext } from "@/lib/settings";
 import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
 import { getSharedLines } from "@/lib/catalog";
 import type { CartSheetLine } from "@/components/cart-store";
@@ -64,7 +64,7 @@ async function addLine(teamId: string, userId: string, variantId: string, count:
 /** The cart line as it now is in the database, for the client store to put in place. Null when it's gone. */
 async function lineNow(teamId: string, variantId: string): Promise<CartSheetLine | null> {
   const [line] = await getCart(teamId, [variantId]);
-  return line ? toSheetLine(await usdIlsRate())(line) : null;
+  return line ? toSheetLine(await priceContext())(line) : null;
 }
 
 export type LineResult = { error?: string; line?: CartSheetLine | null };
@@ -144,7 +144,7 @@ export async function sendQuoteRequest(changes: Partial<Delivery> = {}, seen?: S
   if (!parsed.success) return { error: "צריך להשלים פרטי מסירה", fieldErrors: parsed.error.flatten().fieldErrors };
   const seenLines = z.array(z.object({ variantId: z.uuid(), qty: z.number().int() })).max(500).safeParse(seen ?? null);
   const result = await createOrder(viewer, team, parsed.data, seenLines.success ? seenLines.data : null);
-  if ("changed" in result && result.changed) return { ...result, lines: (await getCart(team.id)).map(toSheetLine(await usdIlsRate())) };
+  if ("changed" in result && result.changed) return { ...result, lines: (await getCart(team.id)).map(toSheetLine(await priceContext())) };
   if ("error" in result) return result;
   notifyLater(() => notifyRequest(result.orderId));
   revalidatePath("/cart");
@@ -161,7 +161,7 @@ async function createOrder(
   seen: SharedLine[] | null,
 ): Promise<{ orderId: string; number: number } | { error: string; blocked?: string[]; changed?: CartChange[] }> {
   // The order keeps the rate it was priced at, so later rates never change it.
-  const rate = await usdIlsRate();
+  const rate = await priceContext();
   return db.transaction(async (tx) => {
     // Locks the cart, so a double click or two team members can't submit the same lines twice.
     const lines = await tx
@@ -173,6 +173,7 @@ async function createOrder(
         supplierSku: variants.supplierSku,
         options: variants.options,
         priceUsd: variants.priceUsd,
+        markup: variants.markup,
         variantMissing: variants.missingSince,
         title: products.title,
         productUrl: products.url,
@@ -225,9 +226,10 @@ async function createOrder(
         options: l.options,
         productUrl: l.productUrl,
         priceUsd: l.priceUsd!,
-        multiplier: String(MARKUP),
-        usdIlsRate: String(rate),
-        unitPriceIls: priceIls(l.priceUsd, rate)!,
+        // The multiplier and rate this line was priced with, so a later settings change never reprices it.
+        multiplier: String(Number(l.markup ?? rate.markup)),
+        usdIlsRate: String(rate.rate),
+        unitPriceIls: priceIls(l.priceUsd, rate, l.markup)!,
         pricedAt: now,
       })),
     );
@@ -260,7 +262,7 @@ export async function mergeCart(lines: SharedLine[]): Promise<MergeResult> {
   const parsed = z.array(z.object({ variantId: z.uuid(), qty })).max(MAX_SHARED_LINES).safeParse(lines);
   if (!parsed.success) return { added: 0, skipped: [], error: "הסל לא תקין" };
   const wanted = maxMerge([], parsed.data);
-  if (wanted.length === 0) return { added: 0, skipped: [], lines: (await getCart(team.id)).map(toSheetLine(await usdIlsRate())) };
+  if (wanted.length === 0) return { added: 0, skipped: [], lines: (await getCart(team.id)).map(toSheetLine(await priceContext())) };
   const ids = wanted.map((l) => l.variantId);
 
   const { added, skipped } = await db.transaction(async (tx) => {
@@ -286,7 +288,7 @@ export async function mergeCart(lines: SharedLine[]): Promise<MergeResult> {
     }
     return { added: changes.length, skipped };
   });
-  return { added, skipped, lines: (await getCart(team.id)).map(toSheetLine(await usdIlsRate())) };
+  return { added, skipped, lines: (await getCart(team.id)).map(toSheetLine(await priceContext())) };
 }
 
 /** Adds an earlier order's parts to the cart again, skipping any that can't be ordered now. */
@@ -300,7 +302,7 @@ export async function reorder(orderId: string): Promise<{ added: number; skipped
   let added = 0;
   for (const item of items) if (!(await addLine(team.id, viewer.id, item.variantId, item.qty))) added++;
   // The cart as it now is, for the client store: no page re-render.
-  const lines = (await getCart(team.id)).map(toSheetLine(await usdIlsRate()));
+  const lines = (await getCart(team.id)).map(toSheetLine(await priceContext()));
   return { added, skipped: items.length - added, lines };
 }
 

@@ -9,7 +9,7 @@ import { getOrderDeliveries } from "@/lib/logistics";
 import { getOrderLines } from "@/lib/order-status";
 import type { CartSheetLine } from "@/components/cart-store";
 import { isOrderable } from "@/domain/cart";
-import { priceIls } from "@/domain/pricing";
+import { priceIls, type PriceContext } from "@/domain/pricing";
 import { productHref } from "@/lib/catalog-links";
 import { undoOpen } from "@/domain/quote-view";
 
@@ -26,6 +26,7 @@ export async function getCart(teamId: string, variantIds?: string[]) {
       supplierSku: variants.supplierSku,
       options: variants.options,
       priceUsd: variants.priceUsd,
+      markup: variants.markup,
       available: variants.available,
       checkedAt: variants.checkedAt,
       variantMissing: variants.missingSince,
@@ -48,7 +49,7 @@ export type CartLine = Awaited<ReturnType<typeof getCart>>[number];
 
 /** A cart line as the cart sheet shows it (CartSheetLine in src/components/cart-store.ts). */
 export const toSheetLine =
-  (usdIlsRate: number) =>
+  (ctx: PriceContext) =>
   (l: CartLine): CartSheetLine => ({
     variantId: l.variantId,
     title: l.title,
@@ -58,7 +59,7 @@ export const toSheetLine =
     href: productHref(l.supplierCode, l.handle),
     supplierName: l.supplierName,
     qty: l.qty,
-    unitPriceIls: priceIls(l.priceUsd, usdIlsRate),
+    unitPriceIls: priceIls(l.priceUsd, ctx, l.markup),
     orderable: isOrderable({ variantMissing: l.variantMissing, productMissing: l.productMissing, productStatus: l.productStatus, priceUsd: l.priceUsd }),
     available: l.available,
     checkedAt: l.checkedAt.toISOString(),

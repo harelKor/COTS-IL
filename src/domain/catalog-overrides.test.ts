@@ -7,7 +7,9 @@ import {
   suspiciousMultiSupplier,
   type ProductOverride,
 } from "./catalog-overrides";
-import { priceIls } from "./pricing";
+import { priceIls, type PriceContext } from "./pricing";
+
+const ctx: PriceContext = { rate: 3.7, markup: 1.6, roundTo: 1, minIls: null };
 
 const none: Omit<ProductOverride, "productId"> = { hidden: false, images: null, categorySlug: null, alone: false, mergeKey: null, pinRank: null };
 const product = (id: string) => ({ id, supplierCode: "wcp", title: id, categorySlug: "gears", descriptionHtml: null, images: ["a.jpg", "b.jpg"], variants: [] });
@@ -15,7 +17,7 @@ const product = (id: string) => ({ id, supplierCode: "wcp", title: id, categoryS
 describe("effectivePriceUsd", () => {
   it("uses the override, then priceIls prices it", () => {
     expect(effectivePriceUsd("10.00", "12.5")).toBe("12.50");
-    expect(priceIls(effectivePriceUsd("10.00", "12.5"), 3.7)).toBe(priceIls(12.5, 3.7));
+    expect(priceIls(effectivePriceUsd("10.00", "12.5"), ctx)).toBe(priceIls(12.5, ctx));
   });
   it("keeps the store's price with no override or a bad one", () => {
     expect(effectivePriceUsd("10.00", null)).toBe("10.00");

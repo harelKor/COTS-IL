@@ -13,7 +13,7 @@ import { groupBySupplier, type CartChange } from "@/domain/cart";
 import { encodeCart, withPendingCart } from "@/domain/cart-share";
 import { parseTeamNumber } from "@/domain/teams";
 import { formatIls } from "@/domain/pricing";
-import { business } from "@/lib/business";
+import { useSiteFacts } from "./site-facts";
 import { flushCartWrites, removeNow } from "./cart-actions";
 import { cartSnapshot, cartTotals, markBlocked, replaceLines, setMergeSkipped, useCart, type CartSheetLine, type Checkout } from "./cart-store";
 import { Ltr } from "./ltr";
@@ -647,6 +647,7 @@ function CartFooter({ children }: { children: React.ReactNode }) {
  */
 export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void; onContinue?: () => void }) {
   const cart = useCart();
+  const { quoteLeadBusinessDays: quoteDays } = useSiteFacts();
   const { lines, mode } = cart;
   const { count, totalIls } = cartTotals(lines);
   const [costOpen, setCostOpen] = useState(false);
@@ -681,7 +682,7 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
 
   // Until the cart gains lines again (or the sheet closes, which remounts this panel).
   if (sent && lines.length === 0) {
-    const days = business.quoteLeadBusinessDays;
+    const days = quoteDays;
     return (
       <div className="flex flex-col items-center gap-3 px-2 py-10 text-center" role="status">
         <span className="flex size-12 items-center justify-center rounded-full bg-success text-white">

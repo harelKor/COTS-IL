@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { InfoPage, InfoSection } from "@/components/info-page";
 import { Ltr } from "@/components/ltr";
 import { leadTimeText } from "@/domain/lead-time";
-import { business } from "@/lib/business";
+import { markupText } from "@/domain/pricing";
+import { getBusiness, getSiteFacts } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "משלוח וזמני אספקה",
@@ -16,7 +17,8 @@ const SUPPLIERS = [
   { code: "ttb", name: "The Thrifty Bot" },
 ];
 
-export default function ShippingPage() {
+export default async function ShippingPage() {
+  const [business, { markupRange }] = await Promise.all([getBusiness(), getSiteFacts()]);
   const leads = SUPPLIERS.flatMap((s) => {
     const text = leadTimeText(business.leadTimes[s.code]);
     return text ? [{ ...s, text }] : [];
@@ -25,7 +27,7 @@ export default function ShippingPage() {
     <InfoPage title="משלוח וזמני אספקה">
       <InfoSection title="מה כלול במחיר">
         <p>
-          המחיר בקטלוג הוא מחיר הספק בדולרים, כפול השער היציג של בנק ישראל (מתעדכן כל יום), כפול 1.6
+          המחיר בקטלוג הוא מחיר הספק בדולרים, כפול השער היציג של בנק ישראל (מתעדכן כל יום), כפול <bdi dir="ltr">{markupText(markupRange)}</bdi>
           {business.priceIncludes ? `, כולל ${business.priceIncludes}` : ""}.
         </p>
         <p>משלוח בתוך ישראל מתומחר בנפרד בהצעת המחיר. המחיר המחייב הוא זה שבהצעה שאישרתם.</p>

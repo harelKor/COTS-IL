@@ -3,14 +3,15 @@ import Link from "next/link";
 import { HowItWorksSteps } from "@/components/how-it-works-steps";
 import { InfoPage, InfoSection } from "@/components/info-page";
 import { Ltr } from "@/components/ltr";
-import { business } from "@/lib/business";
+import { getBusiness } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "איך זה עובד",
   description: "מסל אחד מכל הספקים ועד מסירה לקבוצה: ארבעה שלבים, ומי עושה מה בכל אחד.",
 };
 
-export default function HowItWorksPage() {
+export default async function HowItWorksPage() {
+  const business = await getBusiness();
   return (
     <InfoPage
       title="איך זה עובד"

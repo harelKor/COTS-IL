@@ -15,7 +15,7 @@ import {
 } from "@/domain/notifications";
 import { orderStatus } from "@/domain/order-status";
 import { UNDO_SECONDS } from "@/domain/quote-view";
-import { business } from "@/lib/business";
+import { getBusiness } from "@/lib/settings";
 import { deliver, resendTransport, type Transport } from "@/lib/email-transport";
 import { renderEmail, type EmailData, type EmailLine } from "@/lib/email-templates";
 import { getOrderLines } from "@/lib/order-status";
@@ -130,6 +130,7 @@ export async function notifyRequest(orderId: string) {
     unitPriceIls: i.unitPriceIls,
   }));
   const totalIls = lines.reduce((sum, l) => sum + (l.unitPriceIls ?? 0) * l.qty, 0);
+  const business = await getBusiness();
   await send({
     event: "request_received",
     teamId: row.team.id,

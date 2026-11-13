@@ -7,18 +7,14 @@ import { db, schema } from "@/db";
 import { isEmptyOverride } from "@/domain/catalog-overrides";
 import { hasUsdPrice } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
-import { regroupCatalog } from "@/suppliers/families";
+import { regroupNow } from "@/lib/regroup";
 
 /**
  * The admin's catalog fixes (S15). Each one is stored in its own table and the
  * catalog is regrouped at once (about 10 s), the same way the nightly sync applies it.
  */
 async function regroup() {
-  await db.transaction(async (tx) => {
-    // The app's 8 s statement limit is for page queries; a whole regroup needs longer.
-    await tx.execute(sql`SET LOCAL statement_timeout = '45s'`);
-    await regroupCatalog(tx);
-  });
+  await regroupNow();
   revalidateTag("catalog", "max");
   revalidatePath("/admin/catalog");
 }

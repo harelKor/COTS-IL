@@ -1,9 +1,10 @@
 import { MessageCircle } from "lucide-react";
-import { whatsappHref } from "@/lib/business";
+import { whatsappHref } from "@/domain/settings";
+import { getBusiness } from "@/lib/settings";
 
 /** "שאלה? וואטסאפ": a person on the other end. Renders nothing while there's no number. */
-export function WhatsAppLink({ text }: { text?: string }) {
-  const href = whatsappHref(text);
+export async function WhatsAppLink({ text }: { text?: string }) {
+  const href = whatsappHref((await getBusiness()).whatsapp, text);
   if (!href) return null;
   return (
     <a

@@ -6,7 +6,7 @@ import { TeamName } from "@/components/team-name";
 import type { LineFacts } from "@/domain/order-status";
 import { formatIls } from "@/domain/pricing";
 import { quoteChanges, quoteValidUntil, type QuotedLine } from "@/domain/quote-view";
-import { business } from "@/lib/business";
+import { getBusiness } from "@/lib/settings";
 
 const day = new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "numeric", year: "numeric", timeZone: "Asia/Jerusalem" });
 export const formatShortDate = (d: Date) => day.format(d);
@@ -14,7 +14,8 @@ export const formatShortDate = (d: Date) => day.format(d);
 type Quote = { id: string; version: number; sentAt: Date; shippingIls: number; notes: string | null; lines: (QuotedLine & { quoteId?: string })[] };
 
 /** The business's details, shown on the printed quote only. Every value is hidden while null. */
-function PrintHeader({ orderNumber, quote, team }: { orderNumber: number; quote: Quote; team: Parameters<typeof TeamName>[0]["team"] }) {
+async function PrintHeader({ orderNumber, quote, team }: { orderNumber: number; quote: Quote; team: Parameters<typeof TeamName>[0]["team"] }) {
+  const business = await getBusiness();
   const facts: [string, string | null][] = [
     ["ח.פ.", business.companyNumber],
     ["טלפון", business.phone],
@@ -54,7 +55,7 @@ function PrintHeader({ orderNumber, quote, team }: { orderNumber: number; quote:
  * request (or the previous version) and why, the lines, the totals, how long it holds and
  * the payment terms. Prints as the quote a school's procurement office needs.
  */
-export function QuoteView({
+export async function QuoteView({
   orderNumber,
   team,
   items,
@@ -76,7 +77,7 @@ export function QuoteView({
   children?: ReactNode;
 }) {
   const changes = quoteChanges(items, quote.lines, previous?.lines);
-  const validUntil = quoteValidUntil(quote.sentAt, business.quoteValidDays);
+  const validUntil = quoteValidUntil(quote.sentAt, (await getBusiness()).quoteValidDays);
   return (
     <section className="flex flex-col gap-3" aria-labelledby="quote-title">
       <PrintHeader orderNumber={orderNumber} quote={quote} team={team} />

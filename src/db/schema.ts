@@ -34,6 +34,7 @@ export const deliveryMethod = pgEnum("delivery_method", ["pickup", "ship"]);
 export const quoteStatus = pgEnum("quote_status", ["sent", "approved", "rejected", "superseded"]);
 export const poStatus = pgEnum("po_status", ["draft", "ordered", "cancelled"]);
 export const importCostType = pgEnum("import_cost_type", ["customs", "freight", "broker", "vat"]);
+export const pricingScope = pgEnum("pricing_scope", ["supplier", "category"]);
 export const deliveryStatus = pgEnum("delivery_status", ["prepared", "delivered"]);
 
 const createdAt = timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -183,6 +184,8 @@ export const variants = pgTable(
     /** The store's own price as last synced, so removing an override brings it back (S15). */
     supplierPriceUsd: numeric("supplier_price_usd", { precision: 10, scale: 2 }),
     compareAtUsd: numeric("compare_at_usd", { precision: 10, scale: 2 }),
+    /** The multiplier its price uses, resolved from pricing_rules by each regroup (S16a, resolveMarkup); null until then, which means the global one. */
+    markup: numeric("markup", { precision: 6, scale: 3 }),
     available: boolean("available"),
     checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
     missingSince: timestamp("missing_since", { withTimezone: true }),
@@ -223,6 +226,9 @@ export const productFamilies = pgTable(
     variantCount: integer("variant_count").notNull().default(0),
     minPriceUsd: numeric("min_price_usd", { precision: 10, scale: 2 }),
     maxPriceUsd: numeric("max_price_usd", { precision: 10, scale: 2 }),
+    /** Lowest and highest USD × each variant's multiplier (S16a): × the rate gives the ₪ range, and price sorting uses it. */
+    minListUsd: numeric("min_list_usd", { precision: 12, scale: 2 }),
+    maxListUsd: numeric("max_list_usd", { precision: 12, scale: 2 }),
     available: boolean("available"),
     status: productStatus("status").notNull().default("published"),
     searchText: text("search_text").notNull(),
@@ -235,6 +241,7 @@ export const productFamilies = pgTable(
   (t) => [
     index("product_families_category_id_idx").on(t.categoryId),
     index("product_families_min_price_usd_idx").on(t.minPriceUsd),
+    index("product_families_min_list_usd_idx").on(t.minListUsd),
   ],
 );
 
@@ -742,3 +749,29 @@ export const variantOverrides = pgTable("variant_overrides", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: uuid("updated_by").references(() => profiles.id, { onDelete: "set null" }),
 });
+
+/**
+ * The admin's settings (S16): one row (id 1) of JSON, checked by the zod schema in
+ * src/domain/settings.ts and read through getSettings() in src/lib/settings.ts.
+ */
+export const siteSettings = pgTable("site_settings", {
+  id: integer("id").primaryKey().default(1),
+  data: jsonb("data").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: uuid("updated_by").references(() => profiles.id, { onDelete: "set null" }),
+});
+
+/** A multiplier for one supplier or one category (S16a); precedence in resolveMarkup (src/domain/pricing.ts). */
+export const pricingRules = pgTable(
+  "pricing_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    scope: pricingScope("scope").notNull(),
+    /** suppliers.id or categories.id, by scope. */
+    targetId: uuid("target_id").notNull(),
+    multiplier: numeric("multiplier", { precision: 6, scale: 3 }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: uuid("updated_by").references(() => profiles.id, { onDelete: "set null" }),
+  },
+  (t) => [unique("pricing_rules_scope_target_key").on(t.scope, t.targetId)],
+);

@@ -12,9 +12,9 @@ import { CardGridSkeleton, Loading, ProductSkeleton } from "@/components/skeleto
 import { companionRules } from "@/domain/families/companions";
 import { measure } from "@/domain/families/parse";
 import { compareOptionValues, optionLabel } from "@/domain/families/sort";
-import { formatIls, priceIls } from "@/domain/pricing";
+import { formatIls, priceIls, type PriceContext } from "@/domain/pricing";
 import { getCompanions, getFamily, type FamilyVariant } from "@/lib/catalog";
-import { getUsdIlsRate, usdIlsRate } from "@/lib/fx";
+import { priceContext } from "@/lib/settings";
 import { catalogHref } from "@/lib/catalog-filters";
 import { familyHref } from "@/lib/catalog-links";
 import { cleanDescription, descriptionText, metaDescription, type Spec } from "@/lib/description";
@@ -27,11 +27,11 @@ export async function generateMetadata({ params }: PageProps<"/catalog/p/[slug]"
   const { slug } = await params;
   const result = await getFamily(decodeURIComponent(slug));
   if (!result) return { title: "המוצר לא נמצא" };
-  const rate = await usdIlsRate();
+  const rate = await priceContext();
 
   const { family } = result;
   const suppliers = [...new Set(result.variants.map((v) => v.supplierName))].join(", ");
-  const low = priceIls(family.minPriceUsd, rate);
+  const low = priceIls(family.minListUsd, rate, 1);
   const price = low === null ? "" : `${family.variantCount > 1 ? "החל מ-" : ""}${formatIls(low)}, `;
   const clean = cleanDescription(family.descriptionHtml);
   const text = descriptionText(`${clean.lead} ${clean.more}`);
@@ -143,9 +143,9 @@ function documentLinks(html: string | null): { href: string; text: string }[] {
 }
 
 /** Offers cheapest in stock first, so a settled choice picks the best one. */
-function byOffer(variants: FamilyVariant[], rate: number) {
+function byOffer(variants: FamilyVariant[], rate: PriceContext) {
   return [...variants].sort(
-    (a, b) => Number(b.available === true) - Number(a.available === true) || (priceIls(a.priceUsd, rate) ?? Infinity) - (priceIls(b.priceUsd, rate) ?? Infinity),
+    (a, b) => Number(b.available === true) - Number(a.available === true) || (priceIls(a.priceUsd, rate, a.markup) ?? Infinity) - (priceIls(b.priceUsd, rate, b.markup) ?? Infinity),
   );
 }
 
@@ -163,7 +163,7 @@ async function Companions({ slug, searchParams }: { slug: string; searchParams: 
     companionRules({ categorySlug: result.categorySlug, title: family.title, options: v?.familyOptions ?? {} });
   const rules = selected
     ? rulesFor(selected)
-    : (byOffer(result.variants, await usdIlsRate()).map(rulesFor).find((r) => r.length > 0) ?? rulesFor(undefined));
+    : (byOffer(result.variants, await priceContext()).map(rulesFor).find((r) => r.length > 0) ?? rulesFor(undefined));
   if (rules.length === 0) return null;
   const cards = await getCompanions(family.id, rules);
   if (cards.length === 0) return null;
@@ -197,14 +197,16 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
 async function FamilyBody({ slug, children }: { slug: string; children: React.ReactNode }) {
   const result = await getFamily(slug);
   if (!result) notFound();
-  const { rate, rateDate } = await getUsdIlsRate();
+  const rate = await priceContext();
+  const { rateDate } = rate;
 
   const { family } = result;
   const viewVariants: ViewVariant[] = byOffer(result.variants, rate).map((v) => ({
     id: v.id,
     sku: v.sku,
     options: v.familyOptions,
-    priceIls: priceIls(v.priceUsd, rate),
+    priceIls: priceIls(v.priceUsd, rate, v.markup),
+    markup: Number(v.markup ?? rate.markup),
     available: v.available,
     checkedAt: v.checkedAt.toISOString(),
     supplierName: v.supplierName,

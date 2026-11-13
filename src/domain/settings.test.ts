@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+import { businessFromForm, DEFAULT_SETTINGS, parseSettings, whatsappHref } from "./settings";
+
+const form = (entries: Record<string, string>) => {
+  const f = new FormData();
+  for (const [k, v] of Object.entries(entries)) f.set(k, v);
+  return f;
+};
+
+describe("parseSettings", () => {
+  it("starts with nothing known and the 1.6 multiplier", () => {
+    expect(DEFAULT_SETTINGS.business.legalName).toBeNull();
+    expect(DEFAULT_SETTINGS.business.leadTimes).toEqual({});
+    expect(DEFAULT_SETTINGS.pricing).toEqual({ markup: 1.6, rateOverride: null, roundTo: 1, minIls: null });
+    expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it("keeps valid values and fills the rest", () => {
+    const s = parseSettings({ business: { phone: "03-1234567" }, pricing: { markup: 1.45 } });
+    expect(s.business.phone).toBe("03-1234567");
+    expect(s.business.email).toBeNull();
+    expect(s.pricing.markup).toBe(1.45);
+    expect(s.pricing.roundTo).toBe(1);
+  });
+
+  it("falls back per section when a stored value is broken", () => {
+    const s = parseSettings({ business: { phone: "03-1234567" }, pricing: { markup: 0 } });
+    expect(s.pricing).toEqual(DEFAULT_SETTINGS.pricing);
+    expect(s.business.phone).toBe("03-1234567");
+  });
+
+  it("turns empty text into null so the sentence stays hidden", () => {
+    expect(parseSettings({ business: { legalName: "  " } }).business.legalName).toBeNull();
+  });
+});
+
+describe("businessFromForm", () => {
+  it("reads every field, blanks as null", () => {
+    const r = businessFromForm(
+      form({ legalName: "קוטס ישראל", email: "a@b.co", whatsapp: "050-123-4567", quoteLeadBusinessDays: "2", "lead.wcp.min": "10", "lead.wcp.max": "14", "lead.ctre.min": "" }),
+      ["wcp", "ctre"],
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.legalName).toBe("קוטס ישראל");
+    expect(r.value.whatsapp).toBe("972501234567");
+    expect(r.value.quoteLeadBusinessDays).toBe(2);
+    expect(r.value.leadTimes).toEqual({ wcp: { minDays: 10, maxDays: 14 }, ctre: null });
+    expect(r.value.phone).toBeNull();
+  });
+
+  it("names the fields that are wrong", () => {
+    expect(businessFromForm(form({ email: "not-an-email" }), [])).toEqual({ ok: false, fields: ["email"] });
+    expect(businessFromForm(form({ quoteValidDays: "abc" }), [])).toEqual({ ok: false, fields: ["quoteValidDays"] });
+    expect(businessFromForm(form({ "lead.wcp.min": "20", "lead.wcp.max": "5" }), ["wcp"])).toEqual({ ok: false, fields: ["leadTimes"] });
+  });
+});
+
+describe("whatsappHref", () => {
+  it("is null without a number", () => {
+    expect(whatsappHref(null)).toBeNull();
+    expect(whatsappHref("972501234567", "שלום")).toBe("https://wa.me/972501234567?text=%D7%A9%D7%9C%D7%95%D7%9D");
+  });
+});

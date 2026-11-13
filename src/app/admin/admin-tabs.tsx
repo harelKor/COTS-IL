@@ -12,6 +12,7 @@ const TABS = [
   { href: "/admin/teams", label: "קבוצות" },
   { href: "/admin/requests", label: "בקשות חלקים" },
   { href: "/admin/catalog", label: "קטלוג" },
+  { href: "/admin/settings", label: "הגדרות" },
 ] as const;
 
 const CRUMBS: {

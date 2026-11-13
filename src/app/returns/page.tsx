@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { InfoPage, InfoSection } from "@/components/info-page";
-import { business } from "@/lib/business";
+import { getBusiness } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "החזרות", description: "פריט פגום, חסר או לא נכון: מה עושים." };
 
-export default function ReturnsPage() {
+export default async function ReturnsPage() {
+  const business = await getBusiness();
   return (
     <InfoPage title="החזרות">
       <InfoSection title="פריט פגום או חסר">

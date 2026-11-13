@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server";
 import { familyHref } from "@/components/catalog";
-import { usdIlsRate } from "@/lib/fx";
+import { priceContext } from "@/lib/settings";
 import { priceIls } from "@/domain/pricing";
 import { quickSearch, searchSuggestions } from "@/lib/catalog";
 import { cachedJson } from "@/lib/cache-headers";
@@ -59,11 +59,11 @@ export async function GET(request: NextRequest) {
     qty = 1;
   }
   const rows = found.rows;
-  const rate = await usdIlsRate();
+  const rate = await priceContext();
   const results: SearchResult[] = rows.map((r) => {
-    const exact = r.matchedVariant ? priceIls(r.matchedVariant.priceUsd, rate) : null;
-    const low = exact ?? priceIls(r.minPriceUsd, rate);
-    const high = exact ?? priceIls(r.maxPriceUsd, rate);
+    const exact = r.matchedVariant ? priceIls(r.matchedVariant.priceUsd, rate, r.matchedVariant.markup) : null;
+    const low = exact ?? priceIls(r.minListUsd, rate, 1);
+    const high = exact ?? priceIls(r.maxListUsd, rate, 1);
     return {
       id: r.id,
       href: familyHref(r.slug, r.matchedVariant?.sku ?? null),

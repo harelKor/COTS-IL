@@ -10,7 +10,8 @@ import { formatIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { cartCount, listOrders } from "@/lib/orders";
 import { getFacets, getLastSync } from "@/lib/catalog";
-import { business } from "@/lib/business";
+import { markupText } from "@/domain/pricing";
+import { getBusiness, getSiteFacts } from "@/lib/settings";
 import { typicalLeadTime } from "@/domain/lead-time";
 import { HowItWorksSteps } from "@/components/how-it-works-steps";
 import { BadgeCheck, Boxes, Coins, FileCheck2, Truck, Undo2 } from "lucide-react";
@@ -180,7 +181,8 @@ async function Browse() {
 }
 
 /** Under the hero: the three things a first-time team asks before anything else. */
-function ValueStrip() {
+async function ValueStrip() {
+  const business = await getBusiness();
   const items = [
     business.priceIncludes ? `מחיר בש״ח כולל ${business.priceIncludes}` : "מחיר הספק בש״ח, בלי תוספת",
     "הצעת מחיר בלי התחייבות",
@@ -200,7 +202,7 @@ function ValueStrip() {
 
 /** When the prices were last checked, and the typical lead time once it's known. */
 async function TrustStrip() {
-  const synced = await getLastSync();
+  const [synced, business] = await Promise.all([getLastSync(), getBusiness()]);
   const lead = typicalLeadTime(Object.values(business.leadTimes));
   if (!synced && !lead) return null;
   return (
@@ -216,14 +218,16 @@ async function TrustStrip() {
   );
 }
 
-const WHY = [
+const why = (times: string) => [
   { icon: Boxes, title: "הזמנה אחת לכל הספקים", text: "סל אחד מכל ארבעת הספקים, במקום ארבע הזמנות נפרדות." },
-  { icon: Coins, title: "מחיר בשקלים", text: "מחיר הספק לפי השער היציג של בנק ישראל, כפול 1.6. בלי כרטיס אשראי בדולרים." },
+  { icon: Coins, title: "מחיר בשקלים", text: `מחיר הספק לפי השער היציג של בנק ישראל, כפול ${times}. בלי כרטיס אשראי בדולרים.` },
   { icon: Truck, title: "משלוח מרוכז", text: "אנחנו מאחדים הזמנות למשלוח אחד ומוסרים לקבוצה." },
   { icon: FileCheck2, title: "בלי ניירת מכס", text: "היבוא והשחרור עלינו. אתם מקבלים את החלקים." },
 ];
 
-function WhyUs() {
+async function WhyUs() {
+  const [business, { markupRange }] = await Promise.all([getBusiness(), getSiteFacts()]);
+  const WHY = why(markupText(markupRange));
   const items = business.returnPolicy
     ? [...WHY, { icon: Undo2, title: "החזרות בישראל", text: business.returnPolicy }]
     : WHY;
@@ -247,23 +251,27 @@ const EXAMPLES = SEARCH_EXAMPLES;
 
 const SITE_URL = siteUrl();
 
-/** Only facts the business has supplied (src/lib/business.ts) appear, nothing is invented. */
-const ORGANIZATION_JSON_LD = JSON.stringify({
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: business.legalName ?? "COTS-IL",
-  alternateName: "COTS-IL",
-  url: SITE_URL,
-  logo: `${SITE_URL}/icon-512.png`,
-  ...(business.email ? { email: business.email } : {}),
-  ...(business.phone ? { telephone: business.phone } : {}),
-}).replace(/</g, "\u003c");
+/** Only facts the business has supplied (פרטי העסק in the admin) appear, nothing is invented. */
+async function OrganizationJsonLd() {
+  const business = await getBusiness();
+  const json = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: business.legalName ?? "COTS-IL",
+    alternateName: "COTS-IL",
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon-512.png`,
+    ...(business.email ? { email: business.email } : {}),
+    ...(business.phone ? { telephone: business.phone } : {}),
+  }).replace(/</g, "\u003c");
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json }} />;
+}
 
 export default function HomePage() {
   return (
     <ViewTransition enter="page-enter" exit="page-exit" default="none">
       <div className="flex flex-col gap-8">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ORGANIZATION_JSON_LD }} />
+        <OrganizationJsonLd />
         <Suspense>
           <TeamNotice />
         </Suspense>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { business } from "@/lib/business";
+import { getBusiness } from "@/lib/settings";
 import { Ltr } from "./ltr";
 import { WhatsAppLink } from "./whatsapp-link";
 
@@ -15,7 +15,8 @@ export const INFO_LINKS = [
 ] as const;
 
 /** On every page: where to read how it works, and who the seller is. */
-export function SiteFooter() {
+export async function SiteFooter() {
+  const business = await getBusiness();
   return (
     <footer className="border-t border-line bg-white/70 print:hidden">
       <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 px-6 pt-8 pb-28 md:px-12">

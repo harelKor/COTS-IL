@@ -43,13 +43,13 @@ npm run icons            # redraw the app icons in public/ (manifest and Apple t
 
 ## Where things stand (Nov 11, 2026)
 
-Done, all on `main`: redesign phases 0–4, the UI pass and the COTS-IL visual refresh, then the whole improvement plan except S12: S0–S11, S13–S15 and S10A (one team account, cart sheet fixes, email-code sign-in, Resend notifications, trust pages and `src/lib/business.ts`, search, catalog and product-page work, quote tracking, design system, DB hang fixes, catalog overrides). Also on `main`: prices of USD × Bank of Israel rate × 1.6 with no VAT; the catalog's 16 category chips under 5 expandable groups; admin order cards that open in the browser with outlined sections and a shipments section; Vercel functions in `fra1` (`vercel.json`); BotID and analytics funnel events; Playwright (`npm run e2e`) and Lighthouse CI; `npm run admin` to grant or revoke the admin. The Nov 9 `/catalog` hangs are fixed (node-postgres, no DB call in `not-found.tsx`, `fra1`).
+Done, all on `main`: redesign phases 0–4, the UI pass and the COTS-IL visual refresh, then the whole improvement plan except S12: S0–S11, S13–S15 and S10A (one team account, cart sheet fixes, email-code sign-in, Resend notifications, trust pages, search, catalog and product-page work, quote tracking, design system, DB hang fixes, catalog overrides). Also on `main`: prices of USD × Bank of Israel rate × 1.6 with no VAT; the catalog's 16 category chips under 5 expandable groups; admin order cards that open in the browser with outlined sections and a shipments section; Vercel functions in `fra1` (`vercel.json`); BotID and analytics funnel events; Playwright (`npm run e2e`) and Lighthouse CI; `npm run admin` to grant or revoke the admin. The Nov 9 `/catalog` hangs are fixed (node-postgres, no DB call in `not-found.tsx`, `fra1`).
 
 Next: S12 (lists, season kits, budgets, in `docs/IMPROVEMENT-PLAN.md`) is not started and is the user's pick. Bugs the user reports come first.
 
 Waiting on the user (steps in `docs/admin-guide.md`, "Setup still needed"):
 - Supabase production SMTP and Hebrew sign-in templates; `RESEND_API_KEY` and `EMAIL_FROM` in Vercel (emails stay off until then).
-- The business facts in `src/lib/business.ts` (all `null`, their sentences hidden).
+- The business facts, now in `/admin/settings/business` (all empty, their sentences hidden).
 - Vercel dashboard: Firewall rules, Skew Protection, Deployment Protection, BotID, Spend Management (the Pro trial ends about Nov 21, 2026 and needs a card). Optional Sentry DSN (`docs/S9-OPS.md`).
 - A decision on Vercel Image Optimization; recommended skip, about 6,900 source images.
 
@@ -73,7 +73,8 @@ Open:
 | Catalog overrides (`/admin/catalog`: hide, photos, category, merge, pin) | `src/app/admin/catalog`, `src/domain/catalog-overrides.ts` |
 | One order status for every screen | `src/domain/order-status.ts`, `src/lib/order-status.ts` |
 | Exchange rate and prices | `src/lib/fx.ts`, `src/domain/pricing.ts`, `src/suppliers/boi.ts` |
-| Business facts (fees, phone, lead times; `null` until supplied) | `src/lib/business.ts` |
+| Admin settings (`/admin/settings`: פרטי העסק, תמחור, מנהלים; S16b–d sections disabled) | `src/app/admin/settings/*`, `src/domain/settings.ts` (zod schema), `src/lib/settings.ts` (`getSettings`/`getBusiness`/`priceContext`, cached under the `settings` tag) |
+| Business facts (fees, phone, lead times; `null` until supplied) | `getBusiness()` on the server, `useSiteFacts()` in client components (`src/components/site-facts.tsx`) |
 | Supplier sync and grouping | `src/suppliers/*`, `src/domain/families/*` |
 | Email notifications (Resend, off until `RESEND_API_KEY` and `EMAIL_FROM` are set) | `src/lib/notify.ts`, `src/lib/email-templates.ts`, `src/lib/email-transport.ts`, `src/domain/notifications.ts` |
 | Tokens and utilities (`card-surface`, `btn-brand`, `tile-fade`) | `src/app/globals.css` |
@@ -87,7 +88,7 @@ Open:
 - Removed on purpose, don't bring back: pasting a SKU list or dropping a BOM file into the cart (removed Nov 2026 to keep the cart and hero focused), and the dark theme (D10).
 - The local Supabase stack runs on ports 544xx (`supabase/config.toml`). Another, unrelated project on this machine uses the default 543xx ports: never point COTS-IL commands at those.
 - One kind of team account (D11, Nov 10, 2026): no student, mentor or viewer roles; everyone signed in to a team can build, send, approve, cancel and manage it. Membership in a team whose status allows ordering (`teamCanOrder`) is the only permission; the one guard is that a team can't remove its last sign-in email (`wouldLeaveNoMembers`). Copy says "הקבוצה" / "חשבון הקבוצה". The `memberships.role` / `team_invitations.role` columns and the `team_role` enum are legacy (always `team_admin`, never read) until they're dropped (S0 step 7b). Don't add role checks or role wording.
-- Prices: `src/domain/pricing.ts` only. ILS = USD × Bank of Israel daily USD rate × 1.6, whole shekels, no VAT (user decision, Nov 11, 2026): never say a price "includes VAT" and show no VAT line. The price explanation is "the supplier's dollar price at the Bank of Israel rate of <date>, × 1.6; shipping is priced in the quote"; the rate comes from `exchange_rates` via `usdIlsRate()` in `src/lib/fx.ts`, fetched by the daily sync (last rate kept on failure, never 0). Availability is yes/no plus its check date, never a stock count.
+- Prices: `src/domain/pricing.ts` only. ILS = USD × rate × multiplier, rounded (whole shekels by default), no VAT (user decision, Nov 11, 2026): never say a price "includes VAT" and show no VAT line. Since S16a the admin sets these in `/admin/settings/pricing`: the global multiplier (1.6), per-supplier and per-category multipliers (`pricing_rules`; precedence part fixed ₪ (S16c) > category > supplier > global, `resolveMarkup`), a manual rate override, rounding and a minimum. Each regroup writes the resolved multiplier to `variants.markup` and the families' `min_list_usd`/`max_list_usd` (USD × multiplier); readers call `priceIls(usd, await priceContext(), v.markup)` (or `priceIls(family.minListUsd, ctx, 1)`), with `priceContext()` from `src/lib/settings.ts`. A pricing save regroups and expires the `catalog` and `settings` tags; order items keep their own `multiplier`, rate and price. The price explanation is "the supplier's dollar price at the Bank of Israel rate of <date>, × <multiplier>; shipping is priced in the quote" (`markupText`); the Bank of Israel rate comes from `exchange_rates` via `getUsdIlsRate()` in `src/lib/fx.ts`, fetched by the daily sync (last rate kept on failure, never 0). Availability is yes/no plus its check date, never a stock count.
 - Pure logic goes in `src/domain` with Vitest tests.
 
 ## RTL

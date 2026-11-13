@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { InfoPage, InfoSection } from "@/components/info-page";
 import { Ltr } from "@/components/ltr";
-import { business } from "@/lib/business";
+import { getBusiness } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "מי אנחנו", description: "COTS-IL: רכש ציוד FRC ו-FTC לקבוצות בישראל." };
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const business = await getBusiness();
   return (
     <InfoPage title="מי אנחנו">
       <InfoSection title="COTS-IL">
