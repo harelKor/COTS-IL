@@ -1,7 +1,8 @@
-import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, notInArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import * as schema from "../db/schema";
 import { applyProductOverrides, familyPinRank, type ProductOverride } from "../domain/catalog-overrides";
+import { listUsd } from "../domain/part-editor";
 import { categoryPhotos } from "../domain/catalog-rank";
 import { resolveMarkup, type PricingRuleSet } from "../domain/pricing";
 import { parseSettings } from "../domain/settings";
@@ -37,16 +38,10 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
   const now = new Date();
   const { products, variants, suppliers, categories } = schema;
 
-  // The admin's prices (S15): a new override applies, a removed one gives the store's price back.
-  await tx.execute(sql`
-    WITH target AS (
-      SELECT v.id, coalesce(o.price_usd, v.supplier_price_usd) AS price
-        FROM variants v LEFT JOIN variant_overrides o ON o.variant_id = v.id
-    )
-    UPDATE variants AS v SET price_usd = t.price FROM target t
-     WHERE t.id = v.id AND v.price_usd IS DISTINCT FROM t.price`);
+  await applyOverrides(tx);
   await applyPricingRules(tx);
   const overrides = await loadOverrides(tx);
+  const rate = await loadRate(tx);
 
   const productRows = await tx
     .select({
@@ -73,10 +68,13 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
       options: variants.options,
       priceUsd: variants.priceUsd,
       markup: variants.markup,
+      fixedIls: variants.fixedIls,
       available: variants.available,
     })
     .from(variants)
-    .where(isNull(variants.missingSince))
+    // A variant the admin hid (S16c) joins no family, so the catalog doesn't list it.
+    .leftJoin(schema.variantOverrides, eq(schema.variantOverrides.variantId, variants.id))
+    .where(and(isNull(variants.missingSince), sql`${schema.variantOverrides.hidden} IS NOT TRUE`))
     .orderBy(variants.position);
 
   const variantsByProduct = new Map<string, typeof variantRows>();
@@ -105,7 +103,7 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
 
   const variantById = new Map(variantRows.map((v) => [v.id, v]));
   const familyValues = families.map((f) => ({
-    ...familyRow(f, productById, variantById, categoryIds, now),
+    ...familyRow(f, productById, variantById, categoryIds, now, rate),
     pinnedRank: familyPinRank(f.productIds, overrides),
   }));
 
@@ -174,6 +172,63 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
   for (const [slug, id] of categoryIds) await tx.update(categories).set({ images: photos.get(slug) ?? [] }).where(eq(categories.id, id));
 
   return summarize(families, productById, variantById, variantsByProduct, issues);
+}
+
+/**
+ * Lays the admin's overrides over the store's values (S15, S16c): name, description and
+ * photos per product; USD price, fixed ₪ price, SKU, options per variant; availability per
+ * product. A new override applies and a removed one brings the store's value back. Rows
+ * that already match are left alone, so a regroup with no change writes nothing.
+ */
+export async function applyOverrides(tx: Tx): Promise<void> {
+  await tx.execute(sql`
+    WITH target AS (
+      SELECT p.id,
+             coalesce(o.title, p.store_title) AS title,
+             CASE WHEN o.description_html IS NOT NULL THEN nullif(o.description_html, '') ELSE p.store_description_html END AS description_html,
+             coalesce(o.images, p.store_images) AS images
+        FROM products p LEFT JOIN product_overrides o ON o.product_id = p.id
+       WHERE p.store_title IS NOT NULL
+    )
+    UPDATE products AS p SET title = t.title, description_html = t.description_html, images = t.images FROM target t
+     WHERE t.id = p.id
+       AND (p.title IS DISTINCT FROM t.title OR p.description_html IS DISTINCT FROM t.description_html OR p.images IS DISTINCT FROM t.images)`);
+  await tx.execute(sql`
+    WITH target AS (
+      SELECT v.id,
+             coalesce(o.price_usd, v.supplier_price_usd) AS price,
+             o.fixed_ils AS fixed,
+             CASE WHEN o.sku IS NOT NULL THEN nullif(o.sku, '') ELSE v.store_sku END AS sku,
+             coalesce(o.options, v.store_options, v.options) AS options,
+             coalesce(po.available, v.store_available) AS available,
+             v.store_options IS NOT NULL AS has_store
+        FROM variants v
+        LEFT JOIN variant_overrides o ON o.variant_id = v.id
+        LEFT JOIN product_overrides po ON po.product_id = v.product_id
+    )
+    UPDATE variants AS v
+       SET price_usd = t.price, fixed_ils = t.fixed,
+           supplier_sku = CASE WHEN t.has_store THEN t.sku ELSE v.supplier_sku END,
+           options = t.options,
+           available = CASE WHEN t.has_store THEN t.available ELSE v.available END
+      FROM target t
+     WHERE t.id = v.id
+       AND (v.price_usd IS DISTINCT FROM t.price OR v.fixed_ils IS DISTINCT FROM t.fixed OR v.options IS DISTINCT FROM t.options
+            OR (t.has_store AND (v.supplier_sku IS DISTINCT FROM t.sku OR v.available IS DISTINCT FROM t.available)))`);
+}
+
+/** The USD→ILS rate prices use now: the admin's manual one, else the latest Bank of Israel one. */
+async function loadRate(tx: Tx): Promise<number> {
+  const [row] = await tx.select({ data: schema.siteSettings.data }).from(schema.siteSettings).where(eq(schema.siteSettings.id, 1));
+  const manual = parseSettings(row?.data).pricing.rateOverride;
+  if (manual) return manual.rate;
+  const [latest] = await tx
+    .select({ rate: schema.exchangeRates.rate })
+    .from(schema.exchangeRates)
+    .where(eq(schema.exchangeRates.currency, "USD"))
+    .orderBy(desc(schema.exchangeRates.rateDate))
+    .limit(1);
+  return latest ? Number(latest.rate) : 0;
 }
 
 /** The admin's multipliers (S16a): the global one from site_settings, the rest from pricing_rules. */
@@ -247,7 +302,16 @@ type ProductRow = {
   programs: ("FRC" | "FTC")[];
   status: "published" | "review" | "hidden";
 };
-type VariantRow = { id: string; productId: string; sku: string | null; options: { name: string; value: string }[]; priceUsd: string | null; markup: string | null; available: boolean | null };
+type VariantRow = {
+  id: string;
+  productId: string;
+  sku: string | null;
+  options: { name: string; value: string }[];
+  priceUsd: string | null;
+  markup: string | null;
+  fixedIls: string | null;
+  available: boolean | null;
+};
 
 function familyRow(
   f: FamilyDraft,
@@ -255,6 +319,7 @@ function familyRow(
   variantById: Map<string, VariantRow>,
   categoryIds: Map<string, string>,
   now: Date,
+  rate: number,
 ) {
   const members = f.productIds.map((id) => productById.get(id)!);
   const primary = productById.get(f.primaryProductId)!;
@@ -262,8 +327,11 @@ function familyRow(
   const memberVariants = f.variantIds.map((id) => variantById.get(id)!);
   const priced = memberVariants.filter((v) => v.priceUsd && Number(v.priceUsd) > 0);
   const prices = priced.map((v) => Number(v.priceUsd));
-  // USD × the variant's own multiplier, so a family whose suppliers are priced differently still shows its true ₪ range.
-  const lists = priced.map((v) => Number(v.priceUsd) * Number(v.markup ?? 1));
+  // USD × the variant's own multiplier (or a fixed ₪ price ÷ the rate), so a family whose parts are priced differently still shows its true ₪ range.
+  const lists = memberVariants.flatMap((v) => {
+    const list = listUsd(v, rate);
+    return list === null ? [] : [list];
+  });
   const availability = memberVariants.map((v) => v.available);
 
   return {

@@ -60,6 +60,7 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
           id: schema.variants.id,
           priceUsd: schema.variants.priceUsd,
           markup: schema.variants.markup,
+          fixedIls: schema.variants.fixedIls,
           available: schema.variants.available,
           checkedAt: schema.variants.checkedAt,
           image: sql<string | null>`${schema.products.images}[1]`,
@@ -86,7 +87,7 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
       unitPriceIls: line?.unitPriceIls ?? item.unitPriceIls,
       changeReason: line?.changeReason ?? "",
       image: variant?.image ?? null,
-      livePriceIls: priceIls(variant?.priceUsd, rate, variant?.markup),
+      livePriceIls: priceIls(variant?.priceUsd, rate, variant?.markup, variant?.fixedIls),
       liveAvailable: variant?.available ?? null,
       checkedAt: variant?.checkedAt.toISOString() ?? null,
     };

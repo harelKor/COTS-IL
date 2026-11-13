@@ -482,3 +482,16 @@ header.sticky {
 [data-cart-pill] {
   view-transition-name: cart-pill;
 }
+
+/* The product editor (S16c): a side sheet, full screen on phones, wider from 768px. */
+dialog.sheet-side.sheet-wide {
+  height: 100dvh;
+  max-height: none;
+  border-radius: 0;
+}
+
+@media (min-width: 768px) {
+  dialog.sheet-side.sheet-wide {
+    width: min(680px, 100vw);
+  }
+}

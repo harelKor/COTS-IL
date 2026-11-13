@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
   const rows = found.rows;
   const rate = await priceContext();
   const results: SearchResult[] = rows.map((r) => {
-    const exact = r.matchedVariant ? priceIls(r.matchedVariant.priceUsd, rate, r.matchedVariant.markup) : null;
+    const exact = r.matchedVariant ? priceIls(r.matchedVariant.priceUsd, rate, r.matchedVariant.markup, r.matchedVariant.fixedIls) : null;
     const low = exact ?? priceIls(r.minListUsd, rate, 1);
     const high = exact ?? priceIls(r.maxListUsd, rate, 1);
     return {

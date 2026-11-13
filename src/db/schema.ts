@@ -36,6 +36,8 @@ export const poStatus = pgEnum("po_status", ["draft", "ordered", "cancelled"]);
 export const importCostType = pgEnum("import_cost_type", ["customs", "freight", "broker", "vat"]);
 export const pricingScope = pgEnum("pricing_scope", ["supplier", "category"]);
 export const deliveryStatus = pgEnum("delivery_status", ["prepared", "delivered"]);
+/** Where a product comes from: a store's sync, or the admin's "הוספת חלק" (S16c), which the sync never touches. */
+export const productSource = pgEnum("product_source", ["synced", "custom"]);
 
 const createdAt = timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 
@@ -147,6 +149,16 @@ export const products = pgTable(
     programs: program("programs").array().notNull(),
     categoryId: uuid("category_id").references(() => categories.id),
     status: productStatus("status").notNull().default("published"),
+    /** "custom" parts are added in /admin/settings/products; the sync neither updates nor marks them missing. */
+    source: productSource("source").notNull().default("synced"),
+    /**
+     * The store's own values as last synced (or, for a custom part, the admin's). title,
+     * description_html and images above are these with product_overrides applied by each
+     * regroup (applyOverrides in src/suppliers/families.ts), so removing an override brings them back (S16c).
+     */
+    storeTitle: text("store_title"),
+    storeDescriptionHtml: text("store_description_html"),
+    storeImages: text("store_images").array(),
     // Summaries of the variants, kept here so listing and sorting need no join.
     minPriceUsd: numeric("min_price_usd", { precision: 10, scale: 2 }),
     maxPriceUsd: numeric("max_price_usd", { precision: 10, scale: 2 }),
@@ -195,6 +207,12 @@ export const variants = pgTable(
     /** The multiplier its price uses, resolved from pricing_rules by each regroup (S16a, resolveMarkup); null until then, which means the global one. */
     markup: numeric("markup", { precision: 6, scale: 3 }),
     available: boolean("available"),
+    /** The admin's fixed ₪ price (variant_overrides.fixed_ils, written by each regroup): it beats the rate and the multiplier (S16c). */
+    fixedIls: numeric("fixed_ils", { precision: 10, scale: 2 }),
+    /** The store's SKU, options and availability as last synced, so removing an override brings them back (S16c). */
+    storeSku: text("store_sku"),
+    storeOptions: jsonb("store_options").$type<{ name: string; value: string }[]>(),
+    storeAvailable: boolean("store_available"),
     checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
     missingSince: timestamp("missing_since", { withTimezone: true }),
   },
@@ -742,17 +760,29 @@ export const productOverrides = pgTable("product_overrides", {
   mergeKey: text("merge_key"),
   /** "מומלץ": pinned families come first, lowest rank first. */
   pinRank: integer("pin_rank"),
+  /** S16c: the admin's name, description and availability (null keeps the store's). */
+  title: text("title"),
+  descriptionHtml: text("description_html"),
+  available: boolean("available"),
   note: text("note"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: uuid("updated_by").references(() => profiles.id, { onDelete: "set null" }),
 });
 
-/** The admin's USD price for a variant (S15); it then goes through priceIls like any price. */
+/**
+ * The admin's fixes to one variant: a USD price (S15) that then goes through priceIls like
+ * any price, or a fixed ₪ price that ignores the rate and multiplier, a SKU, options and
+ * hiding (S16c). Null fields keep the store's.
+ */
 export const variantOverrides = pgTable("variant_overrides", {
   variantId: uuid("variant_id")
     .primaryKey()
     .references(() => variants.id, { onDelete: "cascade" }),
-  priceUsd: numeric("price_usd", { precision: 10, scale: 2 }).notNull(),
+  priceUsd: numeric("price_usd", { precision: 10, scale: 2 }),
+  fixedIls: numeric("fixed_ils", { precision: 10, scale: 2 }),
+  sku: text("sku"),
+  options: jsonb("options").$type<{ name: string; value: string }[]>(),
+  hidden: boolean("hidden").notNull().default(false),
   note: text("note"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: uuid("updated_by").references(() => profiles.id, { onDelete: "set null" }),

@@ -31,7 +31,7 @@ export function optionsTableHtml(all: FamilyVariant[], family: TableFamily, rate
     `<th><span class="sr-only">הוספה לסל</span></th>`,
   ].join("");
   const rows = variants.map((v) => {
-    const price = priceIls(v.priceUsd, rate, v.markup);
+    const price = priceIls(v.priceUsd, rate, v.markup, v.fixedIls);
     const status = availabilityStatus(v.available, v.checkedAt.toISOString(), true);
     const options = keys.flatMap((k) => (v.familyOptions[k] ? [v.familyOptions[k]] : [])).join(" / ");
     const href = familyHref(family.slug, v.sku ?? v.id);

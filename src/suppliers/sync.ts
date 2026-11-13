@@ -123,7 +123,7 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
   const [{ known }] = await tx
     .select({ known: sql<number>`count(*)::int` })
     .from(schema.products)
-    .where(and(eq(schema.products.supplierId, supplier.id), isNull(schema.products.missingSince)));
+    .where(and(eq(schema.products.supplierId, supplier.id), eq(schema.products.source, "synced"), isNull(schema.products.missingSince)));
   if (products.length < known * MIN_CATALOG_RATIO) {
     throw new Error(`Got ${products.length} products but ${known} are known. Not applying this sync.`);
   }
@@ -157,6 +157,10 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
           descriptionHtml: p.descriptionHtml,
           url: p.url,
           images: p.images,
+          // The store's own values; each regroup lays product_overrides over them (S16c).
+          storeTitle: p.title,
+          storeDescriptionHtml: p.descriptionHtml,
+          storeImages: p.images,
           productType: p.productType,
           tags: p.tags,
           programs: p.programs,
@@ -176,6 +180,9 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
           descriptionHtml: excluded("description_html"),
           url: excluded("url"),
           images: excluded("images"),
+          storeTitle: excluded("store_title"),
+          storeDescriptionHtml: excluded("store_description_html"),
+          storeImages: excluded("store_images"),
           productType: excluded("product_type"),
           tags: excluded("tags"),
           programs: excluded("programs"),
@@ -198,6 +205,9 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
         productId: productIds.get(p.supplierProductId)!,
         ...v,
         supplierPriceUsd: v.priceUsd,
+        storeSku: v.supplierSku,
+        storeOptions: v.options,
+        storeAvailable: v.available,
         checkedAt: now,
         missingSince: null,
       })),
@@ -221,7 +231,11 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
             priceUsd: sql`coalesce((SELECT o.price_usd FROM variant_overrides o WHERE o.variant_id = ${schema.variants.id}), excluded.price_usd)`,
             supplierPriceUsd: excluded("supplier_price_usd"),
             compareAtUsd: excluded("compare_at_usd"),
-            available: excluded("available"),
+            // The admin's availability wins too, for the same reason; SKU and options are laid over by the regroup.
+            available: sql`coalesce((SELECT o.available FROM product_overrides o WHERE o.product_id = excluded.product_id), excluded.available)`,
+            storeSku: excluded("store_sku"),
+            storeOptions: excluded("store_options"),
+            storeAvailable: excluded("store_available"),
             checkedAt: excluded("checked_at"),
             missingSince: excluded("missing_since"),
           },
@@ -265,6 +279,8 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
     .where(
       and(
         eq(schema.products.supplierId, supplier.id),
+        // The admin's custom parts (S16c) are never in the store's feed.
+        eq(schema.products.source, "synced"),
         lt(schema.products.lastSeenAt, now),
         isNull(schema.products.missingSince),
       ),
@@ -277,6 +293,7 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
     .where(
       and(
         eq(schema.variants.supplierId, supplier.id),
+        sql`${schema.variants.productId} IN (SELECT id FROM products WHERE source = 'synced')`,
         lt(schema.variants.checkedAt, now),
         isNull(schema.variants.missingSince),
       ),

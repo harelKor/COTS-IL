@@ -213,6 +213,7 @@ async function variantsOf(familyIds: string[], rate: PriceContext, supplierCode?
       options: variants.familyOptions,
       priceUsd: variants.priceUsd,
       markup: variants.markup,
+      fixedIls: variants.fixedIls,
       available: variants.available,
       supplierName: suppliers.name,
       image: sql<string | null>`${products.images}[1]`,
@@ -233,7 +234,7 @@ async function variantsOf(familyIds: string[], rate: PriceContext, supplierCode?
     .orderBy(sql`${variants.available} IS TRUE DESC`, asc(variants.priceUsd));
   return rows.map((v) => ({
     familyId: v.familyId!,
-    variant: { id: v.id, sku: v.sku, options: v.options, priceIls: priceIls(v.priceUsd, rate, v.markup), available: v.available, supplierName: v.supplierName, image: v.image } satisfies CardVariant,
+    variant: { id: v.id, sku: v.sku, options: v.options, priceIls: priceIls(v.priceUsd, rate, v.markup, v.fixedIls), available: v.available, supplierName: v.supplierName, image: v.image } satisfies CardVariant,
   }));
 }
 
@@ -255,7 +256,8 @@ async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFami
   const rate = await priceContext();
   const names = await supplierNames();
   const ids = rows.map((r) => r.id);
-  const list = sql`${variants.priceUsd} * coalesce(${variants.markup}, 1)`;
+  // A fixed ₪ price (S16c) ÷ the rate, so × the rate gives it back (listUsd in src/domain/part-editor.ts).
+  const list = sql`CASE WHEN ${variants.fixedIls} > 0 THEN ${variants.fixedIls} / ${rate.rate} ELSE ${variants.priceUsd} * coalesce(${variants.markup}, 1) END`;
   // Per family: how many option sets can be ordered, and the best offer.
   const shape = await db
     .select({
@@ -535,6 +537,7 @@ export async function getFamily(slug: string) {
       options: variants.options,
       priceUsd: variants.priceUsd,
       markup: variants.markup,
+      fixedIls: variants.fixedIls,
       available: variants.available,
       checkedAt: variants.checkedAt,
       productTitle: products.title,
@@ -704,8 +707,8 @@ async function quickRows(q: string) {
             ORDER BY ${variants.available} IS TRUE DESC, ${variants.priceUsd} ASC))[1]
         END ${fromFamily})`,
       matchedVariant: sku
-        ? sql<{ id: string; sku: string; priceUsd: string; markup: string | null } | null>`(
-          SELECT json_build_object('id', ${variants.id}, 'sku', ${variants.supplierSku}, 'priceUsd', ${variants.priceUsd}, 'markup', ${variants.markup})
+        ? sql<{ id: string; sku: string; priceUsd: string; markup: string | null; fixedIls: string | null } | null>`(
+          SELECT json_build_object('id', ${variants.id}, 'sku', ${variants.supplierSku}, 'priceUsd', ${variants.priceUsd}, 'markup', ${variants.markup}, 'fixedIls', ${variants.fixedIls})
           ${fromFamily} AND ${skuNorm} = ${sku}
           ORDER BY ${variants.available} IS TRUE DESC, ${variants.priceUsd} ASC LIMIT 1)`
         : sql<null>`NULL`,
@@ -774,6 +777,7 @@ export async function getSharedLines(variantIds: string[]) {
       options: variants.familyOptions,
       priceUsd: variants.priceUsd,
       markup: variants.markup,
+      fixedIls: variants.fixedIls,
       title: products.title,
       image: sql<string | null>`${products.images}[1]`,
       supplierName: suppliers.name,
@@ -793,7 +797,7 @@ export async function getSharedLines(variantIds: string[]) {
     image: r.image,
     href: r.familySlug ? familyHref(r.familySlug, r.sku ?? r.variantId) : "/catalog",
     supplierName: r.supplierName,
-    unitPriceIls: priceIls(r.priceUsd, rate, r.markup),
+    unitPriceIls: priceIls(r.priceUsd, rate, r.markup, r.fixedIls),
   }));
 }
 

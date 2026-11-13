@@ -145,7 +145,7 @@ function documentLinks(html: string | null): { href: string; text: string }[] {
 /** Offers cheapest in stock first, so a settled choice picks the best one. */
 function byOffer(variants: FamilyVariant[], rate: PriceContext) {
   return [...variants].sort(
-    (a, b) => Number(b.available === true) - Number(a.available === true) || (priceIls(a.priceUsd, rate, a.markup) ?? Infinity) - (priceIls(b.priceUsd, rate, b.markup) ?? Infinity),
+    (a, b) => Number(b.available === true) - Number(a.available === true) || (priceIls(a.priceUsd, rate, a.markup, a.fixedIls) ?? Infinity) - (priceIls(b.priceUsd, rate, b.markup, b.fixedIls) ?? Infinity),
   );
 }
 
@@ -205,7 +205,7 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
     id: v.id,
     sku: v.sku,
     options: v.familyOptions,
-    priceIls: priceIls(v.priceUsd, rate, v.markup),
+    priceIls: priceIls(v.priceUsd, rate, v.markup, v.fixedIls),
     markup: Number(v.markup ?? rate.markup),
     available: v.available,
     checkedAt: v.checkedAt.toISOString(),

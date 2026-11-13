@@ -48,7 +48,14 @@ export function roundIls(value: number, ctx: Pick<PriceContext, "roundTo" | "min
  * (variants.markup); without one the global multiplier applies. Pass 1 for a
  * family's list price (product_families.min_list_usd), which already includes it.
  */
-export function priceIls(usd: string | number | null | undefined, ctx: PriceContext, markup?: string | number | null): number | null {
+export function priceIls(
+  usd: string | number | null | undefined,
+  ctx: PriceContext,
+  markup?: string | number | null,
+  /** The part's fixed ₪ price (variants.fixed_ils, S16c): it beats the rate, the multiplier, rounding and the minimum. */
+  fixedIls?: string | number | null,
+): number | null {
+  if (fixedIls !== null && fixedIls !== undefined && Number(fixedIls) > 0) return Number(fixedIls);
   if (!hasUsdPrice(usd)) return null;
   const m = markup === null || markup === undefined || !(Number(markup) > 0) ? ctx.markup : Number(markup);
   return roundIls(Number(usd) * assertRate(ctx.rate) * m, ctx);

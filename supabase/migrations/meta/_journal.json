@@ -190,6 +190,13 @@
       "when": 1794562922156,
       "tag": "20261113094202_suppliers_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1794568888799,
+      "tag": "20261113112128_products_editor",
+      "breakpoints": true
     }
   ]
 }

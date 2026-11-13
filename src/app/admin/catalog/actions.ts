@@ -5,6 +5,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { isEmptyOverride } from "@/domain/catalog-overrides";
+import { isEmptyVariantOverride } from "@/domain/part-editor";
 import { hasUsdPrice } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { regroupNow } from "@/lib/regroup";
@@ -74,7 +75,9 @@ export async function saveProductOverride(_: ActionResult | null, formData: Form
     pinRank: input.pinRank === "" ? null : input.pinRank,
     note: input.note || null,
   };
-  if (isEmptyOverride({ ...values, categorySlug: values.categoryId }) && !values.note) {
+  // The name, description and availability set in /admin/settings/products (S16c) keep the row.
+  const editorFields = current && (current.title !== null || current.descriptionHtml !== null || current.available !== null);
+  if (isEmptyOverride({ ...values, categorySlug: values.categoryId }) && !values.note && !editorFields) {
     await db.delete(schema.productOverrides).where(eq(schema.productOverrides.productId, input.productId));
   } else {
     await db
@@ -113,7 +116,9 @@ export async function saveVariantPrice(_: ActionResult | null, formData: FormDat
   if (!parsed.success) return { ok: false, error: "מחיר לא תקין" };
   const { variantId, priceUsd } = parsed.data;
   if (priceUsd === "") {
-    await db.delete(schema.variantOverrides).where(eq(schema.variantOverrides.variantId, variantId));
+    // Only the price goes; a fixed ₪ price, SKU, options or hiding from /admin/settings/products stays.
+    const [row] = await db.update(schema.variantOverrides).set({ priceUsd: null }).where(eq(schema.variantOverrides.variantId, variantId)).returning();
+    if (row && isEmptyVariantOverride({ ...row, hidden: row.hidden })) await db.delete(schema.variantOverrides).where(eq(schema.variantOverrides.variantId, variantId));
   } else {
     if (!hasUsdPrice(priceUsd) || Number(priceUsd) > 100_000) return { ok: false, error: "מחיר בדולרים, גדול מ-0" };
     const price = Number(priceUsd).toFixed(2);

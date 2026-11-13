@@ -174,6 +174,7 @@ async function createOrder(
         options: variants.options,
         priceUsd: variants.priceUsd,
         markup: variants.markup,
+        fixedIls: variants.fixedIls,
         variantMissing: variants.missingSince,
         title: products.title,
         productUrl: products.url,
@@ -227,9 +228,10 @@ async function createOrder(
         productUrl: l.productUrl,
         priceUsd: l.priceUsd!,
         // The multiplier and rate this line was priced with, so a later settings change never reprices it.
-        multiplier: String(Number(l.markup ?? rate.markup)),
+        // A fixed ₪ price (S16c) is kept as the multiplier it works out to at today's rate.
+        multiplier: l.fixedIls ? (Number(l.fixedIls) / (Number(l.priceUsd) * rate.rate)).toFixed(3) : String(Number(l.markup ?? rate.markup)),
         usdIlsRate: String(rate.rate),
-        unitPriceIls: priceIls(l.priceUsd, rate, l.markup)!,
+        unitPriceIls: priceIls(l.priceUsd, rate, l.markup, l.fixedIls)!,
         pricedAt: now,
       })),
     );
