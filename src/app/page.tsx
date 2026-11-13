@@ -9,7 +9,7 @@ import { ReorderButton } from "@/components/reorder-button";
 import { formatIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { cartCount, listOrders } from "@/lib/orders";
-import { getDiscovery, getFacets, getLastSync, getVendors } from "@/lib/catalog";
+import { getDiscoveryPage, getFacets, getLastSync, getVendors } from "@/lib/catalog";
 import { DiscoveryStrip } from "@/components/discovery-strip";
 import { markupText } from "@/domain/pricing";
 import { getBusiness, getSettings, getSiteFacts } from "@/lib/settings";
@@ -74,7 +74,8 @@ async function Vendors() {
 
 /** Today's picks from every vendor. */
 async function Discover() {
-  return <DiscoveryStrip cards={await getDiscovery(3)} />;
+  const { cards, pages } = await getDiscoveryPage("", 0);
+  return <DiscoveryStrip cards={cards} pages={pages} vendor="" />;
 }
 
 /** The second way in: every category, across all vendors, under its group. */

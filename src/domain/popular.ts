@@ -132,3 +132,36 @@ export function bestSellerHandles(bestSellingHtml: string, titleSortedHtml: stri
   while (end < a.length - start && end < b.length - start && a[a.length - 1 - end] === b[b.length - 1 - end]) end++;
   return [...new Set(a.slice(start, a.length - end))];
 }
+
+/** Lists taken in turns (one from each, then the next round), without repeating an item. */
+export function interleave<T>(lists: T[][], key: (item: T) => string): T[] {
+  const out: T[] = [];
+  const seen = new Set<string>();
+  const longest = Math.max(0, ...lists.map((l) => l.length));
+  for (let i = 0; i < longest; i++) {
+    for (const list of lists) {
+      const item = list[i];
+      if (item === undefined || seen.has(key(item))) continue;
+      seen.add(key(item));
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+/** How many pages of `size` a pool fills (at least 1, so an endless strip always has a page). */
+export function pageCount(poolSize: number, size: number): number {
+  return Math.max(1, Math.ceil(poolSize / size));
+}
+
+/**
+ * Page `page` of an endless strip over `pool`: any integer, wrapping around both ways, so items
+ * repeat only after the whole pool has been shown. The last page is filled from the start.
+ */
+export function wrappedPage<T>(pool: T[], page: number, size: number): T[] {
+  if (pool.length === 0) return [];
+  const pages = pageCount(pool.length, size);
+  const p = ((page % pages) + pages) % pages;
+  const start = p * size;
+  return Array.from({ length: Math.min(size, pool.length) }, (_, i) => pool[(start + i) % pool.length]);
+}

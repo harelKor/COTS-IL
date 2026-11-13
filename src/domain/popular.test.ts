@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestSellerHandles, demandScores, orderWeight, pickDiscovery, rankPopular, seededRandom, type FamilySignals } from "./popular";
+import { bestSellerHandles, demandScores, interleave, orderWeight, pageCount, pickDiscovery, rankPopular, seededRandom, wrappedPage, type FamilySignals } from "./popular";
 
 const f = (id: string, over: Partial<FamilySignals> = {}): FamilySignals => ({
   id,
@@ -103,5 +103,30 @@ describe("bestSellerHandles", () => {
 
   it("finds nothing when the store gave the same page both times", () => {
     expect(bestSellerHandles(page(["a", "b"]), page(["a", "b"]))).toEqual([]);
+  });
+});
+
+describe("interleave", () => {
+  it("takes turns and drops repeats", () => {
+    expect(interleave([["a", "b", "c"], ["x"], ["b", "y"]], (s) => s)).toEqual(["a", "x", "b", "y", "c"]);
+  });
+});
+
+describe("wrappedPage", () => {
+  const pool = ["a", "b", "c", "d", "e"];
+  it("pages through the pool and wraps both ways", () => {
+    expect(pageCount(5, 2)).toBe(3);
+    expect(wrappedPage(pool, 0, 2)).toEqual(["a", "b"]);
+    expect(wrappedPage(pool, 2, 2)).toEqual(["e", "a"]);
+    expect(wrappedPage(pool, 3, 2)).toEqual(["a", "b"]);
+    expect(wrappedPage(pool, -1, 2)).toEqual(["e", "a"]);
+  });
+  it("shows every item once before repeating", () => {
+    const seen = [0, 1, 2].flatMap((p) => wrappedPage(pool, p, 2)).slice(0, 5);
+    expect(new Set(seen).size).toBe(5);
+  });
+  it("handles a pool smaller than a page and an empty pool", () => {
+    expect(wrappedPage(["a"], 7, 10)).toEqual(["a"]);
+    expect(wrappedPage([], 0, 10)).toEqual([]);
   });
 });

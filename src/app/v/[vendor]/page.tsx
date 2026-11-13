@@ -13,7 +13,7 @@ import { Ltr } from "@/components/ltr";
 import { PriceNote } from "@/components/price-note";
 import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skeleton";
 import { accentStyle, isStoreFront, vendorBlurb, vendorHref } from "@/domain/vendors";
-import { getSpecFacets, getVendorDiscovery, getVendorPopular, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
+import { getDiscoveryPage, getSpecFacets, getVendorPopular, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
 import { hasFilters, PAGE_SIZE, parseFilters, type CatalogFilters } from "@/lib/catalog-filters";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
@@ -113,7 +113,8 @@ async function Popular({ store }: { store: Store }) {
 
 /** Today's less common picks from this vendor. */
 async function Discover({ store }: { store: Store }) {
-  return <DiscoveryStrip cards={await getVendorDiscovery(store.code, 10)} note={`כל יום מבחר אחר מ-${store.name}, מעבר למבוקשים`} />;
+  const { cards, pages } = await getDiscoveryPage(store.code, 0);
+  return <DiscoveryStrip cards={cards} pages={pages} vendor={store.code} note={`כל יום מבחר אחר מ-${store.name}, מעבר למבוקשים`} />;
 }
 
 function StoreFront({ store }: { store: Store }) {

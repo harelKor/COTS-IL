@@ -1,39 +1,123 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { DiscoverPage } from "@/app/api/discover/route";
 import type { CardFamily } from "@/lib/catalog";
 import { FamilyCard } from "./family-card";
 
 /** How long each card stays before the row moves on, and how long a touch pauses it. */
 const STEP_MS = 4000;
 const TOUCH_PAUSE_MS = 8000;
+/** Pages kept in the DOM; past this the far end is dropped (the strip recycles its cards). */
+const MAX_PAGES = 4;
 
 /** The row's direction: forward is leftwards in RTL, where scrollLeft runs from 0 to negative. */
 const forward = (el: HTMLElement) => (getComputedStyle(el).direction === "rtl" ? -1 : 1);
 
+type Page = { p: number; cards: CardFamily[] };
+type Anchor = { key: string; left: number };
+
 /**
- * "גלו עוד": today's less common picks in one sideways row. It moves on by itself, one card at
- * a time, and stops while a pointer is over the strip or its arrows, something in it has focus,
- * or after a touch; never under reduced motion. Arrows at both ends scroll about a screen of
- * cards and hide at the row's ends. Every card keeps its one-tap "+".
+ * "גלו עוד": today's less common picks in an endless row. More pages load from /api/discover as it
+ * nears either end (pages wrap around, so a part repeats only after the whole pool), the far end
+ * is dropped past 4 pages, and the cards in view never move when that happens. It moves on by
+ * itself, one card at a time, and stops while a pointer is over the strip or its arrows, something
+ * in it has focus, or after a touch; never under reduced motion. Every card keeps its one-tap "+".
  */
-export function DiscoveryStrip({ cards, title = "גלו עוד", note = "כל יום מבחר אחר של חלקים שכדאי להכיר" }: { cards: CardFamily[]; title?: string; note?: string }) {
+export function DiscoveryStrip({
+  cards,
+  pages: pageTotal,
+  vendor,
+  title = "גלו עוד",
+  note = "כל יום מבחר אחר של חלקים שכדאי להכיר",
+}: {
+  cards: CardFamily[];
+  pages: number;
+  /** A supplier code, or "" for every vendor. */
+  vendor: string;
+  title?: string;
+  note?: string;
+}) {
   const wrap = useRef<HTMLDivElement>(null);
   const row = useRef<HTMLUListElement>(null);
-  const [ends, setEnds] = useState({ start: true, end: false });
+  const [pages, setPages] = useState<Page[]>([{ p: 0, cards }]);
+  const loading = useRef(false);
+  const anchor = useRef<Anchor | null>(null);
+  /** The pages as last set, read by the loaders (state can lag a render behind). */
+  const live = useRef(pages);
 
-  const measure = useCallback(() => {
+  /** The first card in view and where it is, so it can be put back after the list changes. */
+  const takeAnchor = () => {
     const el = row.current;
     if (!el) return;
+    const box = el.getBoundingClientRect();
+    for (const li of el.querySelectorAll<HTMLElement>("li[data-key]")) {
+      const r = li.getBoundingClientRect();
+      if (r.right > box.left && r.left < box.right) {
+        anchor.current = { key: li.dataset.key!, left: r.left };
+        return;
+      }
+    }
+  };
+
+  // Puts the anchored card back where it was, before the browser paints: nothing visibly moves.
+  useLayoutEffect(() => {
+    const el = row.current;
+    const a = anchor.current;
+    anchor.current = null;
+    if (!el || !a) return;
+    const li = el.querySelector<HTMLElement>(`li[data-key="${CSS.escape(a.key)}"]`);
+    if (!li) return;
+    const d = li.getBoundingClientRect().left - a.left;
+    if (Math.abs(d) < 0.5) return;
+    el.style.scrollBehavior = "auto";
+    el.scrollLeft += d;
+    el.style.scrollBehavior = "";
+  }, [pages]);
+
+  /** Loads the page after the last (end) or before the first (start), dropping the far end past MAX_PAGES. */
+  const load = useCallback(
+    async (side: "start" | "end") => {
+      if (loading.current) return;
+      loading.current = true;
+      try {
+        const now = live.current;
+        const p = side === "end" ? now[now.length - 1].p + 1 : now[0].p - 1;
+        const res = await fetch(`/api/discover?vendor=${encodeURIComponent(vendor)}&page=${p}`);
+        if (!res.ok) return;
+        const body = (await res.json()) as DiscoverPage;
+        if (body.cards.length === 0) return;
+        takeAnchor();
+        const prev = live.current;
+        const all = side === "end" ? [...prev, { p, cards: body.cards }] : [{ p, cards: body.cards }, ...prev];
+        const next = all.length <= MAX_PAGES ? all : side === "end" ? all.slice(all.length - MAX_PAGES) : all.slice(0, MAX_PAGES);
+        live.current = next;
+        setPages(next);
+      } catch {
+        // Offline or a hiccup: the next scroll near the end tries again.
+      } finally {
+        loading.current = false;
+      }
+    },
+    [vendor],
+  );
+
+  /** Loads more when the row is within about a screen and a half of either end. */
+  const check = useCallback(() => {
+    const el = row.current;
+    if (!el || pageTotal < 1) return;
     const offset = Math.abs(el.scrollLeft);
-    setEnds({ start: offset < 4, end: offset + el.clientWidth >= el.scrollWidth - 4 });
-  }, []);
+    const left = el.scrollWidth - offset - el.clientWidth;
+    if (left < el.clientWidth * 1.5) void load("end");
+    else if (offset < el.clientWidth * 0.5 && live.current[0].p > -10_000) void load("start");
+  }, [load, pageTotal]);
 
-  /** One screen of cards forward (1) or back (-1). */
-  const page = (dir: 1 | -1) => {
+  /** One screen of cards forward (1) or back (-1); at the very start it first loads what comes before. */
+  const page = async (dir: 1 | -1) => {
     const el = row.current;
     if (!el) return;
+    if (dir === -1 && Math.abs(el.scrollLeft) < el.clientWidth) await load("start");
     el.scrollBy({ left: dir * forward(el) * el.clientWidth * 0.9, behavior: "smooth" });
   };
 
@@ -41,13 +125,10 @@ export function DiscoveryStrip({ cards, title = "גלו עוד", note = "כל י
     const el = row.current;
     const box = wrap.current;
     if (!el || !box) return;
-    measure();
-    el.addEventListener("scroll", measure, { passive: true });
-    window.addEventListener("resize", measure);
-    const cleanup = () => {
-      el.removeEventListener("scroll", measure);
-      window.removeEventListener("resize", measure);
-    };
+    // Only after the visitor scrolls: the first page needs nothing more until then.
+    const onScroll = () => check();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    const cleanup = () => el.removeEventListener("scroll", onScroll);
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return cleanup;
 
     let pausedUntil = 0;
@@ -63,9 +144,7 @@ export function DiscoveryStrip({ cards, title = "גלו עוד", note = "כל י
       if (hover || Date.now() < pausedUntil || document.hidden || box.contains(document.activeElement)) return;
       const card = el.querySelector("li");
       if (!card) return;
-      const atEnd = Math.abs(el.scrollLeft) + el.clientWidth >= el.scrollWidth - 4;
-      if (atEnd) el.scrollTo({ left: 0, behavior: "smooth" });
-      else el.scrollBy({ left: forward(el) * (card.getBoundingClientRect().width + 12), behavior: "smooth" });
+      el.scrollBy({ left: forward(el) * (card.getBoundingClientRect().width + 12), behavior: "smooth" });
     }, STEP_MS);
     return () => {
       cleanup();
@@ -75,11 +154,11 @@ export function DiscoveryStrip({ cards, title = "גלו עוד", note = "כל י
       box.removeEventListener("touchstart", onTouch);
       el.removeEventListener("wheel", onTouch);
     };
-  }, [measure]);
+  }, [check]);
 
   if (cards.length === 0) return null;
   const arrow =
-    "btn-plus absolute top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface text-brand transition-opacity duration-200 hover:text-brand-strong focus-visible:outline-2 focus-visible:outline-brand";
+    "btn-plus absolute top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface text-brand hover:text-brand-strong focus-visible:outline-2 focus-visible:outline-brand";
   return (
     <section aria-labelledby="discover" className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
@@ -94,35 +173,24 @@ export function DiscoveryStrip({ cards, title = "גלו עוד", note = "כל י
           ref={row}
           className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto scroll-smooth px-4 pt-2 pb-6 sm:-mx-2 sm:scroll-px-2 sm:px-2"
         >
-          {cards.map((c, i) => (
-            <FamilyCard
-              key={c.id}
-              family={c}
-              glow
-              className="discover-card w-[220px] shrink-0 snap-start sm:w-[240px]"
-              style={{ "--d": `${Math.min(i, 8) * 70}ms` } as React.CSSProperties}
-            />
-          ))}
+          {pages.flatMap(({ p, cards: list }) =>
+            list.map((c, i) => (
+              <FamilyCard
+                key={`${p}:${c.id}`}
+                dataKey={`${p}:${c.id}`}
+                family={c}
+                glow
+                className="discover-card w-[220px] shrink-0 snap-start sm:w-[240px]"
+                style={{ "--d": `${Math.min(i, 8) * 70}ms` } as React.CSSProperties}
+              />
+            )),
+          )}
         </ul>
-        {/* RTL: "back" sits at the start (right) and points right, "more" at the end (left) and points left. */}
-        <button
-          type="button"
-          aria-label="הקודמים"
-          onClick={() => page(-1)}
-          tabIndex={ends.start ? -1 : 0}
-          aria-hidden={ends.start}
-          className={`${arrow} -start-1 sm:-start-3 ${ends.start ? "pointer-events-none opacity-0" : "opacity-100"}`}
-        >
+        {/* The row has no end, so both arrows always show. RTL: "back" at the start (right) points right. */}
+        <button type="button" aria-label="הקודמים" onClick={() => void page(-1)} className={`${arrow} -start-1 sm:-start-3`}>
           <ChevronRight size={20} strokeWidth={2} aria-hidden className="ltr:rotate-180" />
         </button>
-        <button
-          type="button"
-          aria-label="עוד הצעות"
-          onClick={() => page(1)}
-          tabIndex={ends.end ? -1 : 0}
-          aria-hidden={ends.end}
-          className={`${arrow} -end-1 sm:-end-3 ${ends.end ? "pointer-events-none opacity-0" : "opacity-100"}`}
-        >
+        <button type="button" aria-label="עוד הצעות" onClick={() => void page(1)} className={`${arrow} -end-1 sm:-end-3`}>
           <ChevronLeft size={20} strokeWidth={2} aria-hidden className="ltr:rotate-180" />
         </button>
       </div>

@@ -6,7 +6,7 @@ import { ACCESSORY_TITLE_PATTERN, HARDWARE_CATEGORIES, MAIN_ITEM_MIN_USD } from 
 import { facetCountPlans, isRelevantFacet } from "@/domain/facets";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
-import { pickDiscovery, rankPopular, type FamilySignals } from "@/domain/popular";
+import { interleave, pageCount, pickDiscovery, rankPopular, wrappedPage, type FamilySignals } from "@/domain/popular";
 import { priceContext } from "./settings";
 import type { PriceContext } from "@/domain/pricing";
 import { correctQuery, englishQuery, likePatterns, looksLikeSku, normalizeSku, searchTerms } from "@/domain/search-query";
@@ -927,25 +927,42 @@ function israelDay() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
 }
 
-/** "גלו עוד": today's less common picks from a vendor, with this vendor's prices. */
-export async function getVendorDiscovery(code: string, count = 10): Promise<CardFamily[]> {
+/** Cards per "גלו עוד" page: what the strip loads at a time. */
+export const DISCOVER_PAGE = 10;
+
+/**
+ * Today's whole "גלו עוד" pool, in strip order: one vendor's eligible picks (`vendor` = its code),
+ * or every vendor's taking turns (`vendor` = ""). Shuffled by day, so it's stable and cacheable.
+ */
+async function discoveryPool(vendor: string): Promise<{ id: string; code: string }[]> {
   "use cache";
   catalogCache();
-  const signals = await vendorSignals(code);
-  const ids = pickDiscovery(signals, rankPopular(signals, POPULAR_COUNT), `${israelDay()}:${code}`, count);
-  return toCards(await cardRows(ids), code);
+  const one = async (code: string) => {
+    const signals = await vendorSignals(code);
+    return pickDiscovery(signals, rankPopular(signals, POPULAR_COUNT), `${israelDay()}:${code}`, signals.length).map((id) => ({ id, code }));
+  };
+  if (vendor) return one(vendor);
+  const { suppliers: vendors } = await getFacets();
+  const lists: { id: string; code: string }[][] = [];
+  for (const v of vendors) lists.push(await one(v.code));
+  return interleave(lists, (x) => x.id);
 }
 
-/** The home page's strip: a few of today's picks from each vendor, taking turns. */
-export async function getDiscovery(perVendor = 3): Promise<CardFamily[]> {
+/**
+ * One page of the endless "גלו עוד" strip (any integer; it wraps around both ways, so a part
+ * repeats only after the whole pool), each card with its own vendor's price and offer.
+ */
+export async function getDiscoveryPage(vendor: string, page: number): Promise<{ cards: CardFamily[]; pages: number }> {
   "use cache";
   catalogCache();
-  const { suppliers: vendors } = await getFacets();
-  const lists: CardFamily[][] = [];
-  for (const v of vendors) lists.push(await getVendorDiscovery(v.code, perVendor));
-  const out: CardFamily[] = [];
-  for (let i = 0; i < perVendor; i++) for (const list of lists) if (list[i] && !out.some((c) => c.id === list[i].id)) out.push(list[i]);
-  return out;
+  const pool = await discoveryPool(vendor);
+  const slice = wrappedPage(pool, page, DISCOVER_PAGE);
+  const cards: CardFamily[] = [];
+  for (const code of [...new Set(slice.map((x) => x.code))]) {
+    cards.push(...(await toCards(await cardRows(slice.filter((x) => x.code === code).map((x) => x.id)), code)));
+  }
+  const at = (c: CardFamily) => slice.findIndex((x) => x.id === c.id && x.code === c.vendor?.code);
+  return { cards: cards.sort((x, y) => at(x) - at(y)), pages: pageCount(pool.length, DISCOVER_PAGE) };
 }
 
 /** How many families "הכי מבוקשים" shows. */

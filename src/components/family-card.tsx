@@ -70,6 +70,8 @@ type Props = {
   style?: React.CSSProperties;
   /** Popular and "גלו עוד": a glowing outline and a shine on hover. */
   glow?: boolean;
+  /** A stable key on the card's element, for the endless strip to keep its place. */
+  dataKey?: string;
 };
 
 /** Below this width the chips open in a bottom sheet instead of over the card. */
@@ -81,7 +83,7 @@ const SHEET_QUERY = "(max-width: 639px)";
  * or in a bottom sheet on a phone), and picking the last one adds it. Once in
  * the cart, "+" becomes a stepper. Nothing here leaves the page.
  */
-export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style, glow = false }: Props) {
+export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style, glow = false, dataKey }: Props) {
   const { mode, lines } = useCart();
   const [open, setOpen] = useState(false);
   const [asSheet, setAsSheet] = useState(false);
@@ -325,6 +327,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
 
   return (
     <li
+      data-key={dataKey}
       style={style}
       className={`card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift ${glow ? "glow-card" : ""} ${className}`}
     >
