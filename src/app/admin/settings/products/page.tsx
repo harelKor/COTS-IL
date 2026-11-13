@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Plus } from "lucide-react";
 import { buttonClass, Card, Input, Select, StatusTag } from "@/components/form";
@@ -7,7 +8,7 @@ import { Ltr } from "@/components/ltr";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { formatIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
-import { categoryChoices, editorPart, PAGE_SIZE, productCards, supplierChoices, type ProductCard } from "@/lib/product-admin";
+import { categoryChoices, editorPart, familyEditHref, PAGE_SIZE, productCards, supplierChoices, type ProductCard } from "@/lib/product-admin";
 import { PartSheet } from "./part-sheet";
 
 export const metadata: Metadata = { title: "הגדרות: מוצרים" };
@@ -69,6 +70,11 @@ function PartCard({ card, href }: { card: ProductCard; href: string }) {
 async function Products({ searchParams }: { searchParams: PageProps<"/admin/settings/products">["searchParams"] }) {
   await requireAdmin();
   const params = await searchParams;
+  // A family link (the grouping report, old /admin/catalog?family= links) opens its primary part.
+  if (str(params.family)) {
+    const href = await familyEditHref(str(params.family));
+    if (href) redirect(href);
+  }
   const [suppliers, categories] = await Promise.all([supplierChoices(), categoryChoices()]);
   const supplier = suppliers.find((s) => s.code === str(params.s)) ?? suppliers.find((s) => s.active) ?? suppliers[0];
   if (!supplier) return <Card>אין ספקים עדיין. הוסיפו ספק בלשונית ספקים.</Card>;
@@ -76,12 +82,13 @@ async function Products({ searchParams }: { searchParams: PageProps<"/admin/sett
   const q = str(params.q).slice(0, 100);
   const categoryId = categories.some((c) => c.id === str(params.c)) ? str(params.c) : "";
   const showHidden = str(params.hidden) === "1";
+  const onlyEdited = str(params.edited) === "1";
   const page = Math.max(0, Math.min(500, Number(str(params.page)) || 0));
-  const base = { s: supplier.code, q, c: categoryId, hidden: showHidden ? "1" : "", page: page ? String(page) : "" };
+  const base = { s: supplier.code, q, c: categoryId, hidden: showHidden ? "1" : "", edited: onlyEdited ? "1" : "", page: page ? String(page) : "" };
   const edit = str(params.edit);
 
   const [{ cards, total }, part] = await Promise.all([
-    productCards({ supplierId: supplier.id, q, categoryId, showHidden, page }),
+    productCards({ supplierId: supplier.id, q, categoryId, showHidden, onlyEdited, page }),
     edit && edit !== "new" && /^[0-9a-f-]{36}$/i.test(edit) ? editorPart(edit) : Promise.resolve(null),
   ]);
   const closeHref = hrefWith(base, {});
@@ -124,6 +131,10 @@ async function Products({ searchParams }: { searchParams: PageProps<"/admin/sett
         <label className="flex min-h-11 items-center gap-2 px-1 text-callout">
           <input type="checkbox" name="hidden" value="1" defaultChecked={showHidden} className="size-5 accent-brand" />
           גם מוסתרים
+        </label>
+        <label className="flex min-h-11 items-center gap-2 px-1 text-callout">
+          <input type="checkbox" name="edited" value="1" defaultChecked={onlyEdited} className="size-5 accent-brand" />
+          רק עם שינויים
         </label>
         <button type="submit" className={buttonClass("secondary")}>
           סינון

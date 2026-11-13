@@ -16,7 +16,7 @@ import {
   variantRemoval,
 } from "@/domain/part-editor";
 import { requireAdmin } from "@/lib/auth";
-import { orderLineCount } from "@/lib/product-admin";
+import { mergeTarget, orderLineCount } from "@/lib/product-admin";
 import { regroupNow } from "@/lib/regroup";
 import { createClient } from "@/lib/supabase/server";
 
@@ -60,6 +60,8 @@ const partInput = z.object({
   categoryId: z.union([z.uuid(), z.literal("")]),
   availability: z.enum(["store", "yes", "no"]),
   hidden: z.boolean(),
+  alone: z.boolean(),
+  mergeWith: z.string().trim().max(300),
   images: z.array(z.url({ protocol: /^https$/ }).max(2000)).max(20),
   optionNames: z.array(z.string().trim().max(60)).max(3),
   variants: z.array(variantInput).min(1).max(200),
@@ -82,6 +84,8 @@ function readPart(formData: FormData) {
     categoryId: formData.get("categoryId") ?? "",
     availability: formData.get("availability") ?? "store",
     hidden: formData.get("hidden") === "on",
+    alone: formData.get("alone") === "on",
+    mergeWith: formData.get("mergeWith") ?? "",
     images: json("images") ?? [],
     optionNames: json("optionNames") ?? [],
     variants: json("variants") ?? [],
@@ -202,6 +206,20 @@ export async function savePart(_: PartResult | null, formData: FormData): Promis
 
   if (!d.productId) return createPart(viewer.id, supplier, d, variants, availability);
 
+  // Family: "הפרדה" keeps it out of any other family; "איחוד" gives it the target family's merge key.
+  const [current] = await db.select({ mergeKey: schema.productOverrides.mergeKey }).from(schema.productOverrides).where(eq(schema.productOverrides.productId, d.productId));
+  let mergeKey = current?.mergeKey ?? null;
+  let mergeInto: string | null = null;
+  if (d.mergeWith === "") mergeKey = null;
+  else if (d.mergeWith !== current?.mergeKey) {
+    const target = await mergeTarget(d.mergeWith);
+    if (!target) return { ok: false, error: "לא נמצאה משפחה או מק״ט לאיחוד" };
+    mergeKey = target.mergeKey;
+    if (target.primaryProductId !== d.productId) mergeInto = target.primaryProductId;
+  }
+  if (d.alone && mergeKey) return { ok: false, error: "אי אפשר גם להפריד וגם לאחד. בחרו אחד מהם." };
+  const family = { alone: d.alone, mergeKey };
+
   const result = await db.transaction(async (tx) => {
     const before = await snapshot(tx, d.productId);
     if (!before) return { ok: false as const, error: "החלק לא נמצא" };
@@ -228,7 +246,7 @@ export async function savePart(_: PartResult | null, formData: FormData): Promis
           searchText: searchTextOf(d.title, supplier.name, variants.filter((v) => !v.remove)),
         })
         .where(eq(schema.products.id, product.id));
-      await writeProductOverride(tx, product.id, viewer.id, { hidden: d.hidden, available: availability });
+      await writeProductOverride(tx, product.id, viewer.id, { hidden: d.hidden, available: availability, ...family });
 
       let position = 0;
       for (const v of variants) {
@@ -265,6 +283,7 @@ export async function savePart(_: PartResult | null, formData: FormData): Promis
         categoryId: d.categoryId && d.categoryId !== product.categoryId ? d.categoryId : null,
         available: availability,
         hidden: d.hidden,
+        ...family,
       });
       for (const v of variants) {
         const store = v.id ? byId.get(v.id) : undefined;
@@ -278,6 +297,8 @@ export async function savePart(_: PartResult | null, formData: FormData): Promis
         if (old?.note) await tx.update(schema.variantOverrides).set({ note: old.note }).where(eq(schema.variantOverrides.variantId, store.id));
       }
     }
+
+    if (mergeInto) await writeProductOverride(tx, mergeInto, viewer.id, { mergeKey });
 
     const after = await snapshot(tx, product.id);
     const auditId = await audit(tx, viewer.id, product.id, "update", before, after);

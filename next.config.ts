@@ -35,6 +35,14 @@ const nextConfig: NextConfig = {
   // When this build ran, for "הפריסה האחרונה" in /admin/settings/system.
   env: { BUILD_TIME: new Date().toISOString() },
   partialPrefetching: true,
+  // The admin's "קטלוג" tab folded into הגדרות (Nov 13, 2026). The query string carries over:
+  // ?family=<slug> opens that family's part in מוצרים, ?q= searches there.
+  async redirects() {
+    return [
+      { source: "/admin/catalog/grouping", destination: "/admin/settings/system/grouping", permanent: false },
+      { source: "/admin/catalog", destination: "/admin/settings/products", permanent: false },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -8,6 +8,7 @@ import { Ltr } from "@/components/ltr";
 import { showToast } from "@/components/toast";
 import { htmlToText } from "@/domain/part-editor";
 import { formatIls } from "@/domain/pricing";
+import { familyHref } from "@/lib/catalog-links";
 import type { EditorPart } from "@/lib/product-admin";
 import { removePart, revertPart, savePart, undoPartChange, uploadPartPhoto, type PartResult } from "./actions";
 
@@ -210,6 +211,38 @@ export function PartSheet({
               <ExternalLink size={20} aria-hidden />
               הדף אצל הספק
             </a>
+          )}
+
+          {part && (
+            <fieldset className="flex min-w-0 flex-col gap-3">
+              <legend className="mb-2 text-callout font-medium">משפחה</legend>
+              {part.family ? (
+                <p className="text-caption text-muted">
+                  בדף המוצר{" "}
+                  <a href={familyHref(part.family.slug)} target="_blank" rel="noreferrer" className="text-brand hover:underline">
+                    <Ltr>{part.family.title}</Ltr>
+                  </a>
+                  {part.family.members.length > 0 ? (
+                    <>
+                      {" "}
+                      יחד עם{" "}
+                      <Ltr>{part.family.members.map((m) => `${m.title} (${m.supplier})`).join(", ")}</Ltr>
+                    </>
+                  ) : (
+                    ", לבד"
+                  )}
+                </p>
+              ) : (
+                <p className="text-caption text-muted">עוד לא במשפחה (מוסתר או בלי גרסאות)</p>
+              )}
+              <Field label="איחוד עם משפחה" name="mergeWith" hint="קישור לדף המוצר, ה-slug שלו או מק״ט שבו. ריק = לפי השם, כרגיל.">
+                <Input name="mergeWith" defaultValue={part.mergeKey ?? ""} dir="ltr" />
+              </Field>
+              <label className="flex min-h-11 items-center gap-2 text-callout">
+                <input type="checkbox" name="alone" defaultChecked={part.alone} className="size-5 accent-brand" />
+                הפרדה למשפחה נפרדת (לא מתאחד עם חלקים אחרים)
+              </label>
+            </fieldset>
           )}
 
           <fieldset className="flex min-w-0 flex-col gap-3">

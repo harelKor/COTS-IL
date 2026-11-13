@@ -8,10 +8,14 @@ import { Loading, PageSkeleton } from "@/components/skeleton";
 import { db, schema } from "@/db";
 import { BLOCK_TOKENS, DEFAULT_PAGES, INFO_PAGES, INLINE_TOKENS, type InfoPageKey } from "@/domain/info-text";
 import { requireAdmin } from "@/lib/auth";
+import { familyHref } from "@/lib/catalog-links";
 import { getSettings } from "@/lib/settings";
 import { BannerForm, ExamplesForm, PageEditor } from "./content-forms";
+import { PinForm, UnpinButton } from "./pin-forms";
 
 export const metadata: Metadata = { title: "הגדרות: תוכן האתר" };
+/** Pinning regroups the catalog (about 10 s). */
+export const maxDuration = 60;
 
 async function Pins() {
   const f = schema.productFamilies;
@@ -20,26 +24,22 @@ async function Pins() {
     <Card className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <h2 className="text-section font-semibold">״מומלץ״</h2>
-        <p className="text-caption text-muted">
-          מוצרים שמוצמדים ראשונים ב״הכי מבוקשים״ של כל ספק ובמיון ״מומלץ״. מצמידים ומסירים בעורך המשפחה בדף{" "}
-          <Link href="/admin/catalog" className="text-brand hover:underline">
-            קטלוג
-          </Link>
-          .
-        </p>
+        <p className="text-caption text-muted">מוצרים שמוצמדים ראשונים ב״הכי מבוקשים״ של כל ספק ובמיון ״מומלץ״, לפי המקום (1 ראשון). כל שינוי מעדכן את הקטלוג תוך כ-10 שניות.</p>
       </div>
+      <PinForm />
       {pins.length === 0 ? (
         <p className="text-callout text-muted">אין מוצרים מוצמדים.</p>
       ) : (
         <ol className="divide-y divide-line">
           {pins.map((p) => (
-            <li key={p.slug}>
-              <Link href={`/admin/catalog?family=${encodeURIComponent(p.slug)}`} className="flex min-h-11 items-center justify-between gap-3 py-1 text-callout hover:text-brand">
-                <bdi dir="ltr" className="min-w-0 truncate">
-                  {p.title}
-                </bdi>
-                <span className="shrink-0 text-caption text-muted tabular-nums">מקום {p.rank}</span>
+            <li key={p.slug} className="flex min-h-11 items-center justify-between gap-3 py-1 text-callout">
+              <Link href={familyHref(p.slug)} className="min-w-0 truncate hover:text-brand">
+                <bdi dir="ltr">{p.title}</bdi>
               </Link>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="text-caption text-muted tabular-nums">מקום {p.rank}</span>
+                <UnpinButton slug={p.slug} />
+              </span>
             </li>
           ))}
         </ol>

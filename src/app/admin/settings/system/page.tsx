@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { ExternalLink } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
@@ -125,7 +126,13 @@ async function System() {
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <h2 className="text-section font-semibold">סנכרון לפי ספק</h2>
-          <p className="text-caption text-muted">הסנכרון רץ כל לילה ב-04:00 בערך. שש הריצות האחרונות של כל ספק.</p>
+          <p className="text-caption text-muted">
+            הסנכרון רץ כל לילה ב-04:00 בערך. שש הריצות האחרונות של כל ספק. איך המוצרים קובצו למשפחות ומה ממתין לבדיקה:{" "}
+            <Link href="/admin/settings/system/grouping" className="text-brand hover:underline">
+              דוח קיבוץ
+            </Link>
+            .
+          </p>
         </div>
         <ul className="grid gap-4 lg:grid-cols-2">
           {[...bySupplier].map(([code, s]) => (

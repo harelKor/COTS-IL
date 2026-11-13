@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { sql } from "drizzle-orm";
 import { Suspense } from "react";
 import { productHref } from "@/components/catalog";
 import { Ltr } from "@/components/ltr";
 import { Loading, PageSkeleton } from "@/components/skeleton";
+import { db } from "@/db";
+import { suspiciousMultiSupplier, type Suspicion } from "@/domain/catalog-overrides";
 import { requireAdmin } from "@/lib/auth";
 import { getGroupingReport } from "@/lib/catalog";
 
-export const metadata: Metadata = { title: "קיבוץ מוצרים למשפחות" };
+export const metadata: Metadata = { title: "הגדרות: דוח קיבוץ" };
 
 const GROUPING_LABELS: Record<string, string> = {
   title: "קובצו לפי שם (מידות כאפשרויות)",
@@ -29,6 +32,61 @@ const REASON_LABELS: Record<string, { title: string; help: string }> = {
     help: "מוצרים בקטגוריה של חלקים במידות, שהשם שלהם לא נקרא. הם מוצגים כמוצר בודד.",
   },
 };
+
+const SUSPICION_LABELS: Record<Suspicion, string> = {
+  names: "שמות שונים",
+  prices: "מחיר שונה לאותו מק״ט",
+  categories: "קטגוריות שונות",
+};
+
+async function MultiSupplier() {
+  const [{ rows: members }, { rows: prices }] = await Promise.all([
+    db.execute<{ family_id: string; slug: string; family_title: string; supplier_code: string; title: string; category: string | null }>(sql`
+      SELECT DISTINCT f.id AS family_id, f.slug, f.title AS family_title, s.code AS supplier_code, p.title, c.slug AS category
+        FROM product_families f JOIN variants v ON v.family_id = f.id JOIN products p ON p.id = v.product_id
+        JOIN suppliers s ON s.id = p.supplier_id LEFT JOIN categories c ON c.id = p.category_id
+       WHERE f.missing_since IS NULL AND cardinality(f.supplier_codes) > 1`),
+    db.execute<{ family_id: string; sku: string | null; supplier_code: string; price_usd: string | null }>(sql`
+      SELECT v.family_id, v.supplier_sku AS sku, s.code AS supplier_code, v.supplier_price_usd AS price_usd
+        FROM variants v JOIN suppliers s ON s.id = v.supplier_id JOIN product_families f ON f.id = v.family_id
+       WHERE f.missing_since IS NULL AND cardinality(f.supplier_codes) > 1 AND v.missing_since IS NULL`),
+  ]);
+  const families = new Map<string, { slug: string; title: string; members: { supplierCode: string; title: string; categorySlug: string | null }[]; prices: { sku: string | null; supplierCode: string; priceUsd: string | null }[] }>();
+  for (const m of members) {
+    const f = families.get(m.family_id) ?? { slug: m.slug, title: m.family_title, members: [], prices: [] };
+    f.members.push({ supplierCode: m.supplier_code, title: m.title, categorySlug: m.category });
+    families.set(m.family_id, f);
+  }
+  for (const p of prices) families.get(p.family_id)?.prices.push({ sku: p.sku, supplierCode: p.supplier_code, priceUsd: p.price_usd });
+  const flagged = [...families.values()]
+    .map((f) => ({ ...f, why: suspiciousMultiSupplier(f.members, f.prices) }))
+    .filter((f) => f.why.length > 0)
+    .sort((a, b) => b.why.length - a.why.length || a.title.localeCompare(b.title));
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div>
+        <h2 className="text-section font-semibold">משפחות של כמה ספקים לבדיקה ({flagged.length.toLocaleString("he-IL")} מתוך {families.size.toLocaleString("he-IL")})</h2>
+        <p className="text-sm text-muted">משפחות שהמוצרים בהן לא חולקים שם, שאותו מק״ט עולה בהן סכום שונה מאוד, או שהספקים מתייקים אחרת. אם זה לא אותו חלק: פתחו את החלק ובחרו ״הפרדה למשפחה נפרדת״ בחלק ״משפחה״.</p>
+      </div>
+      {flagged.length > 0 && (
+        <ul className="divide-y divide-line card-surface text-sm">
+          {flagged.map((f) => (
+            <li key={f.slug}>
+              <Link href={`/admin/settings/products?family=${encodeURIComponent(f.slug)}`} className="flex min-h-11 flex-col gap-1 p-3 hover:bg-subtle">
+                <Ltr className="font-medium">{f.title}</Ltr>
+                <span className="text-caption text-muted">
+                  {f.why.map((w) => SUSPICION_LABELS[w]).join(", ")}:{" "}
+                  <Ltr>{[...new Set(f.members.map((m) => `${m.supplierCode}: ${m.title}`))].join(" | ")}</Ltr>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 async function Report() {
   await requireAdmin();
@@ -75,6 +133,8 @@ async function Report() {
         </ul>
       </section>
 
+      <MultiSupplier />
+
       {reasons.length === 0 && <p className="text-muted">אין מוצרים שממתינים לבדיקה.</p>}
       {reasons.map((reason) => {
         const rows = issues.filter((i) => i.reason === reason);
@@ -107,9 +167,13 @@ export default function GroupingPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-title font-semibold">קיבוץ מוצרים למשפחות</h1>
+        <h2 className="text-section font-semibold">דוח קיבוץ: מוצרים למשפחות</h2>
         <p className="text-sm text-muted">
-          המשפחות נבנות מחדש בכל סנכרון. מוצרים שלא קובצו בביטחון נשארים כאן לבדיקה במקום ניחוש.
+          המשפחות נבנות מחדש בכל סנכרון. מוצרים שלא קובצו בביטחון נשארים כאן לבדיקה במקום ניחוש. מאחדים ומפרידים בחלון העריכה של החלק, בדף{" "}
+          <Link href="/admin/settings/products" className="text-brand hover:underline">
+            מוצרים
+          </Link>
+          .
         </p>
       </div>
       <Suspense

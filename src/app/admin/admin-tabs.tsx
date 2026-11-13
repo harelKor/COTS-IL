@@ -11,7 +11,6 @@ const TABS = [
   { href: "/admin/reports", label: "דוחות" },
   { href: "/admin/teams", label: "קבוצות" },
   { href: "/admin/requests", label: "בקשות חלקים" },
-  { href: "/admin/catalog", label: "קטלוג" },
   { href: "/admin/settings", label: "הגדרות" },
 ] as const;
 
@@ -36,9 +35,9 @@ const CRUMBS: {
     parent: { href: "/admin/deliveries", label: "מסירות" },
   },
   {
-    prefix: "/admin/catalog/grouping",
-    label: "דוח הקיבוץ",
-    parent: { href: "/admin/catalog", label: "קטלוג" },
+    prefix: "/admin/settings/system/grouping",
+    label: "דוח קיבוץ",
+    parent: { href: "/admin/settings/system", label: "הגדרות › מערכת" },
   },
   {
     prefix: "/admin/shortages",
