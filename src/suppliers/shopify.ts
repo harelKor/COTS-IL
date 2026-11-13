@@ -130,6 +130,8 @@ export async function fetchShopifyCatalog(baseUrl: string, programs: Program[]):
       if (parsed.success) products.set(parsed.data.id, normalizeProduct(parsed.data, baseUrl, programs));
       else skipped++;
     }
+    // A short page is the last one: skip the extra request, which small stores often answer with 429.
+    if (rows.length < PAGE_SIZE) return { products: [...products.values()], skipped };
   }
   throw new Error(`${baseUrl} has more than ${MAX_PAGES} pages`);
 }
