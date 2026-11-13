@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
 import { CategoryGroups } from "@/components/category-groups";
-import { CategoryTiles } from "@/components/category-showcase";
+import { GroupBoxes } from "@/components/group-boxes";
 import { FamilyCard } from "@/components/family-card";
 import { Ltr } from "@/components/ltr";
 import { PriceNote } from "@/components/price-note";
@@ -140,7 +140,7 @@ function StoreFront({ store }: { store: Store }) {
         <h2 id="all" className="mb-4 text-section font-semibold">
           כל המוצרים של <Ltr>{store.name}</Ltr>
         </h2>
-        <CategoryTiles categories={store.categories.map((c) => ({ ...c, href: vendorHref(store.code, { category: c.slug }) }))} />
+        <GroupBoxes categories={store.categories.map((c) => ({ ...c, href: vendorHref(store.code, { category: c.slug }) }))} />
       </section>
     </>
   );
