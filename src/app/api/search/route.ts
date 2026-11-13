@@ -19,6 +19,8 @@ export type SearchResult = {
   maxPriceIls: number | null;
   fromPrice: boolean;
   available: boolean | null;
+  /** Orderable, but every offer ships later (בהזמנה מראש). */
+  shipsLater: boolean;
   variantCount: number;
   /** Options to choose on the row (the family card's chips), when there is no single part to add. */
   optionKeys: string[];
@@ -74,6 +76,7 @@ export async function GET(request: NextRequest) {
       maxPriceIls: high,
       fromPrice: high !== null && high !== low,
       available: r.available,
+      shipsLater: r.shipsLater,
       variantCount: r.variantCount,
       optionKeys: r.optionKeys,
       checkedAt: new Date(r.lastSeenAt).toISOString(),

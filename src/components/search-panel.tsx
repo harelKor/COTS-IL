@@ -87,6 +87,7 @@ function asCard(r: SearchResult): CardFamily {
     minPriceIls: r.priceIls,
     maxPriceIls: r.maxPriceIls,
     available: r.available,
+    shipsLater: r.shipsLater,
     checkedAt: r.checkedAt,
     variantCount: r.variantCount,
     optionKeys: r.optionKeys,

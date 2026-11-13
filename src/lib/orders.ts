@@ -28,6 +28,8 @@ export async function getCart(teamId: string, variantIds?: string[]) {
       priceUsd: variants.priceUsd,
       markup: variants.markup,
       available: variants.available,
+      shipsLater: variants.shipsLater,
+      shipsLaterEta: variants.shipsLaterEta,
       checkedAt: variants.checkedAt,
       variantMissing: variants.missingSince,
       title: products.title,
@@ -62,6 +64,8 @@ export const toSheetLine =
     unitPriceIls: priceIls(l.priceUsd, ctx, l.markup),
     orderable: isOrderable({ variantMissing: l.variantMissing, productMissing: l.productMissing, productStatus: l.productStatus, priceUsd: l.priceUsd }),
     available: l.available,
+    shipsLater: l.shipsLater,
+    shipsLaterEta: l.shipsLaterEta,
     checkedAt: l.checkedAt.toISOString(),
   });
 

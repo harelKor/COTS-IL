@@ -86,7 +86,10 @@ type FamilyResult = NonNullable<Awaited<ReturnType<typeof getFamily>>>;
 function productJsonLd({ family }: FamilyResult, variants: ViewVariant[], lead: string) {
   const priced = variants.filter((v) => v.priceIls !== null);
   const prices = priced.map((v) => v.priceIls!);
-  const availability = (v: ViewVariant[]) => `https://schema.org/${v.some((x) => x.available === true) ? "InStock" : "OutOfStock"}`;
+  const availability = (v: ViewVariant[]) => {
+    const live = v.filter((x) => x.available === true);
+    return `https://schema.org/${live.length === 0 ? "OutOfStock" : live.every((x) => x.shipsLater) ? "BackOrder" : "InStock"}`;
+  };
   const url = `${SITE}${familyHref(family.slug)}`;
   const one = variants.length === 1 ? variants[0] : null;
   return {
@@ -208,6 +211,8 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
     priceIls: priceIls(v.priceUsd, rate, v.markup),
     markup: Number(v.markup ?? rate.markup),
     available: v.available,
+    shipsLater: v.shipsLater,
+    shipsLaterEta: v.shipsLaterEta,
     checkedAt: v.checkedAt.toISOString(),
     supplierName: v.supplierName,
     supplierCode: v.supplierCode,

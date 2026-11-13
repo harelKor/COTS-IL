@@ -140,6 +140,9 @@ export type CardVariant = {
   options: Record<string, string>;
   priceIls: number | null;
   available: boolean | null;
+  /** Orderable, but the supplier ships it later (בהזמנה מראש), with its ETA words if any. */
+  shipsLater: boolean;
+  shipsLaterEta: string | null;
   supplierName: string;
   image: string | null;
 };
@@ -157,6 +160,8 @@ export type CardFamily = {
   minPriceIls: number | null;
   maxPriceIls: number | null;
   available: boolean | null;
+  /** Every available offer ships later (בהזמנה מראש). */
+  shipsLater: boolean;
   checkedAt: string;
   variantCount: number;
   optionKeys: string[];
@@ -181,6 +186,7 @@ const cardColumns = {
   minListUsd: families.minListUsd,
   maxListUsd: families.maxListUsd,
   available: families.available,
+  shipsLater: families.shipsLater,
   lastSeenAt: families.lastSeenAt,
   supplierCodes: families.supplierCodes,
   variantCount: families.variantCount,
@@ -196,6 +202,7 @@ type CardRow = {
   minListUsd: string | null;
   maxListUsd: string | null;
   available: boolean | null;
+  shipsLater: boolean;
   lastSeenAt: Date;
   supplierCodes: string[];
   variantCount: number;
@@ -214,6 +221,8 @@ async function variantsOf(familyIds: string[], rate: PriceContext, supplierCode?
       priceUsd: variants.priceUsd,
       markup: variants.markup,
       available: variants.available,
+      shipsLater: variants.shipsLater,
+      shipsLaterEta: variants.shipsLaterEta,
       supplierName: suppliers.name,
       image: sql<string | null>`${products.images}[1]`,
     })
@@ -233,7 +242,7 @@ async function variantsOf(familyIds: string[], rate: PriceContext, supplierCode?
     .orderBy(sql`${variants.available} IS TRUE DESC`, asc(variants.priceUsd));
   return rows.map((v) => ({
     familyId: v.familyId!,
-    variant: { id: v.id, sku: v.sku, options: v.options, priceIls: priceIls(v.priceUsd, rate, v.markup), available: v.available, supplierName: v.supplierName, image: v.image } satisfies CardVariant,
+    variant: { id: v.id, sku: v.sku, options: v.options, priceIls: priceIls(v.priceUsd, rate, v.markup), available: v.available, shipsLater: v.shipsLater, shipsLaterEta: v.shipsLaterEta, supplierName: v.supplierName, image: v.image } satisfies CardVariant,
   }));
 }
 
@@ -265,6 +274,7 @@ async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFami
       minList: sql<string | null>`min(${list})`,
       maxList: sql<string | null>`max(${list})`,
       available: sql<boolean | null>`bool_or(${variants.available})`,
+      shipsLater: sql<boolean>`coalesce(bool_and(${variants.shipsLater}) FILTER (WHERE ${variants.available} IS TRUE), false)`,
     })
     .from(variants)
     .innerJoin(products, eq(products.id, variants.productId))
@@ -297,6 +307,7 @@ async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFami
       minPriceIls: priceIls(vendor ? s?.minList : r.minListUsd, rate, 1),
       maxPriceIls: priceIls(vendor ? s?.maxList : r.maxListUsd, rate, 1),
       available: vendor ? (s?.available ?? null) : r.available,
+      shipsLater: vendor ? (s?.shipsLater ?? false) : r.shipsLater,
       checkedAt: r.lastSeenAt.toISOString(),
       variantCount: r.variantCount,
       optionKeys: r.optionKeys,
@@ -536,6 +547,8 @@ export async function getFamily(slug: string) {
       priceUsd: variants.priceUsd,
       markup: variants.markup,
       available: variants.available,
+      shipsLater: variants.shipsLater,
+      shipsLaterEta: variants.shipsLaterEta,
       checkedAt: variants.checkedAt,
       productTitle: products.title,
       productUrl: products.url,
@@ -694,6 +707,7 @@ async function quickRows(q: string) {
       minListUsd: families.minListUsd,
       maxListUsd: families.maxListUsd,
       available: families.available,
+      shipsLater: families.shipsLater,
       optionKeys: families.optionKeys,
       lastSeenAt: families.lastSeenAt,
       supplierCodes: families.supplierCodes,

@@ -14,6 +14,8 @@ export type NormalizedProduct = {
   programs: Program[];
   categorySlug: string;
   status: ProductStatus;
+  /** The store's updated_at (ISO), when it gives one. */
+  sourceUpdatedAt?: string | null;
   variants: NormalizedVariant[];
 };
 

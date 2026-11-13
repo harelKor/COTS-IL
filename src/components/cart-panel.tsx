@@ -1,5 +1,6 @@
 "use client";
 
+import { availabilityStatus } from "@/lib/availability-text";
 import { shopifyImage } from "@/lib/images";
 import { PriceNote } from "./price-note";
 import { Check, ChevronDown, Share2, Trash2, X } from "lucide-react";
@@ -104,6 +105,11 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
             <>
               {line.available === false && line.checkedAt && (
                 <span className="text-caption text-warning">לא זמין אצל הספק, נבדק {dayMonth.format(new Date(line.checkedAt))}</span>
+              )}
+              {line.available === true && line.shipsLater && line.checkedAt && (
+                <span className="text-caption text-warning">
+                  {availabilityStatus(true, line.checkedAt, true, { shipsLater: true, eta: line.shipsLaterEta }).text}
+                </span>
               )}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1">

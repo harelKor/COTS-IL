@@ -165,6 +165,7 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
           searchText: searchText(p, supplier.name),
           lastSeenAt: now,
           missingSince: null,
+          sourceUpdatedAt: p.sourceUpdatedAt ? new Date(p.sourceUpdatedAt) : null,
           ...summarize(p),
         })),
       )
@@ -187,6 +188,7 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
           searchText: excluded("search_text"),
           lastSeenAt: excluded("last_seen_at"),
           missingSince: excluded("missing_since"),
+          sourceUpdatedAt: excluded("source_updated_at"),
         },
       })
       .returning({ id: schema.products.id, supplierProductId: schema.products.supplierProductId });

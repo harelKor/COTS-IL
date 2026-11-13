@@ -74,6 +74,7 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
       priceUsd: variants.priceUsd,
       markup: variants.markup,
       available: variants.available,
+      shipsLater: variants.shipsLater,
     })
     .from(variants)
     .where(isNull(variants.missingSince))
@@ -247,7 +248,7 @@ type ProductRow = {
   programs: ("FRC" | "FTC")[];
   status: "published" | "review" | "hidden";
 };
-type VariantRow = { id: string; productId: string; sku: string | null; options: { name: string; value: string }[]; priceUsd: string | null; markup: string | null; available: boolean | null };
+type VariantRow = { id: string; productId: string; sku: string | null; options: { name: string; value: string }[]; priceUsd: string | null; markup: string | null; available: boolean | null; shipsLater: boolean };
 
 function familyRow(
   f: FamilyDraft,
@@ -284,6 +285,7 @@ function familyRow(
     minListUsd: lists.length ? Math.min(...lists).toFixed(2) : null,
     maxListUsd: lists.length ? Math.max(...lists).toFixed(2) : null,
     available: availability.every((a) => a === null) ? null : availability.some((a) => a === true),
+    shipsLater: memberVariants.some((v) => v.available === true) && memberVariants.filter((v) => v.available === true).every((v) => v.shipsLater),
     status: members.some((m) => m.status === "published") ? ("published" as const) : ("review" as const),
     // Only this family's own variants, so a reseller product spanning families doesn't
     // make a SKU from one of them find the other.

@@ -32,13 +32,15 @@ function lineFor(family: CardFamily, v: CardVariant): AddableLine {
 type PartialStock = { of: number; available: number };
 
 /** A dot for availability, with the words for screen readers and on hover. */
-function AvailabilityDot({ available, checkedAt, partial }: { available: boolean | null; checkedAt: string; partial?: PartialStock }) {
+function AvailabilityDot({ available, checkedAt, partial, shipsLater }: { available: boolean | null; checkedAt: string; partial?: PartialStock; shipsLater?: boolean }) {
   const fresh = isFresh(checkedAt, useNow());
-  const { dot: color } = availabilityStatus(available, checkedAt, fresh);
+  const { dot: color } = availabilityStatus(available, checkedAt, fresh, { shipsLater });
   const text =
     available === null || !fresh
       ? "זמינות לא אומתה"
-      : available && partial
+      : available && shipsLater
+        ? "בהזמנה מראש"
+        : available && partial
         ? `${partial.available.toLocaleString("he-IL")} מתוך ${partial.of.toLocaleString("he-IL")} אפשרויות זמינות`
         : available
           ? "זמין אצל הספק"
@@ -226,7 +228,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   const sets = family.optionSets ?? 0;
   const inStock = family.availableOptionSets ?? 0;
   const partial = !current && sets > 1 && inStock > 0 && inStock < sets ? { of: sets, available: inStock } : undefined;
-  const availability = <AvailabilityDot available={current?.available ?? family.available} checkedAt={family.checkedAt} partial={partial} />;
+  const availability = <AvailabilityDot available={current?.available ?? family.available} shipsLater={current ? current.shipsLater : family.shipsLater} checkedAt={family.checkedAt} partial={partial} />;
 
   const closeSheet = (e: React.MouseEvent<HTMLElement>) => e.currentTarget.closest("dialog")?.close();
 
