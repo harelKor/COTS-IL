@@ -73,9 +73,10 @@ Open:
 | Catalog overrides (`/admin/catalog`: hide, photos, category, merge, pin) | `src/app/admin/catalog`, `src/domain/catalog-overrides.ts` |
 | One order status for every screen | `src/domain/order-status.ts`, `src/lib/order-status.ts` |
 | Exchange rate and prices | `src/lib/fx.ts`, `src/domain/pricing.ts`, `src/suppliers/boi.ts` |
-| Admin settings (`/admin/settings`: פרטי העסק, תמחור, מנהלים; S16b–d sections disabled) | `src/app/admin/settings/*`, `src/domain/settings.ts` (zod schema), `src/lib/settings.ts` (`getSettings`/`getBusiness`/`priceContext`, cached under the `settings` tag) |
+| Admin settings (`/admin/settings`: פרטי העסק, תמחור, מנהלים, ספקים; S16c–d sections disabled) | `src/app/admin/settings/*`, `src/domain/settings.ts` (zod schema), `src/lib/settings.ts` (`getSettings`/`getBusiness`/`priceContext`, cached under the `settings` tag) |
 | Business facts (fees, phone, lead times; `null` until supplied) | `getBusiness()` on the server, `useSiteFacts()` in client components (`src/components/site-facts.tsx`) |
 | Supplier sync and grouping | `src/suppliers/*`, `src/domain/families/*` |
+| Suppliers admin (`/admin/settings/suppliers`: add by URL, edit, hide, delete, sync now via GitHub `GITHUB_TOKEN`) | `src/app/admin/settings/suppliers`, `src/lib/supplier-admin.ts`, `src/domain/supplier-detect.ts` |
 | Email notifications (Resend, off until `RESEND_API_KEY` and `EMAIL_FROM` are set) | `src/lib/notify.ts`, `src/lib/email-templates.ts`, `src/lib/email-transport.ts`, `src/domain/notifications.ts` |
 | Tokens and utilities (`card-surface`, `btn-brand`, `tile-fade`) | `src/app/globals.css` |
 

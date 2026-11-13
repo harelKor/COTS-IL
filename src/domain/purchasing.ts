@@ -6,7 +6,7 @@ export type DemandRow = {
   teamLabel: string;
   supplierId: string;
   supplierName: string;
-  platform: "shopify" | "bigcommerce" | "csv";
+  platform: "shopify" | "bigcommerce" | "csv" | "manual";
   variantId: string;
   supplierVariantId: string;
   supplierSku: string | null;

@@ -3,8 +3,8 @@
  * its own, so one store being down doesn't stop the others, and the run exits
  * with an error if any of them failed.
  *
- *   npm run sync            all active Shopify suppliers
- *   npm run sync -- wcp     one supplier
+ *   npm run sync            every active Shopify supplier with "sync nightly" on
+ *   npm run sync -- wcp     one supplier, nightly or not ("סנכרון עכשיו" in /admin/settings/suppliers)
  */
 import { config } from "dotenv";
 import { and, eq } from "drizzle-orm";
@@ -25,7 +25,7 @@ async function main() {
     .select()
     .from(schema.suppliers)
     .where(and(eq(schema.suppliers.active, true), eq(schema.suppliers.platform, "shopify")));
-  const selected = suppliers.filter((s) => !only || s.code === only);
+  const selected = suppliers.filter((s) => (only ? s.code === only : s.syncEnabled));
   if (selected.length === 0) throw new Error(`No supplier to sync${only ? ` matching "${only}"` : ""}`);
 
   // Prices are USD × this rate (or the admin's manual one) × the multiplier (src/domain/pricing.ts), read when pages render.

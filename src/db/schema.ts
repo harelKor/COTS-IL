@@ -24,7 +24,7 @@ export const teamStatus = pgEnum("team_status", ["pending", "active", "rejected"
  * Legacy (D11): there are no roles, everyone on a team can do everything. The code
  * no longer reads `role`; new rows get the default. Dropped in a later cleanup (S0 step 7b).
  */
-export const supplierPlatform = pgEnum("supplier_platform", ["shopify", "bigcommerce", "csv"]);
+export const supplierPlatform = pgEnum("supplier_platform", ["shopify", "bigcommerce", "csv", "manual"]);
 export const productStatus = pgEnum("product_status", ["published", "review", "hidden"]);
 export const syncStatus = pgEnum("sync_status", ["running", "succeeded", "failed"]);
 export const familyGrouping = pgEnum("family_grouping", ["title", "supplier", "single"]);
@@ -94,7 +94,15 @@ export const suppliers = pgTable("suppliers", {
   baseUrl: text("base_url").notNull(),
   platform: supplierPlatform("platform").notNull(),
   programs: program("programs").array().notNull(),
+  /** false hides the supplier and every part of it from the catalog (S16b "הסתרה"). */
   active: boolean("active").notNull().default(true),
+  /** The supplier's logo (S16b; also read by the home page). A URL from the store or the `supplier-logos` bucket. */
+  logoUrl: text("logo_url"),
+  /** Orders above this many dollars ship free from the supplier; for the admin's notes. */
+  freeShippingUsd: numeric("free_shipping_usd", { precision: 10, scale: 2 }),
+  notes: text("notes"),
+  /** Whether the nightly sync includes it; "סנכרון עכשיו" works either way. */
+  syncEnabled: boolean("sync_enabled").notNull().default(true),
   createdAt,
 });
 

@@ -183,6 +183,13 @@
       "when": 1794506546822,
       "tag": "20261112180226_settings_pricing",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794562922156,
+      "tag": "20261113094202_suppliers_admin",
+      "breakpoints": true
     }
   ]
 }

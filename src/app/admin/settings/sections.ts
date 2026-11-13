@@ -3,7 +3,7 @@ export const SECTIONS = [
   { href: "/admin/settings/business", label: "פרטי העסק" },
   { href: "/admin/settings/pricing", label: "תמחור" },
   { href: "/admin/settings/admins", label: "מנהלים" },
-  { href: null, label: "ספקים" },
+  { href: "/admin/settings/suppliers", label: "ספקים" },
   { href: null, label: "מוצרים" },
   { href: null, label: "קטגוריות" },
   { href: null, label: "תוכן האתר" },
