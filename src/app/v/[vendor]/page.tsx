@@ -238,7 +238,8 @@ export default function VendorPage(props: Props) {
       <Suspense
         fallback={
           <Loading>
-            <div className="flex flex-col gap-6">
+            {/* A full screen tall, so the footer isn't in view and pushed down when the store streams in. */}
+            <div className="flex min-h-dvh flex-col gap-6">
               <div className="skeleton h-36 w-full rounded-card" />
               <TileGridSkeleton />
             </div>
