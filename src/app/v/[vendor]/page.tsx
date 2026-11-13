@@ -223,7 +223,13 @@ async function VendorStore({ params, searchParams }: Props) {
   if (!store) notFound();
   // The vendor is the path: a `?supplier=` in the URL can't switch the store.
   const filters = { ...parseFilters(await searchParams), supplier: store.code };
-  return isStoreFront(filters) ? <StoreFront store={store} /> : <StoreResults store={store} filters={filters} />;
+  // The price note comes with the store, not under its skeleton, so nothing below jumps when it streams in.
+  return (
+    <>
+      {isStoreFront(filters) ? <StoreFront store={store} /> : <StoreResults store={store} filters={filters} />}
+      <PriceNote />
+    </>
+  );
 }
 
 export default function VendorPage(props: Props) {
@@ -241,7 +247,6 @@ export default function VendorPage(props: Props) {
       >
         <VendorStore {...props} />
       </Suspense>
-      <PriceNote />
     </div>
   );
 }
