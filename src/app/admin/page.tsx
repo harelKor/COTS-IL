@@ -156,6 +156,11 @@ function OrderCard({ order, params, now }: { order: AdminOrderSummary; params: P
       meta={
         <span className="text-muted">
           {order.itemCount} פריטים, {formatIls(order.totalIls)}
+          {order.supplierNames.length > 0 && (
+            <>
+              , <Ltr>{order.supplierNames.join(", ")}</Ltr>
+            </>
+          )}
         </span>
       }
       action={

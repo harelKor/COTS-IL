@@ -33,14 +33,22 @@ test("guest cart, sign in, send, admin quote, team approves", async ({ browser, 
   const email = `e2e${stamp}@beniadam.test`;
   const teamNumber = String(10000 + (stamp % 80000));
 
-  // 1. A guest adds a part that needs no options (a one-variant, priced, available family).
+  // 1. A guest picks a vendor on the home page and adds a part that needs no options from its
+  //    store (a one-variant, priced family): from "most wanted", else from one of its categories.
   const single = page.getByRole("button", { name: /^הוספה לסל:/ });
-  for (const category of ["electronics", "sensors", "motors", "mechanisms", "wheels"]) {
-    await page.goto(`/catalog?category=${category}`);
-    await expect(page.getByRole("heading", { level: 2 }).first()).toBeVisible();
-    if (await single.first().waitFor({ timeout: 8000 }).then(() => true, () => false)) break;
+  await page.goto("/");
+  await page.locator("#vendors a").first().click();
+  await expect(page).toHaveURL(/\/v\/[a-z]+$/);
+  const store = new URL(page.url()).pathname;
+  let found = await single.first().waitFor({ timeout: 8000 }).then(() => true, () => false);
+  const categories = await page.locator(`main a[href^="${store}?category="]`).evaluateAll((as) => as.map((a) => a.getAttribute("href")!));
+  for (const href of categories) {
+    if (found) break;
+    await page.goto(href);
+    found = await single.first().waitFor({ timeout: 8000 }).then(() => true, () => false);
   }
-  expect(await single.count(), "a single-part card in the local catalog (run npm run sync)").toBeGreaterThan(0);
+  expect(await single.count(), "a single-part card in the vendor's store (run npm run sync)").toBeGreaterThan(0);
+  const vendorName = (await page.locator('nav[aria-label="ניווט"] bdi').first().innerText()).trim();
   await single.first().click();
   await expect(page.getByRole("button", { name: /^הסל, 1/ }).first()).toBeVisible();
 
@@ -71,6 +79,8 @@ test("guest cart, sign in, send, admin quote, team approves", async ({ browser, 
   const orderNumber = (await orderLink.innerText()).match(/\d+/)?.[0];
   await orderLink.click();
   await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+/);
+  // The request is divided by vendor: the store's vendor heads its section.
+  await expect(page.locator("tbody th", { hasText: vendorName }).first()).toBeVisible();
   const orderUrl = page.url();
   expect(orderNumber).toBeTruthy();
 

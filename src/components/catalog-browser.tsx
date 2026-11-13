@@ -17,6 +17,7 @@ import {
   type Sort,
 } from "@/lib/catalog-filters";
 import { EAGER_CARDS } from "@/lib/images";
+import { vendorHref } from "@/domain/vendors";
 import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
 import { rememberCatalogList } from "./back-to-list";
@@ -33,6 +34,8 @@ type Props = {
   suppliers: Supplier[];
   /** For the empty state: categories to try instead. */
   categories: { slug: string; name: string }[];
+  /** In a vendor's store (/v/<code>): links stay in the store and there is no supplier filter. */
+  vendor?: string;
 };
 
 const SORT_LABELS: Record<Sort, string> = {
@@ -193,7 +196,8 @@ const sidebarHeading = "mb-2 text-caption font-semibold text-muted";
  *
  * From 1024px the filters sit in a sticky sidebar; below it, in a chip bar and a sheet.
  */
-export function CatalogBrowser({ filters, total, cards: first, facets, suppliers, categories }: Props) {
+export function CatalogBrowser({ filters, total, cards: first, facets, suppliers, categories, vendor }: Props) {
+  const listHref = (f: Partial<CatalogFilters>) => (vendor ? vendorHref(vendor, f) : catalogHref(f));
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [cards, setCards] = useState(first);
@@ -219,7 +223,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
   /** A filter change is a history entry, so Back undoes it; the results scroll into view if they were left behind. */
   const go = (next: CatalogFilters) =>
     startTransition(() => {
-      router.push(catalogHref({ ...next, page: 1 }), { scroll: false });
+      router.push(listHref({ ...next, page: 1 }), { scroll: false });
       const el = top.current;
       if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: "start" });
     });
@@ -234,7 +238,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
   const pages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE));
 
   // The product page's breadcrumb leads back to this list, filters and all.
-  const here = catalogHref({ ...filters, page: pages });
+  const here = listHref({ ...filters, page: pages });
   useEffect(() => rememberCatalogList(here), [here]);
 
   async function loadMore() {
@@ -248,7 +252,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
       const body = (await res.json()) as CatalogPage;
       setCards((prev) => [...prev, ...body.cards.filter((c) => !prev.some((p) => p.id === c.id))]);
       // Keeps the place in the URL without a navigation, so "back" returns here.
-      window.history.replaceState(window.history.state, "", catalogHref({ ...filters, page: nextPage }));
+      window.history.replaceState(window.history.state, "", listHref({ ...filters, page: nextPage }));
     } catch {
       // No automatic retry: "נסו שוב" asks for it.
       setFailed(true);
@@ -269,7 +273,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
         clear: toggleSpec(filters, key, value),
       })),
     ),
-    ...(filters.supplier
+    ...(filters.supplier && !vendor
       ? [{ label: <Ltr>{suppliers.find((s) => s.code === filters.supplier)?.name ?? filters.supplier}</Ltr>, clear: { ...filters, supplier: "" } }]
       : []),
     ...(filters.program ? [{ label: <Ltr>{filters.program}</Ltr>, clear: { ...filters, program: "" as const } }] : []),
@@ -293,10 +297,12 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
           <h2 className={sidebarHeading}>מיון</h2>
           <SortSelect value={filters.sort} onChange={(sort) => go({ ...filters, sort })} />
         </section>
-        <section>
-          <h2 className={sidebarHeading}>ספק</h2>
-          <SupplierList suppliers={suppliers} value={filters.supplier} onChange={(supplier) => go({ ...filters, supplier })} />
-        </section>
+        {!vendor && (
+          <section>
+            <h2 className={sidebarHeading}>ספק</h2>
+            <SupplierList suppliers={suppliers} value={filters.supplier} onChange={(supplier) => go({ ...filters, supplier })} />
+          </section>
+        )}
         {facets.map((facet) => {
           const chosen = filters.specs[facet.key] ?? [];
           return (
@@ -389,7 +395,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                 key={view}
                 type="button"
                 aria-pressed={filters.view === view}
-                onClick={() => startTransition(() => router.replace(catalogHref({ ...filters, view, page: pages }), { scroll: false }))}
+                onClick={() => startTransition(() => router.replace(listHref({ ...filters, view, page: pages }), { scroll: false }))}
                 className={`flex h-11 items-center gap-1.5 rounded-full px-3 text-caption ${filters.view === view ? "bg-surface shadow-sm" : "text-muted"}`}
               >
                 <Icon size={16} strokeWidth={1.75} aria-hidden />
@@ -427,7 +433,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                 <span className="text-caption text-muted">או לעבור לקטגוריה</span>
                 <div className="flex flex-wrap justify-center gap-2">
                   {categories.slice(0, 8).map((c) => (
-                    <Link key={c.slug} href={catalogHref({ category: c.slug })} className={chip(false)}>
+                    <Link key={c.slug} href={listHref({ category: c.slug })} className={chip(false)}>
                       {c.name}
                     </Link>
                   ))}
@@ -498,10 +504,12 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
               <h3 className="font-semibold">מיון</h3>
               <SortSelect value={filters.sort} onChange={(sort) => go({ ...filters, sort })} />
             </section>
-            <section className="flex flex-col gap-2">
-              <h3 className="font-semibold">ספק</h3>
-              <SupplierList suppliers={suppliers} value={filters.supplier} onChange={(supplier) => go({ ...filters, supplier })} />
-            </section>
+            {!vendor && (
+              <section className="flex flex-col gap-2">
+                <h3 className="font-semibold">ספק</h3>
+                <SupplierList suppliers={suppliers} value={filters.supplier} onChange={(supplier) => go({ ...filters, supplier })} />
+              </section>
+            )}
           </div>
           <div className="border-t border-line px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <button

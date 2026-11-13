@@ -81,3 +81,20 @@ export function groupBySupplier<T extends { supplierName: string }>(lines: reado
   }
   return [...groups].map(([supplierName, ls]) => ({ supplierName, lines: ls }));
 }
+
+/**
+ * Lines grouped by supplier with each supplier's item count and subtotal, for vendor
+ * sections in the cart, the request, the quote and the admin card. `price` is a line's
+ * unit price (null: unknown, left out of the subtotal) and `qty` its quantity.
+ */
+export function supplierSections<T extends { supplierName: string }>(
+  lines: readonly T[],
+  qty: (line: T) => number,
+  price: (line: T) => number | null,
+): { supplierName: string; lines: T[]; count: number; subtotal: number }[] {
+  return groupBySupplier(lines).map((g) => ({
+    ...g,
+    count: g.lines.reduce((n, l) => n + qty(l), 0),
+    subtotal: g.lines.reduce((n, l) => n + qty(l) * (price(l) ?? 0), 0),
+  }));
+}

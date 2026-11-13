@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Copy, Maximize2, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useSyncExternalStore, ViewTransition } from "react";
@@ -15,6 +16,7 @@ import { imageLoading, shopifyImage } from "@/lib/images";
 import { addToCartNow } from "./cart-actions";
 import { PriceNote } from "./price-note";
 import { canEditCart, useCart } from "./cart-store";
+import { vendorHref } from "@/domain/vendors";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
 import { showToast } from "./toast";
@@ -44,7 +46,7 @@ type Props = {
   rateDate?: string;
 };
 
-type InnerProps = Props & { initialVariantId: string | null };
+type InnerProps = Props & { initialVariantId: string | null; initialSupplier: string | null };
 
 const noSubscribe = () => () => {};
 /** The address the picker itself last wrote, so its own changes to `?v=` do not reset it. */
@@ -61,6 +63,8 @@ function claimUrl(path: string) {
   ownHref = new URL(path, window.location.href).href;
 }
 const noLinkedVariant = () => null;
+/** `?vendor=` (a supplier code, from a vendor's store): the page opens on that vendor's offer. */
+const linkedVendor = () => new URLSearchParams(window.location.search).get("vendor");
 
 /**
  * The family page's gallery and buy panel. The page is prerendered without a selection;
@@ -69,8 +73,20 @@ const noLinkedVariant = () => null;
 export function FamilyView({ family, variants, rateDate }: Props) {
   const wanted = useSyncExternalStore(noSubscribe, linkedVariant, noLinkedVariant);
   const match = wanted ? variants.find((x) => x.id === wanted || x.sku?.toLowerCase() === wanted) : undefined;
-  const initialVariantId = match?.id ?? (variants.length === 1 ? variants[0].id : null);
-  return <FamilyPicker key={initialVariantId ?? "none"} family={family} variants={variants} rateDate={rateDate} initialVariantId={initialVariantId} />;
+  const vendor = useSyncExternalStore(noSubscribe, linkedVendor, noLinkedVariant);
+  const fromVendor = vendor ? variants.filter((x) => x.supplierCode === vendor) : [];
+  const initialVariantId = match?.id ?? (variants.length === 1 ? variants[0].id : fromVendor.length === 1 ? fromVendor[0].id : null);
+  const initialSupplier = match ? match.supplierName : (fromVendor[0]?.supplierName ?? null);
+  return (
+    <FamilyPicker
+      key={`${initialVariantId ?? "none"}:${initialSupplier ?? ""}`}
+      family={family}
+      variants={variants}
+      rateDate={rateDate}
+      initialVariantId={initialVariantId}
+      initialSupplier={initialSupplier}
+    />
+  );
 }
 
 /**
@@ -78,7 +94,7 @@ export function FamilyView({ family, variants, rateDate }: Props) {
  * several sell the part) update the photo, price, SKU and URL at once; "Add"
  * puts the chosen variant in the cart without leaving the page.
  */
-function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerProps) {
+function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSupplier }: InnerProps) {
   const { mode, lines } = useCart();
   const { leadTimes } = useSiteFacts();
   const now = useNow();
@@ -90,7 +106,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
   const [choices, setChoices] = useState<Record<string, string>>(initial ? initial.options : {});
   // The supplier is a preference, not a size: once the sizes settle, the cheapest offer in
   // stock is chosen, and the supplier chips only switch between offers of that same part.
-  const [supplier, setSupplier] = useState<string | null>(initial && manySuppliers ? initial.supplierName : null);
+  const [supplier, setSupplier] = useState<string | null>(manySuppliers ? (initial?.supplierName ?? initialSupplier) : null);
   const [qty, setQty] = useState(1);
   const [photo, setPhoto] = useState<string | null>(null);
   /** Option groups to highlight: changed by a tap elsewhere, or the one "בחרו …" points at. */
@@ -313,8 +329,17 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId }: InnerPro
 
       <div className="flex min-w-0 flex-col gap-5 md:sticky md:top-[68px] md:self-start">
         <div>
-          <p className="text-caption text-muted">
-            <Ltr>{[...new Set(variants.map((v) => v.supplierName))].join(", ")}</Ltr>
+          <p className="flex flex-wrap items-center gap-x-2 text-caption text-muted">
+            נמכר אצל
+            {[...new Map(variants.map((v) => [v.supplierCode, v.supplierName])).entries()].map(([code, name]) => (
+              <Link
+                key={code}
+                href={vendorHref(code)}
+                className="flex min-h-11 items-center rounded-full px-1 font-semibold text-brand hover:underline"
+              >
+                <Ltr>{name}</Ltr>
+              </Link>
+            ))}
           </p>
           <h1 dir="ltr" className="text-start text-title font-semibold text-balance">
             {family.title}

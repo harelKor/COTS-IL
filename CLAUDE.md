@@ -62,7 +62,8 @@ Open:
 
 | To change | Look in |
 |---|---|
-| Home page | `src/app/page.tsx`, `src/components/home-command-bar.tsx` |
+| Home page (vendor boxes first, then categories across all vendors) | `src/app/page.tsx`, `src/components/vendor-boxes.tsx`, `src/components/category-showcase.tsx`, `src/components/home-command-bar.tsx` |
+| Vendor stores `/v/<code>` (most wanted, groups, search; vendor prices on cards) | `src/app/v/[vendor]/page.tsx`, `getVendors`/`getVendorStore`/`getVendorPopular` and `toCards(rows, supplierCode)` in `src/lib/catalog.ts`, `src/domain/vendors.ts` |
 | Catalog queries, facets, search | `src/lib/catalog.ts`, `src/lib/catalog-filters.ts`, `src/app/api/search/route.ts` |
 | Catalog grid and filters | `src/app/catalog/page.tsx`, `src/components/catalog-browser.tsx`, `src/components/family-card.tsx` |
 | Product (family) page | `src/app/catalog/p/[slug]/page.tsx`, `src/components/family-view.tsx` |
@@ -119,6 +120,10 @@ Open:
 Anti-"AI slop": never join metadata with `·` (use `, ` or pill badges); never a grey empty box with a tiny corner icon (use blue-to-white fades, real thumbnails, cobalt hairlines).
 
 Tokens live as CSS variables in `src/app/globals.css` (light and print) and are exposed to Tailwind through `@theme inline`.
+
+## Vendor-first (S17, Nov 13, 2026)
+
+Teams pick a vendor first (home boxes → `/v/<code>`); all-vendor browsing by category stays lower on the home page and at `/catalog`. A store's "most wanted" list is ranked by the admin's pins on that vendor's products (S15 "מומלץ"), then by team orders in the last year (from 2 orders up), then by main items. Inside a store, cards and the product page (`?vendor=`) show only that vendor's offer. A cart still sends **one** request; the cart, request, quote and admin card are divided into vendor sections with subtotals (`supplierSections` in `src/domain/cart.ts`).
 
 ## Click budget
 

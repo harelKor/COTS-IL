@@ -98,8 +98,10 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     loading.current ??= fetch(`/api/family/${family.id}/variants`)
       .then((r) => r.json() as Promise<FamilyVariants>)
       .then((body) => {
-        setVariants(body.variants);
-        return body.variants;
+        // In a vendor's store, only that vendor's offers.
+        const list = family.vendor ? body.variants.filter((v) => v.supplierName === family.vendor!.name) : body.variants;
+        setVariants(list);
+        return list;
       })
       .catch(() => {
         loading.current = null;
@@ -107,7 +109,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       });
     return loading.current;
   }
-  const href = familyHref(family.slug, current?.sku ?? current?.id ?? null);
+  const href = familyHref(family.slug, current?.sku ?? current?.id ?? null, family.vendor?.code);
   const photoSrc = current?.image ?? family.image;
   const photo = photoSrc ? shopifyImage(photoSrc, layout === "row" ? 64 : 240) : null;
 

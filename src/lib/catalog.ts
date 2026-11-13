@@ -169,6 +169,8 @@ export type CardFamily = {
   onlyVariant: CardVariant | null;
   /** When the search is one of its SKUs: that variant's options, chosen on the card. */
   skuPreset?: Record<string, string>;
+  /** In a vendor's store: the card shows only this vendor's offer (prices, options, stock). */
+  vendor?: { code: string; name: string };
 };
 
 const cardColumns = {
@@ -201,7 +203,7 @@ type CardRow = {
 };
 
 /** Orderable variants of these families, cheapest in stock first. */
-async function variantsOf(familyIds: string[], rate: PriceContext) {
+async function variantsOf(familyIds: string[], rate: PriceContext, supplierCode?: string) {
   if (familyIds.length === 0) return [];
   const rows = await db
     .select({
@@ -221,6 +223,7 @@ async function variantsOf(familyIds: string[], rate: PriceContext) {
     .where(
       and(
         inArray(variants.familyId, familyIds),
+        supplierCode ? eq(suppliers.code, supplierCode) : undefined,
         eq(products.status, "published"),
         isNull(products.missingSince),
         isNull(variants.missingSince),
@@ -242,46 +245,68 @@ export async function getCardVariants(familyId: string): Promise<CardVariant[]> 
   return (await variantsOf([familyId], rate)).map((r) => r.variant);
 }
 
-/** What family cards need, keeping the rows' order. Only single-part families carry their variant. */
-async function toCards(rows: CardRow[]): Promise<CardFamily[]> {
+/**
+ * What family cards need, keeping the rows' order. Only single-part families carry their variant.
+ * With a vendor, everything on the card (price range, stock, options, the part to add) is that
+ * vendor's offer only: a family sold by WCP and CTRE shows WCP's price in the WCP store.
+ */
+async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFamily[]> {
   if (rows.length === 0) return [];
   const rate = await priceContext();
   const names = await supplierNames();
   const ids = rows.map((r) => r.id);
+  const list = sql`${variants.priceUsd} * coalesce(${variants.markup}, 1)`;
   // Per family: how many option sets can be ordered, and the best offer.
   const shape = await db
     .select({
       familyId: variants.familyId,
       sets: sql<number>`count(DISTINCT ${variants.familyOptions})::int`,
       availableSets: sql<number>`(count(DISTINCT ${variants.familyOptions}) FILTER (WHERE ${variants.available} IS TRUE))::int`,
+      minList: sql<string | null>`min(${list})`,
+      maxList: sql<string | null>`max(${list})`,
+      available: sql<boolean | null>`bool_or(${variants.available})`,
     })
     .from(variants)
     .innerJoin(products, eq(products.id, variants.productId))
-    .where(and(inArray(variants.familyId, ids), eq(products.status, "published"), isNull(products.missingSince), isNull(variants.missingSince), sql`${variants.priceUsd} > 0`))
+    .innerJoin(suppliers, eq(suppliers.id, variants.supplierId))
+    .where(
+      and(
+        inArray(variants.familyId, ids),
+        supplierCode ? eq(suppliers.code, supplierCode) : undefined,
+        eq(products.status, "published"),
+        isNull(products.missingSince),
+        isNull(variants.missingSince),
+        sql`${variants.priceUsd} > 0`,
+      ),
+    )
     .groupBy(variants.familyId);
-  const sets = new Map(shape.map((r) => [r.familyId!, r.sets]));
-  const availableSets = new Map(shape.map((r) => [r.familyId!, r.availableSets]));
-  const single = ids.filter((id) => sets.get(id) === 1);
+  const byFamily = new Map(shape.map((r) => [r.familyId!, r]));
+  const single = ids.filter((id) => byFamily.get(id)?.sets === 1);
   const only = new Map<string, CardVariant>();
-  for (const { familyId, variant } of await variantsOf(single, rate)) if (!only.has(familyId)) only.set(familyId, variant);
+  for (const { familyId, variant } of await variantsOf(single, rate, supplierCode)) if (!only.has(familyId)) only.set(familyId, variant);
+  const vendor = supplierCode ? { code: supplierCode, name: names.get(supplierCode) ?? supplierCode } : undefined;
 
-  return rows.map((r) => ({
-    id: r.id,
-    slug: r.slug,
-    title: r.title,
-    image: r.images[0] ?? null,
-    supplierNames: r.supplierCodes.map((c) => names.get(c) ?? c),
-    minPriceIls: priceIls(r.minListUsd, rate, 1),
-    maxPriceIls: priceIls(r.maxListUsd, rate, 1),
-    available: r.available,
-    checkedAt: r.lastSeenAt.toISOString(),
-    variantCount: r.variantCount,
-    optionKeys: r.optionKeys,
-    orderable: (sets.get(r.id) ?? 0) > 0,
-    optionSets: sets.get(r.id) ?? 0,
-    availableOptionSets: availableSets.get(r.id) ?? 0,
-    onlyVariant: only.get(r.id) ?? null,
-  }));
+  return rows.map((r) => {
+    const s = byFamily.get(r.id);
+    return {
+      id: r.id,
+      slug: r.slug,
+      title: r.title,
+      image: r.images[0] ?? null,
+      supplierNames: vendor ? [vendor.name] : r.supplierCodes.map((c) => names.get(c) ?? c),
+      minPriceIls: priceIls(vendor ? s?.minList : r.minListUsd, rate, 1),
+      maxPriceIls: priceIls(vendor ? s?.maxList : r.maxListUsd, rate, 1),
+      available: vendor ? (s?.available ?? null) : r.available,
+      checkedAt: r.lastSeenAt.toISOString(),
+      variantCount: r.variantCount,
+      optionKeys: r.optionKeys,
+      orderable: (s?.sets ?? 0) > 0,
+      optionSets: s?.sets ?? 0,
+      availableOptionSets: s?.availableSets ?? 0,
+      onlyVariant: only.get(r.id) ?? null,
+      ...(vendor ? { vendor } : {}),
+    };
+  });
 }
 
 /** A slice of the catalog as cards, from `offset`, with the number of families that match. */
@@ -305,7 +330,7 @@ export async function searchCards(filters: CatalogFilters, offset: number, limit
       .leftJoin(categories, eq(categories.id, families.categoryId))
       .where(where),
   ]);
-  const cards = await toCards(rows);
+  const cards = await toCards(rows, filters.supplier || undefined);
   if (looksLikeSku(filters.q) && cards.length > 0) {
     const matched = await db
       .select({ familyId: variants.familyId, options: variants.familyOptions })
@@ -801,4 +826,109 @@ export async function searchSuggestions(q: string): Promise<string[]> {
     .limit(12);
   // One suggestion per product: "Electronic Bundles Builder - Processor:…" lists each option set as a family.
   return [...new Set(rows.map((r) => r.title.replace(/ - .*$/, "")))].slice(0, 3);
+}
+
+/** Categories whose main items are what a vendor is known for (motors, swerve, gearboxes, controllers). */
+const HEADLINE_CATEGORIES = ["motors", "drivetrain", "gearboxes", "electronics"];
+
+/**
+ * A vendor's "most wanted" order: the admin's pins on this vendor's products first (S15 "מומלץ";
+ * a CTRE pin never leads in the WCP store), then how many team orders in the last year had
+ * this vendor's parts of the family, then main items from the headline categories, a photo, a price.
+ * Needs `categories` joined.
+ */
+function vendorPopularOrder(code: string): SQL[] {
+  const { productOverrides: po, teamOrderItems: items, teamOrders: orders } = schema;
+  return [
+    sql`(SELECT min(${po.pinRank}) FROM ${po}
+          JOIN ${products} ON ${products.id} = ${po.productId}
+          JOIN ${suppliers} ON ${suppliers.id} = ${products.supplierId}
+          WHERE ${suppliers.code} = ${code}
+            AND EXISTS (SELECT 1 FROM ${variants} WHERE ${variants.productId} = ${products.id} AND ${variants.familyId} = ${families.id})
+        ) ASC NULLS LAST`,
+    // One order is noise, not demand: a family counts from its second order on.
+    sql`greatest((SELECT count(DISTINCT ${items.orderId}) FROM ${items}
+          JOIN ${orders} ON ${orders.id} = ${items.orderId}
+          JOIN ${variants} ON ${variants.id} = ${items.variantId}
+          JOIN ${suppliers} ON ${suppliers.id} = ${variants.supplierId}
+          WHERE ${variants.familyId} = ${families.id} AND ${suppliers.code} = ${code}
+            AND ${orders.status} <> 'cancelled' AND ${orders.submittedAt} > now() - interval '365 days'
+        ), 1) DESC`,
+    sql`${families.available} IS TRUE DESC`,
+    sql`(${families.title} ~* ${ACCESSORY_TITLE_PATTERN}) ASC`,
+    sql`coalesce(${categories.slug}, '') IN (${sql.join(HEADLINE_CATEGORIES.map((c) => sql`${c}`), sql`, `)}) DESC`,
+    ...mainItemsFirst(),
+    sql`(cardinality(${families.images}) > 0) DESC`,
+    sql`${families.minListUsd} DESC NULLS LAST`,
+    asc(families.title),
+  ];
+}
+
+/** A vendor's families, ranked as its store's "most wanted" list. */
+async function vendorPopularRows(code: string, limit: number): Promise<CardRow[]> {
+  return db
+    .select(cardColumns)
+    .from(families)
+    .leftJoin(categories, eq(categories.id, families.categoryId))
+    .where(and(visible, sql`${code} = ANY(${families.supplierCodes})`))
+    .orderBy(...vendorPopularOrder(code))
+    .limit(limit);
+}
+
+/** The top of a vendor's store: its most wanted families as cards, with this vendor's prices. */
+export async function getVendorPopular(code: string, limit = 8): Promise<CardFamily[]> {
+  "use cache";
+  catalogCache();
+  return toCards(await vendorPopularRows(code, limit), code);
+}
+
+export type VendorSummary = { code: string; name: string; count: number; images: string[] };
+
+/** The home page's vendor boxes: every active vendor, its family count and photos of its 3 most wanted. */
+export async function getVendors(): Promise<VendorSummary[]> {
+  "use cache";
+  catalogCache();
+  const { suppliers: rows } = await getFacets();
+  const out: VendorSummary[] = [];
+  // One after another, like getFacets: a cold cache shouldn't take every connection at once.
+  for (const s of rows) {
+    const top = await vendorPopularRows(s.code, 3);
+    out.push({ code: s.code, name: s.name, count: s.count, images: top.flatMap((r) => (r.images[0] ? [r.images[0]] : [])) });
+  }
+  return out;
+}
+
+/**
+ * A vendor's store: the vendor, its family count, and its categories with how many of its
+ * families each holds and the photo of the best-ranked one. Null for an unknown or inactive vendor.
+ */
+export async function getVendorStore(code: string) {
+  "use cache";
+  catalogCache();
+  const [vendor] = await db
+    .select({ code: suppliers.code, name: suppliers.name })
+    .from(suppliers)
+    .where(and(eq(suppliers.code, code), eq(suppliers.active, true)))
+    .limit(1);
+  if (!vendor) return null;
+  const ofVendor = and(visible, sql`${code} = ANY(${families.supplierCodes})`);
+  const counts = await db
+    .select({ slug: categories.slug, name: categories.name, sortOrder: categories.sortOrder, count: sql<number>`count(*)::int` })
+    .from(families)
+    .innerJoin(categories, eq(categories.id, families.categoryId))
+    .where(ofVendor)
+    .groupBy(categories.id)
+    .orderBy(asc(categories.sortOrder));
+  const photos = await db.execute<{ slug: string; image: string }>(sql`
+    SELECT DISTINCT ON (c.slug) c.slug AS slug, ${families.images}[1] AS image
+    FROM ${families} JOIN ${categories} c ON c.id = ${families.categoryId}
+    WHERE ${ofVendor} AND cardinality(${families.images}) > 0
+    ORDER BY c.slug, ${families.pinnedRank} ASC NULLS LAST, ${families.available} IS TRUE DESC,
+      (coalesce(${families.minPriceUsd}, 0) >= ${MAIN_ITEM_MIN_USD}) DESC, ${families.variantCount} DESC`);
+  const image = new Map(photos.rows.map((r) => [r.slug, r.image]));
+  return {
+    ...vendor,
+    count: counts.reduce((n, c) => n + c.count, 0),
+    categories: counts.map((c) => ({ slug: c.slug, name: c.name, count: c.count, images: image.has(c.slug) ? [image.get(c.slug)!] : [] })),
+  };
 }

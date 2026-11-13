@@ -41,6 +41,8 @@ export type AdminOrderSummary = {
   /** Suppliers with lines in the approved quote that aren't on an ordered supplier order yet. */
   vendorsToOrder: { id: string; name: string }[];
   itemCount: number;
+  /** The vendors the order's items come from, by name. */
+  supplierNames: string[];
   totalIls: number;
   view: OrderView;
 };
@@ -59,6 +61,7 @@ export async function getOrderSummaries(): Promise<AdminOrderSummary[]> {
       teamNumber: teams.number,
       teamStatus: teams.status,
       itemCount: sql<number>`(SELECT count(*)::int FROM ${teamOrderItems} WHERE ${teamOrderItems.orderId} = ${teamOrders.id})`,
+      supplierNames: sql<string[]>`coalesce((SELECT array_agg(DISTINCT ${teamOrderItems.supplierName} ORDER BY ${teamOrderItems.supplierName}) FROM ${teamOrderItems} WHERE ${teamOrderItems.orderId} = ${teamOrders.id}), '{}')`,
       // The latest quote that still counts, or the request's own prices before any quote.
       totalIls: sql<number>`coalesce((
         SELECT q.shipping_ils + coalesce((SELECT sum(ql.qty * ql.unit_price_ils) FROM ${quoteLines} ql WHERE ql.quote_id = q.id), 0)

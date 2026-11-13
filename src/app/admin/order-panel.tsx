@@ -7,6 +7,7 @@ import { Ltr } from "@/components/ltr";
 import { formatDay } from "@/domain/display";
 import { getBusiness } from "@/lib/settings";
 import { ItemDescription, QuoteTable, formatDateTime } from "@/components/orders";
+import { groupBySupplier } from "@/domain/cart";
 import { isFinished, LINE_LABELS, lineStatus, type OrderStatusKey } from "@/domain/order-status";
 import { canRejectOrder } from "@/domain/orders";
 import { priceIls } from "@/domain/pricing";
@@ -287,8 +288,14 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
   return (
     <>
       <Section title="פריטים">
-        <ul className="flex flex-col">
-          {lines.map((l) => {
+        <div className="flex flex-col gap-4">
+          {groupBySupplier(lines).map((group) => (
+            <section key={group.supplierName} aria-label={group.supplierName}>
+              <h4 className="border-b border-line pb-1 text-callout font-semibold">
+                <Ltr>{group.supplierName}</Ltr>
+              </h4>
+              <ul className="flex flex-col">
+                {group.lines.map((l) => {
             const item = items.get(l.orderItemId)!;
             const stage = lineStatus(l);
             const onPos = logistics.lines.filter((x) => x.orderItemId === l.orderItemId);
@@ -314,8 +321,11 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
                 </div>
               </li>
             );
-          })}
-        </ul>
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       </Section>
 
       {status === "to_order" &&
