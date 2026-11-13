@@ -107,6 +107,7 @@ const editInput = supplierInput.extend({
   freeShippingUsd: optionalNumber(100000),
   notes: z.string().trim().max(2000),
   accentColor: z.union([z.literal(""), z.string().trim().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  accentColor2: z.union([z.literal(""), z.string().trim().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
 });
 
 /** Saves one supplier's card: details, lead time (פרטי העסק), multiplier (pricing_rules), shipping, notes, nightly sync. */
@@ -141,6 +142,7 @@ export async function updateSupplier(_: SettingsResult | null, formData: FormDat
         baseUrl,
         logoUrl,
         accentColor: accentColor(d.accentColor),
+        accentColor2: accentColor(d.accentColor2),
         programs: d.programs,
         freeShippingUsd: d.freeShippingUsd === "" ? null : String(d.freeShippingUsd),
         notes: d.notes || null,
@@ -198,7 +200,8 @@ const LABELS: Record<string, string> = {
   multiplier: "מקדם (1 עד 5)",
   freeShippingUsd: "משלוח חינם",
   notes: "הערות",
-  accentColor: "צבע הדגשה",
+  accentColor: "צבע המותג",
+  accentColor2: "צבע מותג משני",
 };
 
 /** "הסתרה" / "הצגה": a hidden supplier and all its parts leave the catalog; orders keep their lines. */

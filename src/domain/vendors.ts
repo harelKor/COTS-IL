@@ -14,10 +14,15 @@ export function accentColor(value: string | null | undefined): string | null {
   return /^#[0-9a-f]{6}$/.test(v) ? v : null;
 }
 
-/** The CSS custom property that tints a vendor's glow and outline; none when it has no accent. */
-export function accentStyle(value: string | null | undefined): Record<string, string> | undefined {
-  const color = accentColor(value);
-  return color ? { "--accent": color } : undefined;
+/**
+ * The custom properties that tint a vendor's glow, outline and box: its brand colour and, when
+ * it has two (CTRE green and black, The Thrifty Bot green and white), the second one. None: brand blue.
+ */
+export function accentStyle(primary: string | null | undefined, secondary?: string | null): Record<string, string> | undefined {
+  const one = accentColor(primary);
+  if (!one) return undefined;
+  const two = accentColor(secondary);
+  return two ? { "--accent": one, "--accent-2": two } : { "--accent": one };
 }
 
 /** The line under a vendor's name: its biggest categories, e.g. "גלגלי שיניים, צירים ומנועים". */

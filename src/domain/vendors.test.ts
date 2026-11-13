@@ -27,6 +27,9 @@ describe("accentColor", () => {
     expect(accentColor(null)).toBeNull();
     expect(accentStyle(null)).toBeUndefined();
     expect(accentStyle("#2563eb")).toEqual({ "--accent": "#2563eb" });
+    expect(accentStyle("#97d700", "#111111")).toEqual({ "--accent": "#97d700", "--accent-2": "#111111" });
+    expect(accentStyle(null, "#111111")).toBeUndefined();
+    expect(accentStyle("#00aa00", "white")).toEqual({ "--accent": "#00aa00" });
   });
 });
 

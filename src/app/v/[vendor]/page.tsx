@@ -32,7 +32,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const title = filters.q ? `חיפוש ב-${store.name}: ${filters.q}` : category ? `${store.name}: ${category}` : `החנות של ${store.name}`;
   return {
     title,
-    description: `${store.name} בשקלים לקבוצות FRC ו-FTC: ${vendorBlurb(store.categories) ?? "חלקים לרובוט"}, עם הצעת מחיר מהספק הישראלי.`,
+    description: `${store.name} בשקלים לקבוצות FRC ו-FTC: ${vendorBlurb(store.categories.filter((c) => c.slug !== "other")) ?? "חלקים לרובוט"}, עם הצעת מחיר מהספק הישראלי.`,
     alternates: { canonical: vendorHref(store.code, { category: filters.category }) },
     ...(filters.q || hasFilters(filters) || filters.page > 1 ? { robots: { index: false, follow: true } } : {}),
   };
@@ -117,11 +117,11 @@ async function Discover({ store }: { store: Store }) {
 }
 
 function StoreFront({ store }: { store: Store }) {
-  const blurb = vendorBlurb(store.categories);
+  const blurb = vendorBlurb(store.categories.filter((c) => c.slug !== "other"));
   return (
     <>
       <Breadcrumb store={store} />
-      <header style={accentStyle(store.accentColor)} className="glow-box flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between lg:p-6">
+      <header style={accentStyle(store.accentColor, store.accentColor2)} className="glow-box flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between lg:p-6">
         <div className="flex flex-col items-start gap-2">
           {store.logoUrl && (
             // The vendor's own logo (S16b).
@@ -147,15 +147,15 @@ function StoreFront({ store }: { store: Store }) {
       >
         <Popular store={store} />
       </Suspense>
-      <Suspense>
-        <Discover store={store} />
-      </Suspense>
       <section aria-labelledby="all">
         <h2 id="all" className="mb-4 text-section font-semibold">
           כל המוצרים של <Ltr>{store.name}</Ltr>
         </h2>
         <GroupBoxes categories={store.categories.map((c) => ({ ...c, href: vendorHref(store.code, { category: c.slug }) }))} />
       </section>
+      <Suspense>
+        <Discover store={store} />
+      </Suspense>
     </>
   );
 }

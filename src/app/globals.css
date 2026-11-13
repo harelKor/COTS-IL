@@ -552,9 +552,17 @@ dialog.sheet-side.sheet-wide {
 .glow-box,
 .glow-outline,
 .glow-card {
-  --gradient-outline: linear-gradient(140deg, var(--accent) 0%, var(--sky) 50%, var(--brand) 100%);
+  /* The vendor's second brand colour, or a lighter shade of its first. */
+  --accent-2-resolved: var(--accent-2, color-mix(in srgb, var(--accent) 45%, var(--sky)));
+  --gradient-outline: linear-gradient(140deg, var(--accent) 0%, var(--accent-2-resolved) 50%, var(--accent) 100%);
   --glow: 0 10px 30px -10px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
-  --glow-strong: 0 18px 44px -10px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 24px -4px color-mix(in srgb, var(--sky) 55%, transparent);
+  --glow-strong: 0 18px 44px -10px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 24px -4px color-mix(in srgb, var(--accent-2-resolved) 55%, transparent);
+}
+/* A vendor's box takes a light wash of its own colour at the top (text stays on a near-white). */
+.glow-box {
+  --gradient-glow-box:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent) 0%, transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, white) 0%, color-mix(in srgb, var(--accent) 4%, white) 45%, #ffffff 100%);
 }
 
 /*

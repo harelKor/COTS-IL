@@ -19,15 +19,15 @@ const when = new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "numeric"
  * The vendor box's glow and outline tint on the home page and in its store. Empty: brand blue.
  * A hex code (6 digits) with a picker beside it; the swatch shows the colour as typed.
  */
-function AccentField({ id, initial }: { id: string; initial: string }) {
+function AccentField({ id, initial, name = "accentColor", label = "צבע המותג", hint = "קוד צבע בן 6 ספרות (הקס): הזוהר, המסגרת והגוון של התיבה בדף הבית ובחנות. ריק: הכחול של האתר." }: { id: string; initial: string; name?: string; label?: string; hint?: string }) {
   const [value, setValue] = useState(initial);
   const color = accentColor(value);
   return (
-    <Field label="צבע הדגשה בדף הבית" name={`accentColor-${id}`} hint="קוד צבע בן 6 ספרות (הקס). ריק: הכחול של האתר.">
+    <Field label={label} name={`${name}-${id}`} hint={hint}>
       <div className="flex items-center gap-2">
         <Input
-          id={`accentColor-${id}`}
-          name="accentColor"
+          id={`${name}-${id}`}
+          name={name}
           dir="ltr"
           maxLength={7}
           pattern="#[0-9a-fA-F]{6}"
@@ -37,7 +37,7 @@ function AccentField({ id, initial }: { id: string; initial: string }) {
         />
         <input
           type="color"
-          aria-label="בחירת צבע"
+          aria-label={`בחירת ${label}`}
           value={color ?? DEFAULT_ACCENT}
           onChange={(e) => setValue(e.target.value)}
           className="size-11 cursor-pointer rounded-xl border border-line bg-surface p-1"
@@ -338,6 +338,13 @@ export function SupplierCard({
                 <Input id={`logoUrl-${supplier.id}`} name="logoUrl" type="url" dir="ltr" defaultValue={supplier.logoUrl ?? ""} />
               </Field>
               <AccentField id={supplier.id} initial={supplier.accentColor ?? ""} />
+              <AccentField
+                id={supplier.id}
+                initial={supplier.accentColor2 ?? ""}
+                name="accentColor2"
+                label="צבע מותג משני"
+                hint="לשני צבעים, כמו ירוק ושחור: הצבע השני במסגרת ובזוהר. ריק: גוון בהיר של הראשון."
+              />
               <Field label="העלאת לוגו" name={`logoFile-${supplier.id}`}>
                 <Input id={`logoFile-${supplier.id}`} name="logoFile" type="file" accept="image/png,image/jpeg,image/webp" className="py-2" />
               </Field>

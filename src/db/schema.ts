@@ -100,8 +100,10 @@ export const suppliers = pgTable("suppliers", {
   active: boolean("active").notNull().default(true),
   /** The supplier's logo (S16b; also read by the home page). A URL from the store or the `supplier-logos` bucket. */
   logoUrl: text("logo_url"),
-  /** The vendor box's glow and outline tint on the home page and its store ("#16a34a"); null: brand blue. */
+  /** The vendor's brand colour for its box's glow, outline and tint on the home page and its store ("#0075c9"); null: brand blue. */
   accentColor: text("accent_color"),
+  /** A second brand colour for the gradient outline and glow (CTRE's black, The Thrifty Bot's white); null: a lighter shade of the first. */
+  accentColor2: text("accent_color_2"),
   /** Orders above this many dollars ship free from the supplier; for the admin's notes. */
   freeShippingUsd: numeric("free_shipping_usd", { precision: 10, scale: 2 }),
   notes: text("notes"),

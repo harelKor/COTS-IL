@@ -518,11 +518,11 @@ export async function getFacets() {
     .groupBy(categories.id)
     .orderBy(asc(categories.sortOrder));
   const supplierRows = await db
-    .select({ code: suppliers.code, name: suppliers.name, programs: suppliers.programs, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor, count })
+    .select({ code: suppliers.code, name: suppliers.name, programs: suppliers.programs, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor, accentColor2: suppliers.accentColor2, count })
     .from(families)
     .innerJoin(suppliers, sql`${suppliers.code} = ANY(${families.supplierCodes})`)
     .where(and(visible, eq(suppliers.active, true)))
-    .groupBy(suppliers.code, suppliers.name, suppliers.programs, suppliers.logoUrl, suppliers.accentColor)
+    .groupBy(suppliers.code, suppliers.name, suppliers.programs, suppliers.logoUrl, suppliers.accentColor, suppliers.accentColor2)
     .orderBy(desc(count));
 
   return {
@@ -965,6 +965,7 @@ export type VendorSummary = {
   images: string[];
   logoUrl: string | null;
   accentColor: string | null;
+  accentColor2: string | null;
   /** Its biggest categories, by name, for the line under its name. */
   categories: { name: string; count: number }[];
 };
@@ -983,7 +984,8 @@ export async function getVendors(): Promise<VendorSummary[]> {
     .from(families)
     .innerJoin(categories, eq(categories.id, families.categoryId))
     .innerJoin(suppliers, sql`${suppliers.code} = ANY(${families.supplierCodes})`)
-    .where(and(visible, eq(suppliers.active, true)))
+    // "שונות" says nothing about a vendor, so the line under its name leaves it out.
+    .where(and(visible, eq(suppliers.active, true), sql`${categories.slug} <> 'other'`))
     .groupBy(suppliers.code, categories.name);
   const out: VendorSummary[] = [];
   // One after another, like getFacets: a cold cache shouldn't take every connection at once.
@@ -995,6 +997,7 @@ export async function getVendors(): Promise<VendorSummary[]> {
       count: s.count,
       logoUrl: s.logoUrl,
       accentColor: s.accentColor,
+      accentColor2: s.accentColor2,
       categories: byCategory.filter((c) => c.code === s.code).map((c) => ({ name: c.name, count: c.count })),
       images: top.flatMap((r) => (r.images[0] ? [r.images[0]] : [])),
     });
@@ -1010,7 +1013,7 @@ export async function getVendorStore(code: string) {
   "use cache";
   catalogCache();
   const [vendor] = await db
-    .select({ code: suppliers.code, name: suppliers.name, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor })
+    .select({ code: suppliers.code, name: suppliers.name, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor, accentColor2: suppliers.accentColor2 })
     .from(suppliers)
     .where(and(eq(suppliers.code, code), eq(suppliers.active, true)))
     .limit(1);

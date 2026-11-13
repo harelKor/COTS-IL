@@ -225,6 +225,13 @@
       "when": 1794573849285,
       "tag": "20261113124409_supplier_accent",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1794574634447,
+      "tag": "20261113125714_supplier_brand_colors",
+      "breakpoints": true
     }
   ]
 }
