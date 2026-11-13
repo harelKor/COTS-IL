@@ -232,6 +232,13 @@
       "when": 1794574634447,
       "tag": "20261113125714_supplier_brand_colors",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794577336632,
+      "tag": "20261113134216_sds_brand_color",
+      "breakpoints": true
     }
   ]
 }

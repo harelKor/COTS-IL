@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accentColor, accentStyle, isStoreFront, vendorBlurb, vendorColumns, vendorHref } from "./vendors";
+import { accentColor, accentStyle, isStoreFront, vendorBlurb, vendorHref } from "./vendors";
 
 describe("vendorHref", () => {
   it("puts the vendor in the path and drops ?supplier=", () => {
@@ -40,11 +40,5 @@ describe("vendorBlurb", () => {
     );
     expect(vendorBlurb([{ name: "מצלמות", count: 2 }])).toBe("מצלמות");
     expect(vendorBlurb([])).toBeNull();
-  });
-});
-
-describe("vendorColumns", () => {
-  it("keeps up to 5 in one row and even rows after", () => {
-    expect([1, 2, 3, 4, 5, 6, 7, 8].map(vendorColumns)).toEqual([1, 2, 3, 4, 5, 3, 4, 4]);
   });
 });

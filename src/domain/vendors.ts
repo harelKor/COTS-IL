@@ -33,12 +33,6 @@ export function vendorBlurb(categories: { name: string; count: number }[], max =
   return `${names.slice(0, -1).join(", ")} ו${names.at(-1)}`;
 }
 
-/** Desktop columns for N vendor boxes: one row up to 5, then rows of 3 or 4 that stay even. */
-export function vendorColumns(count: number): 1 | 2 | 3 | 4 | 5 {
-  if (count <= 5) return Math.max(1, count) as 1 | 2 | 3 | 4 | 5;
-  return count === 6 || count === 9 ? 3 : 4;
-}
-
 /** A vendor's store URL with the usual catalog filters; the vendor is the path, never `?supplier=`. */
 export function vendorHref(code: string, filters: Partial<CatalogFilters> = {}): string {
   const query = catalogQuery({ ...filters, supplier: "" });
