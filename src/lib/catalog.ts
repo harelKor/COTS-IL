@@ -6,6 +6,7 @@ import { ACCESSORY_TITLE_PATTERN, HARDWARE_CATEGORIES, MAIN_ITEM_MIN_USD } from 
 import { facetCountPlans, isRelevantFacet } from "@/domain/facets";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
+import { pickDiscovery, rankPopular, type FamilySignals } from "@/domain/popular";
 import { priceContext } from "./settings";
 import type { PriceContext } from "@/domain/pricing";
 import { correctQuery, englishQuery, likePatterns, looksLikeSku, normalizeSku, searchTerms } from "@/domain/search-query";
@@ -842,55 +843,109 @@ export async function searchSuggestions(q: string): Promise<string[]> {
   return [...new Set(rows.map((r) => r.title.replace(/ - .*$/, "")))].slice(0, 3);
 }
 
-/** Categories whose main items are what a vendor is known for (motors, swerve, gearboxes, controllers). */
-const HEADLINE_CATEGORIES = ["motors", "drivetrain", "gearboxes", "electronics"];
-
 /**
- * A vendor's "most wanted" order: the admin's pins on this vendor's products first (S15 "מומלץ";
- * a CTRE pin never leads in the WCP store), then how many team orders in the last year had
- * this vendor's parts of the family, then main items from the headline categories, a photo, a price.
- * Needs `categories` joined.
+ * One row of popularity signals per family this vendor sells (src/domain/popular.ts): its pins and
+ * best-seller rank on this vendor's products, this vendor's orders in the last 12 months, and its
+ * stock and lowest list price at this vendor.
  */
-function vendorPopularOrder(code: string): SQL[] {
-  const { productOverrides: po, teamOrderItems: items, teamOrders: orders } = schema;
-  return [
-    sql`(SELECT min(${po.pinRank}) FROM ${po}
-          JOIN ${products} ON ${products.id} = ${po.productId}
-          JOIN ${suppliers} ON ${suppliers.id} = ${products.supplierId}
-          WHERE ${suppliers.code} = ${code}
-            AND EXISTS (SELECT 1 FROM ${variants} WHERE ${variants.productId} = ${products.id} AND ${variants.familyId} = ${families.id})
-        ) ASC NULLS LAST`,
-    // One order is noise, not demand: a family counts from its second order on.
-    sql`greatest((SELECT count(DISTINCT ${items.orderId}) FROM ${items}
-          JOIN ${orders} ON ${orders.id} = ${items.orderId}
-          JOIN ${variants} ON ${variants.id} = ${items.variantId}
-          JOIN ${suppliers} ON ${suppliers.id} = ${variants.supplierId}
-          WHERE ${variants.familyId} = ${families.id} AND ${suppliers.code} = ${code}
-            AND ${orders.status} <> 'cancelled' AND ${orders.submittedAt} > now() - interval '365 days'
-        ), 1) DESC`,
-    sql`${families.available} IS TRUE DESC`,
-    sql`(${families.title} ~* ${ACCESSORY_TITLE_PATTERN}) ASC`,
-    sql`coalesce(${categories.slug}, '') IN (${sql.join(HEADLINE_CATEGORIES.map((c) => sql`${c}`), sql`, `)}) DESC`,
-    ...mainItemsFirst(),
-    sql`(cardinality(${families.images}) > 0) DESC`,
-    sql`${families.minListUsd} DESC NULLS LAST`,
-    asc(families.title),
-  ];
+async function vendorSignals(code: string): Promise<FamilySignals[]> {
+  const rows = await db.execute<{
+    id: string;
+    pin: number | null;
+    best: number | null;
+    teams: number;
+    qty: number;
+    available: boolean;
+    accessory: boolean;
+    has_image: boolean;
+    price: string | null;
+  }>(sql`
+    WITH vv AS (
+      SELECT v.id, v.family_id, v.available, v.price_usd * coalesce(v.markup, 1) AS list, p.best_seller_rank, po.pin_rank
+      FROM variants v
+      JOIN products p ON p.id = v.product_id
+      JOIN suppliers s ON s.id = p.supplier_id
+      LEFT JOIN product_overrides po ON po.product_id = p.id
+      WHERE s.code = ${code} AND p.status = 'published' AND p.missing_since IS NULL AND v.missing_since IS NULL AND v.family_id IS NOT NULL
+    ),
+    fam AS (
+      SELECT family_id, min(pin_rank) AS pin, min(best_seller_rank) AS best, bool_or(available IS TRUE) AS available,
+        min(list) FILTER (WHERE list > 0) AS price
+      FROM vv GROUP BY family_id
+    ),
+    ord AS (
+      SELECT vv.family_id, count(DISTINCT o.team_id)::int AS teams, sum(i.qty)::int AS qty
+      FROM team_order_items i
+      JOIN team_orders o ON o.id = i.order_id
+      JOIN vv ON vv.id = i.variant_id
+      WHERE o.status <> 'cancelled' AND o.submitted_at > now() - interval '365 days'
+      GROUP BY vv.family_id
+    )
+    SELECT f.id, fam.pin, fam.best, coalesce(ord.teams, 0) AS teams, coalesce(ord.qty, 0) AS qty, fam.available,
+      (f.title ~* ${ACCESSORY_TITLE_PATTERN} AND coalesce(c.slug, '') NOT IN (${sql.join(HARDWARE_CATEGORIES.map((h) => sql`${h}`), sql`, `)})) AS accessory,
+      cardinality(f.images) > 0 AS has_image, fam.price::text AS price
+    FROM fam
+    JOIN ${families} f ON f.id = fam.family_id
+    LEFT JOIN ${categories} c ON c.id = f.category_id
+    LEFT JOIN ord ON ord.family_id = fam.family_id
+    WHERE f.status = 'published' AND f.missing_since IS NULL`);
+  return rows.rows.map((r) => ({
+    id: r.id,
+    pinRank: r.pin,
+    bestSellerRank: r.best,
+    teams: r.teams,
+    qty: r.qty,
+    available: r.available,
+    accessory: r.accessory,
+    hasImage: r.has_image,
+    priceUsd: r.price === null ? null : Number(r.price),
+  }));
 }
 
-/** A vendor's families, ranked as its store's "most wanted" list. */
-async function vendorPopularRows(code: string, limit: number): Promise<CardRow[]> {
-  return db
-    .select(cardColumns)
-    .from(families)
-    .leftJoin(categories, eq(categories.id, families.categoryId))
-    .where(and(visible, sql`${code} = ANY(${families.supplierCodes})`))
-    .orderBy(...vendorPopularOrder(code))
-    .limit(limit);
+/** Card rows for these families, in the given order. */
+async function cardRows(ids: string[]): Promise<CardRow[]> {
+  if (ids.length === 0) return [];
+  const rows = await db.select(cardColumns).from(families).where(inArray(families.id, ids));
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
 }
+
+/** The vendor's most wanted families, best first (src/domain/popular.ts). */
+async function vendorPopularRows(code: string, limit: number): Promise<CardRow[]> {
+  return cardRows(rankPopular(await vendorSignals(code), limit));
+}
+
+/** Today in Israel (YYYY-MM-DD): the discovery strip's seed. Read when the cache fills, so it moves with the daily sync. */
+function israelDay() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+}
+
+/** "גלו עוד": today's less common picks from a vendor, with this vendor's prices. */
+export async function getVendorDiscovery(code: string, count = 10): Promise<CardFamily[]> {
+  "use cache";
+  catalogCache();
+  const signals = await vendorSignals(code);
+  const ids = pickDiscovery(signals, rankPopular(signals, POPULAR_COUNT), `${israelDay()}:${code}`, count);
+  return toCards(await cardRows(ids), code);
+}
+
+/** The home page's strip: a few of today's picks from each vendor, taking turns. */
+export async function getDiscovery(perVendor = 3): Promise<CardFamily[]> {
+  "use cache";
+  catalogCache();
+  const { suppliers: vendors } = await getFacets();
+  const lists: CardFamily[][] = [];
+  for (const v of vendors) lists.push(await getVendorDiscovery(v.code, perVendor));
+  const out: CardFamily[] = [];
+  for (let i = 0; i < perVendor; i++) for (const list of lists) if (list[i] && !out.some((c) => c.id === list[i].id)) out.push(list[i]);
+  return out;
+}
+
+/** How many families "הכי מבוקשים" shows. */
+export const POPULAR_COUNT = 8;
 
 /** The top of a vendor's store: its most wanted families as cards, with this vendor's prices. */
-export async function getVendorPopular(code: string, limit = 8): Promise<CardFamily[]> {
+export async function getVendorPopular(code: string, limit = POPULAR_COUNT): Promise<CardFamily[]> {
   "use cache";
   catalogCache();
   return toCards(await vendorPopularRows(code, limit), code);

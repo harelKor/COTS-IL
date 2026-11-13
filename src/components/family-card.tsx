@@ -65,6 +65,9 @@ type Props = {
   layout?: "grid" | "row";
   /** One of the first cards on screen: its photo loads at once. */
   eager?: boolean;
+  /** Extra classes and style on the grid card (the discovery strip's motion). */
+  className?: string;
+  style?: React.CSSProperties;
 };
 
 /** Below this width the chips open in a bottom sheet instead of over the card. */
@@ -76,7 +79,7 @@ const SHEET_QUERY = "(max-width: 639px)";
  * or in a bottom sheet on a phone), and picking the last one adds it. Once in
  * the cart, "+" becomes a stepper. Nothing here leaves the page.
  */
-export function FamilyCard({ family, preset = {}, layout = "grid", eager = false }: Props) {
+export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style }: Props) {
   const { mode, lines } = useCart();
   const [open, setOpen] = useState(false);
   const [asSheet, setAsSheet] = useState(false);
@@ -319,7 +322,10 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   }
 
   return (
-    <li className="card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift">
+    <li
+      style={style}
+      className={`card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift ${className}`}
+    >
       <Link href={href} className="flex flex-col gap-3">
         <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
           {/* Every photo on the same padded white tile: supplier photos are shot on white. */}

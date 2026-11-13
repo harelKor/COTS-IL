@@ -7,12 +7,13 @@ import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
 import { CategoryGroups } from "@/components/category-groups";
 import { GroupBoxes } from "@/components/group-boxes";
+import { DiscoveryStrip } from "@/components/discovery-strip";
 import { FamilyCard } from "@/components/family-card";
 import { Ltr } from "@/components/ltr";
 import { PriceNote } from "@/components/price-note";
 import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skeleton";
 import { isStoreFront, vendorBlurb, vendorHref } from "@/domain/vendors";
-import { getSpecFacets, getVendorPopular, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
+import { getSpecFacets, getVendorDiscovery, getVendorPopular, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
 import { hasFilters, PAGE_SIZE, parseFilters, type CatalogFilters } from "@/lib/catalog-filters";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
@@ -110,6 +111,11 @@ async function Popular({ store }: { store: Store }) {
   );
 }
 
+/** Today's less common picks from this vendor. */
+async function Discover({ store }: { store: Store }) {
+  return <DiscoveryStrip cards={await getVendorDiscovery(store.code, 10)} note={`כל יום מבחר אחר מ-${store.name}, מעבר למבוקשים`} />;
+}
+
 function StoreFront({ store }: { store: Store }) {
   const blurb = vendorBlurb(store.code);
   return (
@@ -135,6 +141,9 @@ function StoreFront({ store }: { store: Store }) {
         }
       >
         <Popular store={store} />
+      </Suspense>
+      <Suspense>
+        <Discover store={store} />
       </Suspense>
       <section aria-labelledby="all">
         <h2 id="all" className="mb-4 text-section font-semibold">

@@ -155,6 +155,8 @@ export const products = pgTable(
     sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
     /** When the stock check last read this product's page; null if never. */
     stockCheckedAt: timestamp("stock_checked_at", { withTimezone: true }),
+    /** The store's own "best selling" position (1 = best), read at sync (src/suppliers/best-sellers.ts); null when unknown. */
+    bestSellerRank: integer("best_seller_rank"),
     searchText: text("search_text").notNull(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
     missingSince: timestamp("missing_since", { withTimezone: true }),

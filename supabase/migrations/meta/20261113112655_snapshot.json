@@ -1,5 +1,5 @@
 {
-  "id": "70a09838-5ea6-4c80-9c44-03717f591e1e",
+  "id": "85ea8792-efb7-4440-ab3b-452a4256e686",
   "prevId": "b7052603-818e-4a25-80d2-0a6e0d6f19fa",
   "version": "7",
   "dialect": "postgresql",
@@ -1329,13 +1329,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "ships_later": {
-          "name": "ships_later",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "status": {
           "name": "status",
           "type": "product_status",
@@ -1687,15 +1680,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "source_updated_at": {
-          "name": "source_updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stock_checked_at": {
-          "name": "stock_checked_at",
-          "type": "timestamp with time zone",
+        "best_seller_rank": {
+          "name": "best_seller_rank",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -3982,19 +3969,6 @@
         "available": {
           "name": "available",
           "type": "boolean",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ships_later": {
-          "name": "ships_later",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "ships_later_eta": {
-          "name": "ships_later_eta",
-          "type": "text",
           "primaryKey": false,
           "notNull": false
         },

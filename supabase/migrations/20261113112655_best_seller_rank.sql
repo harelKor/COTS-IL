@@ -1,0 +1,1 @@
+ALTER TABLE "products" ADD COLUMN "best_seller_rank" integer;
