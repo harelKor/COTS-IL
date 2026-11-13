@@ -53,7 +53,7 @@ function Panel({ id, labelledBy, items }: { id: string; labelledBy: string; item
             <li key={c.slug}>
               <Link
                 href={c.href}
-                className="group flex h-full min-h-14 items-center gap-3 rounded-2xl bg-surface p-2 shadow-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift"
+                className="group glow-outline flex h-full min-h-14 items-center gap-3 rounded-2xl p-2 transition-[translate] duration-200 ease-out hover:-translate-y-0.5"
               >
                 <span className="tile-fade flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl p-1">
                   {c.images[0] && (
@@ -101,9 +101,7 @@ export function GroupBoxes({ categories }: { categories: GroupTile[] }) {
               aria-expanded={open}
               aria-controls={open ? `${base}-panel` : undefined}
               onClick={() => setOpenId(open ? null : g.id)}
-              className={`group flex h-full flex-col gap-3 rounded-[22px] border p-4 text-start shadow-card transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lift sm:p-5 ${
-                open ? "border-brand bg-brand-soft/40" : "border-line bg-tile-card hover:border-brand/50"
-              }`}
+              className="group glow-box flex h-full flex-col gap-3 p-4 text-start transition-[translate] duration-200 ease-out hover:-translate-y-1 sm:p-5"
             >
               <span className="relative flex h-24 items-center justify-center">
                 <PhotoFan slug={g.items[0]?.slug} images={images} />

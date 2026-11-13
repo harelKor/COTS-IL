@@ -104,7 +104,7 @@ async function Popular({ store }: { store: Store }) {
       </h2>
       <ul className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 sm:gap-4 lg:grid-cols-4">
         {cards.map((c, i) => (
-          <FamilyCard key={c.id} family={c} eager={i < 4} />
+          <FamilyCard key={c.id} family={c} eager={i < 4} glow />
         ))}
       </ul>
     </section>
@@ -121,7 +121,7 @@ function StoreFront({ store }: { store: Store }) {
   return (
     <>
       <Breadcrumb store={store} />
-      <header className="card-surface flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between lg:p-6">
+      <header className={`glow-box accent-${store.code} flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between lg:p-6`}>
         <div className="flex flex-col items-start gap-2">
           <h1 className="text-title font-semibold">
             <Ltr className="text-brand-gradient">{store.name}</Ltr>

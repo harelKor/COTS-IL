@@ -68,6 +68,8 @@ type Props = {
   /** Extra classes and style on the grid card (the discovery strip's motion). */
   className?: string;
   style?: React.CSSProperties;
+  /** Popular and "גלו עוד": a glowing outline and a shine on hover. */
+  glow?: boolean;
 };
 
 /** Below this width the chips open in a bottom sheet instead of over the card. */
@@ -79,7 +81,7 @@ const SHEET_QUERY = "(max-width: 639px)";
  * or in a bottom sheet on a phone), and picking the last one adds it. Once in
  * the cart, "+" becomes a stepper. Nothing here leaves the page.
  */
-export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style }: Props) {
+export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style, glow = false }: Props) {
   const { mode, lines } = useCart();
   const [open, setOpen] = useState(false);
   const [asSheet, setAsSheet] = useState(false);
@@ -170,7 +172,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       onFocus={singlePart ? undefined : () => void loadVariants()}
       aria-expanded={singlePart ? undefined : open}
       aria-label={singlePart ? `הוספה לסל: ${family.title}` : `בחירת אפשרות והוספה לסל: ${family.title}`}
-      className={`flex size-11 shrink-0 items-center justify-center rounded-full transition duration-200 active:scale-90 ${
+      className={`btn-plus flex size-11 shrink-0 items-center justify-center rounded-full transition duration-200 active:scale-90 ${
         open && !asSheet ? "bg-brand-strong text-white" : "bg-brand text-white"
       }`}
     >
@@ -324,8 +326,9 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   return (
     <li
       style={style}
-      className={`card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift ${className}`}
+      className={`card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift ${glow ? "glow-card" : ""} ${className}`}
     >
+      {glow && <span aria-hidden className="card-shine" />}
       <Link href={href} className="flex flex-col gap-3">
         <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
           {/* Every photo on the same padded white tile: supplier photos are shot on white. */}

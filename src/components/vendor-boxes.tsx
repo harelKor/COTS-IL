@@ -11,7 +11,7 @@ import { Ltr } from "./ltr";
  */
 export function VendorBoxes({ vendors }: { vendors: VendorSummary[] }) {
   return (
-    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+    <ul className={`grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 ${vendors.length >= 5 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
       {vendors.map((v) => {
         const blurb = vendorBlurb(v.code);
         return (
@@ -19,7 +19,7 @@ export function VendorBoxes({ vendors }: { vendors: VendorSummary[] }) {
             <Link
               href={vendorHref(v.code)}
               aria-label={`החנות של ${v.name}, ${v.count.toLocaleString("he-IL")} מוצרים`}
-              className="group card-surface flex h-full min-h-[132px] items-center gap-4 p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift lg:min-h-[300px] lg:flex-col lg:items-stretch lg:p-6"
+              className={`group glow-box accent-${v.code} flex h-full min-h-[132px] items-center gap-4 p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift lg:min-h-[300px] lg:flex-col lg:items-stretch lg:p-6`}
             >
               <span className="flex min-w-0 flex-1 flex-col items-start gap-2 lg:order-1 lg:flex-none">
                 <Ltr className="text-brand-gradient text-[24px] leading-tight font-semibold tracking-tight sm:text-[28px]">{v.name}</Ltr>
