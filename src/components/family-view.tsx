@@ -29,6 +29,9 @@ export type ViewVariant = {
   /** The multiplier behind priceIls, for "איך נקבע המחיר?". */
   markup: number;
   available: boolean | null;
+  /** Orderable, but the supplier ships it later (בהזמנה מראש), with its ETA words if any. */
+  shipsLater: boolean;
+  shipsLaterEta: string | null;
   checkedAt: string;
   supplierName: string;
   supplierCode: string;
@@ -98,7 +101,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
   const { mode, lines } = useCart();
   const { leadTimes } = useSiteFacts();
   const now = useNow();
-  const availabilityText = (v: ViewVariant) => availabilityStatus(v.available, v.checkedAt, isFresh(v.checkedAt, now));
+  const availabilityText = (v: ViewVariant) => availabilityStatus(v.available, v.checkedAt, isFresh(v.checkedAt, now), { shipsLater: v.shipsLater, eta: v.shipsLaterEta });
   const manySuppliers = new Set(variants.map((v) => v.supplierCode)).size > 1;
   const keys = family.optionKeys;
 

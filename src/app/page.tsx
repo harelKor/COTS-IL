@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
-import { CategoryTiles } from "@/components/category-showcase";
+import { GroupBoxes } from "@/components/group-boxes";
 import { VendorBoxes } from "@/components/vendor-boxes";
 import { HomeCommandBar } from "@/components/home-command-bar";
 import { Ltr } from "@/components/ltr";
@@ -9,7 +9,8 @@ import { ReorderButton } from "@/components/reorder-button";
 import { formatIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { cartCount, listOrders } from "@/lib/orders";
-import { getFacets, getLastSync, getVendors } from "@/lib/catalog";
+import { getDiscovery, getFacets, getLastSync, getVendors } from "@/lib/catalog";
+import { DiscoveryStrip } from "@/components/discovery-strip";
 import { markupText } from "@/domain/pricing";
 import { getBusiness, getSiteFacts } from "@/lib/settings";
 import { typicalLeadTime } from "@/domain/lead-time";
@@ -72,6 +73,11 @@ async function Vendors() {
   );
 }
 
+/** Today's picks from every vendor. */
+async function Discover() {
+  return <DiscoveryStrip cards={await getDiscovery(3)} />;
+}
+
 /** The second way in: every category, across all vendors, under its group. */
 async function Browse() {
   const { categories } = await getFacets();
@@ -83,7 +89,7 @@ async function Browse() {
         </h2>
         <p className="text-caption text-muted">אותו חלק מכמה ספקים מופיע פעם אחת, עם ההצעה הזולה שבמלאי.</p>
       </div>
-      <CategoryTiles categories={categories.map((c) => ({ ...c, href: catalogHref({ category: c.slug }) }))} />
+      <GroupBoxes categories={categories.map((c) => ({ ...c, href: catalogHref({ category: c.slug }) }))} />
     </section>
   );
 }
@@ -220,6 +226,10 @@ export default function HomePage() {
           }
         >
           <Vendors />
+        </Suspense>
+
+        <Suspense>
+          <Discover />
         </Suspense>
 
         <ValueStrip />

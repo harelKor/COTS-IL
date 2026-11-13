@@ -70,6 +70,7 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
       markup: variants.markup,
       fixedIls: variants.fixedIls,
       available: variants.available,
+      shipsLater: variants.shipsLater,
     })
     .from(variants)
     // A variant the admin hid (S16c) joins no family, so the catalog doesn't list it.
@@ -311,6 +312,7 @@ type VariantRow = {
   markup: string | null;
   fixedIls: string | null;
   available: boolean | null;
+  shipsLater: boolean;
 };
 
 function familyRow(
@@ -352,6 +354,7 @@ function familyRow(
     minListUsd: lists.length ? Math.min(...lists).toFixed(2) : null,
     maxListUsd: lists.length ? Math.max(...lists).toFixed(2) : null,
     available: availability.every((a) => a === null) ? null : availability.some((a) => a === true),
+    shipsLater: memberVariants.some((v) => v.available === true) && memberVariants.filter((v) => v.available === true).every((v) => v.shipsLater),
     status: members.some((m) => m.status === "published") ? ("published" as const) : ("review" as const),
     // Only this family's own variants, so a reseller product spanning families doesn't
     // make a SKU from one of them find the other.

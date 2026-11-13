@@ -125,7 +125,7 @@ Tokens live as CSS variables in `src/app/globals.css` (light and print) and are 
 
 ## Vendor-first (S17, Nov 13, 2026)
 
-Teams pick a vendor first (home boxes → `/v/<code>`); all-vendor browsing by category stays lower on the home page and at `/catalog`. A store's "most wanted" list is ranked by the admin's pins on that vendor's products (S15 "מומלץ"), then by team orders in the last year (from 2 orders up), then by main items. Inside a store, cards and the product page (`?vendor=`) show only that vendor's offer. A cart still sends **one** request; the cart, request, quote and admin card are divided into vendor sections with subtotals (`supplierSections` in `src/domain/cart.ts`).
+Teams pick a vendor first (home boxes → `/v/<code>`); all-vendor browsing by category stays lower on the home page and at `/catalog`. A store's "most wanted" list (`rankPopular` in `src/domain/popular.ts`) puts the admin's pins on that vendor's products (S15 "מומלץ") first, then demand: the vendor's own best-seller rank (`products.best_seller_rank`, read by the daily sync from the store's `/collections/all?sort_by=best-selling` page, `src/suppliers/best-sellers.ts`) blended with our orders (distinct teams and quantity, last 12 months), with orders taking over as more teams order. "גלו עוד" (`pickDiscovery`, `discovery-strip.tsx`) shows in-stock, mid-priced parts outside that list, shuffled by day. Inside a store, cards and the product page (`?vendor=`) show only that vendor's offer. A cart still sends **one** request; the cart, request, quote and admin card are divided into vendor sections with subtotals (`supplierSections` in `src/domain/cart.ts`).
 
 ## Click budget
 

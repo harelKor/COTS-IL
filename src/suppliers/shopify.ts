@@ -31,6 +31,7 @@ const productSchema = z.object({
   tags: z.union([z.array(z.string()), z.string()]).nullish(),
   options: z.array(z.object({ name: z.string() })).nullish(),
   images: z.array(z.object({ src: z.string() })).nullish(),
+  updated_at: z.string().nullish(),
   variants: z.array(variantSchema),
 });
 
@@ -90,6 +91,7 @@ export function normalizeProduct(raw: ShopifyProduct, baseUrl: string, supplierP
     tags,
     programs: programsFor(input, supplierPrograms),
     categorySlug: categorize(input),
+    sourceUpdatedAt: raw.updated_at ?? null,
     status: statusFor(input, variants.some((v) => v.priceUsd !== null)),
     variants,
   };

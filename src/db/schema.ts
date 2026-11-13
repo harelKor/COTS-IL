@@ -163,6 +163,12 @@ export const products = pgTable(
     minPriceUsd: numeric("min_price_usd", { precision: 10, scale: 2 }),
     maxPriceUsd: numeric("max_price_usd", { precision: 10, scale: 2 }),
     available: boolean("available"),
+    /** The store's own updated_at, so the stock check skips products that haven't changed (src/suppliers/stock.ts). */
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    /** When the stock check last read this product's page; null if never. */
+    stockCheckedAt: timestamp("stock_checked_at", { withTimezone: true }),
+    /** The store's own "best selling" position (1 = best), read at sync (src/suppliers/best-sellers.ts); null when unknown. */
+    bestSellerRank: integer("best_seller_rank"),
     searchText: text("search_text").notNull(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
     missingSince: timestamp("missing_since", { withTimezone: true }),
@@ -207,6 +213,10 @@ export const variants = pgTable(
     /** The multiplier its price uses, resolved from pricing_rules by each regroup (S16a, resolveMarkup); null until then, which means the global one. */
     markup: numeric("markup", { precision: 6, scale: 3 }),
     available: boolean("available"),
+    /** Orderable but none on hand: the supplier ships it later (בהזמנה מראש). Only from the stock check; never a quantity. */
+    shipsLater: boolean("ships_later").notNull().default(false),
+    /** The supplier's own words for when, e.g. "late November"; null when it gives none. */
+    shipsLaterEta: text("ships_later_eta"),
     /** The admin's fixed ₪ price (variant_overrides.fixed_ils, written by each regroup): it beats the rate and the multiplier (S16c). */
     fixedIls: numeric("fixed_ils", { precision: 10, scale: 2 }),
     /** The store's SKU, options and availability as last synced, so removing an override brings them back (S16c). */
@@ -256,6 +266,8 @@ export const productFamilies = pgTable(
     minListUsd: numeric("min_list_usd", { precision: 12, scale: 2 }),
     maxListUsd: numeric("max_list_usd", { precision: 12, scale: 2 }),
     available: boolean("available"),
+    /** Every available variant ships later, so the family shows בהזמנה מראש (derived by regroup). */
+    shipsLater: boolean("ships_later").notNull().default(false),
     status: productStatus("status").notNull().default("published"),
     searchText: text("search_text").notNull(),
     /** The admin's "מומלץ" order (lowest pin of its products, product_overrides.pin_rank); null when not pinned. */

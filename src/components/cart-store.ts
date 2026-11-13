@@ -23,6 +23,9 @@ export type CartSheetLine = {
   orderable?: boolean;
   /** The supplier's yes/no and when it was checked (ISO). Not sold out doesn't block the send. */
   available?: boolean | null;
+  /** Orderable, but the supplier ships it later (בהזמנה מראש), with its ETA words if any. */
+  shipsLater?: boolean;
+  shipsLaterEta?: string | null;
   checkedAt?: string | null;
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { availabilityStatus, isFresh } from "@/lib/availability-text";
+import { availabilityStatus, isFresh, type ShipsLater } from "@/lib/availability-text";
 
 export { availabilityStatus, isFresh };
 
@@ -22,7 +22,7 @@ export function useNow(): number | null {
 }
 
 /** Suppliers only tell us yes or no, so this never shows a stock count. */
-export function Availability({ available, checkedAt }: { available: boolean | null; checkedAt: string }) {
-  const status = availabilityStatus(available, checkedAt, isFresh(checkedAt, useNow()));
+export function Availability({ available, checkedAt, shipsLater, eta }: { available: boolean | null; checkedAt: string } & ShipsLater) {
+  const status = availabilityStatus(available, checkedAt, isFresh(checkedAt, useNow()), { shipsLater, eta });
   return <span className={`text-caption ${status.tone}`}>{status.text}</span>;
 }

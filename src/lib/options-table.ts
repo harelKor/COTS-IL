@@ -32,7 +32,7 @@ export function optionsTableHtml(all: FamilyVariant[], family: TableFamily, rate
   ].join("");
   const rows = variants.map((v) => {
     const price = priceIls(v.priceUsd, rate, v.markup, v.fixedIls);
-    const status = availabilityStatus(v.available, v.checkedAt.toISOString(), true);
+    const status = availabilityStatus(v.available, v.checkedAt.toISOString(), true, { shipsLater: v.shipsLater, eta: v.shipsLaterEta });
     const options = keys.flatMap((k) => (v.familyOptions[k] ? [v.familyOptions[k]] : [])).join(" / ");
     const href = familyHref(family.slug, v.sku ?? v.id);
     const line = {

@@ -32,13 +32,15 @@ function lineFor(family: CardFamily, v: CardVariant): AddableLine {
 type PartialStock = { of: number; available: number };
 
 /** A dot for availability, with the words for screen readers and on hover. */
-function AvailabilityDot({ available, checkedAt, partial }: { available: boolean | null; checkedAt: string; partial?: PartialStock }) {
+function AvailabilityDot({ available, checkedAt, partial, shipsLater }: { available: boolean | null; checkedAt: string; partial?: PartialStock; shipsLater?: boolean }) {
   const fresh = isFresh(checkedAt, useNow());
-  const { dot: color } = availabilityStatus(available, checkedAt, fresh);
+  const { dot: color } = availabilityStatus(available, checkedAt, fresh, { shipsLater });
   const text =
     available === null || !fresh
       ? "זמינות לא אומתה"
-      : available && partial
+      : available && shipsLater
+        ? "בהזמנה מראש"
+        : available && partial
         ? `${partial.available.toLocaleString("he-IL")} מתוך ${partial.of.toLocaleString("he-IL")} אפשרויות זמינות`
         : available
           ? "זמין אצל הספק"
@@ -63,6 +65,9 @@ type Props = {
   layout?: "grid" | "row";
   /** One of the first cards on screen: its photo loads at once. */
   eager?: boolean;
+  /** Extra classes and style on the grid card (the discovery strip's motion). */
+  className?: string;
+  style?: React.CSSProperties;
 };
 
 /** Below this width the chips open in a bottom sheet instead of over the card. */
@@ -74,7 +79,7 @@ const SHEET_QUERY = "(max-width: 639px)";
  * or in a bottom sheet on a phone), and picking the last one adds it. Once in
  * the cart, "+" becomes a stepper. Nothing here leaves the page.
  */
-export function FamilyCard({ family, preset = {}, layout = "grid", eager = false }: Props) {
+export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style }: Props) {
   const { mode, lines } = useCart();
   const [open, setOpen] = useState(false);
   const [asSheet, setAsSheet] = useState(false);
@@ -226,7 +231,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   const sets = family.optionSets ?? 0;
   const inStock = family.availableOptionSets ?? 0;
   const partial = !current && sets > 1 && inStock > 0 && inStock < sets ? { of: sets, available: inStock } : undefined;
-  const availability = <AvailabilityDot available={current?.available ?? family.available} checkedAt={family.checkedAt} partial={partial} />;
+  const availability = <AvailabilityDot available={current?.available ?? family.available} shipsLater={current ? current.shipsLater : family.shipsLater} checkedAt={family.checkedAt} partial={partial} />;
 
   const closeSheet = (e: React.MouseEvent<HTMLElement>) => e.currentTarget.closest("dialog")?.close();
 
@@ -317,7 +322,10 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   }
 
   return (
-    <li className="card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift">
+    <li
+      style={style}
+      className={`card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift ${className}`}
+    >
       <Link href={href} className="flex flex-col gap-3">
         <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
           {/* Every photo on the same padded white tile: supplier photos are shot on white. */}
