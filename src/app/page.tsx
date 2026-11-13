@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
 import { GroupBoxes } from "@/components/group-boxes";
 import { VendorBoxes } from "@/components/vendor-boxes";
+import { FrcDoodles } from "@/components/frc-doodles";
 import { HomeCommandBar } from "@/components/home-command-bar";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
@@ -15,7 +16,7 @@ import { markupText } from "@/domain/pricing";
 import { getBusiness, getSettings, getSiteFacts } from "@/lib/settings";
 import { typicalLeadTime } from "@/domain/lead-time";
 import { HowItWorksSteps } from "@/components/how-it-works-steps";
-import { BadgeCheck, Boxes, Coins, FileCheck2, Truck, Undo2 } from "lucide-react";
+import { BadgeCheck, Bot, Boxes, Cog, Coins, FileCheck2, Truck, Undo2 } from "lucide-react";
 import { catalogHref } from "@/lib/catalog-filters";
 import { siteUrl } from "@/lib/site-url";
 
@@ -64,7 +65,8 @@ async function Vendors() {
   const vendors = await getVendors();
   return (
     <section id="vendors" aria-labelledby="vendors-title" className="scroll-mt-20">
-      <h2 id="vendors-title" className="mb-4 text-section font-semibold">
+      <h2 id="vendors-title" className="mb-4 flex items-center gap-2 text-section font-semibold">
+        <Cog size={20} strokeWidth={1.75} aria-hidden className="doodle-spin text-brand" />
         מאיזה ספק קונים?
       </h2>
       <VendorBoxes vendors={vendors} />
@@ -84,7 +86,8 @@ async function Browse() {
   return (
     <section aria-labelledby="browse-title">
       <div className="mb-4 flex flex-col gap-1">
-        <h2 id="browse-title" className="text-section font-semibold">
+        <h2 id="browse-title" className="flex items-center gap-2 text-section font-semibold">
+          <Bot size={20} strokeWidth={1.75} aria-hidden className="doodle-drift text-brand" />
           לפי סוג מוצר, מכל הספקים
         </h2>
         <p className="text-caption text-muted">אותו חלק מכמה ספקים מופיע פעם אחת, עם ההצעה הזולה שבמלאי.</p>
@@ -203,6 +206,7 @@ export default function HomePage() {
   return (
     <ViewTransition enter="page-enter" exit="page-exit" default="none">
       <div className="flex flex-col gap-8">
+        <FrcDoodles />
         <OrganizationJsonLd />
         <Suspense>
           <TeamNotice />

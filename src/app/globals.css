@@ -496,19 +496,14 @@ header.sticky {
 }
 
 /*
- * "גלו עוד" (src/components/discovery-strip.tsx): a soft cobalt glow, a slow float, a small tilt
- * on hover and a staggered entrance. Only transform, rotate, translate and opacity animate, and
- * nothing moves under prefers-reduced-motion.
+ * "גלו עוד" (src/components/discovery-strip.tsx): a staggered entrance, then the same motion as `.alive`.
+ * Only transform and opacity animate, and nothing moves under prefers-reduced-motion.
  */
 @media (prefers-reduced-motion: no-preference) {
   .discover-card {
     animation:
       discover-in 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms) both,
-      discover-float 6s ease-in-out calc(var(--d, 0ms) + 700ms) infinite;
-    transition: rotate 250ms ease-out, translate 200ms ease-out;
-  }
-  .discover-card:hover {
-    rotate: -0.8deg;
+      alive var(--hop, 9s) ease-in-out calc(var(--d, 0ms) + var(--hd, 0s) + 700ms) infinite;
   }
 }
 @keyframes discover-in {
@@ -521,50 +516,95 @@ header.sticky {
     transform: none;
   }
 }
-@keyframes discover-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
 
 /*
- * "הכי מבוקשים" (src/components/popular-section.tsx): every few seconds a card hops and tilts a
- * little, each on its own delay (--d) and rhythm (--hop), so they never move together. Only
- * transform animates (hover's lift uses translate, so both work); a card stops while it's hovered
- * or focused, and nothing moves under prefers-reduced-motion.
+ * "Alive" cards and photos (.alive on product cards, .alive-tile on the vendor boxes' photos):
+ * a gentle bob, then now and then a hop with a little tilt. Each card has its own rhythm (--hop)
+ * and delay (--hd) from its id (src/domain/alive.ts), so they never move together. Only
+ * `transform` animates: hover's lift (translate) and the playful hover tilt and tap squish
+ * (rotate, scale) are separate properties, so they combine. A card stops while hovered or
+ * focused; nothing moves under prefers-reduced-motion.
  */
 @media (prefers-reduced-motion: no-preference) {
-  .popular-card {
-    animation: popular-hop var(--hop, 6s) ease-in-out var(--d, 0s) infinite;
+  .alive {
+    animation: alive var(--hop, 9s) ease-in-out var(--hd, 0s) infinite;
   }
-  .popular-card:hover,
-  .popular-card:focus-within {
+  .alive-tile {
+    animation: alive-tile var(--hop, 9s) ease-in-out var(--hd, 0s) infinite;
+  }
+  .alive:hover,
+  .alive:focus-within,
+  .discover-card:hover,
+  .discover-card:focus-within {
     animation-play-state: paused;
+  }
+  .glow-card {
+    transition:
+      translate 200ms var(--ease-out),
+      box-shadow 200ms var(--ease-out),
+      rotate 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      scale 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .glow-card:hover {
+    rotate: -1.2deg;
+    scale: 1.02;
+  }
+  .glow-card:nth-child(even):hover {
+    rotate: 1.2deg;
+  }
+  .glow-card:active {
+    scale: 0.97;
   }
   .popular-flame {
     animation: popular-flame 2.4s ease-in-out infinite;
   }
 }
-@keyframes popular-hop {
+@keyframes alive {
   0%,
-  78%,
   100% {
     transform: none;
   }
-  82% {
-    transform: translateY(-7px) rotate(-1.6deg);
+  20% {
+    transform: translateY(-3px);
   }
-  86% {
-    transform: translateY(0) rotate(1.2deg);
+  40% {
+    transform: none;
   }
-  90% {
-    transform: translateY(-3px) rotate(-0.6deg);
+  60% {
+    transform: translateY(-2px);
   }
-  94% {
+  72% {
+    transform: none;
+  }
+  76% {
+    transform: translateY(-9px) rotate(-2deg);
+  }
+  80% {
+    transform: translateY(0) rotate(1.5deg) scale(1.01, 0.99);
+  }
+  84% {
+    transform: translateY(-4px) rotate(-0.8deg);
+  }
+  88% {
+    transform: none;
+  }
+}
+@keyframes alive-tile {
+  0%,
+  80%,
+  100% {
+    transform: none;
+  }
+  84% {
+    transform: translateY(-6px) rotate(-4deg);
+  }
+  88% {
+    transform: translateY(0) rotate(3deg);
+  }
+  92% {
+    transform: rotate(-1deg);
+  }
+  96% {
     transform: none;
   }
 }
@@ -575,6 +615,50 @@ header.sticky {
   }
   50% {
     transform: scale(1.1) rotate(-6deg);
+  }
+}
+
+/*
+ * The home page's backdrop (src/components/frc-doodles.tsx): robotics line drawings drift and
+ * turn slowly, colour washes breathe. Transform and opacity only; still under reduced motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .doodle-drift {
+    animation: doodle-drift 14s ease-in-out infinite;
+  }
+  .doodle-spin {
+    animation: doodle-spin 40s linear infinite;
+  }
+  .doodle-wash {
+    animation: doodle-wash 18s ease-in-out infinite;
+  }
+}
+@keyframes doodle-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  33% {
+    transform: translate(6px, -10px) rotate(6deg);
+  }
+  66% {
+    transform: translate(-5px, 6px) rotate(-5deg);
+  }
+}
+@keyframes doodle-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes doodle-wash {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12) translate(20px, 10px);
+    opacity: 0.7;
   }
 }
 

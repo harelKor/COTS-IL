@@ -13,6 +13,7 @@ import { FamilyCard } from "@/components/family-card";
 import { Ltr } from "@/components/ltr";
 import { PriceNote } from "@/components/price-note";
 import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skeleton";
+import { aliveStyle } from "@/domain/alive";
 import { accentStyle, isStoreFront, vendorBlurb, vendorHref } from "@/domain/vendors";
 import { getDiscoveryPage, getSpecFacets, getVendorPopular, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
 import { hasFilters, PAGE_SIZE, parseFilters, type CatalogFilters } from "@/lib/catalog-filters";
@@ -107,9 +108,9 @@ async function Popular({ store }: { store: Store }) {
             family={c}
             eager={i < 4}
             glow
-            className="popular-card"
+            className="alive"
             // Out of step on purpose: each card has its own delay and rhythm.
-            style={{ "--d": `${(i * 1.7) % 6}s`, "--hop": `${6 + (i % 3) * 1.4}s` } as React.CSSProperties}
+            style={aliveStyle(c.id) as React.CSSProperties}
           />
         ))}
       </ul>

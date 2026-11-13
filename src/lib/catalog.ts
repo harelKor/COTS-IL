@@ -1007,7 +1007,8 @@ export async function getVendors(): Promise<VendorSummary[]> {
   const out: VendorSummary[] = [];
   // One after another, like getFacets: a cold cache shouldn't take every connection at once.
   for (const s of rows) {
-    const top = await vendorPopularRows(s.code, 3);
+    // Six: a box that spans a whole row shows them all (vendor-boxes.tsx).
+    const top = await vendorPopularRows(s.code, 6);
     out.push({
       code: s.code,
       name: s.name,

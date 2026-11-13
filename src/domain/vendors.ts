@@ -44,3 +44,17 @@ export function vendorHref(code: string, filters: Partial<CatalogFilters> = {}):
 export function isStoreFront(filters: Pick<CatalogFilters, "q" | "category">): boolean {
   return !filters.q && !filters.category;
 }
+
+/**
+ * How many columns each vendor box spans so the grid's last row is always full: 2 columns from
+ * 640px (`sm`, out of 2) and 3 per row from 1024px (`lg`, out of a 6-column grid). A lone last box
+ * spans the whole row; two last boxes share it. Holds for any number of vendors.
+ */
+export function vendorSpans(count: number): { sm: 1 | 2; lg: 2 | 3 | 6 }[] {
+  return Array.from({ length: count }, (_, i) => {
+    const sm = count % 2 === 1 && i === count - 1 ? 2 : 1;
+    const rest = count % 3;
+    const lg = rest === 1 && i === count - 1 ? 6 : rest === 2 && i >= count - 2 ? 3 : 2;
+    return { sm, lg };
+  });
+}

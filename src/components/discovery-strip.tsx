@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DiscoverPage } from "@/app/api/discover/route";
 import type { CardFamily } from "@/lib/catalog";
+import { aliveStyle } from "@/domain/alive";
 import { FamilyCard } from "./family-card";
 
 /** How long each card stays before the row moves on, and how long a touch pauses it. */
@@ -185,7 +186,7 @@ export function DiscoveryStrip({
                 morph={firstOf.get(c.id) === `${p}:${c.id}`}
                 glow
                 className="discover-card w-[220px] shrink-0 snap-start sm:w-[240px]"
-                style={{ "--d": `${Math.min(i, 8) * 70}ms` } as React.CSSProperties}
+                style={{ "--d": `${Math.min(i, 8) * 70}ms`, ...aliveStyle(`${p}:${c.id}`) } as React.CSSProperties}
               />
             )),
           )}

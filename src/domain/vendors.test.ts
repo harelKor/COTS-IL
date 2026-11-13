@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accentColor, accentStyle, isStoreFront, vendorBlurb, vendorHref } from "./vendors";
+import { accentColor, accentStyle, isStoreFront, vendorBlurb, vendorHref, vendorSpans } from "./vendors";
 
 describe("vendorHref", () => {
   it("puts the vendor in the path and drops ?supplier=", () => {
@@ -40,5 +40,22 @@ describe("vendorBlurb", () => {
     );
     expect(vendorBlurb([{ name: "מצלמות", count: 2 }])).toBe("מצלמות");
     expect(vendorBlurb([])).toBeNull();
+  });
+});
+
+describe("vendorSpans", () => {
+  const rowsFull = (spans: number[], cols: number) => spans.reduce((a, b) => a + b, 0) % cols === 0;
+  it("never leaves a gap in the last row, for any count", () => {
+    for (let n = 1; n <= 13; n++) {
+      const s = vendorSpans(n);
+      expect(rowsFull(s.map((x) => x.sm), 2)).toBe(true);
+      expect(rowsFull(s.map((x) => x.lg), 6)).toBe(true);
+    }
+  });
+  it("widens only the last boxes", () => {
+    expect(vendorSpans(4).map((x) => x.lg)).toEqual([2, 2, 2, 6]);
+    expect(vendorSpans(5).map((x) => x.lg)).toEqual([2, 2, 2, 3, 3]);
+    expect(vendorSpans(6).map((x) => x.lg)).toEqual([2, 2, 2, 2, 2, 2]);
+    expect(vendorSpans(3).map((x) => x.sm)).toEqual([1, 1, 2]);
   });
 });
