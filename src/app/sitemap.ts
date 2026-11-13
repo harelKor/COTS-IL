@@ -1,11 +1,14 @@
 import type { MetadataRoute } from "next";
 import { INFO_LINKS } from "@/components/site-footer";
 import { siteUrl } from "@/lib/site-url";
-import { VENDORS, vendorHref } from "@/domain/vendors";
+import { vendorHref } from "@/domain/vendors";
+import { getFacets } from "@/lib/catalog";
 
 const SITE = siteUrl();
 
 /** The static pages. Product pages join in S9 (SEO), from the families table. */
-export default function sitemap(): MetadataRoute.Sitemap {
-  return ["/", "/catalog", ...VENDORS.map((v) => vendorHref(v.code)), ...INFO_LINKS.map((l) => l.href)].map((path) => ({ url: `${SITE}${path}` }));
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Every vendor with a store (the suppliers table), so a new one is listed by itself.
+  const { suppliers } = await getFacets();
+  return ["/", "/catalog", ...suppliers.map((v) => vendorHref(v.code)), ...INFO_LINKS.map((l) => l.href)].map((path) => ({ url: `${SITE}${path}` }));
 }

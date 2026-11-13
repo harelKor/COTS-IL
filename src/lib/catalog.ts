@@ -518,11 +518,11 @@ export async function getFacets() {
     .groupBy(categories.id)
     .orderBy(asc(categories.sortOrder));
   const supplierRows = await db
-    .select({ code: suppliers.code, name: suppliers.name, programs: suppliers.programs, count })
+    .select({ code: suppliers.code, name: suppliers.name, programs: suppliers.programs, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor, count })
     .from(families)
     .innerJoin(suppliers, sql`${suppliers.code} = ANY(${families.supplierCodes})`)
     .where(and(visible, eq(suppliers.active, true)))
-    .groupBy(suppliers.code, suppliers.name, suppliers.programs)
+    .groupBy(suppliers.code, suppliers.name, suppliers.programs, suppliers.logoUrl, suppliers.accentColor)
     .orderBy(desc(count));
 
   return {
@@ -958,18 +958,46 @@ export async function getVendorPopular(code: string, limit = POPULAR_COUNT): Pro
   return toCards(await vendorPopularRows(code, limit), code);
 }
 
-export type VendorSummary = { code: string; name: string; count: number; images: string[] };
+export type VendorSummary = {
+  code: string;
+  name: string;
+  count: number;
+  images: string[];
+  logoUrl: string | null;
+  accentColor: string | null;
+  /** Its biggest categories, by name, for the line under its name. */
+  categories: { name: string; count: number }[];
+};
 
-/** The home page's vendor boxes: every active vendor, its family count and photos of its 3 most wanted. */
+/**
+ * The home page's vendor boxes: every active vendor with something published (from the
+ * `suppliers` table, so a vendor added in the admin shows up by itself), with its family count,
+ * logo, accent, biggest categories and photos of its 3 most wanted.
+ */
 export async function getVendors(): Promise<VendorSummary[]> {
   "use cache";
   catalogCache();
   const { suppliers: rows } = await getFacets();
+  const byCategory = await db
+    .select({ code: suppliers.code, name: categories.name, count: sql<number>`count(DISTINCT ${families.id})::int` })
+    .from(families)
+    .innerJoin(categories, eq(categories.id, families.categoryId))
+    .innerJoin(suppliers, sql`${suppliers.code} = ANY(${families.supplierCodes})`)
+    .where(and(visible, eq(suppliers.active, true)))
+    .groupBy(suppliers.code, categories.name);
   const out: VendorSummary[] = [];
   // One after another, like getFacets: a cold cache shouldn't take every connection at once.
   for (const s of rows) {
     const top = await vendorPopularRows(s.code, 3);
-    out.push({ code: s.code, name: s.name, count: s.count, images: top.flatMap((r) => (r.images[0] ? [r.images[0]] : [])) });
+    out.push({
+      code: s.code,
+      name: s.name,
+      count: s.count,
+      logoUrl: s.logoUrl,
+      accentColor: s.accentColor,
+      categories: byCategory.filter((c) => c.code === s.code).map((c) => ({ name: c.name, count: c.count })),
+      images: top.flatMap((r) => (r.images[0] ? [r.images[0]] : [])),
+    });
   }
   return out;
 }
@@ -982,7 +1010,7 @@ export async function getVendorStore(code: string) {
   "use cache";
   catalogCache();
   const [vendor] = await db
-    .select({ code: suppliers.code, name: suppliers.name })
+    .select({ code: suppliers.code, name: suppliers.name, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor })
     .from(suppliers)
     .where(and(eq(suppliers.code, code), eq(suppliers.active, true)))
     .limit(1);

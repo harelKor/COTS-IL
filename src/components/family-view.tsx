@@ -260,7 +260,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
             onPointerDown={(e) => (swipe.current = { x: e.clientX, y: e.clientY })}
             onPointerUp={onPhotoUp}
             onPointerCancel={() => (swipe.current = null)}
-            className="relative aspect-square w-full cursor-zoom-in touch-pan-y overflow-hidden rounded-card bg-tile p-8 ring-1 ring-line select-none"
+            className="relative aspect-square w-full cursor-zoom-in touch-pan-y overflow-hidden rounded-card glow-outline p-8 select-none"
           >
             {shown && (
               // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.

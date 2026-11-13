@@ -138,6 +138,7 @@ export type SupplierCardData = {
   programs: ("FRC" | "FTC")[];
   active: boolean;
   logoUrl: string | null;
+  accentColor: string | null;
   freeShippingUsd: string | null;
   notes: string | null;
   syncEnabled: boolean;
@@ -157,6 +158,7 @@ export async function supplierCards(): Promise<SupplierCardData[]> {
     programs: string;
     active: boolean;
     logo_url: string | null;
+    accent_color: string | null;
     free_shipping_usd: string | null;
     notes: string | null;
     sync_enabled: boolean;
@@ -168,7 +170,7 @@ export async function supplierCards(): Promise<SupplierCardData[]> {
     job_error: string | null;
     job_counts: { products?: number } | null;
   }>(sql`
-    SELECT s.id, s.code, s.name, s.base_url, s.platform, s.programs::text AS programs, s.active, s.logo_url, s.free_shipping_usd, s.notes, s.sync_enabled,
+    SELECT s.id, s.code, s.name, s.base_url, s.platform, s.programs::text AS programs, s.active, s.logo_url, s.accent_color, s.free_shipping_usd, s.notes, s.sync_enabled,
            (SELECT count(*)::int FROM products p WHERE p.supplier_id = s.id AND p.missing_since IS NULL) AS products,
            (SELECT count(*)::int FROM supplier_pos po WHERE po.supplier_id = s.id)
          + (SELECT count(*)::int FROM team_order_items i JOIN variants v ON v.id = i.variant_id WHERE v.supplier_id = s.id)
@@ -186,6 +188,7 @@ export async function supplierCards(): Promise<SupplierCardData[]> {
     programs: r.programs.replace(/[{}]/g, "").split(",").filter(Boolean) as ("FRC" | "FTC")[],
     active: r.active,
     logoUrl: r.logo_url,
+    accentColor: r.accent_color,
     freeShippingUsd: r.free_shipping_usd,
     notes: r.notes,
     syncEnabled: r.sync_enabled,

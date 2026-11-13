@@ -218,6 +218,13 @@
       "when": 1794571963552,
       "tag": "20261113121243_categories_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1794573849285,
+      "tag": "20261113124409_supplier_accent",
+      "breakpoints": true
     }
   ]
 }
