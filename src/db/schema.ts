@@ -151,6 +151,8 @@ export const products = pgTable(
     minPriceUsd: numeric("min_price_usd", { precision: 10, scale: 2 }),
     maxPriceUsd: numeric("max_price_usd", { precision: 10, scale: 2 }),
     available: boolean("available"),
+    /** The store's own "best selling" position (1 = best), read at sync (src/suppliers/best-sellers.ts); null when unknown. */
+    bestSellerRank: integer("best_seller_rank"),
     searchText: text("search_text").notNull(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
     missingSince: timestamp("missing_since", { withTimezone: true }),

@@ -12,6 +12,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../src/db/schema";
 import { fetchShopifyCatalog } from "../src/suppliers/shopify";
+import { fetchBestSellers, saveBestSellerRanks } from "../src/suppliers/best-sellers";
 import { describeError, refreshUsdRate, syncSupplier } from "../src/suppliers/sync";
 
 config({ path: ".env.local" });
@@ -41,6 +42,14 @@ async function main() {
     } catch (error) {
       failed++;
       console.error(`${supplier.code} failed: ${describeError(error)}`);
+    }
+    // The store's best sellers, for "הכי מבוקשים" until our own orders take over (src/domain/popular.ts).
+    // Optional: a store that blocks the page keeps yesterday's ranks, and the sync still succeeds.
+    try {
+      const ranked = await saveBestSellerRanks(db, supplier.id, await fetchBestSellers(supplier.baseUrl));
+      console.log(supplier.code, `best sellers: ${ranked} products ranked`);
+    } catch (error) {
+      console.warn(`${supplier.code} best sellers skipped: ${describeError(error)}`);
     }
   }
   if (failed > 0) process.exitCode = 1;
