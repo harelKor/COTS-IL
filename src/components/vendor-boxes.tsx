@@ -29,7 +29,6 @@ export function VendorBoxes({ vendors }: { vendors: VendorSummary[] }) {
             <Link
               href={vendorHref(v.code)}
               style={accentStyle(v.accentColor)}
-              aria-label={`החנות של ${v.name}, ${v.count.toLocaleString("he-IL")} מוצרים`}
               className={`group glow-box flex h-full transition-[translate] duration-200 ease-out hover:-translate-y-0.5 lg:min-h-[300px] lg:flex-col lg:items-stretch lg:gap-4 lg:p-6 ${
                 compact ? "min-h-[200px] flex-col gap-3 p-4 sm:min-h-[132px] sm:flex-row sm:items-center sm:gap-4 sm:p-5" : "min-h-[132px] items-center gap-4 p-5"
               }`}
