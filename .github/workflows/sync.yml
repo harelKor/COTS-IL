@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       supplier:
-        description: "Supplier code (empty = every supplier with nightly sync on)"
+        description: "Supplier code (empty = every supplier with nightly sync on; a BigCommerce supplier gets a full read)"
         required: false
         default: ""
 
@@ -18,7 +18,8 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Saturday's run also reads every goBILDA and REV page, one a second (about an hour).
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -239,6 +239,13 @@
       "when": 1794577336632,
       "tag": "20261113134216_sds_brand_color",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794578353258,
+      "tag": "20261113135913_bigcommerce_suppliers",
+      "breakpoints": true
     }
   ]
 }

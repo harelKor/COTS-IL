@@ -28,4 +28,17 @@ export type NormalizedVariant = {
   priceUsd: string | null;
   compareAtUsd: string | null;
   available: boolean | null;
+  /** BigCommerce only: backorder or pre-order (בהזמנה מראש). Shopify stores get these from the stock check (stock.ts). */
+  shipsLater?: boolean;
+  shipsLaterEta?: string | null;
+};
+
+/** One supplier's catalog as read from the store. */
+export type FetchResult = {
+  products: NormalizedProduct[];
+  skipped: number;
+  /** Product pages that kept failing; the products at these URLs are left as they were, not marked missing. */
+  unread?: string[];
+  /** How the read went, saved in sync_jobs.counts for "מערכת". */
+  stats?: Record<string, unknown>;
 };

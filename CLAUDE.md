@@ -57,7 +57,8 @@ Waiting on the user (steps in `docs/admin-guide.md`, "Setup still needed"):
 
 Open:
 - Not yet tried by a person: the team flow on a real phone, the catalog override forms, the admin order cards on production, "Install the app" on Android and iPhone.
-- Backorder items still show as available: Shopify data can't tell backorder from in stock.
+- Backorder items still show as available at AndyMark and The Thrifty Bot: Shopify data can't tell backorder from in stock (WCP and CTRE are read from their pages, goBILDA and REV from BigCommerce pages).
+- goBILDA and REV are read from their pages without a written OK from either vendor (PLAN.md planned to ask first). robots.txt allows it; a vendor feed would replace `src/suppliers/bigcommerce.ts`.
 - An Oracle Cloud self-hosting setup (commit `c567564`, `deploy/`, `docs/DEPLOY-ORACLE.md`) exists only on branch `claude/cots-il-blue-white-redesign-e93c29`, not on `main`. The user's call.
 
 ## Where code goes
@@ -82,6 +83,7 @@ Open:
 | System status (`/admin/settings/system`: sync history, rate, email test, GitHub token, last deploy, dashboard links) | `src/app/admin/settings/system` |
 | Business facts (fees, phone, lead times; `null` until supplied) | `getBusiness()` on the server, `useSiteFacts()` in client components (`src/components/site-facts.tsx`) |
 | Supplier sync and grouping | `src/suppliers/*`, `src/domain/families/*` |
+| goBILDA and REV (BigCommerce page reading: sitemap → product pages → option lookups, 1 request/s; full pass Saturdays UTC, daily refresh of carts/orders/pins) | `src/suppliers/bigcommerce.ts`, `src/suppliers/http.ts` (polite client, robots.txt), `src/domain/bigcommerce.ts` (parsing, fixtures in `src/domain/__fixtures__/bigcommerce`), `src/domain/sync-health.ts` (the layout guard), `refreshTargets` in `src/suppliers/sync.ts` |
 | Suppliers admin (`/admin/settings/suppliers`: add by URL, edit, hide, delete, sync now via GitHub `GITHUB_TOKEN`) | `src/app/admin/settings/suppliers`, `src/lib/supplier-admin.ts`, `src/domain/supplier-detect.ts` |
 | Products admin (`/admin/settings/products`: per-supplier cards, edit sheet, custom parts, delete or hide; S16c) | `src/app/admin/settings/products`, `src/lib/product-admin.ts`, `src/domain/part-editor.ts`, `applyOverrides` in `src/suppliers/families.ts` |
 | Email notifications (Resend, off until `RESEND_API_KEY` and `EMAIL_FROM` are set) | `src/lib/notify.ts`, `src/lib/email-templates.ts`, `src/lib/email-transport.ts`, `src/domain/notifications.ts` |

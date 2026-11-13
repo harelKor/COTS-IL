@@ -4,7 +4,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { normalizeStoreUrl, SUPPLIER_CODE, type SupplierDraft } from "@/domain/supplier-detect";
+import { isSyncedPlatform, normalizeStoreUrl, SUPPLIER_CODE, type SupplierDraft } from "@/domain/supplier-detect";
 import { parseSettings } from "@/domain/settings";
 import { accentColor } from "@/domain/vendors";
 import { requireAdmin } from "@/lib/auth";
@@ -59,7 +59,7 @@ function readPrograms(formData: FormData) {
 export async function createSupplier(_: SettingsResult | null, formData: FormData): Promise<SettingsResult> {
   const viewer = await requireAdmin();
   const parsed = supplierInput
-    .extend({ code: z.string().trim().toLowerCase().regex(SUPPLIER_CODE), platform: z.enum(["shopify", "manual"]) })
+    .extend({ code: z.string().trim().toLowerCase().regex(SUPPLIER_CODE), platform: z.enum(["shopify", "bigcommerce", "manual"]) })
     .safeParse({ ...Object.fromEntries(formData), programs: readPrograms(formData) });
   if (!parsed.success) return { ok: false, error: "בדקו את השם, הקוד (אותיות קטנות באנגלית וספרות), הכתובת ותוכנית אחת לפחות" };
   const baseUrl = normalizeStoreUrl(parsed.data.baseUrl);
@@ -79,9 +79,11 @@ export async function createSupplier(_: SettingsResult | null, formData: FormDat
   if (!created) return { ok: false, error: "כבר יש ספק עם הקוד או הכתובת האלה" };
   revalidatePath(PATH);
 
-  if (platform !== "shopify") return { ok: true, message: `${name} נוסף כספק ידני. החלקים שלו יתווספו ידנית.` };
+  if (!isSyncedPlatform(platform)) return { ok: true, message: `${name} נוסף כספק ידני. החלקים שלו יתווספו ידנית.` };
   const sync = await dispatchSync(code);
-  return { ok: true, message: sync.ok ? `${name} נוסף והסנכרון התחיל` : `${name} נוסף. הסנכרון יתחיל בלילה (${sync.error})` };
+  // BigCommerce is read page by page, a second each: the first read takes up to an hour.
+  const slow = platform === "bigcommerce" ? " הקריאה הראשונה לוקחת עד שעה." : "";
+  return { ok: true, message: sync.ok ? `${name} נוסף והסנכרון התחיל.${slow}` : `${name} נוסף. הסנכרון יתחיל בלילה (${sync.error})` };
 }
 
 const LOGO_TYPES: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
@@ -254,11 +256,12 @@ export async function syncSupplierNow(id: string): Promise<SettingsResult & { si
   if (!z.uuid().safeParse(id).success) return { ok: false, error: "ספק לא תקין" };
   const [s] = await db.select({ code: schema.suppliers.code, platform: schema.suppliers.platform, active: schema.suppliers.active }).from(schema.suppliers).where(eq(schema.suppliers.id, id));
   if (!s) return { ok: false, error: "הספק לא נמצא" };
-  if (s.platform !== "shopify") return { ok: false, error: "ספק ידני לא מסתנכרן" };
+  if (!isSyncedPlatform(s.platform)) return { ok: false, error: "ספק ידני לא מסתנכרן" };
   if (!s.active) return { ok: false, error: "הספק מוסתר. הציגו אותו קודם." };
   const since = new Date().toISOString();
   const r = await dispatchSync(s.code);
-  return r.ok ? { ok: true, message: "הסנכרון התחיל. זה לוקח כמה דקות.", since } : r;
+  const howLong = s.platform === "bigcommerce" ? "קריאה מלאה של החנות, עד שעה." : "זה לוקח כמה דקות.";
+  return r.ok ? { ok: true, message: `הסנכרון התחיל. ${howLong}`, since } : r;
 }
 
 /** The latest sync job, for the card's live status. */

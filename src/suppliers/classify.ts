@@ -12,17 +12,17 @@ const CATEGORY_RULES: [slug: string, pattern: RegExp][] = [
   ["pneumatics", /pneumatic|solenoid|air (tank|compressor)|compressor|\bcylinders?\b/],
   ["gearboxes", /gear ?box|planetary|toughbox|gear ratio/],
   ["belts-chain", /\bbelts?\b|pulley|sprocket|\bchains?\b|\bhtd\b|\bgt2\b|polycord/],
-  ["gears", /\bgears?\b|\bdp\b|hexboregears/],
+  ["gears", /\bgears?\b|\bdp\b|hexboregears|\bworms?\b/],
   ["drivetrain", /swerve|drive ?train|drive (base|system)|chassis|\bmk[0-9]/],
-  ["mechanisms", /elevator|telescope|shooter|climber|turret|\bintake\b/],
-  ["wheels", /\bwheels?\b|traction|\btread|omni|mecanum|\brollers?\b|colson/],
-  ["bearings", /bearing|bushing|cam follower/],
-  ["sensors", /sensor|encoder|canandcoder|limelight|camera|\bgyro|\bimu\b|pigeon|cancoder/],
-  ["motors", /\bmotors?\b|kraken|falcon|\bneo\b|vortex|minion|\bcim\b|servo|talon|spark ?(max|flex)|victor/],
-  ["electronics", /electric|\bwires?\b|wiring|\bcables?\b|connector|batter(y|ies)|breaker|fuse|power|radio|voltage|regulator|\bcan\b|\bleds?\b|roborio|systemcore|control system|anderson|candle|candi\b/],
-  ["shafts", /shaft|\bhubs?\b|collar|spacer|axle|\bhex\b|dowel/],
-  ["fasteners", /screw|\bbolts?\b|\bnuts?\b|nutstrip|washer|rivet|fastener|standoff|\bhardware\b|spring|\bpins?\b|\b[sbpf]hcs\b|#\d+-\d+/],
-  ["structure", /extrusion|\btub(e|es|ing)\b|plate|bracket|gusset|structure|framing|\bstock\b|\bsheet|\bchannel/],
+  ["mechanisms", /elevator|telescope|shooter|climber|turret|\bintake\b|viper-slide|linear slide|\bshocks?\b|control-arm/],
+  ["wheels", /\bwheels?\b|traction|\btread|omni|mecanum|\brollers?\b|colson|grid-track|grouser|tensioner kit/],
+  ["bearings", /bearing|bushing|cam follower|pillow block/],
+  ["sensors", /sensor|encoder|canandcoder|limelight|camera|\bgyro|\bimu\b|pigeon|cancoder|odometry|limit switch/],
+  ["motors", /\bmotors?\b|kraken|falcon|\bneo\b|vortex|minion|\bcim\b|servo|talon|spark ?(max|flex|mini)|victor|yellow jacket|stingray/],
+  ["electronics", /electric|\bwires?\b|wiring|\bcables?\b|connector|batter(y|ies)|breaker|fuse|power|radio|voltage|regulator|\bcan\b|\bleds?\b|roborio|systemcore|control system|anderson|candle|candi\b|xt30|xt60|display|control hub|expansion hub|pwm switch|receiver|transmitter|indicator light|enclosure/],
+  ["shafts", /shaft|\bhubs?\b|maxhubs?|collar|spacer|axle|\bhex\b|dowel|spline|coupler|cv joint|universal joint/],
+  ["fasteners", /screw|\bbolts?\b|\bnuts?\b|nutstrip|washer|rivet|fastener|standoff|\bhardware\b|spring|\bpins?\b|\b[sbpf]hcs\b|#\d+-\d+|threaded rod/],
+  ["structure", /extrusion|\btub(e|es|ing)\b|maxtube|plate|bracket|gusset|structure|framing|\bstock\b|\bsheet|channel|\bangle\b|\bbeams?\b|hinge|linear motion|gorail|gotube|pattern adaptor/],
 ];
 
 function searchable({ title, productType, tags }: Input) {
@@ -32,6 +32,16 @@ function searchable({ title, productType, tags }: Input) {
 export function categorize(input: Input): string {
   const text = searchable(input);
   return CATEGORY_RULES.find(([, pattern]) => pattern.test(text))?.[0] ?? "other";
+}
+
+/**
+ * For stores whose tags are breadcrumbs (BigCommerce: "Hardware & Tools › Fasteners"):
+ * the title and the deepest breadcrumb first, so a screw filed under "Hardware & Tools"
+ * isn't a tool; the whole trail only when they say nothing.
+ */
+export function categorizeByTitleFirst(input: Input): string {
+  const own = categorize({ ...input, tags: [] });
+  return own !== "other" ? own : categorize(input);
 }
 
 /** Which programs a product is for. Falls back to the supplier's programs when the listing doesn't say. */

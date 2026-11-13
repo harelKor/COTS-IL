@@ -1,12 +1,18 @@
 /**
  * Adding a supplier by its store URL (S16b): the pure part. The server fetches the
- * store's home page and `/products.json`; these functions read what came back, so
- * they're tested with saved HTML and JSON. A store that answers `/products.json`
- * with a product list is Shopify and syncs nightly; anything else is a `manual`
- * supplier whose parts are added by hand (S16c).
+ * store's home page and `/products.json` (or, for BigCommerce, its product sitemap);
+ * these functions read what came back, so they're tested with saved HTML and JSON.
+ * A store that answers `/products.json` with a product list is Shopify and syncs
+ * nightly; a BigCommerce store syncs by reading its pages (src/suppliers/bigcommerce.ts);
+ * anything else is a `manual` supplier whose parts are added by hand (S16c).
  */
 
-export type DetectedPlatform = "shopify" | "manual";
+export type DetectedPlatform = "shopify" | "bigcommerce" | "manual";
+
+/** The platforms the catalog sync can read. */
+export function isSyncedPlatform(platform: string): boolean {
+  return platform === "shopify" || platform === "bigcommerce";
+}
 export type Program = "FRC" | "FTC";
 
 export type SupplierDraft = {
@@ -16,7 +22,7 @@ export type SupplierDraft = {
   logoUrl: string | null;
   platform: DetectedPlatform;
   programs: Program[];
-  /** For a Shopify store: how many products the first page of /products.json listed. */
+  /** Shopify: how many products the first page of /products.json listed; BigCommerce: how many the product sitemap lists. */
   sampleProducts: number | null;
 };
 
@@ -148,6 +154,17 @@ export function pageLooksShopify(html: string): boolean {
   return /cdn\.shopify\.com|window\.Shopify\b|Shopify\.shop\s*=|shopify-section/.test(html);
 }
 
+/** A BigCommerce (Stencil) theme loads from its CDN and sets BCData or stencilBootstrap. */
+export function pageLooksBigCommerce(html: string): boolean {
+  return /cdn\d*\.bigcommerce\.com|\bBCData\s*=|stencilBootstrap\(|data-stencil-|bigcommerce\.com\/s-[a-z0-9]+/i.test(html);
+}
+
+/** How many product URLs a BigCommerce product sitemap page lists, or null when it isn't one. */
+export function sitemapProductCount(xml: string | null): number | null {
+  if (!xml || !/<urlset\b/i.test(xml)) return null;
+  return (xml.match(/<loc>/gi) ?? []).length;
+}
+
 /** A short lowercase code that isn't taken: "West Coast Products" → "westcoastproducts", "rev" → "rev2" if "rev" exists. */
 export function suggestCode(name: string | null, host: string, taken: Iterable<string>): string {
   const used = new Set([...taken].map((c) => c.toLowerCase()));
@@ -170,21 +187,23 @@ export function guessPrograms(html: string): Program[] {
 }
 
 /** Puts the fetched page and the /products.json probe together into the form's starting values. */
-export function draftSupplier(input: { baseUrl: string; html: string | null; productsJson: unknown; takenCodes: Iterable<string>; logoUrl?: string | null }): SupplierDraft {
+export function draftSupplier(input: { baseUrl: string; html: string | null; productsJson: unknown; takenCodes: Iterable<string>; logoUrl?: string | null; sitemapXml?: string | null }): SupplierDraft {
   const host = new URL(input.baseUrl).hostname;
   const parsed = input.html ? parseStorePage(input.html, input.baseUrl) : { name: null, logoUrl: null };
   // The server passes the first logo that really loaded (null when none did).
   const page = { name: parsed.name, logoUrl: input.logoUrl !== undefined ? input.logoUrl : parsed.logoUrl };
   const count = shopifyProductCount(input.productsJson);
+  const shopify = count !== null || (input.html !== null && pageLooksShopify(input.html));
+  const bigCommerce = !shopify && input.html !== null && pageLooksBigCommerce(input.html);
   const name = page.name ?? host.replace(/^(www\d*|shop|store)\./, "");
   return {
     code: suggestCode(page.name, host, input.takenCodes),
     name,
     baseUrl: input.baseUrl,
     logoUrl: page.logoUrl,
-    platform: count !== null || (input.html !== null && pageLooksShopify(input.html)) ? "shopify" : "manual",
+    platform: shopify ? "shopify" : bigCommerce ? "bigcommerce" : "manual",
     programs: input.html ? guessPrograms(input.html) : ["FRC"],
-    sampleProducts: count,
+    sampleProducts: shopify ? count : bigCommerce ? sitemapProductCount(input.sitemapXml ?? null) : null,
   };
 }
 

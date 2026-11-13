@@ -3,8 +3,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../db/schema";
 import { regroupCatalog } from "./families";
 import { fetchBoiUsdRate, type UsdRate } from "./boi";
-import type { FetchResult } from "./shopify";
-import type { NormalizedProduct } from "./types";
+import type { FetchResult, NormalizedProduct } from "./types";
 
 type Db = PostgresJsDatabase<typeof schema>;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -88,21 +87,28 @@ export async function refreshUsdRate(db: Db, fetchRate: () => Promise<UsdRate> =
  * Writes a supplier's catalog in one transaction. If fetching fails or the result
  * looks wrong, the job is marked failed and the existing catalog stays as it was.
  */
-export async function syncSupplier(db: Db, supplier: Supplier, fetchCatalog: () => Promise<FetchResult>, usdIlsRate?: number) {
+export async function syncSupplier(
+  db: Db,
+  supplier: Supplier,
+  fetchCatalog: () => Promise<FetchResult>,
+  usdIlsRate?: number,
+  /** "refresh" writes only the products read and marks nothing missing (BigCommerce's daily pass). */
+  mode: "full" | "refresh" = "full",
+) {
   const [job] = await db
     .insert(schema.syncJobs)
     .values({ supplierId: supplier.id, usdIlsRate: usdIlsRate === undefined ? null : String(usdIlsRate) })
     .returning();
 
   try {
-    const { products, skipped } = await fetchCatalog();
+    const { products, skipped, unread = [], stats = {} } = await fetchCatalog();
     // Families can span suppliers, so the whole catalog is regrouped with the new data.
     const counts = await db.transaction(async (tx) => {
-      const written = await writeCatalog(tx, supplier, products);
+      const written = mode === "full" ? await writeCatalog(tx, supplier, products, unread) : await refreshCatalog(tx, supplier, products);
       const grouped = await regroupCatalog(tx);
       return { ...written, families: grouped.families };
     });
-    const summary = { ...counts, skipped };
+    const summary = { ...stats, ...counts, mode, skipped };
     await db
       .update(schema.syncJobs)
       .set({ status: "succeeded", finishedAt: new Date(), counts: summary })
@@ -117,7 +123,7 @@ export async function syncSupplier(db: Db, supplier: Supplier, fetchCatalog: () 
   }
 }
 
-async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProduct[]) {
+async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProduct[], unread: string[] = []) {
   const now = new Date();
 
   const [{ known }] = await tx
@@ -128,6 +134,55 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
     throw new Error(`Got ${products.length} products but ${known} are known. Not applying this sync.`);
   }
 
+  const { variantCount, priceChanges } = await upsertProducts(tx, supplier, products, now);
+
+  // Products whose page kept failing this time stay as they were (BigCommerce); the rest not seen are gone.
+  const unreadUrls = unread.length > 0 ? sql`AND url NOT IN (${sql.join(unread.map((u) => sql`${u}`), sql`, `)})` : sql``;
+  const missingProducts = await tx
+    .update(schema.products)
+    .set({ missingSince: now })
+    .where(
+      and(
+        eq(schema.products.supplierId, supplier.id),
+        // The admin's custom parts (S16c) are never in the store's feed.
+        eq(schema.products.source, "synced"),
+        lt(schema.products.lastSeenAt, now),
+        isNull(schema.products.missingSince),
+        sql`true ${unreadUrls}`,
+      ),
+    )
+    .returning({ id: schema.products.id });
+
+  const missingVariants = await tx
+    .update(schema.variants)
+    .set({ missingSince: now })
+    .where(
+      and(
+        eq(schema.variants.supplierId, supplier.id),
+        sql`${schema.variants.productId} IN (SELECT id FROM products WHERE source = 'synced' ${unreadUrls})`,
+        lt(schema.variants.checkedAt, now),
+        isNull(schema.variants.missingSince),
+      ),
+    )
+    .returning({ id: schema.variants.id });
+
+  return {
+    products: products.length,
+    variants: variantCount,
+    priceChanges,
+    missingProducts: missingProducts.length,
+    missingVariants: missingVariants.length,
+  };
+}
+
+/** A partial read (BigCommerce's daily refresh): updates what was read and marks nothing missing. */
+async function refreshCatalog(tx: Tx, supplier: Supplier, products: NormalizedProduct[]) {
+  const { variantCount, priceChanges } = await upsertProducts(tx, supplier, products, new Date());
+  return { products: products.length, variants: variantCount, priceChanges, missingProducts: 0, missingVariants: 0 };
+}
+
+/** Writes products and variants and records changed prices; marks nothing missing. */
+async function upsertProducts(tx: Tx, supplier: Supplier, products: NormalizedProduct[], now: Date) {
   const categories = await tx.select().from(schema.categories);
   const categoryIds = new Map(categories.map((c) => [c.slug, c.id]));
 
@@ -240,6 +295,8 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
             storeAvailable: excluded("store_available"),
             checkedAt: excluded("checked_at"),
             missingSince: excluded("missing_since"),
+            // BigCommerce pages say backorder themselves; Shopify's comes from the stock check (stock.ts), so it's left alone.
+            ...(supplier.platform === "bigcommerce" ? { shipsLater: excluded("ships_later"), shipsLaterEta: excluded("ships_later_eta") } : {}),
           },
         })
         .returning({
@@ -275,38 +332,42 @@ async function writeCatalog(tx: Tx, supplier: Supplier, products: NormalizedProd
     }
   }
 
-  const missingProducts = await tx
-    .update(schema.products)
-    .set({ missingSince: now })
-    .where(
-      and(
-        eq(schema.products.supplierId, supplier.id),
-        // The admin's custom parts (S16c) are never in the store's feed.
-        eq(schema.products.source, "synced"),
-        lt(schema.products.lastSeenAt, now),
-        isNull(schema.products.missingSince),
-      ),
-    )
-    .returning({ id: schema.products.id });
+  return { variantCount, priceChanges };
+}
 
-  const missingVariants = await tx
-    .update(schema.variants)
-    .set({ missingSince: now })
-    .where(
-      and(
-        eq(schema.variants.supplierId, supplier.id),
-        sql`${schema.variants.productId} IN (SELECT id FROM products WHERE source = 'synced')`,
-        lt(schema.variants.checkedAt, now),
-        isNull(schema.variants.missingSince),
-      ),
+/**
+ * The pages a BigCommerce supplier's daily refresh reads: its parts in team carts, in open
+ * orders, pinned by the admin (מומלץ), and its 24 most-ordered parts of the last year.
+ * Everything else waits for the weekly full pass.
+ */
+export async function refreshTargets(db: Db, supplierId: string, limit = 400): Promise<string[]> {
+  const rows = await db.execute<{ url: string }>(sql`
+    SELECT p.url FROM products p
+    WHERE p.supplier_id = ${supplierId} AND p.source = 'synced' AND p.missing_since IS NULL AND (
+      p.id IN (SELECT v.product_id FROM variants v JOIN cart_items c ON c.variant_id = v.id)
+      OR p.id IN (
+        SELECT v.product_id FROM variants v
+        JOIN team_order_items i ON i.variant_id = v.id
+        JOIN team_orders o ON o.id = i.order_id
+        WHERE o.status IN ('submitted', 'quote_sent', 'approved') AND o.submitted_at > now() - interval '120 days')
+      OR p.id IN (SELECT product_id FROM product_overrides WHERE pin_rank IS NOT NULL)
+      OR p.id IN (
+        SELECT v.product_id FROM variants v
+        JOIN team_order_items i ON i.variant_id = v.id
+        JOIN team_orders o ON o.id = i.order_id
+        WHERE o.submitted_at > now() - interval '12 months' AND o.status <> 'cancelled'
+        GROUP BY v.product_id ORDER BY count(DISTINCT o.team_id) DESC, sum(i.qty) DESC LIMIT 24)
     )
-    .returning({ id: schema.variants.id });
+    ORDER BY p.url
+    LIMIT ${limit}`);
+  return rows.map((r) => r.url);
+}
 
-  return {
-    products: products.length,
-    variants: variantCount,
-    priceChanges,
-    missingProducts: missingProducts.length,
-    missingVariants: missingVariants.length,
-  };
+/** How many synced products a supplier has now; a BigCommerce supplier with none gets a full pass. */
+export async function knownProducts(db: Db, supplierId: string): Promise<number> {
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(schema.products)
+    .where(and(eq(schema.products.supplierId, supplierId), eq(schema.products.source, "synced"), isNull(schema.products.missingSince)));
+  return n;
 }

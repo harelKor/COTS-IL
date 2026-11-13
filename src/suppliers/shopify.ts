@@ -1,7 +1,9 @@
 import sanitizeHtml from "sanitize-html";
 import { z } from "zod";
 import { categorize, programsFor, statusFor } from "./classify";
-import type { NormalizedProduct, Program } from "./types";
+import type { FetchResult, NormalizedProduct, Program } from "./types";
+
+export type { FetchResult };
 
 const USER_AGENT = "COTS-IL-catalog-sync/1.0";
 const PAGE_SIZE = 250;
@@ -114,8 +116,6 @@ async function fetchPage(url: string): Promise<unknown[]> {
     await sleep(retryAfter > 0 ? retryAfter * 1000 : 2 ** attempt * 2000);
   }
 }
-
-export type FetchResult = { products: NormalizedProduct[]; skipped: number };
 
 /** Reads the whole catalog. Throws on a failed page, so a partial catalog is never treated as complete. */
 export async function fetchShopifyCatalog(baseUrl: string, programs: Program[]): Promise<FetchResult> {

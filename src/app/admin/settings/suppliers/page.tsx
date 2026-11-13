@@ -22,7 +22,7 @@ async function Suppliers() {
       <Card className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="text-section font-semibold">הוספת ספק</h2>
-          <p className="text-caption text-muted">חנות Shopify מסתנכרנת אוטומטית. כל חנות אחרת נשמרת כספק ידני, והחלקים שלה מתווספים ידנית.</p>
+          <p className="text-caption text-muted">חנות Shopify או BigCommerce מסתנכרנת אוטומטית. כל חנות אחרת נשמרת כספק ידני, והחלקים שלה מתווספים ידנית.</p>
         </div>
         <AddSupplier />
       </Card>

@@ -8,6 +8,7 @@ import { Ltr } from "@/components/ltr";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { db, schema } from "@/db";
 import { emailConfig } from "@/domain/notifications";
+import { needsAttention, type PageRunStats } from "@/domain/sync-health";
 import { requireAdmin } from "@/lib/auth";
 import { priceContext } from "@/lib/settings";
 import { syncUnavailableReason } from "@/lib/supplier-admin";
@@ -36,14 +37,24 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-type Job = { code: string; name: string; status: "running" | "succeeded" | "failed"; started_at: string; finished_at: string | null; error: string | null; products: number | null };
+type Job = {
+  code: string;
+  name: string;
+  platform: string;
+  status: "running" | "succeeded" | "failed";
+  started_at: string;
+  finished_at: string | null;
+  error: string | null;
+  products: number | null;
+  counts: (Partial<PageRunStats> & { warnings?: string[] }) | null;
+};
 
 async function System() {
   await requireAdmin();
   const [ctx, jobs] = await Promise.all([
     priceContext(),
     db.execute<Job>(sql`
-      SELECT s.code, s.name, j.status, j.started_at, j.finished_at, j.error, (j.counts->>'products')::int AS products
+      SELECT s.code, s.name, s.platform, j.status, j.started_at, j.finished_at, j.error, (j.counts->>'products')::int AS products, j.counts
       FROM ${schema.suppliers} s
       LEFT JOIN LATERAL (
         SELECT * FROM ${schema.syncJobs} j WHERE j.supplier_id = s.id ORDER BY j.started_at DESC LIMIT 6
@@ -127,7 +138,7 @@ async function System() {
         <div className="flex flex-col gap-1">
           <h2 className="text-section font-semibold">סנכרון לפי ספק</h2>
           <p className="text-caption text-muted">
-            הסנכרון רץ כל לילה ב-04:00 בערך. שש הריצות האחרונות של כל ספק. איך המוצרים קובצו למשפחות ומה ממתין לבדיקה:{" "}
+            הסנכרון רץ כל לילה ב-04:00 בערך. חנויות BigCommerce (goBILDA, REV) נקראות במלואן בלילה שבין שישי לשבת, ובשאר הלילות רק החלקים שבעגלות, בהזמנות ובמומלצים. שש הריצות האחרונות של כל ספק. איך המוצרים קובצו למשפחות ומה ממתין לבדיקה:{" "}
             <Link href="/admin/settings/system/grouping" className="text-brand hover:underline">
               דוח קיבוץ
             </Link>
@@ -148,8 +159,15 @@ async function System() {
                     <li key={String(j.started_at)} className="flex flex-col gap-1 py-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-callout tabular-nums">{when.format(new Date(j.started_at))}</span>
-                        <span className="flex items-center gap-2">
+                        <span className="flex flex-wrap items-center gap-2">
+                          {j.counts?.mode && <span className="text-caption text-muted">{j.counts.mode === "refresh" ? "רענון" : "קריאה מלאה"}</span>}
+                          {j.counts?.pages ? (
+                            <span className="text-caption text-muted tabular-nums">
+                              {(j.counts.parsed ?? 0).toLocaleString("he-IL")} מתוך {(j.counts.pages - (j.counts.stubs ?? 0) - (j.counts.landing ?? 0)).toLocaleString("he-IL")} דפים
+                            </span>
+                          ) : null}
                           {j.products !== null && <span className="text-caption text-muted tabular-nums">{j.products.toLocaleString("he-IL")} מוצרים</span>}
+                          {j.status === "succeeded" && needsAttention(j.counts) && <StatusTag tone="warning">בדיקה: חלק מהדפים בלי מחיר או מלאי</StatusTag>}
                           {j.status === "succeeded" ? (
                             <StatusTag tone="success">הצליח</StatusTag>
                           ) : j.status === "failed" ? (

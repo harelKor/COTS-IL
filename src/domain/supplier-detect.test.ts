@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { draftSupplier, guessPrograms, isPublicHost, normalizeStoreUrl, parseStorePage, shopifyProductCount, storeNameFromTitle, suggestCode, supplierRemoval } from "./supplier-detect";
+import { readFileSync } from "node:fs";
+import { draftSupplier, guessPrograms, isPublicHost, isSyncedPlatform, normalizeStoreUrl, pageLooksBigCommerce, parseStorePage, shopifyProductCount, sitemapProductCount, storeNameFromTitle, suggestCode, supplierRemoval } from "./supplier-detect";
 
 const SHOPIFY_HOME = `<!doctype html><html><head>
   <title>REV Robotics &ndash; Building Blocks for FTC &amp; FRC</title>
@@ -98,6 +99,16 @@ describe("draftSupplier", () => {
   it("is Shopify from the page when /products.json was throttled", () => {
     const html = `<title>Limelight Vision</title><link href="//limelightvision.io/cdn/shop/t/2/assets/base.css"><script src="https://cdn.shopify.com/s/trekkie.js"></script>`;
     expect(draftSupplier({ baseUrl: "https://limelightvision.io", html, productsJson: null, takenCodes: [] })).toMatchObject({ platform: "shopify", sampleProducts: null });
+  });
+  it("is BigCommerce from a Stencil page, counting the product sitemap", () => {
+    const html = readFileSync(new URL("./__fixtures__/bigcommerce/rev-single.html", import.meta.url), "utf8");
+    const sitemapXml = readFileSync(new URL("./__fixtures__/bigcommerce/rev-sitemap.xml", import.meta.url), "utf8");
+    expect(pageLooksBigCommerce(html)).toBe(true);
+    expect(pageLooksBigCommerce(PLAIN_HOME)).toBe(false);
+    expect(draftSupplier({ baseUrl: "https://www.revrobotics.com", html, productsJson: null, takenCodes: ["rev"], sitemapXml })).toMatchObject({ platform: "bigcommerce", sampleProducts: 3 });
+    expect(sitemapProductCount("<html>not a sitemap</html>")).toBeNull();
+    expect(isSyncedPlatform("bigcommerce")).toBe(true);
+    expect(isSyncedPlatform("manual")).toBe(false);
   });
   it("uses the logo the server checked", () => {
     expect(draftSupplier({ baseUrl: "https://acme.example", html: PLAIN_HOME, productsJson: null, takenCodes: [], logoUrl: null }).logoUrl).toBeNull();

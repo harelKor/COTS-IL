@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Button, Field, Input, StatusTag } from "@/components/form";
 import { Ltr } from "@/components/ltr";
 import { showToast } from "@/components/toast";
-import type { SupplierDraft } from "@/domain/supplier-detect";
+import { isSyncedPlatform, type SupplierDraft } from "@/domain/supplier-detect";
 import { accentColor, DEFAULT_ACCENT } from "@/domain/vendors";
 import type { SupplierCardData, SyncJobView } from "@/lib/supplier-admin";
 import { SettingsForm } from "../settings-form";
@@ -116,7 +116,7 @@ export function AddSupplier() {
         }}
       >
         <div className="flex-1">
-          <Field label="כתובת החנות" name="storeUrl" hint="למשל revrobotics.com. נזהה את השם, הלוגו ואם זו חנות Shopify.">
+          <Field label="כתובת החנות" name="storeUrl" hint="למשל revrobotics.com. נזהה את השם, הלוגו ואם זו חנות Shopify או BigCommerce.">
             <Input name="storeUrl" type="text" inputMode="url" dir="ltr" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" autoComplete="off" />
           </Field>
         </div>
@@ -152,6 +152,11 @@ export function AddSupplier() {
                 <>
                   חנות <Ltr>Shopify</Ltr>: החלקים יסונכרנו אוטומטית, כל לילה.
                 </>
+              ) : draft.platform === "bigcommerce" ? (
+                <>
+                  חנות <Ltr>BigCommerce</Ltr>
+                  {draft.sampleProducts ? <> עם {draft.sampleProducts.toLocaleString("he-IL")} דפי מוצר</> : null}: נקרא דף אחר דף, פעם בשבוע במלואו, ובכל לילה החלקים שבעגלות ובהזמנות.
+                </>
               ) : (
                 <>לא נמצא קטלוג Shopify. הספק יישמר כספק ידני, והחלקים שלו יתווספו ידנית.</>
               )}
@@ -180,7 +185,7 @@ export function AddSupplier() {
 }
 
 function jobText(job: SyncJobView | null, platform: SupplierCardData["platform"]) {
-  if (platform !== "shopify") return "בלי סנכרון אוטומטי";
+  if (!isSyncedPlatform(platform)) return "בלי סנכרון אוטומטי";
   if (!job) return "עוד לא סונכרן";
   if (job.status === "running") return `מסתנכרן מאז ${when.format(new Date(job.startedAt))}`;
   const at = when.format(new Date(job.finishedAt ?? job.startedAt));
@@ -212,7 +217,7 @@ function SyncButton({ supplier, unavailable, onJob }: { supplier: SupplierCardDa
     };
   }, [waiting, supplier.id, supplier.name, onJob, router]);
 
-  if (supplier.platform !== "shopify") return null;
+  if (!isSyncedPlatform(supplier.platform)) return null;
   const reason = unavailable ?? (!supplier.active ? "הספק מוסתר" : null);
   return (
     <span className="flex flex-col gap-1">
@@ -280,9 +285,9 @@ export function SupplierCard({
             <h3 className="text-body font-semibold">
               <Ltr>{supplier.name}</Ltr>
             </h3>
-            <StatusTag tone={supplier.platform === "shopify" ? "brand" : "neutral"}>{PLATFORM[supplier.platform]}</StatusTag>
+            <StatusTag tone={isSyncedPlatform(supplier.platform) ? "brand" : "neutral"}>{PLATFORM[supplier.platform]}</StatusTag>
             {!supplier.active && <StatusTag tone="warning">מוסתר</StatusTag>}
-            {supplier.platform === "shopify" && !supplier.syncEnabled && <StatusTag>בלי סנכרון לילי</StatusTag>}
+            {isSyncedPlatform(supplier.platform) && !supplier.syncEnabled && <StatusTag>בלי סנכרון לילי</StatusTag>}
           </div>
           <a href={supplier.baseUrl} target="_blank" rel="noreferrer" className="truncate text-caption text-brand hover:underline">
             <Ltr>{supplier.baseUrl.replace(/^https?:\/\//, "")}</Ltr>
@@ -365,13 +370,13 @@ export function SupplierCard({
             <Field label="הערות (רק למנהלים)" name={`notes-${supplier.id}`}>
               <textarea id={`notes-${supplier.id}`} name="notes" rows={3} maxLength={2000} defaultValue={supplier.notes ?? ""} className="rounded-xl border border-transparent bg-subtle p-3 text-base outline-none focus:border-brand focus:bg-surface focus:ring-2 focus:ring-brand/20" />
             </Field>
-            {supplier.platform === "shopify" && (
+            {isSyncedPlatform(supplier.platform) && (
               <label className="flex min-h-11 items-center gap-2 text-callout">
                 <input type="checkbox" name="syncEnabled" defaultChecked={supplier.syncEnabled} className="size-5 accent-brand" />
                 סנכרון כל לילה
               </label>
             )}
-            {supplier.platform !== "shopify" && <input type="hidden" name="syncEnabled" value={supplier.syncEnabled ? "on" : ""} />}
+            {!isSyncedPlatform(supplier.platform) && <input type="hidden" name="syncEnabled" value={supplier.syncEnabled ? "on" : ""} />}
           </SettingsForm>
 
           <div className="flex flex-col gap-2 border-t border-line pt-3">

@@ -1,7 +1,7 @@
 import "server-only";
 import { desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { draftSupplier, isPublicHost, normalizeStoreUrl, parseStorePage, supplierRemoval, type SupplierDraft } from "@/domain/supplier-detect";
+import { draftSupplier, isPublicHost, normalizeStoreUrl, pageLooksBigCommerce, pageLooksShopify, parseStorePage, supplierRemoval, type SupplierDraft } from "@/domain/supplier-detect";
 
 /**
  * The server side of /admin/settings/suppliers (S16b): reading a store for the
@@ -44,7 +44,7 @@ async function fetchPublic(url: string): Promise<{ url: string; body: string; ty
   return null;
 }
 
-/** Reads the store's home page and probes /products.json. Null when the URL isn't a public store address. */
+/** Reads the store's home page and probes /products.json (or a BigCommerce product sitemap). Null when the URL isn't a public store address. */
 export async function detectStore(input: string): Promise<SupplierDraft | null> {
   const start = normalizeStoreUrl(input);
   if (!start) return null;
@@ -69,8 +69,14 @@ export async function detectStore(input: string): Promise<SupplierDraft | null> 
       break;
     }
   }
+  // BigCommerce has no feed; its product sitemap says how many products the sync will read.
+  let sitemapXml: string | null = null;
+  if (productsJson === null && page && !pageLooksShopify(page.body) && pageLooksBigCommerce(page.body)) {
+    const sitemap = await fetchPublic(`${baseUrl}/xmlsitemap.php?type=products&page=1`);
+    sitemapXml = sitemap?.body ?? null;
+  }
   const taken = (await db.select({ code: schema.suppliers.code }).from(schema.suppliers)).map((s) => s.code);
-  return draftSupplier({ baseUrl, html: page?.body ?? null, productsJson, takenCodes: taken, logoUrl });
+  return draftSupplier({ baseUrl, html: page?.body ?? null, productsJson, takenCodes: taken, logoUrl, sitemapXml });
 }
 
 /** Where "סנכרון עכשיו" sends its request; `GITHUB_REPOSITORY` overrides the repo. */
