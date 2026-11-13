@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { VENDORS, vendorHref } from "@/domain/vendors";
 import { Boxes, Check } from "lucide-react";
 import { signout } from "@/app/auth/actions";
 import { switchTeam } from "@/app/cart/actions";
@@ -99,6 +100,13 @@ async function Account() {
           <Link href="/catalog" className={`${menuLink} sm:hidden`}>
             קטלוג
           </Link>
+          <span className="px-3 pt-2 text-caption text-muted">ספקים</span>
+          {VENDORS.map((v) => (
+            <Link key={v.code} href={vendorHref(v.code)} className={menuLink}>
+              <Ltr>{v.name}</Ltr>
+            </Link>
+          ))}
+          <hr className="my-1 border-line" />
           {team ? (
             <>
               <Link href="/orders" className={menuLink}>

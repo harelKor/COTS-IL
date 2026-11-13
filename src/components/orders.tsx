@@ -1,6 +1,8 @@
 import { LINE_LABELS, lineStatus, type LineFacts } from "@/domain/order-status";
 import { formatIls } from "@/domain/pricing";
 import { diffQuoteLines, quoteTotals, type QuoteLine } from "@/domain/orders";
+import { supplierSections } from "@/domain/cart";
+import { Ltr } from "./ltr";
 
 const dateTime = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
@@ -35,6 +37,29 @@ export function ItemDescription({ item }: { item: Pick<OrderItem, "title" | "sup
   );
 }
 
+/** A vendor's section in an order table: the vendor's name across the row. */
+function VendorHeading({ name, first }: { name: string; first: boolean }) {
+  return (
+    <tr className={first ? "" : "border-t-4 border-subtle"}>
+      <th scope="rowgroup" colSpan={4} className="bg-background/60 px-3 pt-3 pb-2 text-start text-callout font-semibold">
+        <Ltr>{name}</Ltr>
+      </th>
+    </tr>
+  );
+}
+
+/** The vendor's subtotal, closing its section. */
+function VendorSubtotal({ name, subtotal }: { name: string; subtotal: number }) {
+  return (
+    <tr className="border-t border-line text-muted">
+      <td className="p-3" colSpan={3}>
+        סה״כ <Ltr>{name}</Ltr>
+      </td>
+      <td className="whitespace-nowrap p-3 font-medium">{formatIls(subtotal)}</td>
+    </tr>
+  );
+}
+
 /** What the team asked for, before any quote exists. */
 export function RequestTable({ items }: { items: OrderItem[] }) {
   const { subtotal } = quoteTotals(items, 0);
@@ -49,18 +74,22 @@ export function RequestTable({ items }: { items: OrderItem[] }) {
             <th className="p-3 text-start font-medium">סה״כ</th>
           </tr>
         </thead>
-        <tbody>
-          {items.map((item) => (
-            <tr key={item.id} className="border-t border-line align-top">
-              <td className="p-3">
-                <ItemDescription item={item} />
-              </td>
-              <td className="p-3">{item.qty}</td>
-              <td className="whitespace-nowrap p-3">{formatIls(item.unitPriceIls)}</td>
-              <td className="whitespace-nowrap p-3">{formatIls(item.qty * item.unitPriceIls)}</td>
-            </tr>
-          ))}
-        </tbody>
+        {supplierSections(items, (i) => i.qty, (i) => i.unitPriceIls).map((section, i) => (
+          <tbody key={section.supplierName}>
+            <VendorHeading name={section.supplierName} first={i === 0} />
+            {section.lines.map((item) => (
+              <tr key={item.id} className="border-t border-line align-top">
+                <td className="p-3">
+                  <ItemDescription item={item} />
+                </td>
+                <td className="p-3">{item.qty}</td>
+                <td className="whitespace-nowrap p-3">{formatIls(item.unitPriceIls)}</td>
+                <td className="whitespace-nowrap p-3">{formatIls(item.qty * item.unitPriceIls)}</td>
+              </tr>
+            ))}
+            <VendorSubtotal name={section.supplierName} subtotal={section.subtotal} />
+          </tbody>
+        ))}
         <tfoot>
           <tr className="border-t border-line font-semibold">
             <td className="p-3" colSpan={3}>
@@ -121,8 +150,14 @@ export function QuoteTable({
             <th className="p-3 text-start font-medium">סה״כ</th>
           </tr>
         </thead>
-        <tbody>
-          {items.map((item) => {
+        {supplierSections(
+          items.filter((item) => linesByItem.has(item.id)),
+          (item) => linesByItem.get(item.id)!.qty,
+          (item) => linesByItem.get(item.id)!.unitPriceIls,
+        ).map((section, i) => (
+          <tbody key={section.supplierName}>
+            <VendorHeading name={section.supplierName} first={i === 0} />
+            {section.lines.map((item) => {
             const line = linesByItem.get(item.id);
             if (!line) return null;
             const change = changes.get(line.itemId);
@@ -149,8 +184,10 @@ export function QuoteTable({
                 <td className="whitespace-nowrap p-3">{line.qty === 0 ? "" : formatIls(line.qty * line.unitPriceIls)}</td>
               </tr>
             );
-          })}
-        </tbody>
+            })}
+            <VendorSubtotal name={section.supplierName} subtotal={section.subtotal} />
+          </tbody>
+        ))}
         <tfoot>
           <tr className="border-t border-line">
             <td className="p-3" colSpan={3}>

@@ -9,7 +9,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalS
 import { requestToJoin, sendEmailCode, setUpTeam, signInWithGoogle, verifyEmailCode } from "@/app/auth/actions";
 import { sendQuoteRequest, type SendState } from "@/app/cart/actions";
 import type { TeamNameResponse } from "@/app/api/team-name/route";
-import { groupBySupplier, type CartChange } from "@/domain/cart";
+import { supplierSections, type CartChange } from "@/domain/cart";
 import { encodeCart, withPendingCart } from "@/domain/cart-share";
 import { parseTeamNumber } from "@/domain/teams";
 import { formatIls } from "@/domain/pricing";
@@ -751,10 +751,13 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
     <div className="flex min-h-full flex-col">
       <div className="flex flex-1 flex-col gap-4 pb-4">
         <MergeSkipped titles={cart.mergeSkipped} />
-        {groupBySupplier(lines).map((group) => (
+        {supplierSections(lines, (l) => l.qty, (l) => l.unitPriceIls).map((group) => (
           <section key={group.supplierName} aria-label={group.supplierName}>
-            <h3 className="pt-2 text-caption font-semibold text-muted">
-              <Ltr>{group.supplierName}</Ltr>
+            <h3 className="flex items-baseline justify-between gap-3 border-b border-line pt-2 pb-1 text-caption text-muted">
+              <span>
+                <Ltr className="font-semibold text-foreground">{group.supplierName}</Ltr>, {group.count.toLocaleString("he-IL")} פריטים
+              </span>
+              <span className="font-semibold tabular-nums">{formatIls(group.subtotal)}</span>
             </h3>
             <ul>
               {group.lines.map((line) => (

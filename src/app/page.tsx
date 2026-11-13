@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
-import { shopifyImage } from "@/lib/images";
-import { CategoryIcon } from "@/components/category-icon";
+import { CategoryTiles } from "@/components/category-showcase";
+import { VendorBoxes } from "@/components/vendor-boxes";
 import { HomeCommandBar } from "@/components/home-command-bar";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
@@ -9,7 +9,7 @@ import { ReorderButton } from "@/components/reorder-button";
 import { formatIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { cartCount, listOrders } from "@/lib/orders";
-import { getFacets, getLastSync } from "@/lib/catalog";
+import { getFacets, getLastSync, getVendors } from "@/lib/catalog";
 import { markupText } from "@/domain/pricing";
 import { getBusiness, getSiteFacts } from "@/lib/settings";
 import { typicalLeadTime } from "@/domain/lead-time";
@@ -59,124 +59,32 @@ async function TeamNotice() {
   );
 }
 
-/** Short monograms for the supplier badges; a new supplier gets its name's initials. */
-const MONOGRAMS: Record<string, string> = { wcp: "WCP", andymark: "AM", ctre: "CTRE", ttb: "TTB", rev: "REV", gobilda: "GB" };
-
-function monogram(code: string, name: string) {
+/** The way in: one big box per vendor. */
+async function Vendors() {
+  const vendors = await getVendors();
   return (
-    MONOGRAMS[code] ??
-    name
-      .split(/\s+/)
-      .map((w) => w[0])
-      .join("")
-      .slice(0, 4)
-      .toUpperCase()
+    <section id="vendors" aria-labelledby="vendors-title" className="scroll-mt-20">
+      <h2 id="vendors-title" className="mb-4 text-section font-semibold">
+        מאיזה ספק קונים?
+      </h2>
+      <VendorBoxes vendors={vendors} />
+    </section>
   );
 }
 
-/** Where each of up to three photos sits in the fan: the first in front, the others tilted behind it. */
-const FAN = [
-  "z-20 size-[72px] sm:size-[84px]",
-  "z-10 size-14 -translate-x-[34px] translate-y-2 -rotate-[8deg] sm:size-[68px] sm:-translate-x-[54px]",
-  "z-10 size-14 translate-x-[34px] translate-y-2 rotate-[8deg] sm:size-[68px] sm:translate-x-[54px]",
-];
-
-/** Up to three real product photos fanned out on studio tiles; the category's icon only when it has none. */
-function CategoryShowcase({ slug, images }: { slug: string; images: string[] }) {
-  if (images.length === 0) {
-    return (
-      <span className="tile-fade flex size-[84px] items-center justify-center rounded-2xl">
-        <CategoryIcon slug={slug} />
-      </span>
-    );
-  }
-  return (
-    <>
-      {images.map((src, i) => (
-        <span
-          key={src}
-          className={`tile-fade absolute flex items-center justify-center overflow-hidden rounded-2xl p-2 shadow-card transition duration-300 ease-out ${FAN[i]} ${
-            i === 0 ? "group-hover:-translate-y-1 group-hover:scale-[1.04]" : ""
-          }`}
-        >
-          {/* Hot-linked from the supplier's CDN, like every catalog photo. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            {...shopifyImage(src, 100)}
-            alt=""
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            className="size-full object-contain mix-blend-multiply"
-          />
-        </span>
-      ))}
-    </>
-  );
-}
-
+/** The second way in: every category, across all vendors, under its group. */
 async function Browse() {
-  const { categories, suppliers } = await getFacets();
-
+  const { categories } = await getFacets();
   return (
-    <>
-      <section>
-        <h2 className="mb-4 text-section font-semibold">קטגוריות</h2>
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-          {categories.map((c) => (
-            <li key={c.slug}>
-              <Link
-                href={catalogHref({ category: c.slug })}
-                className="group flex h-full flex-col gap-4 rounded-[22px] border border-line bg-tile-card p-4 shadow-card transition-all duration-200 ease-out hover:-translate-y-1 hover:border-brand/50 hover:shadow-lift sm:p-5"
-              >
-                <span className="relative flex h-24 items-center justify-center">
-                  <CategoryShowcase slug={c.slug} images={c.images} />
-                </span>
-                <span className="flex flex-col items-start gap-1.5">
-                  <span className="text-body leading-snug font-semibold text-foreground transition-colors group-hover:text-brand">
-                    {c.name}
-                  </span>
-                  <span className="rounded-full bg-brand-soft/70 px-2.5 py-0.5 text-caption font-semibold text-brand tabular-nums">
-                    {c.count.toLocaleString("he-IL")} מוצרים
-                  </span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <div className="mb-4 flex flex-col gap-1">
-          <h2 className="text-section font-semibold">ספקים</h2>
-          <p className="text-caption text-muted">חלק מהמוצרים נמכרים אצל כמה ספקים, ולכן סכום המוצרים כאן גדול ממספר המוצרים בקטלוג.</p>
-        </div>
-        <ul className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 lg:grid-cols-4">
-          {suppliers.map((s) => (
-            <li key={s.code}>
-              <Link
-                href={catalogHref({ supplier: s.code })}
-                className="group flex h-full min-h-16 items-center justify-between gap-3 card-surface p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift"
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span
-                    aria-hidden
-                    className="btn-brand flex h-10 min-w-10 shrink-0 items-center justify-center rounded-xl px-1.5 font-mono text-caption font-semibold tracking-tight"
-                  >
-                    {monogram(s.code, s.name)}
-                  </span>
-                  <Ltr className="text-base leading-snug font-semibold tracking-tight transition-colors group-hover:text-brand">
-                    {s.name}
-                  </Ltr>
-                </span>
-                <span className="shrink-0 rounded-full bg-brand-soft/70 px-2.5 py-0.5 text-caption font-semibold text-brand tabular-nums">
-                  {s.count.toLocaleString("he-IL")} מוצרים
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </>
+    <section aria-labelledby="browse-title">
+      <div className="mb-4 flex flex-col gap-1">
+        <h2 id="browse-title" className="text-section font-semibold">
+          לפי סוג מוצר, מכל הספקים
+        </h2>
+        <p className="text-caption text-muted">אותו חלק מכמה ספקים מופיע פעם אחת, עם ההצעה הזולה שבמלאי.</p>
+      </div>
+      <CategoryTiles categories={categories.map((c) => ({ ...c, href: catalogHref({ category: c.slug }) }))} />
+    </section>
   );
 }
 
@@ -189,7 +97,7 @@ async function ValueStrip() {
     business.pickupAddress ? "איסוף או משלוח בישראל" : "מסירה בישראל",
   ];
   return (
-    <ul className="-mt-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-callout text-muted">
+    <ul className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-callout text-muted">
       {items.map((t) => (
         <li key={t} className="flex items-center gap-2">
           <BadgeCheck size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
@@ -276,8 +184,8 @@ export default function HomePage() {
           <TeamNotice />
         </Suspense>
 
-        <section className="flex flex-col items-center gap-6 py-10 text-center sm:py-16">
-          <p className="card-surface rounded-2xl px-4 py-1.5 text-caption text-muted sm:rounded-full">
+        <section className="flex flex-col items-center gap-5 py-6 text-center sm:py-10">
+          <p className="card-surface hidden rounded-full px-4 py-1.5 text-caption text-muted sm:block">
             פורטל הרכש המרכזי לקבוצות <Ltr>FIRST</Ltr> בישראל, מחיר הספק בש״ח לפי שער בנק ישראל
           </p>
           <h1 className="max-w-3xl text-hero-sm font-semibold sm:text-hero">
@@ -286,15 +194,12 @@ export default function HomePage() {
               בהזמנה אחת
             </span>
           </h1>
-          <p className="max-w-xl text-muted">
-            בונים סל מ-<Ltr>AndyMark</Ltr>, <Ltr>WCP</Ltr>, <Ltr>CTRE</Ltr> ו-<Ltr>The Thrifty Bot</Ltr>, והספק הישראלי מזמין, מרכז
-            ומוסר לקבוצה. הרשמה רק כשמזמינים.
-          </p>
+          <p className="hidden max-w-xl text-muted sm:block">בוחרים ספק, מוסיפים לסל, והספק הישראלי מזמין ומוסר לקבוצה. הרשמה רק כשמזמינים.</p>
           <div className="flex w-full flex-col items-center gap-4 pt-2">
             <HomeCommandBar />
-            <ul aria-label="דוגמאות לחיפוש" className="flex flex-wrap justify-center gap-2">
+            <ul aria-label="דוגמאות לחיפוש" className="no-scrollbar flex w-full gap-2 overflow-x-auto sm:flex-wrap sm:justify-center">
               {EXAMPLES.map((q) => (
-                <li key={q}>
+                <li key={q} className="shrink-0">
                   <Link
                     href={catalogHref({ q })}
                     className="flex h-11 items-center rounded-full border border-line bg-white/90 px-4 text-sm font-medium text-muted shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle hover:text-brand"
@@ -306,6 +211,16 @@ export default function HomePage() {
             </ul>
           </div>
         </section>
+
+        <Suspense
+          fallback={
+            <Loading>
+              <TileGridSkeleton count={4} />
+            </Loading>
+          }
+        >
+          <Vendors />
+        </Suspense>
 
         <ValueStrip />
 

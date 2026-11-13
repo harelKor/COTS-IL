@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cartChanges, cartFingerprint, clampQty, groupBySupplier, isOrderable, maxMerge } from "./cart";
+import { cartChanges, cartFingerprint, clampQty, groupBySupplier, isOrderable, maxMerge, supplierSections } from "./cart";
 
 const A = "11111111-1111-1111-1111-111111111111";
 const B = "22222222-2222-2222-2222-222222222222";
@@ -121,6 +121,22 @@ describe("groupBySupplier", () => {
     expect(groups.map((g) => [g.supplierName, g.lines.map((l) => l.id)])).toEqual([
       ["WCP", [1, 3]],
       ["AndyMark", [2]],
+    ]);
+  });
+});
+
+describe("supplierSections", () => {
+  it("counts items and adds up each supplier's subtotal, unknown prices left out", () => {
+    const lines = [
+      { supplierName: "WCP", qty: 2, price: 100 },
+      { supplierName: "CTRE", qty: 1, price: 50 },
+      { supplierName: "WCP", qty: 3, price: null },
+      { supplierName: "WCP", qty: 1, price: 10 },
+    ];
+    const sections = supplierSections(lines, (l) => l.qty, (l) => l.price);
+    expect(sections.map((s) => [s.supplierName, s.count, s.subtotal])).toEqual([
+      ["WCP", 6, 210],
+      ["CTRE", 1, 50],
     ]);
   });
 });
