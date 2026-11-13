@@ -72,6 +72,8 @@ type Props = {
   glow?: boolean;
   /** A stable key on the card's element, for the endless strip to keep its place. */
   dataKey?: string;
+  /** False on a repeat of a family already on the page (the endless strip wraps): one morph name each. */
+  morph?: boolean;
 };
 
 /** Below this width the chips open in a bottom sheet instead of over the card. */
@@ -83,7 +85,7 @@ const SHEET_QUERY = "(max-width: 639px)";
  * or in a bottom sheet on a phone), and picking the last one adds it. Once in
  * the cart, "+" becomes a stepper. Nothing here leaves the page.
  */
-export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style, glow = false, dataKey }: Props) {
+export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style, glow = false, dataKey, morph = true }: Props) {
   const { mode, lines } = useCart();
   const [open, setOpen] = useState(false);
   const [asSheet, setAsSheet] = useState(false);
@@ -325,6 +327,17 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     );
   }
 
+  // Every photo on the same padded white tile: supplier photos are shot on white.
+  const tile = (
+    <div ref={image} className="relative aspect-square w-full overflow-hidden rounded-xl bg-white p-3 ring-1 ring-line">
+      {photo_}
+      {familyInCart > 0 && (
+        <span className="absolute end-2 top-2 rounded-full bg-brand px-2 py-0.5 text-caption font-medium text-white tabular-nums">
+          בסל: {familyInCart}
+        </span>
+      )}
+    </div>
+  );
   return (
     <li
       data-key={dataKey}
@@ -333,17 +346,13 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     >
       {glow && <span aria-hidden className="card-shine" />}
       <Link href={href} className="flex flex-col gap-3">
-        <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
-          {/* Every photo on the same padded white tile: supplier photos are shot on white. */}
-          <div ref={image} className="relative aspect-square w-full overflow-hidden rounded-xl bg-white p-3 ring-1 ring-line">
-            {photo_}
-            {familyInCart > 0 && (
-              <span className="absolute end-2 top-2 rounded-full bg-brand px-2 py-0.5 text-caption font-medium text-white tabular-nums">
-                בסל: {familyInCart}
-              </span>
-            )}
-          </div>
-        </ViewTransition>
+        {morph ? (
+          <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
+            {tile}
+          </ViewTransition>
+        ) : (
+          tile
+        )}
         <div className="flex flex-col gap-1">
           <Ltr className="text-start text-caption text-muted">{family.supplierNames.join(", ")}</Ltr>
           <h2 dir="ltr" className="line-clamp-2 text-start text-callout leading-snug font-medium tracking-normal" title={family.title}>

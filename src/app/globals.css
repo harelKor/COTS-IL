@@ -531,6 +531,53 @@ header.sticky {
   }
 }
 
+/*
+ * "הכי מבוקשים" (src/components/popular-section.tsx): every few seconds a card hops and tilts a
+ * little, each on its own delay (--d) and rhythm (--hop), so they never move together. Only
+ * transform animates (hover's lift uses translate, so both work); a card stops while it's hovered
+ * or focused, and nothing moves under prefers-reduced-motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .popular-card {
+    animation: popular-hop var(--hop, 6s) ease-in-out var(--d, 0s) infinite;
+  }
+  .popular-card:hover,
+  .popular-card:focus-within {
+    animation-play-state: paused;
+  }
+  .popular-flame {
+    animation: popular-flame 2.4s ease-in-out infinite;
+  }
+}
+@keyframes popular-hop {
+  0%,
+  78%,
+  100% {
+    transform: none;
+  }
+  82% {
+    transform: translateY(-7px) rotate(-1.6deg);
+  }
+  86% {
+    transform: translateY(0) rotate(1.2deg);
+  }
+  90% {
+    transform: translateY(-3px) rotate(-0.6deg);
+  }
+  94% {
+    transform: none;
+  }
+}
+@keyframes popular-flame {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.1) rotate(-6deg);
+  }
+}
+
 /* The product editor (S16c): a side sheet, full screen on phones, wider from 768px. */
 dialog.sheet-side.sheet-wide {
   height: 100dvh;

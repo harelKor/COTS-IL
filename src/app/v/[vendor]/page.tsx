@@ -8,6 +8,7 @@ import { CatalogBrowser } from "@/components/catalog-browser";
 import { CategoryGroups } from "@/components/category-groups";
 import { GroupBoxes } from "@/components/group-boxes";
 import { DiscoveryStrip } from "@/components/discovery-strip";
+import { PopularSection } from "@/components/popular-section";
 import { FamilyCard } from "@/components/family-card";
 import { Ltr } from "@/components/ltr";
 import { PriceNote } from "@/components/price-note";
@@ -93,21 +94,26 @@ function StoreSearch({ store, q }: { store: Store; q: string }) {
   );
 }
 
-/** The vendor's most wanted parts, large, each with its one-tap "+". */
+/** The vendor's most wanted parts, large, each with its one-tap "+", nudging for attention now and then. */
 async function Popular({ store }: { store: Store }) {
   const cards = await getVendorPopular(store.code, 8);
   if (cards.length === 0) return null;
   return (
-    <section aria-labelledby="popular">
-      <h2 id="popular" className="mb-4 text-section font-semibold">
-        הכי מבוקשים ב-<Ltr>{store.name}</Ltr>
-      </h2>
-      <ul className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+    <PopularSection>
+      <ul className="grid grid-cols-1 gap-3 pt-1 min-[400px]:grid-cols-2 sm:gap-4 lg:grid-cols-4">
         {cards.map((c, i) => (
-          <FamilyCard key={c.id} family={c} eager={i < 4} glow />
+          <FamilyCard
+            key={c.id}
+            family={c}
+            eager={i < 4}
+            glow
+            className="popular-card"
+            // Out of step on purpose: each card has its own delay and rhythm.
+            style={{ "--d": `${(i * 1.7) % 6}s`, "--hop": `${6 + (i % 3) * 1.4}s` } as React.CSSProperties}
+          />
         ))}
       </ul>
-    </section>
+    </PopularSection>
   );
 }
 

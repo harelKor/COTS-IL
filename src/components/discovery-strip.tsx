@@ -157,8 +157,11 @@ export function DiscoveryStrip({
   }, [check]);
 
   if (cards.length === 0) return null;
+  // A wrapped strip can hold a family twice: only its first card takes the photo's morph name.
+  const firstOf = new Map<string, string>();
+  for (const { p, cards: list } of pages) for (const c of list) if (!firstOf.has(c.id)) firstOf.set(c.id, `${p}:${c.id}`);
   const arrow =
-    "btn-plus absolute top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface text-brand hover:text-brand-strong focus-visible:outline-2 focus-visible:outline-brand";
+    "btn-plus absolute top-1/2 z-10 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface text-brand hover:text-brand-strong focus-visible:outline-2 focus-visible:outline-brand md:flex";
   return (
     <section aria-labelledby="discover" className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
@@ -179,6 +182,7 @@ export function DiscoveryStrip({
                 key={`${p}:${c.id}`}
                 dataKey={`${p}:${c.id}`}
                 family={c}
+                morph={firstOf.get(c.id) === `${p}:${c.id}`}
                 glow
                 className="discover-card w-[220px] shrink-0 snap-start sm:w-[240px]"
                 style={{ "--d": `${Math.min(i, 8) * 70}ms` } as React.CSSProperties}
@@ -186,7 +190,7 @@ export function DiscoveryStrip({
             )),
           )}
         </ul>
-        {/* The row has no end, so both arrows always show. RTL: "back" at the start (right) points right. */}
+        {/* The row has no end, so both arrows always show from 768px (phones swipe). RTL: "back" at the start (right) points right. */}
         <button type="button" aria-label="הקודמים" onClick={() => void page(-1)} className={`${arrow} -start-1 sm:-start-3`}>
           <ChevronRight size={20} strokeWidth={2} aria-hidden className="ltr:rotate-180" />
         </button>
