@@ -95,6 +95,11 @@ export function likePatterns(term: SearchTerm): string[] {
   return term.alternatives.map((a) => `%${a.replace(/[\%_]/g, "\$&")}%`);
 }
 
+/** A LIKE pattern for text that starts with `text`, with wildcards in it taken literally. */
+export function likePrefix(text: string): string {
+  return `${text.replace(/[\\%_]/g, "\\$&")}%`;
+}
+
 /** The English text a search stands for, for title similarity and the trigram fallback. */
 export function englishQuery(q: string): string {
   return searchTerms(q)

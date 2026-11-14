@@ -14,7 +14,9 @@ const chip = (on: boolean) =>
 
 /**
  * "הכל" and the admin's groups; pressing a group opens a second row with only its categories. The
- * chosen category's group starts open. A group alone doesn't filter.
+ * chosen category's group starts open. A group alone doesn't filter. The counts are the current
+ * list's (the search and filters), and a category with nothing in it is left out, unless it's the
+ * chosen one, so it can be seen and left.
  */
 export function CategoryGroups({
   categories,
@@ -23,6 +25,7 @@ export function CategoryGroups({
   vendor,
 }: {
   categories: { slug: string; name: string; group: string; count: number }[];
+  /** The chosen category's slug, or "". */
   category: string;
   q: string;
   /** In a vendor's store: the chips stay in the store. */
@@ -30,7 +33,10 @@ export function CategoryGroups({
 }) {
   const href = (f: Partial<CatalogFilters>) => (vendor ? vendorHref(vendor, f) : catalogHref(f));
   const { categoryGroups } = useSiteFacts();
-  const groups = groupCategories(categories, categoryGroups);
+  const groups = groupCategories(
+    categories.filter((c) => c.count > 0 || c.slug === category),
+    categoryGroups,
+  );
   const current = categories.find((c) => c.slug === category);
   const activeGroup = current ? groupOf(current.group, categoryGroups) : null;
   // The user's own choice wins until the URL's category changes.

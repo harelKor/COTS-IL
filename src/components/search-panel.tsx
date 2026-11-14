@@ -2,8 +2,9 @@
 
 import { ChevronDown, Clock, Plus, Search, X } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  Suspense,
   useEffect,
   useId,
   useRef,
@@ -25,6 +26,30 @@ import { Ltr } from "./ltr";
 import { showToast } from "./toast";
 import { ZeroResults } from "./zero-results";
 import { track } from "@vercel/analytics";
+
+const PLACEHOLDER = "חיפוש מוצר, מק״ט או ספק";
+
+/** The search a results page shows (/catalog?q=…), or "" anywhere else. */
+function pageQuery(pathname: string, params: URLSearchParams | null) {
+  return pathname === "/catalog" ? (params?.get("q")?.trim() ?? "") : "";
+}
+
+/**
+ * The header box's words: on a results page the search it shows, so the query stays in the box
+ * after Enter (audit C-08); anywhere else the placeholder.
+ */
+function TriggerText() {
+  const q = pageQuery(usePathname(), useSearchParams());
+  // Its own direction, so a long Latin search is cut at its end, not its start (C-11); it sits
+  // beside the search icon like the placeholder.
+  return q ? (
+    <span dir="auto" className="min-w-0 truncate text-foreground">
+      {q}
+    </span>
+  ) : (
+    <span className="min-w-0 truncate">{PLACEHOLDER}</span>
+  );
+}
 
 /** Opens the search panel from anywhere on the site. */
 export const openSearch = () => window.dispatchEvent(new Event("search:open"));
@@ -128,6 +153,8 @@ export function SearchPanel() {
   const [active, setActive] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
+  // The results page's search the panel last started from, so a new one replaces old typing.
+  const startedFrom = useRef<string | null>(null);
   const listId = useId();
 
   const { q, text: query } = parseQuickQuery(text);
@@ -142,11 +169,12 @@ export function SearchPanel() {
   function open() {
     if (dialog.current?.open) return;
     setRecent(readRecent());
-    // On the catalog, the panel starts from the search already shown.
-    if (window.location.pathname === "/catalog") {
-      const current = new URLSearchParams(window.location.search).get("q");
-      if (current) setText((t) => t || current);
-    }
+    // On a results page, the panel starts from the search already shown.
+    const current = pageQuery(window.location.pathname, new URLSearchParams(window.location.search));
+    if (current && current !== startedFrom.current) {
+      startedFrom.current = current;
+      setText(current);
+    } else if (current) setText((t) => t || current);
     dialog.current?.showModal();
     input.current?.select();
   }
@@ -260,15 +288,17 @@ export function SearchPanel() {
       <button
         type="button"
         onClick={open}
-        aria-label="חיפוש מוצר, מק״ט או ספק"
+        aria-label={PLACEHOLDER}
         className="search-trigger group flex size-11 items-center justify-center gap-2.5 rounded-full text-muted sm:w-full sm:max-w-xl sm:justify-start sm:ps-1 sm:pe-4"
       >
         {/* The site's main search: a cobalt circle on phones, a glowing pill from 640px. */}
         <span aria-hidden className="btn-brand flex size-11 shrink-0 items-center justify-center rounded-full sm:size-9">
           <Search size={20} strokeWidth={2} />
         </span>
-        <span className="hidden flex-1 truncate text-start text-callout transition-colors group-hover:text-foreground sm:block">
-          חיפוש מוצר, מק״ט או ספק
+        <span className="hidden min-w-0 flex-1 text-callout transition-colors group-hover:text-foreground sm:flex">
+          <Suspense fallback={<span className="min-w-0 truncate">{PLACEHOLDER}</span>}>
+            <TriggerText />
+          </Suspense>
         </span>
         <kbd
           className="hidden shrink-0 rounded-md bg-subtle px-2 py-0.5 font-sans text-caption text-muted md:inline"

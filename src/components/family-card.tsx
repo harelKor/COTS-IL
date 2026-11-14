@@ -7,6 +7,7 @@ import { chipPrice, choose, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
 import { formatIls } from "@/domain/pricing";
 import { availabilityStatus, isFresh, useNow } from "./availability";
+import { Ils } from "./ils";
 import type { FamilyVariants } from "@/app/api/family/[id]/variants/route";
 import type { CardFamily, CardVariant } from "@/lib/catalog";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
@@ -134,14 +135,29 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
 
   const price =
     current?.priceIls != null ? (
-      formatIls(current.priceIls)
+      <Ils amount={current.priceIls} />
     ) : family.minPriceIls === null ? (
       <span className="text-caption font-normal text-muted">ייבדק בהצעה</span>
     ) : (
       <>
         {family.maxPriceIls !== family.minPriceIls && <span className="text-caption font-normal text-muted">החל מ-</span>}
-        {formatIls(family.minPriceIls)}
+        <Ils amount={family.minPriceIls} />
       </>
+    );
+
+  /**
+   * The grid card's price, the strongest text on it (design review, Nov 14, 2026): 18px on a phone,
+   * 20px from 640px. "החל מ-" sits on its own line above a range, so "₪ 1,116" still fits beside the
+   * "+" on a 360px phone.
+   */
+  const fromPrice = !current && family.minPriceIls !== null && family.maxPriceIls !== family.minPriceIls;
+  const cardPrice =
+    current?.priceIls != null ? (
+      <Ils amount={current.priceIls} />
+    ) : family.minPriceIls === null ? (
+      <span className="text-caption font-normal text-muted">ייבדק בהצעה</span>
+    ) : (
+      <Ils amount={family.minPriceIls} />
     );
 
   /** Adds the part the card has settled on (one part, or the filters chose every option), or opens the chips. */
@@ -318,10 +334,10 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
               {!current && family.variantCount > 1 && `, ${family.variantCount.toLocaleString("he-IL")} אפשרויות`}
             </span>
             {/* Under the title on a phone; its own column from 640px. */}
-            <span className="block text-callout font-semibold sm:hidden">{price}</span>
+            <span className="block text-callout font-semibold tabular-nums sm:hidden">{price}</span>
           </Link>
           <div className="hidden w-32 sm:block">{availability}</div>
-          <span className="hidden w-20 shrink-0 text-end text-callout font-semibold sm:block">{price}</span>
+          <span className="hidden w-20 shrink-0 text-end text-callout font-semibold tabular-nums sm:block">{price}</span>
           <div className="flex shrink-0 justify-end sm:w-28">{action}</div>
         </div>
         {showPicker && !asSheet && (
@@ -367,9 +383,10 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
             {family.title}
           </h2>
           {current && keys.length > 0 && (
-            <Ltr className="truncate text-start text-caption text-muted">
+            // Its own direction, so a Latin summary is cut at its end, not its start (C-11).
+            <span dir="auto" className="block truncate text-start text-caption text-muted">
               {keys.flatMap((k) => (current.options[k] ? [current.options[k]] : [])).join(", ")}
-            </Ltr>
+            </span>
           )}
           {availability}
         </div>
@@ -378,12 +395,10 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       {/* In the cart, the stepper wraps to its own row on a narrow card instead of covering the price. */}
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="card-price text-callout font-semibold">{price}</span>
-          {/* What tells the options apart (teeth, bore), since the title is the same for all of them. */}
+          {fromPrice && <span className="text-caption text-muted">החל מ-</span>}
+          <span className="text-[1.125rem] leading-tight font-semibold text-foreground tabular-nums sm:text-section">{cardPrice}</span>
           {!current && family.variantCount > 1 && (
-            <span className="truncate text-caption text-muted">
-              {family.variantCount.toLocaleString("he-IL")} אפשרויות{keys.length > 0 && `: ${keys.map(optionLabel).join(", ")}`}
-            </span>
+            <span className="truncate text-caption text-muted">{family.variantCount.toLocaleString("he-IL")} אפשרויות</span>
           )}
         </div>
         {action}

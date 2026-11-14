@@ -17,7 +17,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skeleton";
 import { aliveStyle } from "@/domain/alive";
 import { isStoreFront, vendorBlurb, vendorHref, vendorTheme } from "@/domain/vendors";
-import { getDiscoveryPage, getSpecFacets, getVendorPopular, getVendors, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
+import { getCategoryCounts, getDiscoveryPage, getSpecFacets, getVendorPopular, getVendors, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
 import { hasFilters, PAGE_SIZE, parseFilters, type CatalogFilters } from "@/lib/catalog-filters";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
@@ -181,9 +181,11 @@ const MAX_SERVER_PAGES = 2;
 async function Results({ store, filters }: { store: Store; filters: CatalogFilters }) {
   const query = await resolveSearch(filters.q);
   const searched = { ...filters, q: query };
-  const [{ cards, total }, facets] = await Promise.all([
+  const [{ cards, total }, facets, inView] = await Promise.all([
     searchCards(searched, 0, Math.min(filters.page, MAX_SERVER_PAGES) * PAGE_SIZE),
     getSpecFacets(searched),
+    // The chips count what this search and these filters hold in the store.
+    getCategoryCounts(searched),
   ]);
   return (
     <CatalogBrowser
@@ -194,6 +196,9 @@ async function Results({ store, filters }: { store: Store; filters: CatalogFilte
       facets={facets}
       suppliers={[{ code: store.code, name: store.name, count: total }]}
       categories={store.categories.map((c) => ({ slug: c.slug, name: c.name }))}
+      underVendors={
+        <CategoryGroups vendor={store.code} categories={store.categories.map((c) => ({ ...c, count: inView[c.slug] ?? 0 }))} category={filters.category} q={filters.q} />
+      }
     />
   );
 }
@@ -216,7 +221,6 @@ function StoreResults({ store, filters }: { store: Store; filters: CatalogFilter
         </h1>
         <StoreSearch key={filters.q} action={vendorHref(store.code)} vendor={store.code} vendorName={store.name} q={filters.q} />
       </div>
-      <CategoryGroups vendor={store.code} categories={store.categories} category={filters.category} q={filters.q} />
       <Suspense
         fallback={
           <Loading>

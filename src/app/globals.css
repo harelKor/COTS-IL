@@ -1619,6 +1619,10 @@ li.family-card:is(:hover, :focus-within) {
 .card-price {
   color: var(--vendor-text-accent);
 }
+/* The ₪ of an <Ils> amount: Heebo's sits at digit height, Segoe UI's at lowercase height. */
+.ils-sign {
+  font-family: var(--font-heebo), var(--font-sans);
+}
 .btn-plus {
   box-shadow: 0 0 0 3px rgb(var(--vendor-primary-rgb) / 0.2), 0 6px 16px -4px rgb(var(--vendor-primary-rgb) / 0.55);
 }

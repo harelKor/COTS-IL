@@ -111,6 +111,111 @@ export const OPTION_LABELS: Record<string, string> = {
   orientation: "כיוון",
   year: "שנה",
   season: "עונה",
+  // Vendor option names seen in the catalog (audit C-10, Nov 14, 2026)
+  "motor pinion type": "סוג פיניון מנוע",
+  "motor pinion gear options": "פיניון מנוע",
+  "for motor shaft": "לציר מנוע",
+  "stage a ratio": "יחס שלב א׳",
+  "stage b ratio": "יחס שלב ב׳",
+  stage: "שלב",
+  assembled: "מורכב",
+  layout: "פריסה",
+  "mecanum wheel": "גלגל מקנום",
+  "steering encoder": "אנקודר היגוי",
+  gender: "זכר / נקבה",
+  "tooth count length": "שיניים ואורך",
+  plate: "פלטה",
+  processor: "מעבד",
+  wall: "דופן",
+  profile: "פרופיל",
+  "outside profile": "פרופיל חיצוני",
+  "tooth profile": "פרופיל שן",
+  extrusion: "פרופיל אלומיניום",
+  "extrusion wall thickness": "עובי דופן הפרופיל",
+  "2x1 wall thickness": "עובי דופן 2x1",
+  shape: "צורה",
+  "overall length of cable": "אורך כבל כולל",
+  "length of red wire": "אורך החוט האדום",
+  "power distribution": "חלוקת מתח",
+  number: "מספר",
+  wood: "עץ",
+  "weight relief": "הקלת משקל",
+  "weight relieved": "הקלת משקל",
+  "gauge jacket and connector": "עובי חוט, בידוד ומחבר",
+  "gauge and jacket": "עובי חוט ובידוד",
+  tube: "צינור",
+  tubing: "צינור",
+  "nominal pipe size": "מידת צינור נומינלית",
+  hardware: "ברגים",
+  "motor hardware": "ברגים למנוע",
+  "motor input hardware": "ברגים לכניסת המנוע",
+  "mounting hardware": "ברגי הרכבה",
+  output: "יציאה",
+  "output shaft": "ציר יציאה",
+  input: "כניסה",
+  "motor input": "כניסת מנוע",
+  "swerve x orientation": "כיוון המודול",
+  "intended use": "שימוש מיועד",
+  "for use with": "מתאים ל",
+  "faces drilled": "פאות קדוחות",
+  spacer: "מרווח",
+  license: "רישיון",
+  bearings: "מיסבים",
+  bearing: "מיסב",
+  "mounting method": "שיטת הרכבה",
+  "mounting direction": "כיוון הרכבה",
+  "mounting holes": "חורי הרכבה",
+  "mounting style": "סגנון הרכבה",
+  "flipped mounting style": "סגנון הרכבה הפוך",
+  "torque setting": "כיוון מומנט",
+  bank: "מערך",
+  "torx plus size": "מידת Torx Plus",
+  electronics: "אלקטרוניקה",
+  "amp rating": "זרם נקוב",
+  "current rating": "זרם נקוב",
+  "speed controller": "בקר מהירות",
+  controller: "בקר",
+  leg: "רגל",
+  valves: "מס׳ שסתומים",
+  "additional items": "פריטים נוספים",
+  "for of motors": "מס׳ מנועים",
+  insulation: "בידוד",
+  "pinion and connector": "פיניון ומחבר",
+  "battery tools": "כלים לסוללה",
+  battery: "סוללה",
+  "analog feedback": "משוב אנלוגי",
+  brand: "מותג",
+  pronouns: "כינויי גוף",
+  breaker: "מפסק",
+  "field side": "צד המגרש",
+  connection: "חיבור",
+  "cable tie hole width": "רוחב חור לאזיקון",
+  case: "מארז",
+  "internal hex": "משושה פנימי",
+  tip: "ראש",
+  stroke: "מהלך",
+  drive: "הנעה",
+  pin: "פין",
+  "pin options": "פינים",
+  "power connector": "מחבר מתח",
+  "length between sb connector and 120a breaker": "אורך בין מחבר SB למפסק 120A",
+  "include accessories": "כולל אביזרים",
+  accessories: "אביזרים",
+  tote: "ארגז",
+  turns: "סיבובים",
+  set: "ערכה",
+  amount: "כמות",
+  "inside diameter": "קוטר פנימי",
+  "outside diameter": "קוטר חיצוני",
+  meter: "מד",
+  "color and size": "צבע ומידה",
+  "hole punch pattern": "דפוס חורים",
+  hub: "רכזת",
+  interface: "ממשק",
+  "plug or sleeve": "תקע או שרוול",
+  "select base kit": "ערכת בסיס",
+  "base kit": "ערכת בסיס",
+  module: "מודול",
 };
 
 /** Trailing words that qualify another key ("shaft type", "wheel size"), in Hebrew construct form. */
@@ -119,10 +224,19 @@ const QUALIFIERS: Record<string, string> = {
   size: "מידת",
   count: "מס׳",
   style: "סגנון",
+  length: "אורך",
+  thickness: "עובי",
+  diameter: "קוטר",
+  width: "רוחב",
+  configuration: "תצורת",
 };
+
+/** Vendor spellings of a word, to the word: AndyMark writes "Motor Pinon Type" beside "Motor Pinion Type". */
+const TYPOS: Record<string, string> = { pinon: "pinion" };
 
 /**
  * An option key as lowercase words: "# of Motors", "number-of-motors" and "of-motors" all become "motors".
+ * Vendor typos are fixed ("motor pinon type" → "motor pinion type") and "stagea" splits into "stage a".
  * Only for looking up labels; the stored keys stay as they are.
  */
 export function normalizeOptionKey(key: string): string {
@@ -132,23 +246,52 @@ export function normalizeOptionKey(key: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .replace(/^(?:#\s*|(?:number|num|no\.?)\s+)/, "")
-    .replace(/^of\s+/, "");
+    .replace(/^of\s+/, "")
+    .split(" ")
+    .map((w) => TYPOS[w] ?? w.replace(/^stage([ab])$/, "stage $1"))
+    .join(" ");
 }
 
-/** Known keys in Hebrew; anything else, a supplier's own option name ("gear-ratio"), as words. */
-export function optionLabel(key: string): string {
-  const k = normalizeOptionKey(key);
+/** A Hebrew label for normalized words, or null. */
+function hebrewLabel(k: string): string | null {
   const known = OPTION_LABELS[k];
   if (known) return known;
-
-  // "shaft type" → "סוג ציר", "wheel size" → "מידת גלגל".
-  const qualified = /^(.+) (type|size|count|style)$/.exec(k);
-  if (qualified && OPTION_LABELS[qualified[1]]) return `${QUALIFIERS[qualified[2]]} ${OPTION_LABELS[qualified[1]]}`;
 
   // A plain plural ("colors", "materials").
   if (k.endsWith("s") && OPTION_LABELS[k.slice(0, -1)]) return OPTION_LABELS[k.slice(0, -1)];
 
-  return key.replace(/-/g, " ");
+  // "shaft type" → "סוג ציר", "cable length" → "אורך כבל", "wall thickness" → "עובי דופן".
+  const qualified = /^(.+) (type|size|count|style|length|thickness|diameter|width|configuration)$/.exec(k);
+  const head = qualified && hebrewLabel(qualified[1]);
+  if (qualified && head) return `${QUALIFIERS[qualified[2]]} ${head}`;
+
+  // "wheel option" → "גלגל", "motor hardware included" → "כולל ברגים למנוע".
+  const option = /^(.+) options?$/.exec(k);
+  if (option) return hebrewLabel(option[1]);
+  const included = /^(.+) (?:included|installed)$/.exec(k);
+  const what = included && hebrewLabel(included[1]);
+  return what ? `כולל ${what}` : null;
+}
+
+/**
+ * Known keys in Hebrew. A vendor's own long name that ends in a known one takes its label
+ * ("wcp swerve x2 ratio set gear ratio" → "יחס העברה"); anything else is the vendor's words,
+ * capitalised, never a raw lowercase key.
+ */
+export function optionLabel(key: string): string {
+  const k = normalizeOptionKey(key);
+  const label = hebrewLabel(k);
+  if (label) return label;
+
+  // The longest known ending: "wcp swerve x2 module mounting method" → "שיטת הרכבה".
+  const words = k.split(" ");
+  for (let i = 1; i < words.length; i++) {
+    const tail = hebrewLabel(words.slice(i).join(" "));
+    if (tail) return tail;
+  }
+
+  const text = key.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /** Compares two option values: by size when both have one (9mm < 15mm, 12t < 100t), else alphabetically. */

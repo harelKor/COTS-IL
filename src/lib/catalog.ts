@@ -10,7 +10,8 @@ import { priceIls } from "@/domain/pricing";
 import { interleave, pageCount, pickDiscovery, rankPopular, wrappedPage, type FamilySignals } from "@/domain/popular";
 import { priceContext } from "./settings";
 import type { PriceContext } from "@/domain/pricing";
-import { correctQuery, englishQuery, likePatterns, looksLikeSku, normalizeSku, searchTerms } from "@/domain/search-query";
+import { correctQuery, englishQuery, likePatterns, likePrefix, looksLikeSku, normalizeSku, searchTerms } from "@/domain/search-query";
+import { prefixPhrase } from "@/domain/search-rank";
 import type { CatalogFilters } from "./catalog-filters";
 import { familyHref } from "./catalog-links";
 
@@ -97,8 +98,13 @@ function textMatch(q: string) {
     )})`;
   const words = terms.length > 0 ? and(...terms.map((t) => anyOf(families.searchText, likePatterns(t))))! : sql`false`;
   const inTitle = terms.length > 0 ? and(...terms.map((t) => anyOf(sql`${families.title}`, likePatterns(t))))! : null;
+  // A search of two words or more that the title starts with: "kraken x60" → "Kraken X60 …" (prefixPhrase).
+  const phrase = prefixPhrase(q);
+  const prefix = phrase ? sql`lower(${families.title}) LIKE ${likePrefix(phrase)}` : null;
+  const english = englishQuery(q) || q;
+  const exact = sql`lower(btrim(${families.title})) IN (${q.trim().toLowerCase()}, ${english.toLowerCase()})`;
   const sku = looksLikeSku(q) ? sql`${families.id} IN (SELECT ${variants.familyId} FROM ${variants} WHERE ${skuNorm} = ${normalizeSku(q)})` : null;
-  return { where: sku ? sql`(${words} OR ${sku})` : words, inTitle, sku, english: englishQuery(q) || q };
+  return { where: sku ? sql`(${words} OR ${sku})` : words, inTitle, prefix, exact, sku, english };
 }
 
 /** `withSpecs: false` leaves out the spec filters, for counting the values each spec could take. */
@@ -117,15 +123,18 @@ function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
   if (filters.sort === "price-asc") order.push(sql`${families.minListUsd} ASC NULLS LAST`);
   else if (filters.sort === "price-desc") order.push(sql`${families.minListUsd} DESC NULLS LAST`);
   else if (filters.sort === "relevance" && text) {
-    // An exact SKU first, then families named for every word, then the part itself ahead of
-    // its accessories and cheap bits (Kraken X60 before "Kraken Wire Bundle"), in stock, closest title.
+    // The steps of rankSearch in src/domain/search-rank.ts: an exact SKU, the exact title, a title that
+    // starts with a search of 2+ words, in stock, every word in the title, a real category, the part
+    // ahead of its screws and covers, main items, the closest title.
     if (text.sku) order.push(sql`${text.sku} DESC`);
     order.push(
+      sql`${text.exact} DESC`,
+      ...(text.prefix ? [sql`${text.prefix} DESC`] : []),
+      sql`${families.available} IS TRUE DESC`,
       ...(text.inTitle ? [sql`${text.inTitle} DESC`] : []),
-      sql`${categories.slug} = 'other' ASC NULLS LAST`,
+      sql`coalesce(${categories.slug}, 'other') = 'other' ASC`,
       sql`(${families.title} ~* ${ACCESSORY_TITLE_PATTERN} AND coalesce(${categories.slug}, '') NOT IN (${sql.join(HARDWARE_CATEGORIES.map((c) => sql`${c}`), sql`, `)})) ASC`,
       sql`(coalesce(${families.minPriceUsd}, 0) >= ${MAIN_ITEM_MIN_USD} OR ${families.variantCount} >= 3) DESC`,
-      sql`${families.available} IS TRUE DESC`,
       sql`extensions.similarity(${families.title}, ${text.english}) DESC`,
     );
   } else if (filters.sort === "relevance") {
@@ -137,7 +146,8 @@ function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
     if (!filters.category) order.push(sql`${categories.slug} = 'other' ASC NULLS LAST`);
     order.push(sql`(cardinality(${families.images}) > 0) DESC`, desc(families.variantCount), sql`${families.title} ~ '^[0-9#]' ASC`);
   }
-  order.push(asc(families.title));
+  // The id last: two families of the same title keep one order on every render and page.
+  order.push(asc(families.title), asc(families.id));
   return { where, order };
 }
 
@@ -566,6 +576,46 @@ async function supplierCounts(filters: CatalogFilters) {
     .where(and(where, eq(suppliers.active, true)))
     .groupBy(suppliers.code, suppliers.name)
     .orderBy(desc(count));
+}
+
+/**
+ * How many families of the current list each category holds, by slug: the search, vendor, program,
+ * stock and spec filters, in any category (so the other categories can still be picked). The
+ * category chips' numbers (audit C-07); a category missing here has none.
+ */
+export async function getCategoryCounts(filters: CatalogFilters): Promise<Record<string, number>> {
+  const key = cacheKey({ ...filters, category: "" });
+  return isBrowse(key) ? categoryCountsBrowse(key) : categoryCountsLocal(key);
+}
+
+async function categoryCountsBrowse(filters: CatalogFilters) {
+  "use cache";
+  catalogCache();
+  return categoryCountsShared(filters);
+}
+
+/** The shared (remote) entry behind categoryCountsBrowse's in-memory one. */
+async function categoryCountsShared(filters: CatalogFilters) {
+  "use cache: remote";
+  catalogCache();
+  return findCategoryCounts(filters);
+}
+
+async function categoryCountsLocal(filters: CatalogFilters) {
+  "use cache";
+  catalogCache();
+  return findCategoryCounts(filters);
+}
+
+async function findCategoryCounts(filters: CatalogFilters): Promise<Record<string, number>> {
+  const { where } = searchQuery(filters);
+  const rows = await db
+    .select({ slug: categories.slug, count: sql<number>`count(*)::int` })
+    .from(families)
+    .innerJoin(categories, eq(categories.id, families.categoryId))
+    .where(where)
+    .groupBy(categories.slug);
+  return Object.fromEntries(rows.map((r) => [r.slug, r.count]));
 }
 
 /**

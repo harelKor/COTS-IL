@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { optionLabel, sortByOptions } from "./sort";
+import { normalizeOptionKey, optionLabel, sortByOptions } from "./sort";
 
 const row = (familyOptions: Record<string, string>) => ({ familyOptions });
 
@@ -32,7 +32,38 @@ describe("sortByOptions", () => {
 describe("optionLabel", () => {
   it("names known keys in Hebrew and turns supplier option names into words", () => {
     expect(optionLabel("bore")).toBe("קדח");
-    expect(optionLabel("flux-capacitor")).toBe("flux capacitor");
+    expect(optionLabel("flux-capacitor")).toBe("Flux capacitor");
+  });
+
+  it("merges vendor typos and names the audit's raw option names in Hebrew (C-10)", () => {
+    expect(normalizeOptionKey("motor-pinon-type")).toBe("motor pinion type");
+    expect(normalizeOptionKey("Motor Pinon Type")).toBe(normalizeOptionKey("motor-pinion-type"));
+    expect(optionLabel("motor pinon type")).toBe(optionLabel("motor-pinion-type"));
+    expect(optionLabel("for-motor-shaft")).toBe("לציר מנוע");
+    expect(normalizeOptionKey("stagea-ratio")).toBe("stage a ratio");
+    expect(optionLabel("stagea-ratio")).toBe("יחס שלב א׳");
+    expect(optionLabel("stageb ratio")).toBe("יחס שלב ב׳");
+    expect(optionLabel("assembled")).toBe("מורכב");
+    expect(optionLabel("layout")).toBe("פריסה");
+  });
+
+  it("builds labels for lengths, thicknesses, options and included parts", () => {
+    expect(optionLabel("cable-length")).toBe("אורך כבל");
+    expect(optionLabel("tube-thickness")).toBe("עובי צינור");
+    expect(optionLabel("wheel-option")).toBe("גלגל");
+    expect(optionLabel("motor-hardware-included")).toBe("כולל ברגים למנוע");
+    expect(optionLabel("bearings-installed")).toBe("כולל מיסבים");
+  });
+
+  it("names a vendor's long option name by its known ending", () => {
+    expect(optionLabel("wcp-swerve-x2-ratio-set-gear-ratio")).toBe("יחס העברה");
+    expect(optionLabel("wcp-swerve-x2-module-mounting-method")).toBe("שיטת הרכבה");
+  });
+
+  it("never shows a raw lowercase English key", () => {
+    for (const key of ["flux-capacitor", "zorp", "motor-pinon-type", "stagea-ratio", "for-motor-shaft", "assembled", "layout"]) {
+      expect(optionLabel(key)).not.toMatch(/^[a-z]/);
+    }
   });
 
   it("names common FRC/FTC spec keys in Hebrew, whatever their case or spelling", () => {
