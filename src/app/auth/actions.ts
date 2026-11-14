@@ -5,7 +5,7 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { isPhone, parseTeamNumber } from "@/domain/teams";
+import { isPersonName, isPhone, isTeamName, parseTeamNumber, PERSON_NAME_ERROR, TEAM_NAME_ERROR } from "@/domain/teams";
 import { getViewer } from "@/lib/auth";
 import { notifyJoinRequest, notifyLater, notifyTeamSignedUp } from "@/lib/notify";
 import { acceptInvitationsForUser } from "@/lib/invitations";
@@ -100,8 +100,8 @@ export async function signInWithGoogle(next: string) {
 const teamSetupSchema = z.object({
   program: z.enum(["FRC", "FTC"]),
   number: z.unknown().transform((v, ctx) => parseTeamNumber(v) ?? (ctx.addIssue({ code: "custom", message: "מספר קבוצה לא תקין" }), z.NEVER)),
-  name: z.string().trim().min(2, "נא למלא את שם הקבוצה").max(100),
-  contactName: z.string().trim().min(2, "נא למלא שם איש קשר").max(100),
+  name: z.string().trim().max(100).refine(isTeamName, TEAM_NAME_ERROR),
+  contactName: z.string().trim().max(100).refine(isPersonName, PERSON_NAME_ERROR),
   contactPhone: z.string().trim().refine(isPhone, "מספר טלפון לא תקין"),
 });
 

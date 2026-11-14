@@ -184,6 +184,7 @@ export async function removeAdmin(email: string): Promise<SettingsResult> {
   const viewer = await requireAdmin();
   const parsed = z.email().safeParse(email.trim().toLowerCase());
   if (!parsed.success) return { ok: false, error: "כתובת דוא״ל לא תקינה" };
+  if (parsed.data === viewer.email.trim().toLowerCase()) return { ok: false, error: "אי אפשר להסיר את עצמכם. מנהל אחר יכול להסיר אתכם." };
   const result = await setAdmin(viewer.id, parsed.data, false);
   revalidatePath("/admin/settings/admins");
   return result;

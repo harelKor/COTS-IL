@@ -1,6 +1,10 @@
 import { asc, desc, eq } from "drizzle-orm";
+import { ExternalLink } from "lucide-react";
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { db, schema } from "@/db";
+import { Ltr } from "@/components/ltr";
+import { firstTeamUrl } from "@/domain/teams";
 import { Button } from "@/components/form";
 import { formatDateTime } from "@/components/orders";
 import { isAvailabilityFresh } from "@/domain/reports";
@@ -10,6 +14,8 @@ import { getSyncStatus } from "@/lib/reports";
 import { reviewTeam } from "../actions";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { TeamName } from "@/components/team-name";
+
+export const metadata: Metadata = { title: "קבוצות" };
 
 const statusLabels = {
   pending: { text: "ממתינה", className: "bg-warning/10 text-warning" },
@@ -92,6 +98,17 @@ async function TeamsTable() {
                   <div>
                     <div className="font-medium">
                       <TeamName team={team} />
+                      <a
+                        href={firstTeamUrl(team.program, team.number)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ms-2 inline-flex min-h-11 items-center gap-1 text-callout font-normal text-brand hover:underline"
+                      >
+                        <span>
+                          דף הקבוצה ב-FIRST <Ltr>{`${team.program} ${team.number}`}</Ltr>
+                        </span>
+                        <ExternalLink size={14} aria-hidden="true" />
+                      </a>
                     </div>
                     <div className="text-sm text-muted">
                       {team.contactName}, <span className="ltr">{team.contactPhone}</span>
@@ -117,7 +134,9 @@ async function TeamsTable() {
                         placeholder="סיבת דחייה (לא חובה)"
                         className="h-11 w-44 rounded-xl border border-line bg-surface px-3 text-sm"
                       />
-                      <Button variant="danger">דחייה</Button>
+                      <Button variant="ghost" className="text-danger!">
+                        דחייה
+                      </Button>
                     </form>
                   </div>
                 </div>

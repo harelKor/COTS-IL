@@ -1,4 +1,5 @@
 import { desc, eq, isNotNull, isNull } from "drizzle-orm";
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { db, schema } from "@/db";
 import { Ltr } from "@/components/ltr";
@@ -7,6 +8,8 @@ import { Loading, PageSkeleton } from "@/components/skeleton";
 import { TeamName } from "@/components/team-name";
 import { requireAdmin } from "@/lib/auth";
 import { setPartRequestHandled } from "./actions";
+
+export const metadata: Metadata = { title: "בקשות חלקים" };
 
 const { partRequests, teams, profiles } = schema;
 

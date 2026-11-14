@@ -27,3 +27,33 @@ export function isPhone(value: string): boolean {
   const digits = trimmed.replace(/\D/g, "").length;
   return digits >= 9 && digits <= 15;
 }
+
+const letters = (value: string) => value.match(/\p{L}/gu) ?? [];
+
+/** One character typed over and over ("ttt", "fff", "....") is a keyboard test, not a name. */
+function isRepeatedChar(value: string): boolean {
+  const chars = value.replace(/\s/g, "");
+  return chars.length > 1 && new Set(chars.toLowerCase()).size === 1;
+}
+
+/** A team name: at least 3 characters, at least 2 of them letters, not one character repeated. Digits ("3D Robotics") are fine. */
+export function isTeamName(value: string): boolean {
+  const text = value.trim();
+  return text.length >= 3 && letters(text).length >= 2 && !isRepeatedChar(text);
+}
+
+/** A person's name: at least 2 letters, only letters, spaces and the marks names carry (' ’ ׳ " ״ - .), not one letter repeated. */
+export function isPersonName(value: string): boolean {
+  const text = value.trim();
+  if (letters(text).length < 2 || isRepeatedChar(text)) return false;
+  return /^[\p{L}\p{M}\s'’׳"״.\-]+$/u.test(text);
+}
+
+export const TEAM_NAME_ERROR = "נא למלא את שם הקבוצה (לפחות 3 תווים, עם אותיות)";
+export const PERSON_NAME_ERROR = "נא למלא שם מלא של איש קשר, באותיות";
+
+/** FIRST's public team page, the one an admin checks before approving a team. */
+export function firstTeamUrl(program: string, number: number): string {
+  const host = program === "FTC" ? "ftc-events.firstinspires.org" : "frc-events.firstinspires.org";
+  return `https://${host}/team/${number}`;
+}

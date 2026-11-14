@@ -1,9 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { SignInStep } from "@/components/cart-panel";
 import { googleSignInEnabled } from "@/lib/auth-providers";
 import { safeNext } from "@/lib/validation";
+import { GoogleButton } from "./google-button";
 import { LoginForm } from "./login-form";
+
+export const metadata: Metadata = { title: "כניסה" };
 
 const notices: Record<string, string> = {
   confirm: "הקישור לא עבד: אולי פג תוקפו או שכבר נעשה בו שימוש. הזינו את הכתובת ונשלח קוד חדש, הסל מחכה.",
@@ -16,7 +20,14 @@ async function LoginContent({ searchParams }: PageProps<"/login">) {
   return (
     <div className="flex flex-col gap-6">
       {typeof error === "string" && notices[error] && <p className="rounded-xl bg-warning/10 p-3 text-sm text-warning">{notices[error]}</p>}
-      <SignInStep google={google} next={safeNext(to)} intro="בלי סיסמה: נשלח לכם קוד כניסה לדוא״ל." />
+      <p className="text-callout text-muted">כדי לשלוח בקשה ולראות הזמנות צריך חשבון קבוצה.</p>
+      {google && (
+        <>
+          <GoogleButton next={safeNext(to)} />
+          <p className="-my-2 text-center text-caption text-muted">או</p>
+        </>
+      )}
+      <SignInStep google={false} next={safeNext(to)} intro="בלי סיסמה: נשלח לכם קוד כניסה לדוא״ל." />
       <details className="text-sm">
         <summary className="cursor-pointer text-muted">כניסה עם סיסמה</summary>
         <div className="mt-4">

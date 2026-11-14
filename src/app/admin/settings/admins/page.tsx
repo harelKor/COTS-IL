@@ -31,7 +31,7 @@ async function Admins() {
                 {a.fullName && <span className="block text-caption text-muted">{a.fullName}</span>}
                 {a.id === viewer.id && <span className="block text-caption text-muted">זה אתם</span>}
               </span>
-              <RemoveAdminButton email={a.email} disabled={admins.length <= 1} />
+              {a.id !== viewer.id && <RemoveAdminButton email={a.email} disabled={admins.length <= 1} />}
             </li>
           ))}
         </ul>

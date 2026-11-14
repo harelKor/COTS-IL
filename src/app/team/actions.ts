@@ -7,7 +7,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import type { ActionState } from "@/components/action-form";
 import { emailOffFromForm } from "@/domain/notifications";
-import { inviteExpiry, wouldLeaveNoMembers } from "@/domain/teams";
+import { inviteExpiry, isPersonName, isTeamName, wouldLeaveNoMembers } from "@/domain/teams";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { hashInviteToken, newInviteToken } from "@/lib/invitations";
 import { siteUrl } from "@/lib/site-url";
@@ -173,8 +173,8 @@ export async function restoreMember(userIdInput: string): Promise<ActionState> {
 }
 
 const detailsSchema = z.object({
-  name: z.string().trim().min(2).max(100),
-  contactName: z.string().trim().max(100).default(""),
+  name: z.string().trim().max(100).refine(isTeamName),
+  contactName: z.string().trim().max(100).refine((v) => v === "" || isPersonName(v)).default(""),
   contactPhone: z.string().trim().max(20).default(""),
   contactEmail: z.union([z.literal(""), z.string().trim().toLowerCase().pipe(z.email())]).default(""),
   address: z.string().trim().max(500).default(""),
@@ -183,7 +183,7 @@ const detailsSchema = z.object({
 export async function updateTeamDetails(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { viewer, team } = await requireTeamMember();
   const parsed = detailsSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "יש שדה לא תקין. בדקו את שם הקבוצה והדוא״ל." };
+  if (!parsed.success) return { error: "יש שדה לא תקין. בדקו את שם הקבוצה (לפחות 3 תווים, עם אותיות), שם איש הקשר והדוא״ל." };
   const input = parsed.data;
 
   await db.transaction(async (tx) => {

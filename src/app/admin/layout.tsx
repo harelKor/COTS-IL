@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { sql } from "drizzle-orm";
 import { cache, Suspense } from "react";
 import { db } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 import { AdminTabs, TabsNav } from "./admin-tabs";
+
+/** Admin titles read "קבוצות | ניהול": this template replaces the shop's " | COTS-IL" for everything under /admin. */
+export const metadata: Metadata = { title: { default: "ניהול", template: "%s | ניהול" }, robots: { index: false } };
 
 /** Every admin page gives up after 30 s and shows `error.tsx`, instead of streaming for 300 s. */
 export const maxDuration = 30;

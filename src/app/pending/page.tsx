@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { TeamStep } from "@/components/cart-panel";
 import { getViewer } from "@/lib/auth";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { TeamName } from "@/components/team-name";
+
+export const metadata: Metadata = { title: "אישור הקבוצה" };
 
 async function PendingStatus() {
   const viewer = await getViewer();

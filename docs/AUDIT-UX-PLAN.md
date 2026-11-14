@@ -171,7 +171,7 @@ Sessions in one wave touch different files, so they run at the same time. A wave
 | T6 Search quality | 2 | not started | | after T5 |
 | T7 Delivery promise, cart | 2 | not started | | after T2 |
 | T8 Accessibility | 2 | not started | | after Speed A, T6, T7 |
-| T9 Admin safety, titles | 2 | not started | | |
+| T9 Admin safety, titles | 2 | done (Nov 14, 2026) | `claude/t9-admin-safety-a0c443` | name checks `isTeamName`/`isPersonName` (`domain/teams.ts`) on signup and team details; no "הסרה" on your own row (server refuses too); FIRST link and a text "דחייה" on pending teams; `admin/not-found.tsx` plus a catch-all; admin titles read "X \| ניהול" (template in `admin/layout.tsx`), login/pending/requests/teams titled; login: Google first, one line on why. The cart sheet's delivery `contactName` (`cart/actions.ts`, T7) still only checks 2+ characters |
 | T10 Phone and team-flow test | 2 | not started | | last |
 | T11–T16 | 3 | not started | | |
 | T17 Catalog results bar, columns | 2 | not started | | after T6 |

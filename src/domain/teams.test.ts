@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inviteExpiry, isPhone, parseTeamNumber, TEAM_NUMBER_MAX, wouldLeaveNoMembers } from "./teams";
+import { firstTeamUrl, inviteExpiry, isPersonName, isPhone, isTeamName, parseTeamNumber, TEAM_NUMBER_MAX, wouldLeaveNoMembers } from "./teams";
 
 describe("wouldLeaveNoMembers", () => {
   it("protects the team's last sign-in email", () => {
@@ -44,5 +44,30 @@ describe("isPhone", () => {
     expect(isPhone("12345")).toBe(false);
     expect(isPhone("050-CALL-ME")).toBe(false);
     expect(isPhone("")).toBe(false);
+  });
+});
+
+describe("isTeamName", () => {
+  it("takes real names in Hebrew and Latin, with digits", () => {
+    for (const name of ["Orbit 1690", "אורביט", "3D Robotics", "ביה״ס הדמוקרטי"]) expect(isTeamName(name)).toBe(true);
+  });
+  it("refuses test data and too-short names", () => {
+    for (const name of ["or", "ttt", "fff", "...", "12", "  a ", "1234", ""]) expect(isTeamName(name)).toBe(false);
+  });
+});
+
+describe("isPersonName", () => {
+  it("takes real names", () => {
+    for (const name of ["דנה כהן", "Li", "O'Brien", "אבי-חי", "Ann-Marie Smith", 'ד"ר לוי']) expect(isPersonName(name)).toBe(true);
+  });
+  it("refuses digits, symbols and repeated letters", () => {
+    for (const name of ["fff", "ttt", "a", "י", "123", "דנה 2", "a@b.co", "", "   "]) expect(isPersonName(name)).toBe(false);
+  });
+});
+
+describe("firstTeamUrl", () => {
+  it("points each program to its events site", () => {
+    expect(firstTeamUrl("FRC", 1690)).toBe("https://frc-events.firstinspires.org/team/1690");
+    expect(firstTeamUrl("FTC", 5)).toBe("https://ftc-events.firstinspires.org/team/5");
   });
 });
