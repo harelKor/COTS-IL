@@ -3,7 +3,6 @@ import { Suspense, ViewTransition } from "react";
 import { GroupBoxes } from "@/components/group-boxes";
 import { VendorBoxes } from "@/components/vendor-boxes";
 import { ScenePhoto } from "@/components/home-scene";
-import { SearchKeyButton } from "@/components/search-key-button";
 import { ScrollParallax } from "@/components/scroll-parallax";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
@@ -65,7 +64,7 @@ async function TeamNotice() {
 
 /**
  * The hero's telemetry line, from the live catalog: how many vendors and products, the shared
- * shipment, and a quiet way into search. The product count is rounded down to hundreds.
+ * shipment. The product count is rounded down to hundreds.
  */
 async function Telemetry() {
   const vendors = await getVendors();
@@ -87,7 +86,6 @@ async function Telemetry() {
       </span>
       {sep}
       <span>משלוח מרוכז לישראל</span>
-      <SearchKeyButton className="ms-auto hidden sm:inline-flex" />
     </div>
   );
 }
@@ -263,7 +261,7 @@ export default function HomePage() {
               <span className="motto-accent block">בהזמנה אחת</span>
             </h1>
             <p className="motto-sub text-body">כל החלקים הרשמיים, משלוח מרוכז ומק״טים מדויקים במקום אחד.</p>
-            <Suspense fallback={<div aria-hidden className="scene-telemetry min-h-14 w-full" />}>
+            <Suspense fallback={<div aria-hidden className="scene-telemetry min-h-8 w-full" />}>
               <Telemetry />
             </Suspense>
             <Suspense>

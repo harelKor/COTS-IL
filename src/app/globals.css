@@ -1229,25 +1229,6 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 .scene-telemetry-sep {
   background: rgb(110 133 255 / 0.3);
 }
-.scene-search-key {
-  border: 1px solid rgb(110 133 255 / 0.3);
-  background: rgb(4 9 36 / 0.6);
-  color: #dfe4ff;
-  transition:
-    border-color 200ms var(--ease-out),
-    background-color 200ms var(--ease-out);
-}
-.scene-search-key:hover {
-  border-color: rgb(110 133 255 / 0.6);
-  background: rgb(0 20 190 / 0.35);
-}
-.scene-search-key kbd {
-  font-family: var(--font-tech), var(--font-sans);
-  border: 1px solid rgb(110 133 255 / 0.35);
-  border-radius: 6px;
-  padding: 0 6px;
-  color: var(--orbit-100);
-}
 /* "מאיזה ספק קונים?" on an ultramarine hairline that runs across the first row. */
 .scene-rule {
   background: linear-gradient(to left, rgb(59 91 255 / 0.6), rgb(59 91 255 / 0.06));
