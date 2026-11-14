@@ -8,6 +8,8 @@ import { facetCountPlans, isRelevantFacet } from "@/domain/facets";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
 import { interleave, pageCount, pickDiscovery, rankPopular, wrappedPage, type FamilySignals } from "@/domain/popular";
+import { allStale, isStale, someStale } from "@/domain/stale-price";
+import { getStaleSupplierCodes } from "./health";
 import { priceContext } from "./settings";
 import type { PriceContext } from "@/domain/pricing";
 import { correctQuery, englishQuery, likePatterns, likePrefix, looksLikeSku, normalizeSku, searchTerms } from "@/domain/search-query";
@@ -173,6 +175,7 @@ export type CardVariant = {
   shipsLater: boolean;
   shipsLaterEta: string | null;
   supplierName: string;
+  supplierCode: string;
   image: string | null;
 };
 
@@ -186,6 +189,8 @@ export type CardFamily = {
   title: string;
   image: string | null;
   supplierNames: string[];
+  /** The suppliers' codes, for their lead times (arrival on the card). */
+  supplierCodes: string[];
   minPriceIls: number | null;
   maxPriceIls: number | null;
   available: boolean | null;
@@ -238,9 +243,14 @@ type CardRow = {
   optionKeys: string[];
 };
 
-/** Orderable variants of these families, cheapest in stock first. */
+/**
+ * Orderable variants of these families, cheapest in stock first. A stale supplier's variants
+ * come with no price ("המחיר ייבדק בהצעה", M1): `stale` is read inside the cached readers, so
+ * the catalog tag expires it with everything else.
+ */
 async function variantsOf(familyIds: string[], rate: PriceContext, supplierCode?: string) {
   if (familyIds.length === 0) return [];
+  const stale = await getStaleSupplierCodes();
   const rows = await db
     .select({
       familyId: variants.familyId,
@@ -254,6 +264,7 @@ async function variantsOf(familyIds: string[], rate: PriceContext, supplierCode?
       shipsLater: variants.shipsLater,
       shipsLaterEta: variants.shipsLaterEta,
       supplierName: suppliers.name,
+      supplierCode: suppliers.code,
       image: sql<string | null>`${products.images}[1]`,
     })
     .from(variants)
@@ -272,7 +283,7 @@ async function variantsOf(familyIds: string[], rate: PriceContext, supplierCode?
     .orderBy(sql`${variants.available} IS TRUE DESC`, asc(variants.priceUsd));
   return rows.map((v) => ({
     familyId: v.familyId!,
-    variant: { id: v.id, sku: v.sku, options: v.options, priceIls: priceIls(v.priceUsd, rate, v.markup, v.fixedIls), available: v.available, shipsLater: v.shipsLater, shipsLaterEta: v.shipsLaterEta, supplierName: v.supplierName, image: v.image } satisfies CardVariant,
+    variant: { id: v.id, sku: v.sku, options: v.options, priceIls: isStale(v.supplierCode, stale) ? null : priceIls(v.priceUsd, rate, v.markup, v.fixedIls), available: v.available, shipsLater: v.shipsLater, shipsLaterEta: v.shipsLaterEta, supplierName: v.supplierName, supplierCode: v.supplierCode, image: v.image } satisfies CardVariant,
   }));
 }
 
@@ -291,8 +302,10 @@ export async function getCardVariants(familyId: string): Promise<CardVariant[]> 
  */
 async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFamily[]> {
   if (rows.length === 0) return [];
-  const rate = await priceContext();
+  const [rate, stale] = await Promise.all([priceContext(), getStaleSupplierCodes()]);
   const ids = rows.map((r) => r.id);
+  // The range over the suppliers that aren't stale, for a card that has both kinds.
+  const fresh = stale.length > 0 ? sql`${suppliers.code} NOT IN (${sql.join(stale.map((c) => sql`${c}`), sql`, `)})` : sql`true`;
   // A fixed ₪ price (S16c) ÷ the rate, so × the rate gives it back (listUsd in src/domain/part-editor.ts).
   const list = sql`CASE WHEN ${variants.fixedIls} > 0 THEN ${variants.fixedIls} / ${rate.rate} ELSE ${variants.priceUsd} * coalesce(${variants.markup}, 1) END`;
   // Per family: how many option sets can be ordered, and the best offer.
@@ -303,6 +316,8 @@ async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFami
       availableSets: sql<number>`(count(DISTINCT ${variants.familyOptions}) FILTER (WHERE ${variants.available} IS TRUE))::int`,
       minList: sql<string | null>`min(${list})`,
       maxList: sql<string | null>`max(${list})`,
+      freshMin: sql<string | null>`min(${list}) FILTER (WHERE ${fresh})`,
+      freshMax: sql<string | null>`max(${list}) FILTER (WHERE ${fresh})`,
       available: sql<boolean | null>`bool_or(${variants.available})`,
       shipsLater: sql<boolean>`coalesce(bool_and(${variants.shipsLater}) FILTER (WHERE ${variants.available} IS TRUE), false)`,
     })
@@ -329,14 +344,21 @@ async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFami
 
   return rows.map((r) => {
     const s = byFamily.get(r.id);
+    // Every supplier on the card stale: no price at all; some: the range of the others.
+    const codes = vendor ? [vendor.code] : r.supplierCodes;
+    const none = allStale(codes, stale);
+    const mixed = !vendor && someStale(codes, stale);
+    const minUsd = none ? null : vendor ? s?.minList : mixed ? s?.freshMin : r.minListUsd;
+    const maxUsd = none ? null : vendor ? s?.maxList : mixed ? s?.freshMax : r.maxListUsd;
     return {
       id: r.id,
       slug: r.slug,
       title: r.title,
       image: r.images[0] ?? null,
       supplierNames: vendor ? [vendor.name] : r.supplierCodes.map((c) => names.get(c) ?? c),
-      minPriceIls: priceIls(vendor ? s?.minList : r.minListUsd, rate, 1),
-      maxPriceIls: priceIls(vendor ? s?.maxList : r.maxListUsd, rate, 1),
+      supplierCodes: codes,
+      minPriceIls: priceIls(minUsd, rate, 1),
+      maxPriceIls: priceIls(maxUsd, rate, 1),
       available: vendor ? (s?.available ?? null) : r.available,
       shipsLater: vendor ? (s?.shipsLater ?? false) : r.shipsLater,
       checkedAt: r.lastSeenAt.toISOString(),
@@ -898,8 +920,8 @@ async function quickRows(q: string, supplier = "") {
             ORDER BY ${variants.available} IS TRUE DESC, ${variants.priceUsd} ASC))[1]
         END ${fromFamily})`,
       matchedVariant: sku
-        ? sql<{ id: string; sku: string; priceUsd: string; markup: string | null; fixedIls: string | null } | null>`(
-          SELECT json_build_object('id', ${variants.id}, 'sku', ${variants.supplierSku}, 'priceUsd', ${variants.priceUsd}, 'markup', ${variants.markup}, 'fixedIls', ${variants.fixedIls})
+        ? sql<{ id: string; sku: string; priceUsd: string; markup: string | null; fixedIls: string | null; supplierCode: string } | null>`(
+          SELECT json_build_object('id', ${variants.id}, 'sku', ${variants.supplierSku}, 'priceUsd', ${variants.priceUsd}, 'markup', ${variants.markup}, 'fixedIls', ${variants.fixedIls}, 'supplierCode', (SELECT ${suppliers.code} FROM ${suppliers} WHERE ${suppliers.id} = ${variants.supplierId}))
           ${fromFamily} AND ${skuNorm} = ${sku}
           ORDER BY ${variants.available} IS TRUE DESC, ${variants.priceUsd} ASC LIMIT 1)`
         : sql<null>`NULL`,

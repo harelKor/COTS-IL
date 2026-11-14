@@ -98,13 +98,14 @@ function ProgramControl({ value, onChange }: { value: CatalogFilters["program"];
   );
 }
 
+/** The sort, in the results bar above the grid. */
 function SortSelect({ value, onChange }: { value: Sort; onChange: (s: Sort) => void }) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as Sort)}
       aria-label="מיון"
-      className="h-11 w-full rounded-xl bg-subtle px-3 text-callout outline-none focus:ring-2 focus:ring-brand"
+      className="h-11 max-w-40 shrink-0 rounded-xl bg-subtle px-3 text-caption outline-none focus:ring-2 focus:ring-brand lg:h-9"
     >
       {(Object.keys(SORT_LABELS) as Sort[]).map((s) => (
         <option key={s} value={s}>
@@ -249,7 +250,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
   ];
 
   return (
-    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[250px_1fr] lg:items-start lg:gap-x-8 lg:gap-y-4">
+    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[220px_1fr] lg:items-start lg:gap-x-6 lg:gap-y-3 xl:grid-cols-[250px_1fr] xl:gap-x-8">
       {/* The vendor is the main filter: big tiles above the side panel and the results. */}
       {((!vendor && suppliers.length > 0) || underVendors) && (
         <div className="flex flex-col gap-3 lg:col-span-2">
@@ -268,10 +269,6 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
           <h2 className={sidebarHeading}>תוכנית</h2>
           <ProgramControl value={filters.program} onChange={(program) => go({ ...filters, program })} />
         </section>
-        <section>
-          <h2 className={sidebarHeading}>מיון</h2>
-          <SortSelect value={filters.sort} onChange={(sort) => go({ ...filters, sort })} />
-        </section>
         {facets.map((facet) => {
           const chosen = filters.specs[facet.key] ?? [];
           return (
@@ -289,7 +286,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
         })}
       </aside>
 
-      <div ref={top} className={`flex min-w-0 scroll-mt-[72px] flex-col gap-5 transition-opacity duration-200 ${pending ? "opacity-60" : ""}`} aria-busy={pending}>
+      <div ref={top} className={`flex min-w-0 scroll-mt-[72px] flex-col gap-3 transition-opacity duration-200 ${pending ? "opacity-60" : ""}`} aria-busy={pending}>
         <ScrollRow className="lg:hidden">
           {facets.map((facet) => {
             const chosen = filters.specs[facet.key] ?? [];
@@ -322,38 +319,20 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
           <button
             type="button"
             onClick={() => more.current?.showModal()}
-            className={chip(!!(filters.program || filters.availableOnly || filters.sort !== "relevance"))}
+            className={chip(!!(filters.program || filters.availableOnly))}
           >
             <SlidersHorizontal size={16} strokeWidth={1.75} aria-hidden />
             סינונים נוספים
           </button>
         </ScrollRow>
 
-        {active.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            {active.map((a, i) => (
-              <button key={i} type="button" onClick={() => go(a.clear)} className="flex min-h-11 items-center gap-1 rounded-full bg-subtle ps-3 pe-2 text-caption">
-                {a.label}
-                <X size={14} aria-label="הסרה" />
-              </button>
-            ))}
-            {(hasFilters(filters) || filters.q) && (
-              <button
-                type="button"
-                onClick={() => go({ ...filters, q: "", supplier: "", program: "", availableOnly: false, specs: {} })}
-                className="min-h-11 px-2 text-caption text-brand hover:underline"
-              >
-                נקה הכל
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className="flex items-center justify-between">
-          <p className="text-caption text-muted" aria-live="polite">
-            {total.toLocaleString("he-IL")} מוצרים
+        {/* One line above the grid: how many, the sort and the view. Filters that are on sit right under it. */}
+        <div className="flex items-center gap-2">
+          <p className="me-auto min-w-0 truncate text-callout font-medium tabular-nums" aria-live="polite">
+            {total.toLocaleString("he-IL")} <span className="font-normal text-muted">מוצרים</span>
           </p>
-          <div className="flex rounded-full bg-subtle p-0.5" role="group" aria-label="תצוגה">
+          <SortSelect value={filters.sort} onChange={(sort) => go({ ...filters, sort })} />
+          <div className="flex shrink-0 rounded-full bg-subtle p-0.5" role="group" aria-label="תצוגה">
             {(
               [
                 ["grid", LayoutGrid, "כרטיסים"],
@@ -364,15 +343,36 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
                 key={view}
                 type="button"
                 aria-pressed={filters.view === view}
+                aria-label={label}
                 onClick={() => startTransition(() => router.replace(listHref({ ...filters, view, page: pages }), { scroll: false }))}
-                className={`flex h-11 items-center gap-1.5 rounded-full px-3 text-caption ${filters.view === view ? "bg-surface shadow-sm" : "text-muted"}`}
+                className={`flex h-11 w-11 items-center justify-center gap-1.5 rounded-full text-caption sm:w-auto sm:px-3 lg:h-8 ${filters.view === view ? "bg-surface shadow-sm" : "text-muted"}`}
               >
                 <Icon size={16} strokeWidth={1.75} aria-hidden />
-                {label}
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </div>
         </div>
+
+        {active.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {active.map((a, i) => (
+              <button key={i} type="button" onClick={() => go(a.clear)} className="flex min-h-11 items-center gap-1 rounded-full bg-subtle ps-3 pe-2 text-caption lg:min-h-8">
+                {a.label}
+                <X size={14} aria-label="הסרה" />
+              </button>
+            ))}
+            {(hasFilters(filters) || filters.q) && (
+              <button
+                type="button"
+                onClick={() => go({ ...filters, q: "", supplier: "", program: "", availableOnly: false, specs: {} })}
+                className="min-h-11 px-2 text-caption text-brand hover:underline lg:min-h-8"
+              >
+                נקה הכל
+              </button>
+            )}
+          </div>
+        )}
 
         {cards.length === 0 ? (
           <div className="card-surface flex flex-col items-center gap-4 p-8 text-center">
@@ -422,7 +422,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
             ))}
           </ul>
         ) : (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-3 xl:grid-cols-5">
             {cards.map((c, i) => (
               <FamilyCard key={c.id} family={c} preset={{ ...preset, ...c.skuPreset }} eager={i < EAGER_CARDS} />
             ))}
@@ -468,10 +468,6 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
             <section className="flex flex-col gap-2">
               <h3 className="font-semibold">תוכנית</h3>
               <ProgramControl value={filters.program} onChange={(program) => go({ ...filters, program })} />
-            </section>
-            <section className="flex flex-col gap-2">
-              <h3 className="font-semibold">מיון</h3>
-              <SortSelect value={filters.sort} onChange={(sort) => go({ ...filters, sort })} />
             </section>
           </div>
           <div className="border-t border-line px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">

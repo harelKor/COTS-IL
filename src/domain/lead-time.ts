@@ -26,3 +26,17 @@ export function arrivalShort(lead: { minDays: number; maxDays: number } | null |
   const text = leadTimeText(lead);
   return text ? `מגיע תוך ${text}` : null;
 }
+
+type Lead = { minDays: number; maxDays: number } | null | undefined;
+
+/**
+ * The arrival line on a catalog card: "מגיע תוך 10–20 ימים", spanning every supplier the card
+ * sells it from. Null (nothing shown) while any of them has no lead time set, so the line is
+ * true whichever offer is picked; never a made-up number.
+ */
+export function cardArrival(codes: readonly string[], leads: Record<string, Lead>): string | null {
+  if (codes.length === 0) return null;
+  const known = codes.map((c) => leads[c]).filter((l): l is { minDays: number; maxDays: number } => !!l && leadTimeText(l) !== null);
+  if (known.length !== codes.length) return null;
+  return arrivalShort({ minDays: Math.min(...known.map((l) => l.minDays)), maxDays: Math.max(...known.map((l) => l.maxDays)) });
+}

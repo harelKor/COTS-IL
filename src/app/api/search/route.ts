@@ -2,7 +2,9 @@ import { type NextRequest } from "next/server";
 import { familyHref } from "@/components/catalog";
 import { priceContext } from "@/lib/settings";
 import { priceIls } from "@/domain/pricing";
+import { allStale, isStale } from "@/domain/stale-price";
 import { quickSearch, searchSuggestions } from "@/lib/catalog";
+import { getStaleSupplierCodes } from "@/lib/health";
 import { cachedJson } from "@/lib/cache-headers";
 import { normalizeSearch, parseQuickQuery, tokenIsPartName } from "@/lib/quick-query";
 
@@ -15,6 +17,8 @@ export type SearchResult = {
   title: string;
   image: string | null;
   supplierName: string;
+  /** The suppliers' codes (their lead times, on the card the row becomes). */
+  supplierCodes: string[];
   priceIls: number | null;
   maxPriceIls: number | null;
   fromPrice: boolean;
@@ -58,10 +62,11 @@ export async function GET(request: NextRequest) {
   // With a trailing "x4", the whole text (token included) is searched at the same time, so
   // finding out that "X60" was part of the name costs no second wait. Which one is used is
   // decided as before.
-  const [first, withToken, rate] = await Promise.all([
+  const [first, withToken, rate, stale] = await Promise.all([
     quickSearch(parsed.q, vendor),
     parsed.token ? quickSearch(parsed.text, vendor) : null,
     priceContext(),
+    getStaleSupplierCodes(),
   ]);
   let found = first;
   let q = parsed.q;
@@ -73,15 +78,19 @@ export async function GET(request: NextRequest) {
   }
   const rows = found.rows;
   const results: SearchResult[] = rows.map((r) => {
-    const exact = r.matchedVariant ? priceIls(r.matchedVariant.priceUsd, rate, r.matchedVariant.markup, r.matchedVariant.fixedIls) : null;
-    const low = exact ?? priceIls(r.minListUsd, rate, 1);
-    const high = exact ?? priceIls(r.maxListUsd, rate, 1);
+    // A supplier with no good sync for days has no price here: "המחיר ייבדק בהצעה" (M1). The exact SKU's
+    // own supplier decides for it; otherwise every supplier of the row must be stale.
+    const hidden = r.matchedVariant ? isStale(r.matchedVariant.supplierCode, stale) : allStale(r.supplierCodes, stale);
+    const exact = r.matchedVariant && !hidden ? priceIls(r.matchedVariant.priceUsd, rate, r.matchedVariant.markup, r.matchedVariant.fixedIls) : null;
+    const low = hidden ? null : (exact ?? priceIls(r.minListUsd, rate, 1));
+    const high = hidden ? null : (exact ?? priceIls(r.maxListUsd, rate, 1));
     return {
       id: r.id,
       href: familyHref(r.slug, r.matchedVariant?.sku ?? null, vendor || null),
       title: r.title,
       image: r.image,
       supplierName: r.supplierNames.join(", "),
+      supplierCodes: r.supplierCodes,
       priceIls: low,
       maxPriceIls: high,
       fromPrice: high !== null && high !== low,

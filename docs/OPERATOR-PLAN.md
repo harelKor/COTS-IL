@@ -71,7 +71,7 @@ The order avoids files that the audit tasks (`docs/AUDIT-UX-PLAN.md`) are still 
 
 **Done (Nov 14, 2026).** Checked on the local stack: a failed and a never-synced supplier, a stuck run, a failed backup, an old revalidate, a failed digest, a rejected GitHub key and a failed email each showed red in the banner and the card; the watchdog logged its email with email off. Left open:
 - The owner adds `CRON_SECRET` in Vercel (admin guide, "Setup still needed"); until then the watchdog doesn't run.
-- Stale prices ("ייבדק בהצעה") cover the product page and its options table only. Family cards (`toCards`/`variantsOf` in `src/lib/catalog.ts`) and the search panel (`src/app/api/search/route.ts`) still show the old price: T6's files. `getStaleSupplierCodes()` in `src/lib/health.ts` is ready for them.
+- Stale prices ("ייבדק בהצעה"): the product page and options table (M1), and since T17 (Nov 14, 2026) family cards (`variantsOf`/`toCards` in `src/lib/catalog.ts`) and the search panel (`src/app/api/search/route.ts`), through `getStaleSupplierCodes()` read inside the cached readers. A card whose vendors are all stale shows no price; a card with some stale shows the range of the others; a chosen stale part shows "המחיר ייבדק בהצעה". A search row with some stale vendors still shows the family's range (done: only all-stale rows hide the price).
 - On the product page a stale part shows the existing "no price, send a request" path, so it can't go straight into the cart. Keeping the add button for a stale price needs `family-view.tsx` (T7).
 
 ### M2. Order corrections (Opus; after T4)

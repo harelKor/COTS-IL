@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arrivalShort, arrivalText, leadTimeText, typicalLeadTime } from "./lead-time";
+import { arrivalShort, arrivalText, cardArrival, leadTimeText, typicalLeadTime } from "./lead-time";
 
 describe("leadTimeText", () => {
   it("hides an unknown lead time", () => {
@@ -29,5 +29,22 @@ describe("arrivalText", () => {
     expect(arrivalText({ minDays: 7, maxDays: 10 })).toBe("מגיע לישראל תוך 7–10 ימים מאישור ההצעה");
     expect(arrivalText({ minDays: 7, maxDays: 10 }, true)).toBe("מגיע לישראל תוך 7–10 ימים מרגע שהספק שולח");
     expect(arrivalShort({ minDays: 7, maxDays: 10 })).toBe("מגיע תוך 7–10 ימים");
+  });
+});
+
+describe("cardArrival", () => {
+  const leads = { andymark: { minDays: 10, maxDays: 20 }, wcp: { minDays: 7, maxDays: 14 } };
+  it("is one supplier's range", () => {
+    expect(cardArrival(["andymark"], leads)).toBe("מגיע תוך 10–20 ימים");
+  });
+  it("spans several suppliers", () => {
+    expect(cardArrival(["andymark", "wcp"], leads)).toBe("מגיע תוך 7–20 ימים");
+  });
+  it("hides while any supplier has no lead time, or none is set", () => {
+    expect(cardArrival(["andymark", "ctre"], leads)).toBeNull();
+    expect(cardArrival(["ctre"], leads)).toBeNull();
+    expect(cardArrival(["andymark"], {})).toBeNull();
+    expect(cardArrival([], leads)).toBeNull();
+    expect(cardArrival(["andymark"], { andymark: { minDays: 0, maxDays: 0 } })).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRef, useState, ViewTransition } from "react";
 import { chipPrice, choose, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
+import { cardArrival } from "@/domain/lead-time";
 import { formatIls } from "@/domain/pricing";
 import { availabilityStatus, isFresh, useNow } from "./availability";
 import { Ils } from "./ils";
@@ -16,6 +17,10 @@ import { addToCartNow, type AddableLine } from "./cart-actions";
 import { canEditCart, findLine, useCartMode, useFamilyQty, useLineQty } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
+import { useSiteFacts } from "./site-facts";
+
+/** Shown instead of a price that isn't known, or that is too old to trust (a supplier not synced for days). */
+const PRICE_LATER = "המחיר ייבדק בהצעה";
 
 function lineFor(family: CardFamily, v: CardVariant): AddableLine {
   return {
@@ -90,6 +95,7 @@ const SHEET_QUERY = "(max-width: 639px)";
 export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style, glow = false, dataKey, morph = true }: Props) {
   // Only this card's slice of the cart, so an add elsewhere doesn't re-render every card on the page.
   const mode = useCartMode();
+  const { leadTimes } = useSiteFacts();
   const [open, setOpen] = useState(false);
   const [asSheet, setAsSheet] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
@@ -133,11 +139,12 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   const photoSrc = current?.image ?? family.image;
   const photo = photoSrc ? shopifyImage(photoSrc, layout === "row" ? 64 : 240) : null;
 
+  // A chosen part with no price (its supplier's price is stale) never falls back to the family's range.
   const price =
     current?.priceIls != null ? (
       <Ils amount={current.priceIls} />
-    ) : family.minPriceIls === null ? (
-      <span className="text-caption font-normal text-muted">ייבדק בהצעה</span>
+    ) : current || family.minPriceIls === null ? (
+      <span className="text-caption font-normal text-muted">{PRICE_LATER}</span>
     ) : (
       <>
         {family.maxPriceIls !== family.minPriceIls && <span className="text-caption font-normal text-muted">החל מ-</span>}
@@ -151,11 +158,15 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
    * "+" on a 360px phone.
    */
   const fromPrice = !current && family.minPriceIls !== null && family.maxPriceIls !== family.minPriceIls;
+  // When it reaches Israel, from the vendors' lead times (hidden while any is empty). Not for a sold-out
+  // or preorder part: its wait starts when the vendor ships, and the availability line says so.
+  const offerLater = current ? current.shipsLater || current.available === false : family.shipsLater || family.available === false;
+  const arrival = offerLater ? null : cardArrival(current ? [current.supplierCode] : family.supplierCodes, leadTimes);
   const cardPrice =
     current?.priceIls != null ? (
       <Ils amount={current.priceIls} />
-    ) : family.minPriceIls === null ? (
-      <span className="text-caption font-normal text-muted">ייבדק בהצעה</span>
+    ) : current || family.minPriceIls === null ? (
+      <span className="text-caption font-normal text-muted">{PRICE_LATER}</span>
     ) : (
       <Ils amount={family.minPriceIls} />
     );
@@ -336,7 +347,10 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
             {/* Under the title on a phone; its own column from 640px. */}
             <span className="block text-callout font-semibold tabular-nums sm:hidden">{price}</span>
           </Link>
-          <div className="hidden w-32 sm:block">{availability}</div>
+          <div className="hidden w-32 sm:block">
+            {availability}
+            {arrival && <span className="block truncate text-caption text-muted">{arrival}</span>}
+          </div>
           <span className="hidden w-20 shrink-0 text-end text-callout font-semibold tabular-nums sm:block">{price}</span>
           <div className="flex shrink-0 justify-end sm:w-28">{action}</div>
         </div>
@@ -389,6 +403,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
             </span>
           )}
           {availability}
+          {arrival && <span className="truncate text-start text-caption text-muted">{arrival}</span>}
         </div>
       </Link>
 

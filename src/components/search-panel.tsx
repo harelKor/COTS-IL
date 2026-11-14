@@ -109,6 +109,7 @@ function asCard(r: SearchResult): CardFamily {
     title: r.title,
     image: r.image,
     supplierNames: r.supplierName.split(", "),
+    supplierCodes: r.supplierCodes,
     minPriceIls: r.priceIls,
     maxPriceIls: r.maxPriceIls,
     available: r.available,
