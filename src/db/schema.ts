@@ -125,6 +125,8 @@ export const auditLog = pgTable("audit_log", {
 }, (t) => [
   // Every order and quote page asks for an entity's latest action of a kind (src/lib/orders.ts).
   index("audit_log_entity_action_at_idx").on(t.entity, t.entityId, t.action, t.at),
+  // The health list counts failed emails in the last 7 days (src/lib/health.ts).
+  index("audit_log_email_at_idx").on(t.at).where(sql`${t.action} LIKE 'email:%'`),
 ]);
 
 export const categories = pgTable("categories", {
@@ -357,6 +359,24 @@ export const syncJobs = pgTable("sync_jobs", {
   /** The USD→ILS rate in force when this job ran (exchange_rates), for the admin dashboard. */
   usdIlsRate: numeric("usd_ils_rate", { precision: 10, scale: 4 }),
 });
+
+/**
+ * The outcome of each background job that isn't a supplier sync (M1): the nightly backup
+ * (.github/workflows/backup.yml), the catalog revalidate and the daily digest (sync.yml and
+ * their routes), and the Vercel Cron watchdog. Read by the health list (src/domain/health.ts).
+ */
+export const jobRuns = pgTable(
+  "job_runs",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    /** "backup" | "revalidate" | "daily_digest" | "watchdog" (JOBS in src/domain/health.ts). */
+    job: text("job").notNull(),
+    ok: boolean("ok").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    detail: jsonb("detail"),
+  },
+  (t) => [index("job_runs_job_at_idx").on(t.job, t.at)],
+);
 
 /**
  * Bank of Israel representative rates, one row per currency and rate date, fetched

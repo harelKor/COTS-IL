@@ -69,6 +69,11 @@ The order avoids files that the audit tasks (`docs/AUDIT-UX-PLAN.md`) are still 
 
 **Done when:** stopping each of these on the local stack shows a red line in the banner and in the system card, and the watchdog sends an email.
 
+**Done (Nov 14, 2026).** Checked on the local stack: a failed and a never-synced supplier, a stuck run, a failed backup, an old revalidate, a failed digest, a rejected GitHub key and a failed email each showed red in the banner and the card; the watchdog logged its email with email off. Left open:
+- The owner adds `CRON_SECRET` in Vercel (admin guide, "Setup still needed"); until then the watchdog doesn't run.
+- Stale prices ("ייבדק בהצעה") cover the product page and its options table only. Family cards (`toCards`/`variantsOf` in `src/lib/catalog.ts`) and the search panel (`src/app/api/search/route.ts`) still show the old price: T6's files. `getStaleSupplierCodes()` in `src/lib/health.ts` is ready for them.
+- On the product page a stale part shows the existing "no price, send a request" path, so it can't go straight into the cart. Keeping the add button for a stale price needs `family-view.tsx` (T7).
+
 ### M2. Order corrections (Opus; after T4)
 - **Cancel by the admin at any stage, with a reason.**
   - It releases the lines on draft supplier orders.
@@ -155,7 +160,7 @@ M1 can start now (its files don't overlap the audit tasks). After it:
 | Task | Depends on | State |
 |---|---|---|
 | M0 Handing over the accounts | the owner | open |
-| M1 Health and alerts | — | not started |
+| M1 Health and alerts | — | done (Nov 14): needs `CRON_SECRET` in Vercel; cards and the search price path left to T6 (see M1 below) |
 | M2 Order corrections | T4 | not started |
 | M3 Payment tracking | M2 | not started |
 | M4 Team management | T9 | not started |

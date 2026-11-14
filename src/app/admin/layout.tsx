@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { cache, Suspense } from "react";
 import { db } from "@/db";
 import { requireAdmin } from "@/lib/auth";
+import { AdminBanner } from "./admin-banner";
 import { AdminTabs, TabsNav } from "./admin-tabs";
 
 /** Admin titles read "קבוצות | ניהול": this template replaces the shop's " | COTS-IL" for everything under /admin. */
@@ -84,6 +85,10 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
       {/* The path is request data, so the active tab waits in Suspense; the fallback is the same links. */}
       <Suspense fallback={<TabsNav pathname="" badges={{ orders: null, vendor: null }} />}>
         <AdminTabs badges={badges} />
+      </Suspense>
+      {/* Health (M1) and the go-live checklist, on every admin page; streams in after the tabs. */}
+      <Suspense>
+        <AdminBanner />
       </Suspense>
       {children}
     </>

@@ -80,7 +80,7 @@ export async function detectStore(input: string): Promise<SupplierDraft | null> 
 }
 
 /** Where "סנכרון עכשיו" sends its request; `GITHUB_REPOSITORY` overrides the repo. */
-const REPO = process.env.GITHUB_REPOSITORY || "harelKor/COTS-IL";
+export const GITHUB_REPO = process.env.GITHUB_REPOSITORY || "harelKor/COTS-IL";
 
 /** Why the sync button is off, or null when it works. */
 export function syncUnavailableReason(): string | null {
@@ -92,7 +92,7 @@ export async function dispatchSync(code: string): Promise<{ ok: true } | { ok: f
   const token = process.env.GITHUB_TOKEN;
   if (!token) return { ok: false, error: syncUnavailableReason()! };
   try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/sync.yml/dispatches`, {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/sync.yml/dispatches`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
       body: JSON.stringify({ ref: "main", inputs: { supplier: code } }),

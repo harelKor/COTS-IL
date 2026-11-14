@@ -17,6 +17,7 @@ import { compareOptionValues, optionLabel } from "@/domain/families/sort";
 import { formatIls, priceIls, type PriceContext } from "@/domain/pricing";
 import { getCompanions, getFamily, getVendorPopular, getVendors, type FamilyVariant } from "@/lib/catalog";
 import { priceContext } from "@/lib/settings";
+import { getStaleSupplierCodes } from "@/lib/health";
 import { catalogHref } from "@/lib/catalog-filters";
 import { familyHref } from "@/lib/catalog-links";
 import { cleanDescription, descriptionText, metaDescription, type Spec } from "@/lib/description";
@@ -43,11 +44,12 @@ export async function generateMetadata({ params }: PageProps<"/catalog/p/[slug]"
   const { slug } = await params;
   const result = await getFamily(decodeURIComponent(slug));
   if (!result) return { title: "המוצר לא נמצא" };
-  const rate = await priceContext();
+  const [rate, stale] = await Promise.all([priceContext(), getStaleSupplierCodes()]);
 
   const { family } = result;
   const suppliers = [...new Set(result.variants.map((v) => v.supplierName))].join(", ");
-  const low = priceIls(family.minListUsd, rate, 1);
+  // No price while every vendor of it is too long without a sync (M1).
+  const low = result.variants.every((v) => stale.includes(v.supplierCode)) ? null : priceIls(family.minListUsd, rate, 1);
   const price = low === null ? "" : `${family.variantCount > 1 ? "החל מ-" : ""}${formatIls(low)}, `;
   const clean = cleanDescription(family.descriptionHtml);
   const text = descriptionText(`${clean.lead} ${clean.more}`);
@@ -216,7 +218,7 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
 async function FamilyBody({ slug, children }: { slug: string; children: React.ReactNode }) {
   const result = await getFamily(slug);
   if (!result) notFound();
-  const rate = await priceContext();
+  const [rate, stale] = await Promise.all([priceContext(), getStaleSupplierCodes()]);
   const { rateDate } = rate;
 
   const { family } = result;
@@ -224,7 +226,8 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
     id: v.id,
     sku: v.sku,
     options: v.familyOptions,
-    priceIls: priceIls(v.priceUsd, rate, v.markup, v.fixedIls),
+    // A vendor too long without a successful sync (M1): "ייבדק בהצעה" instead of an old price that looks current.
+    priceIls: stale.includes(v.supplierCode) ? null : priceIls(v.priceUsd, rate, v.markup, v.fixedIls),
     markup: Number(v.markup ?? rate.markup),
     available: v.available,
     shipsLater: v.shipsLater,

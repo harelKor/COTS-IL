@@ -9,9 +9,12 @@ import { Loading, PageSkeleton } from "@/components/skeleton";
 import { db, schema } from "@/db";
 import { emailConfig } from "@/domain/notifications";
 import { needsAttention, type PageRunStats } from "@/domain/sync-health";
+import { STALE_PRICE_DAYS, worstLevel } from "@/domain/health";
 import { requireAdmin } from "@/lib/auth";
+import { getHealth } from "@/lib/health";
 import { priceContext } from "@/lib/settings";
 import { syncUnavailableReason } from "@/lib/supplier-admin";
+import { HealthList } from "../../health-list";
 import { TestEmailButton } from "./test-email";
 
 export const metadata: Metadata = { title: "הגדרות: מערכת" };
@@ -51,8 +54,9 @@ type Job = {
 
 async function System() {
   await requireAdmin();
-  const [ctx, jobs] = await Promise.all([
+  const [ctx, health, jobs] = await Promise.all([
     priceContext(),
+    getHealth(),
     db.execute<Job>(sql`
       SELECT s.code, s.name, s.platform, j.status, j.started_at, j.finished_at, j.error, (j.counts->>'products')::int AS products, j.counts
       FROM ${schema.suppliers} s
@@ -75,10 +79,24 @@ async function System() {
   const sha = process.env.VERCEL_GIT_COMMIT_SHA;
   const built = process.env.BUILD_TIME;
 
+  const worst = worstLevel(health.checks);
+
   return (
     <div className="flex flex-col gap-6">
+      <Card id="health" className="flex scroll-mt-20 flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-section font-semibold">בריאות האתר</h2>
+          {worst === "red" ? <StatusTag tone="danger">יש תקלה</StatusTag> : worst === "yellow" ? <StatusTag tone="warning">יש מה לבדוק</StatusTag> : <StatusTag tone="success">הכול תקין</StatusTag>}
+        </div>
+        <p className="text-caption text-muted">
+          הסנכרון, הגיבוי, השער, המיילים ומפתח GitHub. בדיקה יומית ב-08:00 בערך שולחת מייל למנהלים כשמשהו אדום (כשהמייל מוגדר), ו-<Ltr>/api/health</Ltr> מחזיר את המצב לשירות ניטור חיצוני. כל שורה מובילה למקום שבו מתקנים.
+          {health.staleSuppliers.length > 0 && ` אצל ספק שלא סונכרן ${STALE_PRICE_DAYS} ימים המחירים מוצגים ״ייבדק בהצעה״.`}
+        </p>
+        <HealthList checks={health.checks} />
+      </Card>
+
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="flex flex-col gap-2">
+        <Card id="email" className="flex scroll-mt-20 flex-col gap-2">
           <h2 className="text-section font-semibold">חיבורים</h2>
           <dl className="divide-y divide-line">
             <Row label="שער הדולר">

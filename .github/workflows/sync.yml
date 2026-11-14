@@ -41,11 +41,26 @@ jobs:
           SUPPLIER: ${{ inputs.supplier }}
       # Pages cache the catalog for hours; mark it stale so they show this sync.
       # Runs even if one supplier failed, since the others were saved.
-      - name: Refresh the site's catalog cache
+      # Each route records its own success in job_runs (the health list on /admin, M1); when the
+      # site doesn't answer, job-report records the failure, and the step fails after both calls.
+      - name: Refresh the site's catalog cache, then reminders and the digest
         if: ${{ !cancelled() }}
         run: |
-          curl --fail-with-body -sS -X POST -H "Authorization: Bearer $REVALIDATE_SECRET" https://cots-il.vercel.app/api/revalidate
+          status=0
+          call() {
+            local job="$1" path="$2" out
+            if out=$(curl --fail-with-body -sS -X POST -H "Authorization: Bearer $REVALIDATE_SECRET" "https://cots-il.vercel.app$path" 2>&1); then
+              echo "$job: $out"
+            else
+              echo "::error::$job failed: $out"
+              npm run -s job-report -- "$job" failed "$(printf '%s' "$out" | tail -c 250)"
+              status=1
+            fi
+          }
+          call revalidate /api/revalidate
           # Quote reminders and the admin digest (S3); does nothing until email is set up.
-          curl --fail-with-body -sS -X POST -H "Authorization: Bearer $REVALIDATE_SECRET" https://cots-il.vercel.app/api/notify/daily || true
+          call daily_digest /api/notify/daily
+          exit $status
         env:
           REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

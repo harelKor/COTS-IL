@@ -18,7 +18,13 @@ type TableFamily = { slug: string; title: string; images: string[]; optionKeys: 
  * of the page's weight. Styles match the rest of the page; OptionsTable fixes stale statuses,
  * sorts by a column and adds a row to the cart (McMaster-style: quantity and Add on each row).
  */
-export function optionsTableHtml(all: FamilyVariant[], family: TableFamily, rate: PriceContext) {
+export function optionsTableHtml(
+  all: FamilyVariant[],
+  family: TableFamily,
+  rate: PriceContext,
+  /** Suppliers too long without a successful sync (M1): their rows say "ייבדק בהצעה". */
+  staleSuppliers: readonly string[] = [],
+) {
   const keys = family.optionKeys;
   const variants = sortByOptions(all, keys);
   const manySuppliers = new Set(all.map((v) => v.supplierCode)).size > 1;
@@ -32,7 +38,7 @@ export function optionsTableHtml(all: FamilyVariant[], family: TableFamily, rate
     `<th><span class="sr-only">הוספה לסל</span></th>`,
   ].join("");
   const rows = variants.map((v) => {
-    const price = priceIls(v.priceUsd, rate, v.markup, v.fixedIls);
+    const price = staleSuppliers.includes(v.supplierCode) ? null : priceIls(v.priceUsd, rate, v.markup, v.fixedIls);
     const status = availabilityStatus(v.available, v.checkedAt.toISOString(), true, { shipsLater: v.shipsLater, eta: v.shipsLaterEta });
     const options = keys.flatMap((k) => (v.familyOptions[k] ? [v.familyOptions[k]] : [])).join(" / ");
     const href = familyHref(family.slug, variantParam(v, all));

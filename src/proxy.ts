@@ -51,7 +51,8 @@ export async function proxy(request: NextRequest) {
  * - static files, images (`.avif` included) and the metadata routes (manifest, robots,
  *   sitemap, Open Graph images), which never read the session;
  * - the public catalog APIs (`/api/search` on every keystroke, `/api/catalog`, `/api/discover`,
- *   `/api/family/…`), which don't either;
+ *   `/api/family/…`), which don't either, nor do the uptime check (`/api/health`) and the Vercel
+ *   Cron watchdog (`/api/cron/…`);
  * - router prefetches. A prefetch only renders what's static, cached or read from the cookies
  *   as they are (getViewer waits for the navigation, behind connection()), so it needs neither
  *   a refreshed session nor the /login redirect; the click's own request still gets both.
@@ -60,7 +61,7 @@ export const config = {
   matcher: [
     {
       source:
-        "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|opengraph-image|api/(?:search|catalog|discover|family)(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico)$).*)",
+        "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|opengraph-image|api/(?:search|catalog|discover|family|health|cron)(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico)$).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

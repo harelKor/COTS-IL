@@ -6,7 +6,8 @@ on:
   workflow_dispatch:
 
 # Backs up the app's data and user accounts, encrypted, as a 30-day artifact on
-# this private repo. A failed run emails the repo owner through GitHub.
+# this private repo. A failed run emails the repo owner through GitHub, and every run records
+# its outcome in job_runs for the health list on /admin (M1).
 # docs/admin-guide.md explains how to restore.
 jobs:
   backup:
@@ -32,3 +33,16 @@ jobs:
           path: backup.dump.gpg
           retention-days: 30
           if-no-files-found: error
+      # The outcome, for the health list on /admin and the watchdog's email (M1).
+      - name: Record the outcome
+        if: ${{ always() }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          ok=false; [ "$JOB_STATUS" = "success" ] && ok=true
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]] || RUN_ID=0
+          sql="INSERT INTO job_runs (job, ok, detail) VALUES ('backup', $ok, jsonb_build_object('source', 'github', 'run', '$RUN_ID'))"
+          docker run --rm -e DATABASE_URL="$DATABASE_URL" postgres:17 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -c "$sql" \
+            || echo "::warning::could not record the backup's outcome"
