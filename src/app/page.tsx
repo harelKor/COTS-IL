@@ -100,7 +100,7 @@ async function Vendors() {
   const { first } = vendorRows(vendors.length);
   const rest = vendors.slice(first);
   return (
-    <section id="vendors" aria-labelledby="vendors-title" className="mt-8 flex scroll-mt-20 flex-col gap-4 lg:mt-[72px] lg:gap-5">
+    <section id="vendors" aria-labelledby="vendors-title" className="mt-10 flex scroll-mt-20 flex-col gap-4 lg:mt-[120px] lg:gap-5">
       <div className="flex items-center gap-4">
         <h2 id="vendors-title" className="flex shrink-0 items-center gap-2.5 text-section font-semibold tracking-tight lg:text-[24px]">
           <Cog strokeWidth={1.75} aria-hidden className="size-5 text-brand lg:size-6" />
