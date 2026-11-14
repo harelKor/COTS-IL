@@ -1,10 +1,14 @@
 name: Warm the site after a deploy
 
-# Every production deploy starts with empty caches, so the first visitor to each page used to
-# pay for a cold render (docs/AUDIT-2026-11-14.md S-2). Vercel reports each deploy to GitHub;
-# when a production one succeeds, this requests the busiest pages once.
+# Every production deploy starts with empty caches (the cache key includes the build), so the
+# first visitor to each page used to pay for a cold render (docs/AUDIT-2026-11-14.md S-2).
+# Vercel sends a repository_dispatch event when a deployment succeeds (this repo has no GitHub
+# Deployments, so deployment_status never fires); for a production one this requests the busiest
+# pages once. It can also be run by hand from the Actions tab.
 on:
-  deployment_status:
+  repository_dispatch:
+    types: [vercel.deployment.success]
+  workflow_dispatch:
 
 permissions: {}
 
@@ -14,12 +18,24 @@ concurrency:
 
 jobs:
   warm:
-    if: ${{ github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Request the home page, the catalog and every vendor store
+        # The payload comes in through env, never pasted into the script.
+        env:
+          PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+          EVENT: ${{ github.event_name }}
         run: |
+          if [ "$EVENT" = "repository_dispatch" ]; then
+            env=$(echo "$PAYLOAD" | jq -r '.environment // .target // ""')
+            ref=$(echo "$PAYLOAD" | jq -r '.git.ref // ""')
+            echo "deployment: environment=$env ref=$ref url=$(echo "$PAYLOAD" | jq -r '.url // ""')"
+            if [ "$env" != "production" ] && [ "$ref" != "main" ]; then
+              echo "Not a production deploy; nothing to warm."
+              exit 0
+            fi
+          fi
           site=https://cots-il.vercel.app
           # Give the production domain a moment to point at the new deploy.
           sleep 15
