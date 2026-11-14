@@ -253,6 +253,13 @@
       "when": 1794642366144,
       "tag": "20261114074606_vendor_logos",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794671618125,
+      "tag": "20261114155338_audit_log_entity_index",
+      "breakpoints": true
     }
   ]
 }

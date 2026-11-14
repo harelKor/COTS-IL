@@ -10,9 +10,10 @@ export type UsdIlsRate = { rate: number; rateDate: string };
  * The latest Bank of Israel USD rate the sync stored. Cached with the catalog,
  * so the sync's revalidate call picks up a new rate. The migration seeds a rate,
  * so a missing one is a broken database and pages fail rather than misprice.
+ * In Vercel's shared Runtime Cache, like getSettings (src/lib/settings.ts).
  */
 export async function getUsdIlsRate(): Promise<UsdIlsRate> {
-  "use cache";
+  "use cache: remote";
   cacheLife("hours");
   cacheTag("catalog");
   const [row] = await db

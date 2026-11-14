@@ -122,7 +122,10 @@ export const auditLog = pgTable("audit_log", {
   before: jsonb("before"),
   after: jsonb("after"),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  // Every order and quote page asks for an entity's latest action of a kind (src/lib/orders.ts).
+  index("audit_log_entity_action_at_idx").on(t.entity, t.entityId, t.action, t.at),
+]);
 
 export const categories = pgTable("categories", {
   id: uuid("id").primaryKey().defaultRandom(),

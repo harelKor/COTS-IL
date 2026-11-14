@@ -52,16 +52,23 @@ export async function GET(request: NextRequest) {
   const parsed = parseQuickQuery(normalizeSearch(request.nextUrl.searchParams.get("q") ?? ""));
   if (parsed.q.length < 2) return cachedJson({ results: [], q: parsed.q, qty: 1, corrected: null, suggestions: [] } satisfies SearchResponse);
 
-  let found = await quickSearch(parsed.q);
+  // With a trailing "x4", the whole text (token included) is searched at the same time, so
+  // finding out that "X60" was part of the name costs no second wait. Which one is used is
+  // decided as before.
+  const [first, withToken, rate] = await Promise.all([
+    quickSearch(parsed.q),
+    parsed.token ? quickSearch(parsed.text) : null,
+    priceContext(),
+  ]);
+  let found = first;
   let q = parsed.q;
   let qty = parsed.qty;
-  if (parsed.token && tokenIsPartName(parsed.token, found.rows.map((r) => r.title))) {
-    found = await quickSearch(parsed.text);
+  if (withToken && parsed.token && tokenIsPartName(parsed.token, first.rows.map((r) => r.title))) {
+    found = withToken;
     q = parsed.text;
     qty = 1;
   }
   const rows = found.rows;
-  const rate = await priceContext();
   const results: SearchResult[] = rows.map((r) => {
     const exact = r.matchedVariant ? priceIls(r.matchedVariant.priceUsd, rate, r.matchedVariant.markup, r.matchedVariant.fixedIls) : null;
     const low = exact ?? priceIls(r.minListUsd, rate, 1);

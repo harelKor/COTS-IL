@@ -25,8 +25,14 @@ import * as schema from "./schema";
 export const DB_LIMITS = {
   /** Connections per server instance. Vercel runs many instances, and the pooler has its own limit. */
   max: 5,
-  /** Close a connection after 5 s unused, so a suspended instance holds none. */
-  idleTimeoutMillis: 5_000,
+  /**
+   * Close a connection after 20 s unused. Was 5 s until Nov 14, 2026: on a quiet site most
+   * requests then opened a new pooler connection (TLS and auth, a few hundred ms). The trade-off:
+   * `attachDatabasePool` keeps the instance alive until idle connections close, so a longer
+   * timeout means more billed function time per quiet instance, and each instance holds up to
+   * `max` pooler connections a little longer. Watch billed duration on the Usage page.
+   */
+  idleTimeoutMillis: 20_000,
   /** Give up getting a connection (opening one or waiting for a free one) after 10 s. */
   connectionTimeoutMillis: 10_000,
   /** Postgres cancels any statement that runs longer than this (ms). */

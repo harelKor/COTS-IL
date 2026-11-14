@@ -78,8 +78,8 @@ export async function cartCount(teamId: string) {
   return count;
 }
 
-/** Orders with their current totals, newest first. Pass a team to limit it to that team. */
-export async function listOrders(teamId?: string) {
+/** Orders with their current totals, newest first. Pass a team to limit it to that team, and `limit` to take only the newest. */
+export async function listOrders(teamId?: string, limit?: number) {
   const latestQuote = db
     .selectDistinctOn([quotes.orderId], {
       orderId: quotes.orderId,
@@ -90,7 +90,7 @@ export async function listOrders(teamId?: string) {
     .orderBy(quotes.orderId, desc(quotes.version))
     .as("latest_quote");
 
-  const rows = await db
+  const query = db
     .select({
       id: teamOrders.id,
       number: teamOrders.number,
@@ -109,9 +109,16 @@ export async function listOrders(teamId?: string) {
     .innerJoin(teams, eq(teams.id, teamOrders.teamId))
     .leftJoin(latestQuote, eq(latestQuote.orderId, teamOrders.id))
     .where(teamId ? eq(teamOrders.teamId, teamId) : undefined)
-    .orderBy(desc(teamOrders.number));
+    .orderBy(desc(teamOrders.number))
+    .$dynamic();
 
-  return rows;
+  return limit ? query.limit(limit) : query;
+}
+
+/** The team's newest order with its totals, for the home page's "Order again" (one row, not the list). */
+export async function latestOrder(teamId: string) {
+  const [last] = await listOrders(teamId, 1);
+  return last ?? null;
 }
 
 /**
@@ -149,32 +156,25 @@ export async function loadOrderById(orderId: string) {
 
 async function loadOrder(row: { order: typeof teamOrders.$inferSelect; team: typeof teams.$inferSelect }) {
   const orderId = row.order.id;
-  const items = await db
-    .select()
-    .from(teamOrderItems)
-    .where(eq(teamOrderItems.orderId, orderId))
-    .orderBy(asc(teamOrderItems.supplierName), asc(teamOrderItems.title));
-
-  const quoteRows = await db.select().from(quotes).where(eq(quotes.orderId, orderId)).orderBy(desc(quotes.version));
-  const lines = quoteRows.length
-    ? await db
-        .select()
-        .from(quoteLines)
-        .where(
-          inArray(
-            quoteLines.quoteId,
-            quoteRows.map((q) => q.id),
-          ),
-        )
-    : [];
-
-  const progress = await getOrderLines([orderId]);
+  // All at once: none needs another's answer (quote lines are found through their quote's order).
+  const [items, quoteRows, lines, progress, deliveries] = await Promise.all([
+    db.select().from(teamOrderItems).where(eq(teamOrderItems.orderId, orderId)).orderBy(asc(teamOrderItems.supplierName), asc(teamOrderItems.title)),
+    db.select().from(quotes).where(eq(quotes.orderId, orderId)).orderBy(desc(quotes.version)),
+    db
+      .select({ line: quoteLines })
+      .from(quoteLines)
+      .innerJoin(quotes, eq(quotes.id, quoteLines.quoteId))
+      .where(eq(quotes.orderId, orderId))
+      .then((rows) => rows.map((r) => r.line)),
+    getOrderLines([orderId]),
+    getOrderDeliveries(orderId),
+  ]);
 
   return {
     ...row,
     items,
     progress: new Map(progress.map((p) => [p.orderItemId, p])),
-    deliveries: await getOrderDeliveries(orderId),
+    deliveries,
     quotes: quoteRows.map((quote) => ({ ...quote, lines: lines.filter((l) => l.quoteId === quote.id) })),
   };
 }

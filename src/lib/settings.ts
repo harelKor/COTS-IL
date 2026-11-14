@@ -11,9 +11,12 @@ import { SEARCH_CATEGORIES } from "./search-examples";
  * The admin's settings (S16), cached under the `settings` tag that every save in
  * /admin/settings invalidates. A missing row reads as the defaults (all business
  * facts null, the 1.6 multiplier), so the site never breaks on it.
+ *
+ * In Vercel's shared Runtime Cache (`"use cache: remote"`), so a new server instance reads
+ * it from the region's cache instead of the database (docs/AUDIT-2026-11-14.md S-2).
  */
 export async function getSettings(): Promise<Settings> {
-  "use cache";
+  "use cache: remote";
   cacheLife("days");
   cacheTag("settings");
   const [row] = await db.select({ data: schema.siteSettings.data }).from(schema.siteSettings).where(eq(schema.siteSettings.id, 1));
@@ -32,8 +35,15 @@ export type Pricing = PriceContext & {
   manualRate: boolean;
 };
 
-/** What every price needs: the rate (manual if set), the global multiplier, rounding and the minimum. */
+/**
+ * What every price needs: the rate (manual if set), the global multiplier, rounding and the minimum.
+ * Read by nearly every render, so it stays in the instance's memory (`"use cache"`) on top of the
+ * two shared remote entries it's made of: a hit costs no network read at all.
+ */
 export async function priceContext(): Promise<Pricing> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("settings", "catalog");
   const [{ rate, rateDate }, { pricing }] = await Promise.all([getUsdIlsRate(), getSettings()]);
   const manual = pricing.rateOverride;
   return {

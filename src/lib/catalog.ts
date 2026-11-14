@@ -24,6 +24,14 @@ const memberVariant = sql`${variants.familyId} = ${families.id} AND ${products.s
 /**
  * The catalog changes once a day, when the sync runs, so public catalog reads
  * are cached for hours. That lets pages render without a loading state.
+ *
+ * Two kinds of cache (Nov 14, 2026, docs/AUDIT-2026-11-14.md S-2):
+ * - `"use cache"` lives in one server instance's memory, so every new instance starts empty.
+ * - `"use cache: remote"` is Vercel's Runtime Cache, shared by every instance in the region.
+ *   Each hit is a network read, so it's for the hot reads every visitor shares (facets,
+ *   vendors, stores, the discovery pool, product pages, plain category browsing). Searches and
+ *   spec filters, with their endless keys, stay in memory.
+ * Both carry the `catalog` tag, so /api/revalidate and admin saves expire them.
  */
 function catalogCache() {
   cacheLife("hours");
@@ -129,10 +137,16 @@ function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
   return { where, order };
 }
 
+/** Every supplier's code and name. Cached with the catalog: the admin's supplier edits expire it. */
+async function supplierNameRows(): Promise<{ code: string; name: string }[]> {
+  "use cache";
+  catalogCache();
+  return db.select({ code: suppliers.code, name: suppliers.name }).from(suppliers);
+}
+
 /** Supplier names by code, for showing a family's suppliers. */
 async function supplierNames() {
-  const rows = await db.select({ code: suppliers.code, name: suppliers.name }).from(suppliers);
-  return new Map(rows.map((r) => [r.code, r.name]));
+  return new Map((await supplierNameRows()).map((r) => [r.code, r.name]));
 }
 
 export type CardVariant = {
@@ -264,12 +278,11 @@ export async function getCardVariants(familyId: string): Promise<CardVariant[]> 
 async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFamily[]> {
   if (rows.length === 0) return [];
   const rate = await priceContext();
-  const names = await supplierNames();
   const ids = rows.map((r) => r.id);
   // A fixed ₪ price (S16c) ÷ the rate, so × the rate gives it back (listUsd in src/domain/part-editor.ts).
   const list = sql`CASE WHEN ${variants.fixedIls} > 0 THEN ${variants.fixedIls} / ${rate.rate} ELSE ${variants.priceUsd} * coalesce(${variants.markup}, 1) END`;
   // Per family: how many option sets can be ordered, and the best offer.
-  const shape = await db
+  const shapeQuery = db
     .select({
       familyId: variants.familyId,
       sets: sql<number>`count(DISTINCT ${variants.familyOptions})::int`,
@@ -293,6 +306,7 @@ async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFami
       ),
     )
     .groupBy(variants.familyId);
+  const [names, shape] = await Promise.all([supplierNames(), shapeQuery]);
   const byFamily = new Map(shape.map((r) => [r.familyId!, r]));
   const single = ids.filter((id) => byFamily.get(id)?.sets === 1);
   const only = new Map<string, CardVariant>();
@@ -323,28 +337,67 @@ async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFami
   });
 }
 
+/**
+ * The filters as a cache key: only the fields a query reads, in a fixed order, so `page` and
+ * `view` (and, for facets, `sort`) don't miss a cache that already holds the answer.
+ */
+function cacheKey(filters: CatalogFilters, keep: { sort?: boolean; supplier?: boolean } = {}): CatalogFilters {
+  const specs = Object.fromEntries(Object.keys(filters.specs).sort().map((k) => [k, [...filters.specs[k]].sort()]));
+  return {
+    q: filters.q,
+    category: filters.category,
+    supplier: keep.supplier === false ? "" : filters.supplier,
+    program: filters.program,
+    availableOnly: filters.availableOnly,
+    sort: keep.sort ? filters.sort : "relevance",
+    page: 1,
+    specs,
+    view: "grid",
+  };
+}
+
+/** Plain browsing (a category, a vendor, a sort; no search or spec filter): few keys, every visitor's. */
+function isBrowse(filters: CatalogFilters) {
+  return !filters.q.trim() && Object.keys(filters.specs).length === 0;
+}
+
 /** A slice of the catalog as cards, from `offset`, with the number of families that match. */
 export async function searchCards(filters: CatalogFilters, offset: number, limit: number) {
+  const key = cacheKey(filters, { sort: true });
+  return isBrowse(key) ? browseCards(key, offset, limit) : searchCardsLocal(key, offset, limit);
+}
+
+async function browseCards(filters: CatalogFilters, offset: number, limit: number) {
+  "use cache: remote";
+  catalogCache();
+  return findCards(filters, offset, limit);
+}
+
+async function searchCardsLocal(filters: CatalogFilters, offset: number, limit: number) {
   "use cache";
   catalogCache();
+  return findCards(filters, offset, limit);
+}
+
+async function findCards(filters: CatalogFilters, offset: number, limit: number) {
   const { where, order } = searchQuery(filters);
 
-  const [rows, [{ total }]] = await Promise.all([
-    db
-      .select(cardColumns)
-      .from(families)
-      .leftJoin(categories, eq(categories.id, families.categoryId))
-      .where(where)
-      .orderBy(...order)
-      .limit(limit)
-      .offset(offset),
-    db
-      .select({ total: sql<number>`count(*)::int` })
-      .from(families)
-      .leftJoin(categories, eq(categories.id, families.categoryId))
-      .where(where),
-  ]);
-  const cards = await toCards(rows, filters.supplier || undefined);
+  // The match count rides along on each row (count(*) OVER () is taken before LIMIT).
+  const found = await db
+    .select({ ...cardColumns, total: sql<number>`(count(*) OVER ())::int` })
+    .from(families)
+    .leftJoin(categories, eq(categories.id, families.categoryId))
+    .where(where)
+    .orderBy(...order)
+    .limit(limit)
+    .offset(offset);
+  // Past the last row no row carries it: count on its own (only a scroll past the end does this).
+  const total =
+    found[0]?.total ??
+    (offset > 0
+      ? (await db.select({ total: sql<number>`count(*)::int` }).from(families).leftJoin(categories, eq(categories.id, families.categoryId)).where(where))[0].total
+      : 0);
+  const cards = await toCards(found, filters.supplier || undefined);
   if (looksLikeSku(filters.q) && cards.length > 0) {
     const matched = await db
       .select({ familyId: variants.familyId, options: variants.familyOptions })
@@ -391,6 +444,10 @@ const MAX_FACETS = 6;
  * each value's count is under the other chosen filters (see facetCountPlans).
  */
 export async function getSpecFacets(filters: CatalogFilters): Promise<SpecFacet[]> {
+  return specFacets(cacheKey(filters));
+}
+
+async function specFacets(filters: CatalogFilters): Promise<SpecFacet[]> {
   "use cache";
   catalogCache();
   if (!filters.category && !filters.q) return [];
@@ -482,9 +539,13 @@ export async function getSpecFacets(filters: CatalogFilters): Promise<SpecFacet[
  * many products each has there. The chosen supplier stays even when it has none.
  */
 export async function getSupplierCounts(filters: CatalogFilters) {
+  return supplierCounts(cacheKey(filters, { supplier: false }));
+}
+
+async function supplierCounts(filters: CatalogFilters) {
   "use cache";
   catalogCache();
-  const { where } = searchQuery({ ...filters, supplier: "" });
+  const { where } = searchQuery(filters);
   const count = sql<number>`count(DISTINCT ${families.id})::int`;
   return db
     .select({ code: suppliers.code, name: suppliers.name, count })
@@ -501,29 +562,28 @@ export async function getSupplierCounts(filters: CatalogFilters) {
  * also carries up to three photos of its main items (motors, not the screws filed next to them).
  */
 export async function getFacets() {
-  "use cache";
+  "use cache: remote";
   catalogCache();
   const count = sql<number>`count(*)::int`;
 
-  // One after another, not in parallel: on a cold instance this fills the cache while other
-  // renders need the same 5 connections (src/db/index.ts).
   // The admin's home photo (S16d) leads the regroup's own picks.
   const images = sql<string[]>`CASE WHEN ${categories.homeImage} IS NULL THEN ${categories.images}
     ELSE (array_prepend(${categories.homeImage}, array_remove(${categories.images}, ${categories.homeImage})))[1:3] END`;
-  const categoryRows = await db
+  const categoryQuery = db
     .select({ slug: categories.slug, name: categories.name, group: categories.groupId, images, count })
     .from(families)
     .innerJoin(categories, eq(categories.id, families.categoryId))
     .where(and(visible, eq(categories.hidden, false)))
     .groupBy(categories.id)
     .orderBy(asc(categories.sortOrder));
-  const supplierRows = await db
+  const supplierQuery = db
     .select({ code: suppliers.code, name: suppliers.name, programs: suppliers.programs, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor, accentColor2: suppliers.accentColor2, count })
     .from(families)
     .innerJoin(suppliers, sql`${suppliers.code} = ANY(${families.supplierCodes})`)
     .where(and(visible, eq(suppliers.active, true)))
     .groupBy(suppliers.code, suppliers.name, suppliers.programs, suppliers.logoUrl, suppliers.accentColor, suppliers.accentColor2)
     .orderBy(desc(count));
+  const [categoryRows, supplierRows] = await Promise.all([categoryQuery, supplierQuery]);
 
   return {
     categories: categoryRows,
@@ -533,7 +593,7 @@ export async function getFacets() {
 
 /** A family with every listed variant, from every supplier that sells it. */
 export async function getFamily(slug: string) {
-  "use cache";
+  "use cache: remote";
   catalogCache();
 
   const [row] = await db
@@ -557,9 +617,9 @@ export async function getFamily(slug: string) {
       shipsLater: variants.shipsLater,
       shipsLaterEta: variants.shipsLaterEta,
       checkedAt: variants.checkedAt,
+      productId: products.id,
       productTitle: products.title,
       productUrl: products.url,
-      productDescription: products.descriptionHtml,
       image: sql<string | null>`${products.images}[1]`,
       supplierCode: suppliers.code,
       supplierName: suppliers.name,
@@ -570,14 +630,32 @@ export async function getFamily(slug: string) {
     .where(sql`${variants.familyId} = ${row.family.id} AND ${products.status} = 'published' AND ${products.missingSince} IS NULL AND ${variants.missingSince} IS NULL`)
     .orderBy(asc(products.title), asc(variants.position));
 
-  const specRows = await db
-    .select({ variantId: schema.specValues.variantId, key: schema.specValues.key, value: schema.specValues.value })
-    .from(schema.specValues)
-    .where(eq(schema.specValues.familyId, row.family.id));
+  const [descriptionRows, specRows] = await Promise.all([
+    // Each product's description once, not once per size: a 40-size gear line repeated it 40 times.
+    db
+      .selectDistinct({ id: products.id, html: products.descriptionHtml })
+      .from(products)
+      .innerJoin(variants, eq(variants.productId, products.id))
+      .where(sql`${variants.familyId} = ${row.family.id} AND ${products.status} = 'published' AND ${products.missingSince} IS NULL AND ${variants.missingSince} IS NULL`),
+    db
+      .select({ variantId: schema.specValues.variantId, key: schema.specValues.key, value: schema.specValues.value })
+      .from(schema.specValues)
+      .where(eq(schema.specValues.familyId, row.family.id)),
+  ]);
   const specs: Record<string, { key: string; value: string }[]> = {};
   for (const r of specRows) if (r.variantId) (specs[r.variantId] ??= []).push({ key: r.key, value: r.value });
 
-  return { ...row, variants: familyVariants, specs };
+  // The description rides on each product's first variant only (null on its other sizes), so the
+  // cached entry holds it once.
+  const description = new Map(descriptionRows.map((d) => [d.id, d.html]));
+  const seen = new Set<string>();
+  const withDescriptions = familyVariants.map(({ productId, ...v }) => {
+    const first = !seen.has(productId);
+    seen.add(productId);
+    return { ...v, productDescription: first ? (description.get(productId) ?? null) : null };
+  });
+
+  return { ...row, variants: withDescriptions, specs };
 }
 
 /** An ILIKE pattern matching `text` anywhere, with wildcards in it taken literally. */
@@ -856,6 +934,8 @@ export async function searchSuggestions(q: string): Promise<string[]> {
  * stock and lowest list price at this vendor.
  */
 async function vendorSignals(code: string): Promise<FamilySignals[]> {
+  "use cache";
+  catalogCache();
   const rows = await db.execute<{
     id: string;
     pin: number | null;
@@ -935,7 +1015,7 @@ export const DISCOVER_PAGE = 10;
  * or every vendor's taking turns (`vendor` = ""). Shuffled by day, so it's stable and cacheable.
  */
 async function discoveryPool(vendor: string): Promise<{ id: string; code: string }[]> {
-  "use cache";
+  "use cache: remote";
   catalogCache();
   const one = async (code: string) => {
     const signals = await vendorSignals(code);
@@ -943,8 +1023,7 @@ async function discoveryPool(vendor: string): Promise<{ id: string; code: string
   };
   if (vendor) return one(vendor);
   const { suppliers: vendors } = await getFacets();
-  const lists: { id: string; code: string }[][] = [];
-  for (const v of vendors) lists.push(await one(v.code));
+  const lists = await Promise.all(vendors.map((v) => one(v.code)));
   return interleave(lists, (x) => x.id);
 }
 
@@ -957,10 +1036,10 @@ export async function getDiscoveryPage(vendor: string, page: number): Promise<{ 
   catalogCache();
   const pool = await discoveryPool(vendor);
   const slice = wrappedPage(pool, page, DISCOVER_PAGE);
-  const cards: CardFamily[] = [];
-  for (const code of [...new Set(slice.map((x) => x.code))]) {
-    cards.push(...(await toCards(await cardRows(slice.filter((x) => x.code === code).map((x) => x.id)), code)));
-  }
+  const codes = [...new Set(slice.map((x) => x.code))];
+  const cards = (
+    await Promise.all(codes.map(async (code) => toCards(await cardRows(slice.filter((x) => x.code === code).map((x) => x.id)), code)))
+  ).flat();
   const at = (c: CardFamily) => slice.findIndex((x) => x.id === c.id && x.code === c.vendor?.code);
   return { cards: cards.sort((x, y) => at(x) - at(y)), pages: pageCount(pool.length, DISCOVER_PAGE) };
 }
@@ -970,7 +1049,7 @@ export const POPULAR_COUNT = 8;
 
 /** The top of a vendor's store: its most wanted families as cards, with this vendor's prices. */
 export async function getVendorPopular(code: string, limit = POPULAR_COUNT): Promise<CardFamily[]> {
-  "use cache";
+  "use cache: remote";
   catalogCache();
   return toCards(await vendorPopularRows(code, limit), code);
 }
@@ -993,10 +1072,9 @@ export type VendorSummary = {
  * logo, accent, biggest categories and photos of its 3 most wanted.
  */
 export async function getVendors(): Promise<VendorSummary[]> {
-  "use cache";
+  "use cache: remote";
   catalogCache();
-  const { suppliers: rows } = await getFacets();
-  const byCategory = await db
+  const byCategoryQuery = db
     .select({ code: suppliers.code, name: categories.name, count: sql<number>`count(DISTINCT ${families.id})::int` })
     .from(families)
     .innerJoin(categories, eq(categories.id, families.categoryId))
@@ -1004,23 +1082,21 @@ export async function getVendors(): Promise<VendorSummary[]> {
     // "שונות" says nothing about a vendor, so the line under its name leaves it out.
     .where(and(visible, eq(suppliers.active, true), sql`${categories.slug} <> 'other'`))
     .groupBy(suppliers.code, categories.name);
-  const out: VendorSummary[] = [];
-  // One after another, like getFacets: a cold cache shouldn't take every connection at once.
-  for (const s of rows) {
-    // Six: a box that spans a whole row shows them all (vendor-boxes.tsx).
-    const top = await vendorPopularRows(s.code, 6);
-    out.push({
-      code: s.code,
-      name: s.name,
-      count: s.count,
-      logoUrl: s.logoUrl,
-      accentColor: s.accentColor,
-      accentColor2: s.accentColor2,
-      categories: byCategory.filter((c) => c.code === s.code).map((c) => ({ name: c.name, count: c.count })),
-      images: top.flatMap((r) => (r.images[0] ? [r.images[0]] : [])),
-    });
-  }
-  return out;
+  const [{ suppliers: rows }, byCategory] = await Promise.all([getFacets(), byCategoryQuery]);
+  // All vendors at once: the pool (5 connections, src/db/index.ts) queues the rest, and with the
+  // remote cache this runs about once per region per catalog change, not on every new instance.
+  // Six: a box that spans a whole row shows them all (vendor-boxes.tsx).
+  const tops = await Promise.all(rows.map((s) => vendorPopularRows(s.code, 6)));
+  return rows.map((s, i) => ({
+    code: s.code,
+    name: s.name,
+    count: s.count,
+    logoUrl: s.logoUrl,
+    accentColor: s.accentColor,
+    accentColor2: s.accentColor2,
+    categories: byCategory.filter((c) => c.code === s.code).map((c) => ({ name: c.name, count: c.count })),
+    images: tops[i].flatMap((r) => (r.images[0] ? [r.images[0]] : [])),
+  }));
 }
 
 /**
@@ -1028,28 +1104,30 @@ export async function getVendors(): Promise<VendorSummary[]> {
  * families each holds and the photo of the best-ranked one. Null for an unknown or inactive vendor.
  */
 export async function getVendorStore(code: string) {
-  "use cache";
+  "use cache: remote";
   catalogCache();
-  const [vendor] = await db
+  const ofVendor = and(visible, sql`${code} = ANY(${families.supplierCodes})`);
+  // All three at once; an unknown vendor's other two just find nothing.
+  const vendorQuery = db
     .select({ code: suppliers.code, name: suppliers.name, baseUrl: suppliers.baseUrl, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor, accentColor2: suppliers.accentColor2 })
     .from(suppliers)
     .where(and(eq(suppliers.code, code), eq(suppliers.active, true)))
     .limit(1);
-  if (!vendor) return null;
-  const ofVendor = and(visible, sql`${code} = ANY(${families.supplierCodes})`);
-  const counts = await db
+  const countsQuery = db
     .select({ slug: categories.slug, name: categories.name, group: categories.groupId, sortOrder: categories.sortOrder, count: sql<number>`count(*)::int` })
     .from(families)
     .innerJoin(categories, eq(categories.id, families.categoryId))
     .where(and(ofVendor, eq(categories.hidden, false)))
     .groupBy(categories.id)
     .orderBy(asc(categories.sortOrder));
-  const photos = await db.execute<{ slug: string; image: string }>(sql`
+  const photosQuery = db.execute<{ slug: string; image: string }>(sql`
     SELECT DISTINCT ON (c.slug) c.slug AS slug, ${families.images}[1] AS image
     FROM ${families} JOIN ${categories} c ON c.id = ${families.categoryId}
     WHERE ${ofVendor} AND cardinality(${families.images}) > 0
     ORDER BY c.slug, ${families.pinnedRank} ASC NULLS LAST, ${families.available} IS TRUE DESC,
       (coalesce(${families.minPriceUsd}, 0) >= ${MAIN_ITEM_MIN_USD}) DESC, ${families.variantCount} DESC`);
+  const [[vendor], counts, photos] = await Promise.all([vendorQuery, countsQuery, photosQuery]);
+  if (!vendor) return null;
   const image = new Map(photos.rows.map((r) => [r.slug, r.image]));
   return {
     ...vendor,

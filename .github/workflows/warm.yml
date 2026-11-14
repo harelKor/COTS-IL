@@ -1,0 +1,36 @@
+name: Warm the site after a deploy
+
+# Every production deploy starts with empty caches, so the first visitor to each page used to
+# pay for a cold render (docs/AUDIT-2026-11-14.md S-2). Vercel reports each deploy to GitHub;
+# when a production one succeeds, this requests the busiest pages once.
+on:
+  deployment_status:
+
+permissions: {}
+
+concurrency:
+  group: warm-site
+  cancel-in-progress: true
+
+jobs:
+  warm:
+    if: ${{ github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Request the home page, the catalog and every vendor store
+        run: |
+          site=https://cots-il.vercel.app
+          # Give the production domain a moment to point at the new deploy.
+          sleep 15
+          get() {
+            curl -sS -o /dev/null --max-time 60 -A "cots-il-warm" \
+              -w "%{http_code} ttfb=%{time_starttransfer}s total=%{time_total}s $1\n" "$site$1" || echo "failed $1"
+          }
+          get /
+          # The vendor stores, as the home page links them (a vendor added in the admin is included).
+          stores=$(curl -sS --max-time 60 -A "cots-il-warm" "$site/" | grep -oE 'href="/v/[a-z0-9-]+"' | sed -E 's/href="([^"]+)"/\1/' | sort -u)
+          for path in /catalog "/catalog?category=gears" $stores; do get "$path"; done
+          # A second round shows what a visitor now gets.
+          echo "--- again"
+          for path in / /catalog $stores; do get "$path"; done

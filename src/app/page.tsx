@@ -10,7 +10,7 @@ import { ReorderButton } from "@/components/reorder-button";
 import { LastOrderNotice } from "@/components/last-order-notice";
 import { formatIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
-import { cartCount, listOrders } from "@/lib/orders";
+import { cartCount, latestOrder } from "@/lib/orders";
 import { getDiscoveryPage, getFacets, getLastSync, getVendors } from "@/lib/catalog";
 import { DiscoveryStrip } from "@/components/discovery-strip";
 import { markupText } from "@/domain/pricing";
@@ -39,7 +39,7 @@ async function TeamNotice() {
     }
     return null;
   }
-  const [[last], inCart] = await Promise.all([listOrders(team.id), cartCount(team.id)]);
+  const [last, inCart] = await Promise.all([latestOrder(team.id), cartCount(team.id)]);
   return (
     <div className="flex flex-col gap-3">
       {team.status === "pending" && (
