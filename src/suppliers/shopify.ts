@@ -17,6 +17,8 @@ const variantSchema = z.object({
   option1: z.string().nullish(),
   option2: z.string().nullish(),
   option3: z.string().nullish(),
+  /** "Falcon Spline / L3 6.12:1 / Colson Wheel / CANCoder / Yes": every option, even past option3. */
+  title: z.string().nullish(),
   position: z.number().nullish(),
   grams: z.number().nullish(),
   price: z.string().nullish(),
@@ -54,6 +56,20 @@ export function sanitizeDescription(html: string | null | undefined): string | n
   return clean === "" ? null : clean;
 }
 
+/**
+ * A variant's options by name. Shopify's JSON gives three values (option1-3), but a
+ * product can have more options (AndyMark's swerve modules have five: … / Steering
+ * Encoder / Assembled), which only the variant title holds. When the title splits into
+ * one value per option name and agrees with option1-3, the title's values are used.
+ */
+function variantOptions(v: z.infer<typeof variantSchema>, optionNames: string[]) {
+  const slots = [v.option1, v.option2, v.option3];
+  const parts = v.title?.split(" / ").map((t) => t.trim()) ?? [];
+  const values =
+    optionNames.length > 3 && parts.length === optionNames.length && slots.every((s, n) => !s || s === parts[n]) ? parts : slots;
+  return values.flatMap((value, n) => (value && value !== "Default Title" ? [{ name: optionNames[n] ?? "", value }] : []));
+}
+
 function positivePrice(price: string | null | undefined): string | null {
   return price && Number(price) > 0 ? price : null;
 }
@@ -69,9 +85,7 @@ export function normalizeProduct(raw: ShopifyProduct, baseUrl: string, supplierP
   const variants = raw.variants.map((v, i) => ({
     supplierVariantId: String(v.id),
     supplierSku: v.sku?.trim() || null,
-    options: [v.option1, v.option2, v.option3].flatMap((value, n) =>
-      value && value !== "Default Title" ? [{ name: optionNames[n] ?? "", value }] : [],
-    ),
+    options: variantOptions(v, optionNames),
     position: v.position ?? i + 1,
     grams: v.grams ?? null,
     priceUsd: positivePrice(v.price),

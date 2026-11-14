@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/catal
   const to = !found
     ? null
     : found.familySlug
-      ? familyHref(found.familySlug, found.variant)
+      ? familyHref(found.familySlug, found.variant, found.vendor)
       : found.categorySlug
         ? catalogHref({ category: found.categorySlug })
         : null;

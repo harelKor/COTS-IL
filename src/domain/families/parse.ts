@@ -5,8 +5,11 @@
  * (DP, belt pitch, material) stay in the title.
  */
 
-/** In display order. "cd" is a gear's center distance: a 14t gear for a 16t CD is a different part. */
-export const OPTION_KEYS = ["teeth", "cd", "bore", "id", "od", "width", "length"] as const;
+/**
+ * In display order. "cd" is a gear's center distance: a 14t gear for a 16t CD is a different part.
+ * "awg" and "color" are a wire's gauge and colour ("18AWG Black Thin Insulation Wire").
+ */
+export const OPTION_KEYS = ["teeth", "cd", "bore", "id", "od", "width", "length", "awg", "color"] as const;
 export type OptionKey = (typeof OPTION_KEYS)[number];
 export type Options = Partial<Record<OptionKey, string>>;
 
@@ -37,10 +40,16 @@ const SIZED = String.raw`${SIZE}(?:\s\(${SIZE}\s${SHAPE}\))?(?:\s${SHAPE})?`;
 const NAMED_BORE = String.raw`(?:${SIZE}\s)?(?:SplineXS|SplineXL|Falcon|Kraken|MiniCIM|CIM|BAG|NEO|Vortex|RS550\/775|RS775|RS550|Thunderhex|Rounded Hex|Hex|Round|Key)`;
 const BARE_DECIMAL = String.raw`\d*\.\d+`;
 
-type Rule = { key: OptionKey; pattern: RegExp };
+/** `needs`: the rule only applies once that option was found ("Black" is a colour only after "18AWG"). */
+type Rule = { key: OptionKey; pattern: RegExp; needs?: OptionKey };
+
+const WIRE_COLOR = "Black|Red|White|Green|Yellow|Blue|Orange|Brown|Gr[ae]y";
 
 /** Order matters: each rule takes its text out before the next one looks. */
 const RULES: Rule[] = [
+  // Wire sold one gauge and colour per listing, gauge first: "18AWG Black Thin Insulation Wire (25-feet)".
+  { key: "awg", pattern: new RegExp(String.raw`^\s(\d+\s?AWG)\s(?=(?:${WIRE_COLOR})\b)`, "i") },
+  { key: "color", pattern: new RegExp(String.raw`^\s*(${WIRE_COLOR})\b`, "i"), needs: "awg" },
   { key: "cd", pattern: /\b(\d+t)\s(?:CD|Center Distance)\b/i },
   { key: "id", pattern: new RegExp(String.raw`(${SIZED}|SplineXS|SplineXL)\sID\b`, "i") },
   { key: "od", pattern: new RegExp(String.raw`(${SIZED}|SplineXS|SplineXL)\sOD\b`, "i") },
@@ -138,7 +147,7 @@ export function parseTitle(title: string): ParsedTitle {
   const specs: Spec[] = titleSpecs(rest);
 
   for (const rule of RULES) {
-    if (options[rule.key]) continue;
+    if (options[rule.key] || (rule.needs && !options[rule.needs])) continue;
     const match = rest.match(rule.pattern);
     if (!match || match.index === undefined) continue;
     const value = normalizeSize(match[1]);
@@ -149,11 +158,33 @@ export function parseTitle(title: string): ParsedTitle {
     const closed = match[0].endsWith(")");
     const keep = closed ? (lead === "," ? ")" : "") : lead;
     rest = `${rest.slice(0, match.index)}${keep} ${rest.slice(match.index + match[0].length)}`;
-    const stored = rule.key === "teeth" || rule.key === "cd" ? value.replace(/t?$/, "t") : value;
+    const stored =
+      rule.key === "teeth" || rule.key === "cd" ? value.replace(/t?$/, "t") : rule.key === "awg" ? value.replace(/\s+/g, "").toUpperCase() : value;
     options[rule.key] = stored;
     specs.push({ key: rule.key, value: stored, ...measure(stored) });
   }
 
   const familyTitle = tidy(rest);
   return { familyTitle, key: familyKey(familyTitle), options, specs };
+}
+
+export type ListedOption = { name: string; value: string };
+
+/**
+ * A listing that names its options in its title, as AndyMark's combined listings do, one
+ * product per combination: "SDS MK4i Swerve Modules - Motor Pinion Type:Falcon Spline,
+ * Gear Ratio:L3 6.12:1, Wheel Type:Colson Wheel". Returns the title before " - " and the
+ * options; null for any other title. A value may hold a colon ("L3 6.12:1") or a comma
+ * ("L1, L2, L3"): only ", Name:" starts the next option.
+ */
+export function splitOptionTitle(title: string): { base: string; options: ListedOption[] } | null {
+  const NAME = String.raw`[A-Za-z#][A-Za-z0-9#*/() ]{0,40}`;
+  const match = title.match(new RegExp(String.raw`^(.+?) - (${NAME}:.+)$`));
+  if (!match) return null;
+  const options = match[2].split(new RegExp(String.raw`, (?=${NAME}:)`)).map((part) => {
+    const at = part.indexOf(":");
+    return { name: part.slice(0, at).trim(), value: part.slice(at + 1).trim() };
+  });
+  if (options.some((o) => !o.name || !o.value)) return null;
+  return { base: match[1].trim(), options };
 }

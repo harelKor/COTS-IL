@@ -4,6 +4,7 @@ import { formatIls, priceIls, type PriceContext } from "@/domain/pricing";
 import { availabilityStatus } from "./availability-text";
 import type { FamilyVariant } from "./catalog";
 import { familyHref } from "./catalog-links";
+import { variantParam } from "@/domain/families/link";
 
 /** Escapes text for HTML. */
 function esc(text: string) {
@@ -34,7 +35,7 @@ export function optionsTableHtml(all: FamilyVariant[], family: TableFamily, rate
     const price = priceIls(v.priceUsd, rate, v.markup, v.fixedIls);
     const status = availabilityStatus(v.available, v.checkedAt.toISOString(), true, { shipsLater: v.shipsLater, eta: v.shipsLaterEta });
     const options = keys.flatMap((k) => (v.familyOptions[k] ? [v.familyOptions[k]] : [])).join(" / ");
-    const href = familyHref(family.slug, v.sku ?? v.id);
+    const href = familyHref(family.slug, variantParam(v, all));
     const line = {
       variantId: v.id,
       title: family.title,

@@ -163,7 +163,7 @@ Sessions in one wave touch different files, so they run at the same time. A wave
 | Task | Wave | State | Branch | Notes |
 |---|---|---|---|---|
 | T1 Honest copy, go-live checklist | 1 | done (Nov 14, 2026) | `claude/t1-honest-copy-c1e128` | vendor names from the DB (`{ספקים}`, `{כתבו לנו}` tokens), go-live banner on `/admin` (`src/domain/go-live.ts`) |
-| T2 Product identity, merges | 1 | not started | | |
+| T2 Product identity, merges | 1 | done | `claude/t2-product-identity-896501` | C-15 a false alarm: CTRE sells the Kraken X60 as WCP-0940. L-03 too: CTRE is on the HTD belts and 20 DP gears only through WCP SKUs it really sells. Fixed: `?v=` + `?vendor=` resolution, supplier switch that reset, title-only cross-vendor merges (now need SKU, part number, price or maker), Kraken Wire Bundle, NEO 550, AndyMark option-in-title listings (SDS, ToughBox), AndyMark options 4-5, WCP wire; `name-only` in the grouping report |
 | T3 Sign-in redirect, reports | 1 | done | claude/t3-redirect-reports-c52e81 | B-1, B-2, B-8, A-09, A-10, A-12 (A-11: revenue no longer divided by 1.18, import costs already in the profit) |
 | T4 Status dictionary | 2 | not started | | |
 | T5 Counts | 2 | not started | | after T1 |

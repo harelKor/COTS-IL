@@ -747,6 +747,8 @@ export async function resolveProductUrl(supplierCode: string, handle: string) {
     familySlug: row.familySlug && row.familyVisible ? row.familySlug : null,
     categorySlug: row.categorySlug,
     variant: row.sku ?? row.variantId,
+    /** With the SKU, so a SKU two vendors share opens on this vendor's offer. */
+    vendor: supplierCode,
   };
 }
 
@@ -916,7 +918,8 @@ export async function getSharedLines(variantIds: string[]) {
     options: Object.values(r.options).join(" / "),
     sku: r.sku,
     image: r.image,
-    href: r.familySlug ? familyHref(r.familySlug, r.sku ?? r.variantId) : "/catalog",
+    // The id, not the SKU: two vendors can share a SKU, and a cart line is one offer.
+    href: r.familySlug ? familyHref(r.familySlug, r.variantId) : "/catalog",
     supplierName: r.supplierName,
     unitPriceIls: priceIls(r.priceUsd, rate, r.markup, r.fixedIls),
   }));

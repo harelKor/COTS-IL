@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { familyKey, measure, parseTitle, type Options } from "./parse";
+import { familyKey, measure, parseTitle, splitOptionTitle, type Options } from "./parse";
 
 /** Real titles from the WCP and AndyMark catalogs (Nov 2026): title, family title, options. */
 const cases: Record<string, [string, string, Options][]> = {
@@ -145,5 +145,39 @@ describe("measure", () => {
 describe("familyKey", () => {
   it("ignores case, quotes and DP spacing", () => {
     expect(familyKey('Steel Spur Gear (20DP)')).toBe(familyKey("steel spur gear (20 dp)"));
+  });
+});
+
+describe("splitOptionTitle", () => {
+  it("reads AndyMark's combined-listing titles, colons and commas inside values included", () => {
+    expect(splitOptionTitle("SDS MK4i Swerve Modules - Motor Pinion Type:Falcon Spline, Gear Ratio:L3 6.12:1, Wheel Type:Colson Wheel")).toEqual({
+      base: "SDS MK4i Swerve Modules",
+      options: [
+        { name: "Motor Pinion Type", value: "Falcon Spline" },
+        { name: "Gear Ratio", value: "L3 6.12:1" },
+        { name: "Wheel Type", value: "Colson Wheel" },
+      ],
+    });
+    expect(splitOptionTitle("SDS MK4 Pinion Kits - Gear Ratio:L1, L2, L3, # of Motors:2")?.options).toEqual([
+      { name: "Gear Ratio", value: "L1, L2, L3" },
+      { name: "# of Motors", value: "2" },
+    ]);
+  });
+
+  it("leaves ordinary titles with a dash alone", () => {
+    expect(splitOptionTitle("WAGO 221 Inline Splicing Connector - 12 AWG - 50 Pack")).toBeNull();
+    expect(splitOptionTitle("50 Feet - Bonded 12 AWG Flexible Silicone Jacketed Wire")).toBeNull();
+    expect(splitOptionTitle("Kraken X60 Powered by TalonFX")).toBeNull();
+  });
+});
+
+describe("parseTitle for wire", () => {
+  it("reads a leading gauge and colour, and nothing from a gauge inside the name", () => {
+    expect(parseTitle("18AWG Black Thin Insulation Wire (25-feet)")).toMatchObject({
+      familyTitle: "Thin Insulation Wire (25-feet)",
+      options: { awg: "18AWG", color: "Black" },
+    });
+    expect(parseTitle('Kraken Wire Bundle 18" (10 AWG Power, 22 AWG CAN)').options).toEqual({});
+    expect(parseTitle("10-12 AWG Yellow Butt Connector Qty. 10").options).toEqual({});
   });
 });

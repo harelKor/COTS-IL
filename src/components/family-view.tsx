@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Copy, Maximize2, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useSyncExternalStore, ViewTransition } from "react";
+import { findLinked, variantParam } from "@/domain/families/link";
 import { changedKeys, chipPrice, choose, linkedKeys, linkedValue, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
 import { leadTimeText } from "@/domain/lead-time";
@@ -52,31 +53,42 @@ type Props = {
 type InnerProps = Props & { initialVariantId: string | null; initialSupplier: string | null };
 
 const noSubscribe = () => () => {};
-/** The address the picker itself last wrote, so its own changes to `?v=` do not reset it. */
-let ownHref = "";
-let linked: { href: string; v: string | null } = { href: "", v: null };
-/** `?v=` from the address bar (a SKU, any case, or a variant id); null while prerendering. */
-function linkedVariant() {
+type Linked = { href: string; v: string | null; vendor: string | null };
+/**
+ * Addresses the picker itself wrote, so its own changes to the URL do not reset it: the one
+ * it's going to, and the one still showing until the router gets there (a render in between
+ * would otherwise read the previous choice as a new link and switch back to it).
+ */
+let ownHrefs = new Set<string>();
+let linked: Linked = { href: "", v: null, vendor: null };
+const unlinked: Linked = { href: "", v: null, vendor: null };
+/**
+ * `?v=` (a SKU, any case, or a variant id) and `?vendor=` (a supplier code, from a vendor's
+ * store) from the address bar, read together and kept while the picker rewrites the URL,
+ * so switching supplier doesn't reset the choice. Nothing while prerendering.
+ */
+function linkedOffer() {
   const href = window.location.href;
-  if (href !== linked.href && href !== ownHref) linked = { href, v: new URLSearchParams(window.location.search).get("v")?.trim().toLowerCase() ?? null };
-  return linked.v;
+  if (href !== linked.href && !ownHrefs.has(href)) {
+    const params = new URLSearchParams(window.location.search);
+    linked = { href, v: params.get("v"), vendor: params.get("vendor") };
+  }
+  return linked;
 }
 /** The address the router is about to show, marked as the picker's own so it doesn't reset it. */
 function claimUrl(path: string) {
-  ownHref = new URL(path, window.location.href).href;
+  ownHrefs = new Set([window.location.href, new URL(path, window.location.href).href]);
 }
-const noLinkedVariant = () => null;
-/** `?vendor=` (a supplier code, from a vendor's store): the page opens on that vendor's offer. */
-const linkedVendor = () => new URLSearchParams(window.location.search).get("vendor");
+const noLinkedOffer = () => unlinked;
 
 /**
  * The family page's gallery and buy panel. The page is prerendered without a selection;
- * the variant in the link (`?v=`) is chosen in the browser, so one cached page serves them all.
+ * the variant in the link (`?v=`, settled by `?vendor=` when two vendors share a SKU) is
+ * chosen in the browser, so one cached page serves them all.
  */
 export function FamilyView({ family, variants, rateDate }: Props) {
-  const wanted = useSyncExternalStore(noSubscribe, linkedVariant, noLinkedVariant);
-  const match = wanted ? variants.find((x) => x.id === wanted || x.sku?.toLowerCase() === wanted) : undefined;
-  const vendor = useSyncExternalStore(noSubscribe, linkedVendor, noLinkedVariant);
+  const { v: wanted, vendor } = useSyncExternalStore(noSubscribe, linkedOffer, noLinkedOffer);
+  const match = findLinked(variants, wanted, vendor);
   const fromVendor = vendor ? variants.filter((x) => x.supplierCode === vendor) : [];
   const initialVariantId = match?.id ?? (variants.length === 1 ? variants[0].id : fromVendor.length === 1 ? fromVendor[0].id : null);
   const initialSupplier = match ? match.supplierName : (fromVendor[0]?.supplierName ?? null);
@@ -138,9 +150,9 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
     if (groupKeys.length) flashTimer.current = setTimeout(() => setFlash([]), 1600);
   }
 
-  /** The URL follows the chosen variant; once one is settled the server's suggestions follow it too. */
+  /** The URL follows the chosen variant (its id when another offer shares its SKU); once one is settled the server's suggestions follow it too. */
   function follow(settled: ViewVariant | null) {
-    const path = familyHref(family.slug, settled ? (settled.sku ?? settled.id) : null);
+    const path = familyHref(family.slug, settled ? variantParam(settled, variants) : null);
     claimUrl(path);
     router.replace(path, { scroll: false });
   }
@@ -195,7 +207,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
         options: family.optionKeys.flatMap((k) => (chosen.options[k] ? [chosen.options[k]] : [])).join(" / "),
         sku: chosen.sku,
         image: chosen.image ?? family.images[0] ?? null,
-        href: familyHref(family.slug, chosen.sku ?? chosen.id),
+        href: familyHref(family.slug, variantParam(chosen, variants)),
         supplierName: chosen.supplierName,
         unitPriceIls: chosen.priceIls,
       },
@@ -463,7 +475,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
                 note={[family.title, chosen.sku, ...keys.flatMap((k) => (chosen.options[k] ? [chosen.options[k]] : []))].filter(Boolean).join(", ")}
                 label="בקשה בכל זאת"
                 hint="נשלח לנו את הקישור לחלק אצל הספק. אפשר להוסיף כמות או הערה."
-                back={familyHref(family.slug, chosen.sku ?? chosen.id)}
+                back={familyHref(family.slug, variantParam(chosen, variants))}
               />
             </div>
           )}

@@ -49,6 +49,16 @@ describe("normalizeProduct", () => {
     expect(product.variants[1]).toMatchObject({ supplierSku: null, options: [], priceUsd: null, available: false });
   });
 
+  it("reads options past the third from the variant title (AndyMark's swerve modules have five)", () => {
+    const names = ["Motor Pinion Type", "Gear Ratio", "Wheel Type", "Steering Encoder", "Assembled"].map((name) => ({ name }));
+    const variant = { id: 20, sku: "am-4755a_F3CXCU", option1: "Falcon Spline", option2: "L3 6.12:1", option3: "Colson Wheel", price: "352.75" };
+    const sds = { ...raw, options: names, variants: [{ ...variant, title: "Falcon Spline / L3 6.12:1 / Colson Wheel / CANCoder / No" }] };
+    expect(normalizeProduct(sds, "https://s", ["FRC"]).variants[0].options.map((o) => o.value)).toEqual(["Falcon Spline", "L3 6.12:1", "Colson Wheel", "CANCoder", "No"]);
+    // A title that doesn't split into one value per option, or disagrees with option1-3, isn't used.
+    const odd = { ...sds, variants: [{ ...variant, title: "Falcon Spline / L3 6.12:1 / Colson / CANCoder / No" }] };
+    expect(normalizeProduct(odd, "https://s", ["FRC"]).variants[0].options).toHaveLength(3);
+  });
+
   it("accepts tags as a comma-separated string", () => {
     expect(normalizeProduct({ ...raw, tags: "a, b" }, "https://s", ["FRC"]).tags).toEqual(["a", "b"]);
   });

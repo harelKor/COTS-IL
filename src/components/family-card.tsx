@@ -23,7 +23,8 @@ function lineFor(family: CardFamily, v: CardVariant): AddableLine {
     options: family.optionKeys.flatMap((k) => (v.options[k] ? [v.options[k]] : [])).join(" / "),
     sku: v.sku,
     image: v.image ?? family.image,
-    href: familyHref(family.slug, v.sku ?? v.id),
+    // The id, not the SKU: two vendors can share a SKU, and a cart line is one offer.
+    href: familyHref(family.slug, v.id),
     supplierName: v.supplierName,
     unitPriceIls: v.priceIls,
   };
@@ -126,7 +127,8 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       });
     return loading.current;
   }
-  const href = familyHref(family.slug, current?.sku ?? current?.id ?? null, family.vendor?.code);
+  // The variant id: the card shows one offer, and a SKU can be shared by two vendors.
+  const href = familyHref(family.slug, current?.id ?? null, family.vendor?.code);
   const photoSrc = current?.image ?? family.image;
   const photo = photoSrc ? shopifyImage(photoSrc, layout === "row" ? 64 : 240) : null;
 

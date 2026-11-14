@@ -92,7 +92,7 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
         categorySlug: p.categorySlug,
         descriptionHtml: p.descriptionHtml,
         images: p.images,
-        variants: variantsByProduct.get(p.id)!.map((v) => ({ id: v.id, sku: v.sku, options: v.options })),
+        variants: variantsByProduct.get(p.id)!.map((v) => ({ id: v.id, sku: v.sku, options: v.options, priceUsd: v.priceUsd === null ? null : Number(v.priceUsd) })),
       })),
     overrides,
   );

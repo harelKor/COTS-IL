@@ -11,6 +11,7 @@ import { FamilyView, type ViewVariant } from "@/components/family-view";
 import { Ltr } from "@/components/ltr";
 import { CardGridSkeleton, Loading, ProductSkeleton } from "@/components/skeleton";
 import { companionRules } from "@/domain/families/companions";
+import { findLinked } from "@/domain/families/link";
 import { measure } from "@/domain/families/parse";
 import { compareOptionValues, optionLabel } from "@/domain/families/sort";
 import { formatIls, priceIls, type PriceContext } from "@/domain/pricing";
@@ -63,11 +64,10 @@ export async function generateMetadata({ params }: PageProps<"/catalog/p/[slug]"
   };
 }
 
-/** The variant a link asked for: `?v=` holds a SKU (any case) or a variant id. */
-function selectedVariant(variants: FamilyVariant[], v: string | string[] | undefined) {
-  const wanted = (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase();
-  if (!wanted) return null;
-  return variants.find((x) => x.id === wanted || x.sku?.toLowerCase() === wanted) ?? null;
+/** The variant a link asked for: `?v=` holds a SKU (any case) or a variant id; `?vendor=` settles a SKU two vendors share. */
+function selectedVariant(variants: FamilyVariant[], v: string | string[] | undefined, vendor: string | string[] | undefined) {
+  const first = (x: string | string[] | undefined) => (Array.isArray(x) ? x[0] : x);
+  return findLinked(variants, first(v), first(vendor)) ?? null;
 }
 
 /** Per spec, the family's value or its range ("12t – 100t"), for the specifications table. */
@@ -176,7 +176,8 @@ async function Companions({ slug, searchParams }: { slug: string; searchParams: 
   const result = await getFamily(slug);
   if (!result) return null;
   const { family } = result;
-  const selected = selectedVariant(result.variants, (await searchParams).v);
+  const query = await searchParams;
+  const selected = selectedVariant(result.variants, query.v, query.vendor);
   const rulesFor = (v: FamilyVariant | undefined) =>
     companionRules({ categorySlug: result.categorySlug, title: family.title, options: v?.familyOptions ?? {} });
   const rules = selected
