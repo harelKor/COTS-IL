@@ -1,4 +1,4 @@
-import { ChevronLeft, ExternalLink, Search } from "lucide-react";
+import { ChevronLeft, ExternalLink, LayoutGrid, Search } from "lucide-react";
 import type { Metadata } from "next";
 import Form from "next/form";
 import Link from "next/link";
@@ -13,9 +13,10 @@ import { FamilyCard } from "@/components/family-card";
 import { Ltr } from "@/components/ltr";
 import { PriceNote } from "@/components/price-note";
 import { VendorMark } from "@/components/vendor-mark";
+import { SectionHeading } from "@/components/section-heading";
 import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skeleton";
 import { aliveStyle } from "@/domain/alive";
-import { accentStyle, isStoreFront, vendorBlurb, vendorHref } from "@/domain/vendors";
+import { isStoreFront, vendorBlurb, vendorHref, vendorTheme } from "@/domain/vendors";
 import { getDiscoveryPage, getSpecFacets, getVendorPopular, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
 import { hasFilters, PAGE_SIZE, parseFilters, type CatalogFilters } from "@/lib/catalog-filters";
 
@@ -42,22 +43,25 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 }
 
 function Breadcrumb({ store, here }: { store: Store; here?: React.ReactNode }) {
+  const current = "flex items-center gap-2 font-medium text-foreground";
+  const dot = <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-brand" />;
   return (
     <nav aria-label="ניווט" className="-mb-2 text-caption text-muted">
       <ol className="flex min-w-0 items-center gap-1">
         <li className="shrink-0">
-          <Link href="/#vendors" className="flex min-h-11 items-center hover:text-brand">
+          <Link href="/#vendors" className="flex min-h-11 items-center hover:text-foreground">
             כל הספקים
           </Link>
         </li>
         <li className="flex shrink-0 items-center gap-1">
           <ChevronLeft size={14} aria-hidden />
           {here ? (
-            <Link href={vendorHref(store.code)} className="flex min-h-11 items-center hover:text-brand">
+            <Link href={vendorHref(store.code)} className="flex min-h-11 items-center hover:text-foreground">
               <Ltr>{store.name}</Ltr>
             </Link>
           ) : (
-            <span aria-current="page" className="text-foreground">
+            <span aria-current="page" className={current}>
+              {dot}
               <Ltr>{store.name}</Ltr>
             </span>
           )}
@@ -65,8 +69,9 @@ function Breadcrumb({ store, here }: { store: Store; here?: React.ReactNode }) {
         {here && (
           <li className="flex min-w-0 items-center gap-1">
             <ChevronLeft size={14} aria-hidden className="shrink-0" />
-            <span aria-current="page" className="truncate text-foreground">
-              {here}
+            <span aria-current="page" className={`${current} min-w-0`}>
+              {dot}
+              <span className="truncate">{here}</span>
             </span>
           </li>
         )}
@@ -78,19 +83,19 @@ function Breadcrumb({ store, here }: { store: Store; here?: React.ReactNode }) {
 /** Search inside this vendor only: a GET to the store, so it works before the page hydrates. */
 function StoreSearch({ store, q }: { store: Store; q: string }) {
   return (
-    <Form action={vendorHref(store.code)} role="search" className="relative w-full lg:max-w-md">
+    <Form action={vendorHref(store.code)} role="search" className="store-search relative w-full shrink-0 rounded-2xl lg:w-[460px] xl:w-[520px]">
       <label htmlFor="store-q" className="sr-only">
         חיפוש ב-{store.name}
       </label>
-      <Search size={20} strokeWidth={1.75} aria-hidden className="pointer-events-none absolute inset-y-0 start-3 my-auto text-muted" />
+      <Search size={20} strokeWidth={1.75} aria-hidden className="pointer-events-none absolute inset-y-0 start-5 my-auto text-brand" />
       <input
         id="store-q"
         name="q"
         type="search"
         defaultValue={q}
         enterKeyHint="search"
-        placeholder={`חיפוש ב-${store.name}`}
-        className="h-11 w-full rounded-xl bg-subtle ps-10 pe-4 text-body outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        placeholder={`חיפוש ב-${store.name}...`}
+        className="h-[52px] w-full rounded-2xl bg-transparent ps-13 pe-5 text-body outline-none"
       />
     </Form>
   );
@@ -125,32 +130,47 @@ async function Discover({ store }: { store: Store }) {
   return <DiscoveryStrip cards={cards} pages={pages} vendor={store.code} note={`כל יום מבחר אחר מ-${store.name}, מעבר למבוקשים`} />;
 }
 
+/** "andymark.com" from the vendor's site address, for the link to it. */
+function siteName(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
 function StoreFront({ store }: { store: Store }) {
   const blurb = vendorBlurb(store.categories.filter((c) => c.slug !== "other"));
   return (
     <>
       <Breadcrumb store={store} />
-      <header style={accentStyle(store.accentColor, store.accentColor2)} className="glow-box flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between lg:p-6">
-        <div className="flex flex-col items-start gap-2">
-          {/* The vendor's own site (suppliers.base_url), in a new tab: its logo and name are the link. */}
-          <h1 className="text-title font-semibold">
+      {/* The flagship header: the logo large on dark glass in the vendor's colours, the search console beside it. */}
+      <header className="store-flagship flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8 lg:p-8">
+        <div className="flex min-w-0 flex-col items-start gap-3">
+          <h1 className="flex min-h-14 items-center">
+            {store.logoUrl ? (
+              <VendorMark name={store.name} logoUrl={store.logoUrl} size="hero" tone="dark" eager />
+            ) : (
+              <Ltr className="text-brand-gradient text-title font-semibold">{store.name}</Ltr>
+            )}
+          </h1>
+          {blurb && <p className="store-blurb text-callout">{blurb}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="count-pill rounded-full px-3 py-1 text-caption font-semibold tabular-nums">
+              {store.count.toLocaleString("he-IL")} מוצרים
+            </span>
+            {/* The vendor's own site (suppliers.base_url), in a new tab. */}
             <a
               href={store.baseUrl}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`לאתר ${store.name} (נפתח בכרטיסייה חדשה)`}
-              className="group inline-flex min-h-11 flex-col items-start gap-2 rounded-xl focus-visible:outline-2 focus-visible:outline-brand"
+              className="glass-pill flex min-h-11 items-center gap-2 rounded-full px-4 text-caption font-medium"
             >
-              <span className="inline-flex items-center gap-2">
-                {store.logoUrl ? <VendorMark name={store.name} logoUrl={store.logoUrl} size="lg" eager /> : <Ltr className="text-brand-gradient">{store.name}</Ltr>}
-                <ExternalLink size={20} strokeWidth={1.75} aria-hidden className="shrink-0 text-brand opacity-70 transition-opacity group-hover:opacity-100" />
-              </span>
+              <ExternalLink size={20} strokeWidth={1.75} aria-hidden />
+              <Ltr>{siteName(store.baseUrl)}</Ltr>
             </a>
-          </h1>
-          {blurb && <p className="text-callout text-muted">{blurb}</p>}
-          <span className="rounded-full bg-brand-soft/70 px-2.5 py-0.5 text-caption font-semibold text-brand tabular-nums">
-            {store.count.toLocaleString("he-IL")} מוצרים
-          </span>
+          </div>
         </div>
         <StoreSearch store={store} q="" />
       </header>
@@ -163,10 +183,10 @@ function StoreFront({ store }: { store: Store }) {
       >
         <Popular store={store} />
       </Suspense>
-      <section aria-labelledby="all">
-        <h2 id="all" className="mb-4 text-section font-semibold">
+      <section aria-labelledby="all" className="flex flex-col gap-4">
+        <SectionHeading id="all" icon={<LayoutGrid size={20} strokeWidth={1.75} />}>
           כל המוצרים של <Ltr>{store.name}</Ltr>
-        </h2>
+        </SectionHeading>
         <GroupBoxes categories={store.categories.map((c) => ({ ...c, href: vendorHref(store.code, { category: c.slug }) }))} />
       </section>
       <Suspense>
@@ -240,17 +260,20 @@ async function VendorStore({ params, searchParams }: Props) {
   // The vendor is the path: a `?supplier=` in the URL can't switch the store.
   const filters = { ...parseFilters(await searchParams), supplier: store.code };
   // The price note comes with the store, not under its skeleton, so nothing below jumps when it streams in.
+  // The whole store wears the vendor's palette (vendorTheme): every token, card and wash on the page reads it.
   return (
-    <>
+    <div style={vendorTheme(store) as React.CSSProperties} className="vendor-theme relative flex flex-col gap-8">
+      <div aria-hidden className="store-canvas pointer-events-none absolute -z-10" />
       {isStoreFront(filters) ? <StoreFront store={store} /> : <StoreResults store={store} filters={filters} />}
       <PriceNote />
-    </>
+    </div>
   );
 }
 
 export default function VendorPage(props: Props) {
+  // Dark from the first frame (store-scene), so the page doesn't flash white while the store streams in.
   return (
-    <div className="flex flex-col gap-8">
+    <div className="store-scene relative isolate flex flex-col gap-8">
       <Suspense
         fallback={
           <Loading>

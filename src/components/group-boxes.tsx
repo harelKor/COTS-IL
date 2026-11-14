@@ -109,7 +109,7 @@ export function GroupBoxes({ categories }: { categories: GroupTile[] }) {
               <span className="flex items-end justify-between gap-2">
                 <span className="flex min-w-0 flex-col items-start gap-1.5">
                   <span className="text-body leading-snug font-semibold group-hover:text-brand">{g.name}</span>
-                  <span className="rounded-full bg-brand-soft/70 px-2.5 py-0.5 text-caption font-semibold text-brand tabular-nums">
+                  <span className="count-pill rounded-full bg-brand-soft/70 px-2.5 py-0.5 text-caption font-semibold text-brand tabular-nums">
                     {g.count.toLocaleString("he-IL")} מוצרים
                   </span>
                 </span>

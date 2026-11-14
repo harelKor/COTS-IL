@@ -8,7 +8,7 @@
  * gets these light tokens back.
  */
 :root,
-:is(.home-scene, .site-header, .site-footer) :is(dialog, [popover]) {
+:is(.home-scene, .store-scene, .site-header, .site-footer) :is(dialog, [popover]) {
   --background: #f6f7ff;
   --surface: #ffffff;
   --subtle: #eef1ff;
@@ -838,7 +838,8 @@ dialog.sheet-side.sheet-wide {
  * photos sit on soft pearl tiles; vendor logos sit straight on the glass in white ink (vendor-mark.tsx).
  */
 .home-scene,
-body:has(.home-scene) :is(.site-header, .site-footer) {
+.store-scene,
+body:has(:is(.home-scene, .store-scene)) :is(.site-header, .site-footer) {
   --background: var(--orbit-night);
   --surface: #070d33;
   --subtle: rgb(110 133 255 / 0.1);
@@ -862,18 +863,18 @@ body:has(.home-scene) :is(.site-header, .site-footer) {
   color: var(--foreground);
   color-scheme: dark;
 }
-:is(.home-scene, .site-header, .site-footer) :is(dialog, [popover]) {
+:is(.home-scene, .store-scene, .site-header, .site-footer) :is(dialog, [popover]) {
   color: var(--foreground);
 }
 /* White text stays on an ultramarine fill (the brand token is a light tint here, for text and focus rings). */
-.home-scene .bg-brand {
+:is(.home-scene, .store-scene) .bg-brand {
   background-color: var(--orbit-bright);
 }
-.home-scene .bg-brand-strong {
+:is(.home-scene, .store-scene) .bg-brand-strong {
   background-color: var(--orbit-blue);
 }
 
-body:has(.home-scene) {
+body:has(:is(.home-scene, .store-scene)) {
   background-color: var(--orbit-night);
   background-image: none;
 }
@@ -891,42 +892,42 @@ body:has(.home-scene) {
     max-width: calc(min(calc(100vw - 128px), 1440px) + 96px);
   }
 }
-/* No page scrollbar on the home page: a white track down the night canvas. The page still scrolls. */
-html:has(.home-scene) {
+/* No page scrollbar on the dark pages (home, vendor stores): a white track down the night canvas. The page still scrolls. */
+html:has(:is(.home-scene, .store-scene)) {
   scrollbar-width: none;
 }
-html:has(.home-scene)::-webkit-scrollbar {
+html:has(:is(.home-scene, .store-scene))::-webkit-scrollbar {
   display: none;
 }
-body:has(.home-scene) .site-header {
+body:has(:is(.home-scene, .store-scene)) .site-header {
   background-color: rgb(2 4 22 / 0.62);
   border-bottom-color: var(--glass-line);
 }
-body:has(.home-scene) .site-footer {
+body:has(:is(.home-scene, .store-scene)) .site-footer {
   background-color: rgb(2 4 22 / 0.72);
   border-top-color: var(--glass-line);
 }
 /* The header's cart button and team badge: dark ultramarine glass with a white icon (never white on white). */
-body:has(.home-scene) :is(.cart-button, .account-chip) {
+body:has(:is(.home-scene, .store-scene)) :is(.cart-button, .account-chip) {
   border-color: rgb(110 133 255 / 0.28);
   background-color: rgb(7 13 51 / 0.72);
   color: #ffffff;
   box-shadow: none;
 }
-body:has(.home-scene) .cart-button:hover,
-body:has(.home-scene) .group:hover .account-chip {
+body:has(:is(.home-scene, .store-scene)) .cart-button:hover,
+body:has(:is(.home-scene, .store-scene)) .group:hover .account-chip {
   border-color: rgb(110 133 255 / 0.6);
   background-color: rgb(0 20 190 / 0.45);
 }
-body:has(.home-scene) .cart-button svg {
+body:has(:is(.home-scene, .store-scene)) .cart-button svg {
   stroke: #ffffff;
   opacity: 1;
 }
-body:has(.home-scene) .cart-count {
+body:has(:is(.home-scene, .store-scene)) .cart-count {
   --tw-ring-color: var(--orbit-night);
 }
 @media (min-width: 640px) {
-  body:has(.home-scene) .search-trigger {
+  body:has(:is(.home-scene, .store-scene)) .search-trigger {
     background:
       linear-gradient(#050b2e, #050b2e) padding-box,
       linear-gradient(90deg, rgb(59 91 255 / 0.6), rgb(110 133 255 / 0.75), rgb(0 20 190 / 0.7)) border-box;
@@ -1311,18 +1312,18 @@ body:has(.home-scene) .cart-count {
  * photos' white backgrounds multiplied into the tile so they sit inside the dark cards.
  */
 .scene-thumb,
-.home-scene :is(.tile-fade, .card-photo) {
+:is(.home-scene, .store-scene) :is(.tile-fade, .card-photo) {
   background: radial-gradient(circle at 50% 30%, rgb(241 245 249 / 0.9), rgb(226 232 240 / 0.85));
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15), inset 0 2px 8px rgb(15 23 42 / 0.2);
 }
-.home-scene :is(.tile-fade, .card-photo) {
+:is(.home-scene, .store-scene) :is(.tile-fade, .card-photo) {
   --tw-ring-color: rgb(255 255 255 / 0.15);
 }
-.home-scene :is(.tile-fade, .card-photo) img {
+:is(.home-scene, .store-scene) :is(.tile-fade, .card-photo) img {
   mix-blend-mode: multiply;
 }
 
-.home-scene .card-surface {
+:is(.home-scene, .store-scene) .card-surface {
   background: var(--glass-fill);
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
@@ -1330,32 +1331,255 @@ body:has(.home-scene) .cart-count {
     inset 0 1px 0 0 rgb(255 255 255 / 0.09), inset 0 0 0 1px var(--glass-line), var(--shadow-card),
     var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
 }
-.home-scene :is(.glow-card, .glow-box) {
+:is(.home-scene, .store-scene) :is(.glow-card, .glow-box) {
   border-color: var(--glass-line);
   background: var(--glass-fill);
   box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.09), var(--shadow-card);
   transition: border-color 300ms var(--ease-out);
 }
-.home-scene :is(.glow-card:hover, .glow-card:focus-within, .glow-box:hover, .glow-box:focus-visible) {
+:is(.home-scene, .store-scene) :is(.glow-card:hover, .glow-card:focus-within, .glow-box:hover, .glow-box:focus-visible) {
   border-color: var(--glass-line-hover);
 }
-.home-scene .glow-box {
+:is(.home-scene, .store-scene) .glow-box {
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
 }
-.home-scene .glow-outline {
+:is(.home-scene, .store-scene) .glow-outline {
   background: rgb(4 9 36 / 0.6);
   border-color: var(--glass-line);
   box-shadow: none;
 }
-.home-scene .card-shine::after {
+:is(.home-scene, .store-scene) .card-shine::after {
   background: linear-gradient(100deg, transparent 0%, rgb(255 255 255 / 0.12) 50%, transparent 100%);
 }
-.home-scene .btn-soft {
+:is(.home-scene, .store-scene) .btn-soft {
   background: rgb(255 255 255 / 0.08);
   color: var(--foreground);
   box-shadow: inset 0 0 0 1px var(--glass-line);
 }
-.home-scene .btn-soft:hover {
+:is(.home-scene, .store-scene) .btn-soft:hover {
   background: rgb(255 255 255 / 0.14);
+}
+
+/* ---------- Vendor stores (/v/<code>): the night canvas in the vendor's own colours ---------- */
+
+/*
+ * Every dark page reads its brand from --vendor-* (vendorTheme in src/domain/vendors.ts sets them
+ * on a store's .vendor-theme wrapper). The home page and a store still streaming in use Orbit
+ * ultramarine.
+ */
+.home-scene,
+.store-scene {
+  --vendor-primary: #0018e0;
+  --vendor-primary-rgb: 0 24 224;
+  --vendor-secondary: #3b5bff;
+  --vendor-text-accent: #a3b3ff;
+  --vendor-on-primary: #ffffff;
+}
+/* The site's tokens re-pointed at the vendor's palette, so every component on the page follows. */
+.vendor-theme {
+  --brand: var(--vendor-text-accent);
+  --brand-strong: color-mix(in srgb, var(--vendor-text-accent) 60%, #ffffff);
+  --brand-soft: rgb(var(--vendor-primary-rgb) / 0.15);
+  --accent: var(--vendor-primary);
+  --accent-2: var(--vendor-secondary);
+  --sky: var(--vendor-secondary);
+  --line: rgb(var(--vendor-primary-rgb) / 0.22);
+  --subtle: rgb(var(--vendor-primary-rgb) / 0.08);
+  --subtle-hover: rgb(var(--vendor-primary-rgb) / 0.16);
+  --glass-fill: rgb(7 13 34 / 0.78);
+  --glass-line: rgb(var(--vendor-primary-rgb) / 0.25);
+  --glass-line-hover: rgb(var(--vendor-primary-rgb) / 0.65);
+  --glass-glow: rgb(var(--vendor-primary-rgb) / 0.45);
+  --gradient-brand-text: linear-gradient(to left, #ffffff, var(--vendor-text-accent));
+}
+/* Fills in the vendor's colour, with text that reads on it (dark on amber or lime, white on red or blue). */
+.vendor-theme .bg-brand,
+.vendor-theme .bg-brand-strong {
+  background-color: var(--vendor-primary);
+  color: var(--vendor-on-primary);
+}
+.vendor-theme .btn-brand {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--vendor-primary) 80%, #ffffff) 0%, var(--vendor-primary) 100%);
+  color: var(--vendor-on-primary);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.3),
+    0 0 0 1px rgb(var(--vendor-primary-rgb) / 0.35),
+    0 6px 22px -2px rgb(var(--vendor-primary-rgb) / 0.45);
+}
+
+/*
+ * The canvas: Orbit night under a wash of the vendor's colour, strongest at the top behind the
+ * header and drifting in uneven patches down the sides, behind "הכי מבוקשים", the categories and
+ * "גלו עוד". Physical left/width on purpose, like the home page.
+ */
+.store-canvas {
+  top: -84px;
+  bottom: -64px;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  background:
+    radial-gradient(70% 560px at 80% 0%, rgb(var(--vendor-primary-rgb) / 0.16), transparent 72%),
+    radial-gradient(38% 420px at 14% 4%, rgb(var(--vendor-primary-rgb) / 0.08), transparent 70%),
+    radial-gradient(42% 720px at 6% 34%, rgb(var(--vendor-primary-rgb) / 0.07), transparent 70%),
+    radial-gradient(36% 620px at 94% 58%, rgb(var(--vendor-primary-rgb) / 0.06), transparent 70%),
+    radial-gradient(48% 760px at 22% 90%, rgb(var(--vendor-primary-rgb) / 0.04), transparent 70%),
+    radial-gradient(60% 900px at 50% 0%, rgb(0 20 190 / 0.1), transparent 70%),
+    linear-gradient(to bottom, var(--orbit-night) 0%, var(--orbit-midnight) 45%, var(--orbit-deep) 100%);
+}
+
+/* The flagship header: dark glass with the vendor's colour sweeping from behind the logo. */
+.store-flagship {
+  position: relative;
+  border-radius: 24px;
+  border: 1px solid rgb(var(--vendor-primary-rgb) / 0.32);
+  background:
+    radial-gradient(60% 150% at 100% 0%, rgb(var(--vendor-primary-rgb) / 0.3), transparent 62%),
+    linear-gradient(110deg, rgb(var(--vendor-primary-rgb) / 0.12) 0%, rgb(var(--vendor-primary-rgb) / 0.03) 45%, transparent 75%),
+    rgb(6 11 30 / 0.7);
+  -webkit-backdrop-filter: blur(40px) saturate(1.3);
+  backdrop-filter: blur(40px) saturate(1.3);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.1),
+    0 24px 60px -24px rgb(var(--vendor-primary-rgb) / 0.4),
+    0 10px 40px rgb(1 2 12 / 0.5);
+}
+.store-blurb {
+  color: #d5dbf0;
+}
+/* The vendor's search console: deep, wide and tall, lit in its colour on focus. */
+.store-search {
+  border: 1px solid rgb(var(--vendor-primary-rgb) / 0.35);
+  background: rgb(3 7 20 / 0.8);
+  color: #ffffff;
+  box-shadow: inset 0 2px 8px rgb(0 0 0 / 0.35);
+  transition:
+    border-color 200ms var(--ease-out),
+    box-shadow 200ms var(--ease-out);
+}
+.store-search:focus-within {
+  border-color: var(--vendor-primary);
+  box-shadow:
+    inset 0 2px 8px rgb(0 0 0 / 0.35),
+    0 0 0 3px rgb(var(--vendor-primary-rgb) / 0.25);
+}
+.store-search input::placeholder {
+  color: #94a3b8;
+}
+
+/* Section headings: the icon badge and the hairline in the page's brand. */
+.section-badge {
+  background: var(--brand-soft);
+  color: var(--brand);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 30%, transparent);
+}
+.section-rule {
+  background: linear-gradient(to left, rgb(var(--vendor-primary-rgb, 0 20 190) / 0.35), rgb(255 255 255 / 0.1) 45%, transparent);
+}
+/* Quiet glass pills: collapse "הכי מבוקשים", the vendor's own site. */
+.glass-pill {
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.05);
+  color: #cbd5e1;
+  transition:
+    color 200ms var(--ease-out),
+    background-color 200ms var(--ease-out),
+    border-color 200ms var(--ease-out);
+}
+.glass-pill:hover {
+  border-color: rgb(var(--vendor-primary-rgb, 0 20 190) / 0.5);
+  background: rgb(255 255 255 / 0.09);
+  color: #ffffff;
+}
+/* Counts in the vendor's tint. */
+:is(.home-scene, .store-scene) .count-pill {
+  background: rgb(var(--vendor-primary-rgb) / 0.15);
+  color: var(--vendor-text-accent);
+  box-shadow: inset 0 0 0 1px rgb(var(--vendor-primary-rgb) / 0.3);
+}
+
+/*
+ * The category boxes: dark glass with the vendor's colour fading up from a corner, a 1px border
+ * that brightens on hover, and the three part photos on pearl tiles.
+ */
+:is(.home-scene, .store-scene) .glow-box {
+  border: 1px solid rgb(var(--vendor-primary-rgb) / 0.25);
+  background:
+    linear-gradient(20deg, rgb(var(--vendor-primary-rgb) / 0.16) 0%, rgb(var(--vendor-primary-rgb) / 0.04) 45%, transparent 75%),
+    rgb(7 13 34 / 0.75);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.08), 0 8px 30px rgb(0 0 0 / 0.4);
+  --glow-strong: 0 16px 44px -14px rgb(var(--vendor-primary-rgb) / 0.6);
+  transition:
+    border-color 250ms var(--ease-out),
+    translate 200ms var(--ease-out);
+}
+:is(.home-scene, .store-scene) :is(.glow-box:hover, .glow-box:focus-visible, .glow-box[aria-expanded="true"]) {
+  border-color: rgb(var(--vendor-primary-rgb) / 0.65);
+}
+:is(.home-scene, .store-scene) .glow-outline {
+  border: 1px solid rgb(var(--vendor-primary-rgb) / 0.22);
+  background: rgb(7 13 34 / 0.7);
+  --glow-strong: 0 10px 30px -12px rgb(var(--vendor-primary-rgb) / 0.55);
+}
+:is(.home-scene, .store-scene) .glow-outline:hover {
+  border-color: rgb(var(--vendor-primary-rgb) / 0.6);
+}
+
+/*
+ * Product cards: a dark-glass chassis with a 1px border in the vendor's colour and a glow from
+ * below on hover, around a pearl image well; the price in the vendor's tint.
+ */
+:is(.home-scene, .store-scene) :is(.card-surface, .glow-card) {
+  border: 1px solid rgb(var(--vendor-primary-rgb) / 0.22);
+  background: rgb(7 13 34 / 0.8);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.07), 0 8px 30px rgb(0 0 0 / 0.45), var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
+  --glow-strong: 0 18px 40px -14px rgb(var(--vendor-primary-rgb) / 0.55);
+  transition:
+    border-color 250ms var(--ease-out),
+    background 250ms var(--ease-out),
+    translate 200ms var(--ease-out),
+    rotate 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    scale 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+:is(.home-scene, .store-scene) li:is(.card-surface, .glow-card):is(:hover, :focus-within) {
+  border-color: rgb(var(--vendor-primary-rgb) / 0.6);
+  background:
+    radial-gradient(90% 50% at 50% 115%, rgb(var(--vendor-primary-rgb) / 0.22), transparent 70%),
+    rgb(7 13 34 / 0.8);
+}
+:is(.home-scene, .store-scene) .card-photo {
+  background: linear-gradient(to bottom, rgb(241 245 249 / 0.95), rgb(226 232 240 / 0.88));
+  --tw-ring-color: rgb(255 255 255 / 0.2);
+}
+:is(.home-scene, .store-scene) .card-price {
+  color: var(--vendor-text-accent);
+}
+:is(.home-scene, .store-scene) .btn-plus {
+  box-shadow: 0 0 0 3px rgb(var(--vendor-primary-rgb) / 0.2), 0 6px 16px -4px rgb(var(--vendor-primary-rgb) / 0.55);
+}
+.vendor-theme .btn-plus.bg-brand {
+  color: var(--vendor-on-primary);
+}
+
+/* "גלו עוד"'s arrows: dark glass that fills with the vendor's colour on hover. */
+.strip-arrow {
+  border: 1px solid rgb(var(--vendor-primary-rgb, 0 24 224) / 0.4);
+  background: rgb(11 19 43 / 0.9);
+  color: #ffffff;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.45), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+  transition:
+    background-color 200ms var(--ease-out),
+    color 200ms var(--ease-out);
+}
+.strip-arrow:hover {
+  background: var(--vendor-primary, #0018e0);
+  color: var(--vendor-on-primary, #ffffff);
 }

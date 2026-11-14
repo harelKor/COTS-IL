@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { DiscoverPage } from "@/app/api/discover/route";
 import type { CardFamily } from "@/lib/catalog";
 import { aliveStyle } from "@/domain/alive";
+import { SectionHeading } from "./section-heading";
 import { FamilyCard } from "./family-card";
 
 /** How long each card stays before the row moves on, and how long a touch pauses it. */
@@ -162,14 +163,13 @@ export function DiscoveryStrip({
   const firstOf = new Map<string, string>();
   for (const { p, cards: list } of pages) for (const c of list) if (!firstOf.has(c.id)) firstOf.set(c.id, `${p}:${c.id}`);
   const arrow =
-    "btn-plus absolute top-1/2 z-10 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface text-brand hover:text-brand-strong focus-visible:outline-2 focus-visible:outline-brand md:flex";
+    "strip-arrow absolute top-1/2 z-10 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-brand md:flex";
   return (
     <section aria-labelledby="discover" className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <h2 id="discover" className="flex items-center gap-2 text-section font-semibold">
-          <Sparkles size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
+        <SectionHeading id="discover" icon={<Sparkles size={20} strokeWidth={1.75} />}>
           {title}
-        </h2>
+        </SectionHeading>
         <p className="text-caption text-muted">{note}</p>
       </div>
       <div ref={wrap} className="relative">

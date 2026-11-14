@@ -152,7 +152,7 @@ function FacetValues({ facet, chosen, onToggle, large = false }: { facet: SpecFa
 }
 
 const moreButton =
-  "flex h-11 items-center rounded-full border border-line bg-white px-6 text-callout font-medium text-foreground shadow-card hover:border-brand/40 hover:text-brand disabled:opacity-60";
+  "flex h-11 items-center rounded-full border border-line bg-surface px-6 text-callout font-medium text-foreground shadow-card hover:border-brand/40 hover:text-brand disabled:opacity-60";
 
 const sidebarHeading = "mb-2 text-caption font-semibold text-muted";
 

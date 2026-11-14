@@ -293,7 +293,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       <li className="flex flex-col gap-2 border-b border-line py-3 last:border-b-0">
         <div className="flex items-center gap-3">
           <Link href={href} className="shrink-0">
-            <div ref={image} className="size-16 overflow-hidden rounded-xl bg-white p-1 ring-1 ring-line">
+            <div ref={image} className="card-photo size-16 overflow-hidden rounded-xl bg-white p-1 ring-1 ring-line">
               {photo_}
             </div>
           </Link>
@@ -370,7 +370,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       {/* In the cart, the stepper wraps to its own row on a narrow card instead of covering the price. */}
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-callout font-semibold">{price}</span>
+          <span className="card-price text-callout font-semibold">{price}</span>
           {/* What tells the options apart (teeth, bore), since the title is the same for all of them. */}
           {!current && family.variantCount > 1 && (
             <span className="truncate text-caption text-muted">

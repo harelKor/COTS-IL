@@ -76,26 +76,63 @@ export function spansBoth(i: number, count: number): boolean {
 }
 
 /**
- * Each vendor's own colour on the dark home page (Nov 14, 2026): a deep tone for the glass wash
- * and border, a light one for its count badge and "לחנות". Matched by code, or by name for a vendor
- * added in the admin (Swerve Drive Specialties); any other vendor uses its admin accent, else Orbit blue.
+ * Each vendor's brand palette on the dark pages (Nov 14, 2026): the home page's vendor boxes and
+ * its whole store (/v/<code>). primary: borders, washes and fills; secondary: the second tone of a
+ * gradient; text: a light tint that reads on the night canvas (counts, prices, links). Matched by
+ * code, or by name for a vendor added in the admin (Swerve Drive Specialties); any other vendor
+ * gets its admin accent (suppliers.accent_color), else Orbit ultramarine.
  */
-const VENDOR_GLASS: { match: RegExp; deep: string; light: string }[] = [
-  { match: /gobilda/i, deep: "#f59e0b", light: "#facc15" },
-  { match: /^wcp$|west coast/i, deep: "#3b5bff", light: "#a3b3ff" },
-  { match: /andymark/i, deep: "#ef4444", light: "#f87171" },
-  { match: /^ctre$|ctr electronics|cross the road/i, deep: "#22c55e", light: "#a3e635" },
-  { match: /^rev$|rev robotics/i, deep: "#f97316", light: "#fb923c" },
-  { match: /^sds$|swerve drive/i, deep: "#94a3b8", light: "#cbd5e1" },
-  { match: /^ttb$|thrifty/i, deep: "#10b981", light: "#2dd4bf" },
+const VENDOR_THEMES: { match: RegExp; primary: string; secondary: string; text: string }[] = [
+  { match: /andymark/i, primary: "#ef4444", secondary: "#dc2626", text: "#fca5a5" },
+  { match: /^ctre$|ctr electronics|cross the road/i, primary: "#84cc16", secondary: "#22c55e", text: "#bef264" },
+  { match: /gobilda/i, primary: "#f59e0b", secondary: "#eab308", text: "#fde047" },
+  { match: /^wcp$|west coast/i, primary: "#2563eb", secondary: "#3b82f6", text: "#93c5fd" },
+  { match: /^rev$|rev robotics/i, primary: "#f97316", secondary: "#ea580c", text: "#fdba74" },
+  { match: /^sds$|swerve drive/i, primary: "#94a3b8", secondary: "#cbd5e1", text: "#e2e8f0" },
+  { match: /^ttb$|thrifty/i, primary: "#10b981", secondary: "#14b8a6", text: "#6ee7b7" },
 ];
 
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const toHex = (c: number[]) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+/** Relative luminance (WCAG), 0 for black to 1 for white. */
+function luminance(hex: string): number {
+  const [r, g, b] = rgb(hex).map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+export type VendorPalette = { primary: string; secondary: string; text: string; onPrimary: string };
+
+/** A vendor's palette: the known brands' own, else from its admin accent (or Orbit ultramarine). */
+export function vendorPalette(vendor: { code: string; name: string; accentColor?: string | null; accentColor2?: string | null }): VendorPalette {
+  const known = VENDOR_THEMES.find((v) => v.match.test(vendor.code) || v.match.test(vendor.name));
+  const primary = known?.primary ?? accentColor(vendor.accentColor) ?? "#0018e0";
+  const secondary = known?.secondary ?? accentColor(vendor.accentColor2) ?? primary;
+  // An unknown brand's text tint: its colour 45% of the way to white.
+  const text = known?.text ?? toHex(rgb(primary).map((v) => v + (255 - v) * 0.45));
+  // Dark text on a bright fill (amber, lime, silver, mint, orange), white on a deep one (red, blue).
+  const onPrimary = luminance(primary) > 0.25 ? "#020416" : "#ffffff";
+  return { primary, secondary, text, onPrimary };
+}
+
+/** The custom properties a vendor's store wraps its page in (globals.css, ".vendor-theme"). */
+export function vendorTheme(vendor: Parameters<typeof vendorPalette>[0]): Record<string, string> {
+  const p = vendorPalette(vendor);
+  return {
+    "--vendor-primary": p.primary,
+    "--vendor-primary-rgb": rgb(p.primary).join(" "),
+    "--vendor-secondary": p.secondary,
+    "--vendor-text-accent": p.text,
+    "--vendor-on-primary": p.onPrimary,
+  };
+}
+
 /** The custom properties behind a vendor's glass box on the home page (--v-deep, --v-light). */
-export function vendorGlass(vendor: { code: string; name: string; accentColor?: string | null }): Record<string, string> {
-  const known = VENDOR_GLASS.find((v) => v.match.test(vendor.code) || v.match.test(vendor.name));
-  if (known) return { "--v-deep": known.deep, "--v-light": known.light };
-  const own = accentColor(vendor.accentColor) ?? "#0018e0";
-  return { "--v-deep": own, "--v-light": own };
+export function vendorGlass(vendor: Parameters<typeof vendorPalette>[0]): Record<string, string> {
+  const p = vendorPalette(vendor);
+  return { "--v-deep": p.primary, "--v-light": p.text };
 }
 
 /**

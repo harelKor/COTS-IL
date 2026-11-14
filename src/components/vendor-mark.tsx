@@ -11,10 +11,12 @@ const LOGO_SIZE = {
   lg: "h-14 max-w-[260px] sm:h-16",
   // The header of a home vendor box, straight on the dark glass (vendor-boxes.tsx).
   card: "h-12 max-w-[min(100%,230px)] sm:h-14",
+  // A vendor store's flagship header (/v/<code>), the page's centrepiece.
+  hero: "h-14 max-w-[min(100%,340px)] sm:h-20",
 };
 
 /**
- * `tone="dark"` (the home page): the logo's white-ink copy from public/vendors/on-dark, or for an
+ * `tone="dark"` (the home page and the vendor stores): the logo's white-ink copy from public/vendors/on-dark, or for an
  * upload without one, a CSS filter that turns its ink white (globals.css, `.vendor-logo-invert`).
  */
 export function VendorMark({

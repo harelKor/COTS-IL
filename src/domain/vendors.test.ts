@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accentColor, accentStyle, darkLogo, homeVendorOrder, isStoreFront, vendorBlurb, vendorGlass, vendorHref, vendorRows, spansBoth } from "./vendors";
+import { accentColor, accentStyle, darkLogo, homeVendorOrder, isStoreFront, vendorBlurb, vendorGlass, vendorHref, vendorPalette, vendorTheme, vendorRows, spansBoth } from "./vendors";
 
 describe("vendorHref", () => {
   it("puts the vendor in the path and drops ?supplier=", () => {
@@ -63,15 +63,43 @@ describe("spansBoth", () => {
   });
 });
 
-describe("vendorGlass", () => {
-  it("gives the known vendors their own colours, by code or by name", () => {
-    expect(vendorGlass({ code: "gobilda", name: "goBILDA" })["--v-deep"]).toBe("#f59e0b");
-    expect(vendorGlass({ code: "swerve", name: "Swerve Drive Specialties" })["--v-light"]).toBe("#cbd5e1");
-    expect(vendorGlass({ code: "ttb", name: "The Thrifty Bot" })["--v-deep"]).toBe("#10b981");
+describe("vendorPalette", () => {
+  it("gives the known vendors their own palette, by code or by name", () => {
+    expect(vendorPalette({ code: "am", name: "AndyMark" })).toEqual({ primary: "#ef4444", secondary: "#dc2626", text: "#fca5a5", onPrimary: "#ffffff" });
+    expect(vendorPalette({ code: "swerve", name: "Swerve Drive Specialties" }).text).toBe("#e2e8f0");
+    expect(vendorPalette({ code: "ttb", name: "The Thrifty Bot" }).primary).toBe("#10b981");
   });
-  it("falls back to the admin's accent, then Orbit blue", () => {
-    expect(vendorGlass({ code: "acme", name: "Acme", accentColor: "#123456" })).toEqual({ "--v-deep": "#123456", "--v-light": "#123456" });
-    expect(vendorGlass({ code: "acme", name: "Acme", accentColor: null })["--v-deep"]).toBe("#0018e0");
+  it("puts dark text on bright brand fills and white on deep ones", () => {
+    expect(vendorPalette({ code: "gobilda", name: "goBILDA" }).onPrimary).toBe("#020416");
+    expect(vendorPalette({ code: "ctre", name: "CTR Electronics" }).onPrimary).toBe("#020416");
+    expect(vendorPalette({ code: "wcp", name: "WCP" }).onPrimary).toBe("#ffffff");
+  });
+  it("falls back to the admin's accents, then Orbit ultramarine", () => {
+    expect(vendorPalette({ code: "acme", name: "Acme", accentColor: "#000000", accentColor2: "#123456" })).toEqual({
+      primary: "#000000",
+      secondary: "#123456",
+      text: "#737373",
+      onPrimary: "#ffffff",
+    });
+    expect(vendorPalette({ code: "acme", name: "Acme", accentColor: null }).primary).toBe("#0018e0");
+  });
+});
+
+describe("vendorTheme", () => {
+  it("sets the store's custom properties, with the primary as an rgb triple", () => {
+    expect(vendorTheme({ code: "rev", name: "REV Robotics" })).toEqual({
+      "--vendor-primary": "#f97316",
+      "--vendor-primary-rgb": "249 115 22",
+      "--vendor-secondary": "#ea580c",
+      "--vendor-text-accent": "#fdba74",
+      "--vendor-on-primary": "#020416",
+    });
+  });
+});
+
+describe("vendorGlass", () => {
+  it("is the palette's primary and text tint", () => {
+    expect(vendorGlass({ code: "gobilda", name: "goBILDA" })).toEqual({ "--v-deep": "#f59e0b", "--v-light": "#fde047" });
   });
 });
 
