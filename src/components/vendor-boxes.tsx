@@ -4,7 +4,7 @@ import { aliveStyle } from "@/domain/alive";
 import { accentStyle, vendorBlurb, vendorHref, vendorSpans } from "@/domain/vendors";
 import type { VendorSummary } from "@/lib/catalog";
 import { shopifyImage } from "@/lib/images";
-import { Ltr } from "./ltr";
+import { VendorMark } from "./vendor-mark";
 
 /** Static class names, so Tailwind keeps them: a box's span at 640px (of 2) and 1024px (of 6). */
 const SM_SPAN = { 1: "", 2: "sm:col-span-2" } as const;
@@ -69,13 +69,11 @@ export function VendorBoxes({ vendors }: { vendors: VendorSummary[] }) {
               className="group glow-box flex h-full flex-col gap-4 p-5 transition-[translate] duration-200 ease-out hover:-translate-y-0.5 lg:p-6 @4xl:flex-row @4xl:items-center @4xl:gap-8"
             >
               <span className="flex items-start justify-between gap-3 @4xl:w-72 @4xl:shrink-0">
-                <span className="flex min-w-0 flex-col items-start gap-1.5">
-                  {v.logoUrl && (
-                    // The vendor's own logo (S16b), from its store or the logos bucket.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={v.logoUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-7 max-w-[140px] object-contain object-start" />
-                  )}
-                  <Ltr className="text-brand-gradient text-[24px] leading-tight font-semibold tracking-tight sm:text-[28px]">{v.name}</Ltr>
+                <span className="flex min-w-0 flex-col items-start gap-2">
+                  {/* The heading is the vendor's logo (alt = its name), or its name when it has none. */}
+                  <h3 className="flex min-h-12 items-center sm:min-h-14">
+                    <VendorMark name={v.name} logoUrl={v.logoUrl} eager={i < 3} />
+                  </h3>
                   {blurb && <span className="line-clamp-2 text-caption leading-snug text-muted">{blurb}</span>}
                 </span>
                 <span className="shrink-0 rounded-full bg-brand-soft/70 px-2.5 py-0.5 text-caption font-semibold text-brand tabular-nums">

@@ -12,6 +12,7 @@ import { PopularSection } from "@/components/popular-section";
 import { FamilyCard } from "@/components/family-card";
 import { Ltr } from "@/components/ltr";
 import { PriceNote } from "@/components/price-note";
+import { VendorMark } from "@/components/vendor-mark";
 import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skeleton";
 import { aliveStyle } from "@/domain/alive";
 import { accentStyle, isStoreFront, vendorBlurb, vendorHref } from "@/domain/vendors";
@@ -140,14 +141,9 @@ function StoreFront({ store }: { store: Store }) {
               aria-label={`לאתר ${store.name} (נפתח בכרטיסייה חדשה)`}
               className="group inline-flex min-h-11 flex-col items-start gap-2 rounded-xl focus-visible:outline-2 focus-visible:outline-brand"
             >
-              {store.logoUrl && (
-                // The vendor's own logo (S16b).
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={store.logoUrl} alt="" referrerPolicy="no-referrer" className="h-10 max-w-[180px] object-contain object-start" />
-              )}
               <span className="inline-flex items-center gap-2">
-                <Ltr className="text-brand-gradient">{store.name}</Ltr>
-                <ExternalLink size={20} strokeWidth={1.75} aria-hidden className="text-brand opacity-70 transition-opacity group-hover:opacity-100" />
+                {store.logoUrl ? <VendorMark name={store.name} logoUrl={store.logoUrl} size="lg" eager /> : <Ltr className="text-brand-gradient">{store.name}</Ltr>}
+                <ExternalLink size={20} strokeWidth={1.75} aria-hidden className="shrink-0 text-brand opacity-70 transition-opacity group-hover:opacity-100" />
               </span>
             </a>
           </h1>
