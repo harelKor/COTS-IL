@@ -11,7 +11,7 @@ const Facts = createContext<SiteFacts>({
   categoryGroups: DEFAULT_CATEGORY_GROUPS,
   searchExamples: DEFAULT_SEARCH_EXAMPLES,
   searchCategories: [],
-  quoteLeadBusinessDays: null, priceIncludes: null, leadTimes: {}, markupRange: [DEFAULT_MARKUP, DEFAULT_MARKUP] });
+  quoteLeadBusinessDays: null, priceIncludes: null, leadTimes: {}, supplierCodes: {}, markupRange: [DEFAULT_MARKUP, DEFAULT_MARKUP] });
 
 /** The admin's business facts the browser-side cart and product page quote (S16a), from getSiteFacts(). */
 export function SiteFactsContext({ value, children }: { value: SiteFacts; children: ReactNode }) {

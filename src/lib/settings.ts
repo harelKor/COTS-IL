@@ -87,9 +87,18 @@ export async function getCategoryList(): Promise<{ slug: string; name: string; h
     .orderBy(asc(schema.categories.sortOrder));
 }
 
+/** Each supplier's code by its name, so a cart line that only names its vendor finds the vendor's lead time. */
+async function getSupplierCodes(): Promise<Record<string, string>> {
+  "use cache";
+  cacheLife("days");
+  cacheTag("catalog");
+  const rows = await db.select({ code: schema.suppliers.code, name: schema.suppliers.name }).from(schema.suppliers);
+  return Object.fromEntries(rows.map((r) => [r.name, r.code]));
+}
+
 /** What the browser's cart sheet, product page, search panel and category groups need (SiteFactsProvider). */
 export async function getSiteFacts() {
-  const [{ business, pricing, content }, rules, categoryList] = await Promise.all([getSettings(), getPricingRules(), getCategoryList()]);
+  const [{ business, pricing, content }, rules, categoryList, supplierCodes] = await Promise.all([getSettings(), getPricingRules(), getCategoryList(), getSupplierCodes()]);
   const all = [pricing.markup, ...rules.map((r) => r.multiplier)];
   const shown = new Map(categoryList.filter((c) => !c.hidden).map((c) => [c.slug, c.name]));
   return {
@@ -101,6 +110,7 @@ export async function getSiteFacts() {
     quoteLeadBusinessDays: business.quoteLeadBusinessDays,
     priceIncludes: business.priceIncludes,
     leadTimes: business.leadTimes,
+    supplierCodes,
     markupRange: [Math.min(...all), Math.max(...all)] as [number, number],
   };
 }

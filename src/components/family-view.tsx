@@ -7,7 +7,8 @@ import { useMemo, useRef, useState, useSyncExternalStore, ViewTransition } from 
 import { findLinked, variantParam } from "@/domain/families/link";
 import { changedKeys, chipPrice, choose, linkedKeys, linkedValue, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
-import { leadTimeText } from "@/domain/lead-time";
+import { arrivalShort, arrivalText } from "@/domain/lead-time";
+import { offerReason, rankOffers } from "@/domain/offers";
 import { formatIls } from "@/domain/pricing";
 import { useSiteFacts } from "./site-facts";
 import { RequestPart } from "./zero-results";
@@ -113,7 +114,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
   const { mode, lines } = useCart();
   const { leadTimes } = useSiteFacts();
   const now = useNow();
-  const availabilityText = (v: ViewVariant) => availabilityStatus(v.available, v.checkedAt, isFresh(v.checkedAt, now), { shipsLater: v.shipsLater, eta: v.shipsLaterEta });
+  const availabilityText = (v: ViewVariant) => availabilityStatus(v.available, v.checkedAt, isFresh(v.checkedAt, now), { shipsLater: v.shipsLater, eta: v.shipsLaterEta }, now);
   const manySuppliers = new Set(variants.map((v) => v.supplierCode)).size > 1;
   const keys = family.optionKeys;
 
@@ -135,7 +136,8 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
   const groups = useMemo(() => linkedKeys(variants, keys), [variants, keys]);
 
   const picked = pick(variants, keys, choices);
-  const offers = picked.chosen ? picked.candidates : [];
+  // Best first (in stock, then price, then the vendor's lead time), so the first is the one to recommend.
+  const offers = picked.chosen ? rankOffers(picked.candidates, leadTimes) : [];
   const chosen = offers.find((v) => v.supplierName === supplier) ?? offers[0] ?? null;
   const cartCount = lines.reduce((n, l) => n + l.qty, 0);
   const inCart = chosen ? lines.find((l) => l.variantId === chosen.id) : undefined;
@@ -165,7 +167,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
     // A tap that clashed with another choice changed it: show which, instead of switching it silently.
     const changed = changedKeys(picked.selected, result.selected, key);
     highlight(groups.filter((g) => !g.includes(key) && g.some((k) => changed.includes(k))).map((g) => g[0]));
-    const settled = result.chosen ? (result.candidates.find((v) => v.supplierName === supplier) ?? result.candidates[0]) : null;
+    const settled = result.chosen ? (result.candidates.find((v) => v.supplierName === supplier) ?? rankOffers(result.candidates, leadTimes)[0]) : null;
     if (settled?.id !== chosen?.id) follow(settled);
   }
 
@@ -209,12 +211,18 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
         image: chosen.image ?? family.images[0] ?? null,
         href: familyHref(family.slug, variantParam(chosen, variants)),
         supplierName: chosen.supplierName,
+        supplierCode: chosen.supplierCode,
         unitPriceIls: chosen.priceIls,
+        available: chosen.available,
+        shipsLater: chosen.shipsLater,
+        shipsLaterEta: chosen.shipsLaterEta,
+        checkedAt: chosen.checkedAt,
       },
       qty,
       mainImage.current,
     );
     setQty(1);
+    showToast("נוסף לסל", "default", { label: "לסל", run: () => window.dispatchEvent(new Event("cart:open")) });
   }
 
   const price = chosen?.priceIls ?? null;
@@ -222,12 +230,11 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
   const availability = chosen ? availabilityText(chosen) : null;
   const missingGroup = groups.find((g) => g.some((k) => picked.selected[k] === undefined));
   const missingLabel = missingGroup ? missingGroup.map(optionLabel).join(" × ") : "";
-  const lead = chosen ? leadTimeText(leadTimes[chosen.supplierCode] ?? null) : null;
+  const arrival = chosen ? arrivalText(leadTimes[chosen.supplierCode], chosen.shipsLater) : null;
   const unpriced = chosen !== null && price === null;
   const lineQty = inCart?.qty ?? qty;
-  // A "best price" badge only when the offers' prices differ.
-  const offerPrices = offers.flatMap((o) => (o.priceIls === null ? [] : [o.priceIls]));
-  const cheapest = offerPrices.length > 1 && Math.min(...offerPrices) < Math.max(...offerPrices) ? Math.min(...offerPrices) : null;
+  // Why the first offer is recommended ("במלאי", "זול יותר", "מגיע מהר יותר"), only when something sets it apart.
+  const reason = offers.length > 1 ? offerReason(offers[0], offers, leadTimes) : null;
 
   const addControls = !canAdd || unpriced ? null : inCart ? (
     <div className="flex items-center gap-3">
@@ -424,6 +431,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
               {offers.map((offer) => {
                 const on = offer === chosen;
                 const status = availabilityText(offer);
+                const eta = arrivalShort(leadTimes[offer.supplierCode]);
                 return (
                   <button
                     key={offer.id}
@@ -436,8 +444,11 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
                   >
                     <span className="flex w-full items-center justify-between gap-2">
                       <Ltr className="font-semibold break-words">{offer.supplierName}</Ltr>
-                      {cheapest !== null && offer.priceIls === cheapest && (
-                        <span className="shrink-0 rounded-md bg-success/10 px-2 py-0.5 text-caption font-medium text-success">המשתלם ביותר</span>
+                      {reason && offer === offers[0] && (
+                        <span className="shrink-0 rounded-md bg-success/10 px-2 py-0.5 text-caption font-medium text-success">
+                          <span className="sr-only">מומלץ: </span>
+                          {reason}
+                        </span>
                       )}
                     </span>
                     <span className="text-body font-semibold">{offer.priceIls === null ? <span className="text-caption font-normal text-muted">ייבדק בהצעה</span> : formatIls(offer.priceIls)}</span>
@@ -445,6 +456,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
                       <span className={`size-2 rounded-full ${status.dot}`} aria-hidden />
                       {status.short}
                     </span>
+                    {eta && <span className="text-caption text-muted">{eta}</span>}
                   </button>
                 );
               })}
@@ -464,7 +476,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
             </p>
           )}
           {chosen?.available === false && !unpriced && <p className="-mt-2 text-caption text-muted">לא זמין כרגע אצל הספק, נבדוק עבורכם בהצעה. אפשר להוסיף לסל.</p>}
-          {lead && !unpriced && <p className="-mt-2 text-caption text-muted">מגיע לישראל תוך {lead}</p>}
+          {arrival && !unpriced && <p className="-mt-2 text-caption text-muted">{arrival}</p>}
           {unpriced && chosen && (
             <div className="flex flex-col gap-2">
               <p className="text-caption text-muted">לא ניתן להזמין כרגע דרך האתר: אין לנו מחיר לחלק הזה. שלחו בקשה ונבדוק אותו עבורכם.</p>

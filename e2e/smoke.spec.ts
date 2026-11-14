@@ -55,6 +55,8 @@ test("guest cart, sign in, send, admin quote, team approves", async ({ browser, 
   // 2. Signs in with the email code in the cart sheet.
   await openCart(page);
   const dialog = page.getByRole("dialog");
+  // The footer shows one button; the sign-in step opens once it's pressed.
+  await dialog.getByRole("button", { name: "שליחת בקשה", exact: true }).click();
   await dialog.getByLabel("דוא״ל").fill(email);
   await dialog.getByRole("button", { name: "שליחת קוד כניסה" }).click();
   const code = await emailCode(email);
@@ -68,7 +70,7 @@ test("guest cart, sign in, send, admin quote, team approves", async ({ browser, 
   await dialog.getByRole("button", { name: "יצירת הקבוצה" }).click();
 
   // 4. Sends the request (pickup, so no address is needed).
-  const send = dialog.getByRole("button", { name: "שליחת בקשה להצעת מחיר" });
+  const send = dialog.getByRole("button", { name: "שליחת בקשה", exact: true });
   await expect(send).toBeVisible();
   const pickup = dialog.getByRole("button", { name: /איסוף/ });
   if (await pickup.count()) await pickup.first().click().catch(() => {});

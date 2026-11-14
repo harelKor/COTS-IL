@@ -21,3 +21,9 @@ describe("availabilityStatus", () => {
     expect(availabilityStatus(true, checked, false, { shipsLater: true }).short).toBe("לא אומת");
   });
 });
+
+describe("availabilityStatus with a today", () => {
+  it("says how many hours ago it was checked", () => {
+    expect(availabilityStatus(true, checked, true, {}, Date.parse(checked) + 5 * 60 * 60 * 1000).text).toBe("זמין אצל הספק (נבדק לפני 5 שעות)");
+  });
+});

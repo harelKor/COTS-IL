@@ -35,7 +35,8 @@ function haptic() {
 function flyToCart(from: Element | null) {
   if (!from || reducedMotion()) return;
   const start = from.getBoundingClientRect();
-  const target = document.querySelector("[data-cart-pill]")?.getBoundingClientRect();
+  // The floating pill on phones, the header's cart button where the pill is hidden.
+  const target = [...document.querySelectorAll("[data-cart-pill], [data-cart-button]")].map((el) => el.getBoundingClientRect()).find((r) => r.width > 0);
   const endX = target ? target.left + target.width / 2 : window.innerWidth / 2;
   const endY = target ? target.top + target.height / 2 : window.innerHeight - 40;
   const size = Math.min(start.width, start.height, 96);
@@ -164,11 +165,20 @@ export function changeQtyNow(variantId: string, qty: number) {
   timers.set(variantId, { timer: setTimeout(fire, QTY_DEBOUNCE_MS), confirmed, fire });
 }
 
-/** Removes a line at once and offers Undo. */
-export function removeNow(variantId: string) {
+/** Puts a removed line back (Undo), at the quantity it had. */
+export function restoreLine(line: CartSheetLine) {
+  const { qty, ...rest } = line;
+  addToCartNow(rest, qty);
+}
+
+/**
+ * Removes a line at once and offers Undo: in a toast, or (`undo: "inline"`) left to the
+ * caller, which shows it in place, as the cart sheet does. Returns the removed line.
+ */
+export function removeNow(variantId: string, { undo = "toast" }: { undo?: "toast" | "inline" } = {}): CartSheetLine | null {
   cancelQtyWrite(variantId);
   const line = removeOptimistic(variantId);
-  if (!line) return;
+  if (!line) return null;
   haptic();
   if (onServer()) {
     const v = bump(variantId);
@@ -179,11 +189,6 @@ export function removeNow(variantId: string) {
       }
     });
   }
-  showToast("הוסר מהסל", "default", {
-    label: "ביטול",
-    run: () => {
-      const { qty, ...rest } = line;
-      addToCartNow(rest, qty);
-    },
-  });
+  if (undo === "toast") showToast("הוסר מהסל", "default", { label: "ביטול", run: () => restoreLine(line) });
+  return line;
 }

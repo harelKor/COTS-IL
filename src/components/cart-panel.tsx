@@ -3,7 +3,7 @@
 import { availabilityStatus } from "@/lib/availability-text";
 import { shopifyImage } from "@/lib/images";
 import { PriceNote } from "./price-note";
-import { Check, ChevronDown, Share2, Trash2 } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
@@ -11,11 +11,14 @@ import { requestToJoin, sendEmailCode, setUpTeam, signInWithGoogle, verifyEmailC
 import { sendQuoteRequest, type SendState } from "@/app/cart/actions";
 import type { TeamNameResponse } from "@/app/api/team-name/route";
 import { supplierSections, type CartChange } from "@/domain/cart";
-import { encodeCart, withPendingCart } from "@/domain/cart-share";
+import { withPendingCart } from "@/domain/cart-share";
+import { checkedAgo } from "@/domain/checked-ago";
+import { arrivalShort } from "@/domain/lead-time";
 import { parseTeamNumber } from "@/domain/teams";
 import { formatIls } from "@/domain/pricing";
 import { useSiteFacts } from "./site-facts";
-import { flushCartWrites, removeNow } from "./cart-actions";
+import { useNow } from "./availability";
+import { flushCartWrites, removeNow, restoreLine } from "./cart-actions";
 import { cartSnapshot, cartTotals, markBlocked, replaceLines, setMergeSkipped, useCart, type CartSheetLine, type Checkout } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
@@ -23,10 +26,10 @@ import { showToast } from "./toast";
 import { formatAddress, missingAddressParts, parseAddress, type AddressParts } from "@/domain/display";
 import { track } from "@vercel/analytics";
 
-const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Asia/Jerusalem" });
-
 const primary =
   "flex h-11 w-full items-center justify-center gap-2 rounded-full btn-brand px-6 font-semibold disabled:opacity-60";
+/** The main button beside the total, in the footer's one row. */
+const primaryRow = "flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full btn-brand px-5 font-semibold disabled:opacity-60";
 const field = "h-11 w-full rounded-xl bg-subtle px-4 text-callout outline-none focus:ring-2 focus:ring-brand";
 
 /** "X: היה 2, עכשיו 3, Y נוסף (1), Z הוסר" for the stale-cart message (words, since arrows flip next to English titles). */
@@ -49,10 +52,36 @@ function InlineError({ message }: { message: string | null }) {
   );
 }
 
-/** A cart line that a sideways swipe removes (with Undo), as on a phone's mail app. */
-function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () => void }) {
+/** A line just removed, kept in its place inside the sheet with Undo (no confirm dialog). */
+function RemovedLine({ line, onUndo }: { line: CartSheetLine; onUndo: () => void }) {
+  return (
+    <li role="status" className="flex min-h-11 items-center justify-between gap-3 border-b border-line py-1 text-caption text-muted last:border-b-0">
+      <span className="min-w-0 truncate">
+        הוסר: <Ltr>{line.title}</Ltr>
+      </span>
+      <button type="button" onClick={onUndo} className="flex h-11 shrink-0 items-center rounded-full px-4 font-semibold text-brand hover:bg-subtle">
+        ביטול
+      </button>
+    </li>
+  );
+}
+
+/**
+ * A cart line, compact so five or more fit above the footer: title and options, the
+ * remove button at the line's far end (away from −), a note when the part is sold out
+ * or a preorder, then quantity and price. A sideways swipe removes it too, as on a phone's mail app.
+ */
+function SwipeLine({ line, now, onNavigate, onRemove }: { line: CartSheetLine; now: number | null; onNavigate?: () => void; onRemove: () => void }) {
   const [dx, setDx] = useState(0);
   const start = useRef<number | null>(null);
+  const note =
+    line.orderable === false || !line.checkedAt
+      ? null
+      : line.available === false
+        ? `לא זמין אצל הספק, ${checkedAgo(line.checkedAt, now)}. נבדוק בהצעה.`
+        : line.available === true && line.shipsLater
+          ? `${availabilityStatus(true, line.checkedAt, true, { shipsLater: true, eta: line.shipsLaterEta }, now).text}`
+          : null;
   return (
     <li
       className="relative touch-pan-y overflow-hidden border-b border-line last:border-b-0"
@@ -63,7 +92,7 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
         if (start.current !== null) setDx(e.clientX - start.current);
       }}
       onPointerUp={() => {
-        if (start.current !== null && Math.abs(dx) > 90) removeNow(line.variantId);
+        if (start.current !== null && Math.abs(dx) > 90) onRemove();
         start.current = null;
         setDx(0);
       }}
@@ -75,56 +104,39 @@ function SwipeLine({ line, onNavigate }: { line: CartSheetLine; onNavigate?: () 
       <div className="absolute inset-0 flex items-center justify-end bg-danger px-6 text-caption font-medium text-white" aria-hidden>
         הסרה
       </div>
-      <div className="relative flex gap-3 bg-surface py-4 transition-transform duration-150" style={{ transform: `translateX(${dx}px)` }}>
-        <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-tile">
+      <div className="relative flex gap-3 bg-surface py-2 transition-transform duration-150" style={{ transform: `translateX(${dx}px)` }}>
+        <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-tile">
           {line.image && (
             // eslint-disable-next-line @next/next/no-img-element
             <img {...shopifyImage(line.image, 56)} loading="lazy" alt={line.title} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
           )}
         </span>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <Link href={line.href} onClick={onNavigate} className="hover:text-brand">
-            <Ltr className="line-clamp-2 text-start text-callout font-medium">{line.title}</Ltr>
-          </Link>
-          <span className="truncate text-caption text-muted">
-            <Ltr>{[line.options, line.sku].filter(Boolean).join(", ")}</Ltr>
-          </span>
-          {line.orderable === false ? (
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-caption font-medium text-danger">לא ניתן להזמין עוד</span>
-              <button
-                type="button"
-                onClick={() => removeNow(line.variantId)}
-                className="flex h-11 items-center gap-1.5 rounded-full bg-danger/10 px-4 text-caption font-semibold text-danger hover:bg-danger/15"
-              >
-                <Trash2 size={16} strokeWidth={1.75} aria-hidden />
-                הסרה
-              </button>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex items-start gap-1">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <Link href={line.href} onClick={onNavigate} title={line.title} className="hover:text-brand">
+                <Ltr className="line-clamp-1 text-start text-callout font-medium">{line.title}</Ltr>
+              </Link>
+              <span className="truncate text-caption text-muted">
+                <Ltr>{[line.options, line.sku].filter(Boolean).join(", ")}</Ltr>
+              </span>
             </div>
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label={`הסרה מהסל: ${line.title}`}
+              className="-my-1.5 -me-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+            >
+              <Trash2 size={18} strokeWidth={1.75} aria-hidden />
+            </button>
+          </div>
+          {line.orderable === false ? (
+            <span className="text-caption font-medium text-danger">לא ניתן להזמין עוד: הסירו כדי לשלוח</span>
           ) : (
             <>
-              {line.available === false && line.checkedAt && (
-                <span className="text-caption text-warning">לא זמין אצל הספק, נבדק {dayMonth.format(new Date(line.checkedAt))}</span>
-              )}
-              {line.available === true && line.shipsLater && line.checkedAt && (
-                <span className="text-caption text-warning">
-                  {availabilityStatus(true, line.checkedAt, true, { shipsLater: true, eta: line.shipsLaterEta }).text}
-                </span>
-              )}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1">
-                  <QtyStepper variantId={line.variantId} qty={line.qty} label={line.title} />
-                  {line.qty > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeNow(line.variantId)}
-                      aria-label={`הסרה מהסל: ${line.title}`}
-                      className="flex size-11 items-center justify-center rounded-full text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                    >
-                      <Trash2 size={18} strokeWidth={1.75} aria-hidden />
-                    </button>
-                  )}
-                </div>
+              {note && <span className="text-caption text-warning">{note}</span>}
+              <div className="mt-0.5 flex items-center justify-between gap-2">
+                <QtyStepper variantId={line.variantId} qty={line.qty} label={line.title} removeAtOne={false} onRemove={onRemove} />
                 <span className="flex flex-col items-end text-callout font-semibold tabular-nums">
                   {line.unitPriceIls === null ? <span className="text-caption font-normal text-muted">אין מחיר</span> : formatIls(line.unitPriceIls * line.qty)}
                   {line.unitPriceIls !== null && line.qty > 1 && <span className="text-caption font-normal text-muted">{formatIls(line.unitPriceIls)} ליח׳</span>}
@@ -147,11 +159,14 @@ function TeamSend({
   isNew,
   blockedCount,
   onSent,
+  total,
 }: {
   checkout: Checkout;
   isNew: boolean;
   blockedCount: number;
   onSent: (n: { orderId: string; number: number }) => void;
+  /** The cart's total, shown beside the send button. */
+  total: React.ReactNode;
 }) {
   const [editing, setEditing] = useState(!checkout.contactName || !checkout.contactPhone);
   const [changes, setChanges] = useState<Checkout & { notes: string }>({ ...checkout, notes: "" });
@@ -245,9 +260,12 @@ function TeamSend({
         </button>
       )}
       <InlineError message={error} />
-      <button type="button" onClick={send} disabled={pending || blockedCount > 0} className={primary}>
-        {pending ? "שולח…" : "שליחת בקשה להצעת מחיר"}
-      </button>
+      <div className="flex items-center gap-3">
+        {total}
+        <button type="button" onClick={send} disabled={pending || blockedCount > 0} className={primaryRow}>
+          {pending ? "שולח…" : "שליחת בקשה"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -646,43 +664,47 @@ function CartFooter({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** A removed line and where it stood, for the in-place Undo. */
+type Removed = { line: CartSheetLine; index: number };
+type Row = CartSheetLine & { removed?: Removed };
+
 /**
- * The cart and its checkout, in one place: the lines, the cost,
- * sharing, and the one primary action for whoever is looking (a guest signs in,
- * someone signed in to a team sends).
+ * The cart and its checkout, in one place: the lines by vendor, the cost, and
+ * the one primary action for whoever is looking. A guest (or someone signed in
+ * without a team) sees "שליחת בקשה" first, and the sign-in or team step only
+ * after pressing it, so the footer stays small and the lines stay in view.
  */
 export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void; onContinue?: () => void }) {
   const cart = useCart();
-  const { quoteLeadBusinessDays: quoteDays } = useSiteFacts();
+  const { quoteLeadBusinessDays: quoteDays, leadTimes, supplierCodes } = useSiteFacts();
+  const now = useNow();
   const { lines, mode } = cart;
-  const { count, totalIls } = cartTotals(lines);
-  const [costOpen, setCostOpen] = useState(false);
+  const { totalIls } = cartTotals(lines);
   const [sent, setSent] = useState<{ orderId: string; number: number } | null>(null);
-  const shareUrl = typeof window === "undefined" ? "" : `${window.location.origin}/cart/shared?items=${encodeCart(lines)}`;
+  const [removed, setRemoved] = useState<Removed[]>([]);
+  // The sign-in or team step shows once "שליחת בקשה" is pressed, or at once when a code is already on its way.
+  const [asked, setAsked] = useState(false);
+  const codeWaiting = useSyncExternalStore(subscribeCode, codeSnapshot, () => null) !== null;
   const blocked = lines.filter((l) => l.orderable === false);
   const unavailable = lines.filter((l) => l.orderable !== false && l.available === false);
+  const preorders = lines.filter((l) => l.orderable !== false && l.available === true && l.shipsLater);
+  // Lines removed in this sheet stay in their place with Undo, until they're back in the cart.
+  const gone = removed.filter((r) => !lines.some((l) => l.variantId === r.line.variantId));
 
-  // Phones get the system share sheet (WhatsApp is one tap away); elsewhere the link is copied.
-  async function share() {
-    const touch = window.matchMedia("(pointer: coarse)").matches;
-    if (touch && typeof navigator.share === "function") {
-      try {
-        await navigator.share({ title: "סל ב-COTS-IL", url: shareUrl });
-        return;
-      } catch (e) {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      showToast("הקישור לסל הועתק");
-    } catch {
-      showToast("לא הצלחנו להעתיק", "error");
-    }
+  function remove(line: CartSheetLine) {
+    const index = lines.findIndex((l) => l.variantId === line.variantId);
+    const taken = removeNow(line.variantId, { undo: "inline" });
+    if (taken) setRemoved((r) => [...r.filter((x) => x.line.variantId !== taken.variantId), { line: taken, index }].slice(-5));
+  }
+
+  function undo(entry: Removed) {
+    setRemoved((r) => r.filter((x) => x !== entry));
+    restoreLine(entry.line);
   }
 
   function sentNow(order: { orderId: string; number: number }) {
     replaceLines([]);
+    setRemoved([]);
     setSent(order);
   }
 
@@ -722,6 +744,13 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
         <MergeSkipped titles={cart.mergeSkipped} />
+        {gone.length > 0 && (
+          <ul className="w-full text-start">
+            {gone.map((r) => (
+              <RemovedLine key={r.line.variantId} line={r.line} onUndo={() => undo(r)} />
+            ))}
+          </ul>
+        )}
         <p className="text-section font-semibold">הסל ריק</p>
         <Link
           href="/catalog"
@@ -734,6 +763,7 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
     );
   }
 
+  // Only what needs attention; "not binding" sits once, next to the button.
   const status =
     blocked.length > 0
       ? {
@@ -751,63 +781,72 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
                 ? "פריט אחד לא זמין כרגע אצל הספק. אפשר לשלוח, ונבדוק בהצעה."
                 : `${unavailable.length} פריטים לא זמינים כרגע אצל הספק. אפשר לשלוח, ונבדוק בהצעה.`,
           }
-        : { tone: "text-muted", text: "זו בקשה ולא הזמנה: הספק הישראלי יבדוק זמינות ומחירים ויחזור עם הצעת מחיר לאישורכם." };
+        : preorders.length > 0
+          ? { tone: "text-warning", text: preorders.length === 1 ? "הבקשה תחכה לפריט שבהזמנה מראש." : "הבקשה תחכה לפריטים שבהזמנה מראש." }
+          : null;
+
+  const rows: Row[] = [...lines];
+  for (const r of [...gone].sort((a, b) => a.index - b.index)) rows.splice(Math.max(0, Math.min(r.index, rows.length)), 0, { ...r.line, removed: r });
+  const local = mode === "guest" || mode === "noteam";
+  const total = (
+    <span className="flex shrink-0 flex-col">
+      <span className="flex items-baseline gap-2">
+        <span className="text-caption text-muted">סה״כ משוער</span>
+        <span aria-live="polite" className="text-section font-semibold tabular-nums">
+          {formatIls(totalIls)}
+        </span>
+      </span>
+      <span className="text-caption text-muted">משלוח: יתומחר בהצעה</span>
+    </span>
+  );
 
   return (
     <div className="flex min-h-full flex-col">
-      <div className="flex flex-1 flex-col gap-4 pb-4">
+      <div className="flex flex-1 flex-col pb-3">
         <MergeSkipped titles={cart.mergeSkipped} />
-        {supplierSections(lines, (l) => l.qty, (l) => l.unitPriceIls).map((group) => (
-          <section key={group.supplierName} aria-label={group.supplierName}>
-            <h3 className="flex items-baseline justify-between gap-3 border-b border-line pt-2 pb-1 text-caption text-muted">
-              <span>
-                <Ltr className="font-semibold text-foreground">{group.supplierName}</Ltr>, {group.count.toLocaleString("he-IL")} פריטים
-              </span>
-              <span className="font-semibold tabular-nums">{formatIls(group.subtotal)}</span>
-            </h3>
-            <ul>
-              {group.lines.map((line) => (
-                <SwipeLine key={line.variantId} line={line} onNavigate={onNavigate} />
-              ))}
-            </ul>
-          </section>
-        ))}
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={share} className="flex min-h-11 items-center gap-2 rounded-full bg-subtle px-4 text-caption">
-            <Share2 size={16} aria-hidden />
-            שיתוף הסל
-          </button>
-        </div>
+        {supplierSections(rows, (l) => (l.removed ? 0 : l.qty), (l) => l.unitPriceIls).map((group) => {
+          const code = group.lines.find((l) => l.supplierCode)?.supplierCode ?? supplierCodes[group.supplierName];
+          const eta = code ? arrivalShort(leadTimes[code]) : null;
+          return (
+            <section key={group.supplierName} aria-label={group.supplierName}>
+              <h3 className="flex items-baseline justify-between gap-3 border-b border-line pt-2.5 pb-1 text-caption text-muted">
+                <span>
+                  <Ltr className="font-semibold text-foreground">{group.supplierName}</Ltr>
+                  {group.count > 0 && `, ${group.count === 1 ? "פריט אחד" : `${group.count.toLocaleString("he-IL")} פריטים`}${eta ? `, ${eta}` : ""}`}
+                </span>
+                {group.count > 0 && <span className="font-semibold tabular-nums">{formatIls(group.subtotal)}</span>}
+              </h3>
+              <ul>
+                {group.lines.map((line) =>
+                  line.removed ? (
+                    <RemovedLine key={line.variantId} line={line} onUndo={() => undo(line.removed!)} />
+                  ) : (
+                    <SwipeLine key={line.variantId} line={line} now={now} onNavigate={onNavigate} onRemove={() => remove(line)} />
+                  ),
+                )}
+              </ul>
+            </section>
+          );
+        })}
       </div>
 
       <CartFooter>
-        <button type="button" onClick={() => setCostOpen((o) => !o)} aria-expanded={costOpen} className="flex min-h-11 items-center justify-between gap-2 text-start">
-          <span className="flex items-center gap-1 text-muted">
-            סה״כ משוער
-            <ChevronDown size={14} aria-hidden className={`transition-transform ${costOpen ? "rotate-180" : ""}`} />
-          </span>
-          <span aria-live="polite" className="text-section font-semibold tabular-nums">{formatIls(totalIls)}</span>
-        </button>
-        {costOpen && (
-          <dl className="flex flex-col gap-1 rounded-xl bg-subtle p-3 text-caption">
-            <div className="flex justify-between">
-              <dt>{count} פריטים</dt>
-              <dd className="tabular-nums">{formatIls(totalIls)}</dd>
-            </div>
-            <div className="flex justify-between text-muted">
-              <dt>משלוח בישראל</dt>
-              <dd>יתומחר בהצעה</dd>
-            </div>
-          </dl>
+        {status && <p className={`text-caption ${status.tone}`}>{status.text}</p>}
+        {mode === "ordering" && cart.team && cart.checkout ? (
+          <TeamSend checkout={cart.checkout} isNew={cart.team.status === "pending"} blockedCount={blocked.length} onSent={sentNow} total={total} />
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            {total}
+            {local && !asked && !codeWaiting && (
+              <button type="button" onClick={() => setAsked(true)} className={primaryRow}>
+                שליחת בקשה
+              </button>
+            )}
+          </div>
         )}
-        <p className={`text-caption ${status.tone}`}>{status.text}</p>
-
-        {mode === "guest" && <SignInStep google={!!cart.googleSignIn} />}
-        {mode === "noteam" && <TeamStep />}
-        {mode === "ordering" && cart.team && cart.checkout && (
-          <TeamSend checkout={cart.checkout} isNew={cart.team.status === "pending"} blockedCount={blocked.length} onSent={sentNow} />
-        )}
-        <PriceNote />
+        {mode === "guest" && (asked || codeWaiting) && <SignInStep google={!!cart.googleSignIn} />}
+        {mode === "noteam" && (asked || codeWaiting) && <TeamStep />}
+        <PriceNote inline />
       </CartFooter>
     </div>
   );

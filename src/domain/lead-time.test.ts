@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { leadTimeText, typicalLeadTime } from "./lead-time";
+import { arrivalShort, arrivalText, leadTimeText, typicalLeadTime } from "./lead-time";
 
 describe("leadTimeText", () => {
   it("hides an unknown lead time", () => {
@@ -17,5 +17,17 @@ describe("typicalLeadTime", () => {
   it("spans the known suppliers and skips unknown ones", () => {
     expect(typicalLeadTime([null, { minDays: 7, maxDays: 10 }, { minDays: 12, maxDays: 18 }])).toBe("7–18 ימים");
     expect(typicalLeadTime([null, undefined])).toBeNull();
+  });
+});
+
+describe("arrivalText", () => {
+  it("shows nothing while the lead time is empty", () => {
+    expect(arrivalText(null)).toBeNull();
+    expect(arrivalShort(undefined)).toBeNull();
+  });
+  it("counts from the approval, or from the supplier's shipping for a preorder", () => {
+    expect(arrivalText({ minDays: 7, maxDays: 10 })).toBe("מגיע לישראל תוך 7–10 ימים מאישור ההצעה");
+    expect(arrivalText({ minDays: 7, maxDays: 10 }, true)).toBe("מגיע לישראל תוך 7–10 ימים מרגע שהספק שולח");
+    expect(arrivalShort({ minDays: 7, maxDays: 10 })).toBe("מגיע תוך 7–10 ימים");
   });
 });

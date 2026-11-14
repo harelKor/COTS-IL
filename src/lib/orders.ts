@@ -61,6 +61,7 @@ export const toSheetLine =
     image: l.image,
     href: productHref(l.supplierCode, l.handle),
     supplierName: l.supplierName,
+    supplierCode: l.supplierCode,
     qty: l.qty,
     unitPriceIls: priceIls(l.priceUsd, ctx, l.markup, l.fixedIls),
     orderable: isOrderable({ variantMissing: l.variantMissing, productMissing: l.productMissing, productStatus: l.productStatus, priceUsd: l.priceUsd }),

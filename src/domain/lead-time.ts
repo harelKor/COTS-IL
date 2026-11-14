@@ -13,3 +13,16 @@ export function typicalLeadTime(leads: ({ minDays: number; maxDays: number } | n
   if (known.length === 0) return null;
   return leadTimeText({ minDays: Math.min(...known.map((l) => l.minDays)), maxDays: Math.max(...known.map((l) => l.maxDays)) });
 }
+
+/** When a part reaches Israel, counted from the quote's approval; for a preorder, from the day the supplier ships it. */
+export function arrivalText(lead: { minDays: number; maxDays: number } | null | undefined, shipsLater = false): string | null {
+  const text = leadTimeText(lead);
+  if (!text) return null;
+  return shipsLater ? `מגיע לישראל תוך ${text} מרגע שהספק שולח` : `מגיע לישראל תוך ${text} מאישור ההצעה`;
+}
+
+/** The short form for an offer card or a cart section: "מגיע תוך 7–10 ימים". */
+export function arrivalShort(lead: { minDays: number; maxDays: number } | null | undefined): string | null {
+  const text = leadTimeText(lead);
+  return text ? `מגיע תוך ${text}` : null;
+}

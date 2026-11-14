@@ -23,6 +23,7 @@ export function useNow(): number | null {
 
 /** Suppliers only tell us yes or no, so this never shows a stock count. */
 export function Availability({ available, checkedAt, shipsLater, eta }: { available: boolean | null; checkedAt: string } & ShipsLater) {
-  const status = availabilityStatus(available, checkedAt, isFresh(checkedAt, useNow()), { shipsLater, eta });
+  const now = useNow();
+  const status = availabilityStatus(available, checkedAt, isFresh(checkedAt, now), { shipsLater, eta }, now);
   return <span className={`text-caption ${status.tone}`}>{status.text}</span>;
 }

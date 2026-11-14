@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Boxes, Check } from "lucide-react";
-import { signout } from "@/app/auth/actions";
 import { switchTeam } from "@/app/cart/actions";
 import { getViewer, orderingTeam, orderingTeams } from "@/lib/auth";
 import { googleSignInEnabled } from "@/lib/auth-providers";
@@ -14,6 +13,7 @@ import { InstallAppButton } from "./install-app";
 import { Ltr } from "./ltr";
 import { SearchPanel } from "./search-panel";
 import { SignInLink } from "./sign-in-link";
+import { SignOutButton } from "./sign-out-button";
 
 const menuLink = "flex h-11 items-center rounded-lg px-3 hover:bg-subtle";
 
@@ -125,16 +125,14 @@ async function Account() {
             </Link>
           )}
           <InstallAppButton variant="menu" />
-          <form action={signout}>
-            <button className={`${menuLink} w-full text-start text-danger`}>יציאה</button>
-          </form>
+          <SignOutButton className={`${menuLink} w-full text-start text-danger`} />
         </nav>
       </div>
     </>
   );
 }
 
-/** Slim frosted bar: logo, search, cart, account. The floating pill shows the cart's total once it has items. */
+/** Slim frosted bar: logo, search, cart (with its total from 768px; on phones the floating pill shows it), account. */
 export function SiteHeader() {
   return (
     <header className="site-header sticky top-0 z-30 border-b border-line/70 bg-glass backdrop-blur-xl backdrop-saturate-150 print:hidden">

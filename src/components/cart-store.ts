@@ -18,6 +18,8 @@ export type CartSheetLine = {
   image: string | null;
   href: string;
   supplierName: string;
+  /** The vendor's code, for its lead time (business settings). Older guest lines may lack it. */
+  supplierCode?: string;
   qty: number;
   unitPriceIls: number | null;
   /** False once the part left the catalog or lost its price: the line blocks the send until removed. Unknown (a guest's line) counts as true. */

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatIls } from "@/domain/pricing";
 import { canEditCart, cartTotals, useCart } from "./cart-store";
 import { TeamName } from "@/components/team-name";
+import { ShareCartButton } from "./share-cart-button";
 
 // The panel (sign-in, team setup, sending) is most of the cart's code and is only needed
 // once the sheet opens, so it loads on first open; a hover, touch or a filled cart fetches it early.
@@ -31,25 +32,32 @@ function CloseButton({ onClick }: { onClick: () => void }) {
 }
 
 /**
- * The header's cart button, so the cart can be found while it's still empty.
+ * The header's cart button, so the cart can be found while it's still empty. From 768px,
+ * where the floating pill is hidden, it shows the ₪ total beside the count.
  * Hidden for those who can't change a cart, such as the admin.
  */
 export function CartButton() {
   const { mode, lines } = useCart();
   // The slot stays, so the header doesn't jump when an admin's header finishes loading.
   if (mode !== "loading" && !canEditCart(mode)) return <span className="size-11 shrink-0" aria-hidden />;
-  const { count } = cartTotals(lines);
+  const { count, totalIls } = cartTotals(lines);
   return (
     <button
       type="button"
+      data-cart-button
       onClick={openCart}
       onPointerEnter={loadPanel}
       onTouchStart={loadPanel}
       onFocus={loadPanel}
-      aria-label={count > 0 ? `הסל, ${count} פריטים` : "הסל"}
-      className="cart-button relative flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface shadow-2xs hover:bg-subtle text-foreground transition-colors"
+      aria-label={count > 0 ? `הסל, ${count} פריטים, ${formatIls(totalIls)}` : "הסל"}
+      className={`cart-button relative flex h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-full border border-line bg-surface shadow-2xs hover:bg-subtle text-foreground transition-colors ${count > 0 ? "md:ps-3 md:pe-4" : ""}`}
     >
       <ShoppingBag size={20} strokeWidth={1.75} aria-hidden />
+      {count > 0 && (
+        <span className="hidden text-callout font-semibold tabular-nums md:inline" aria-hidden>
+          {formatIls(totalIls)}
+        </span>
+      )}
       {count > 0 && (
         <span className="cart-count absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-caption font-semibold text-white tabular-nums ring-2 ring-white">
           {count > 99 ? "99+" : count}
@@ -60,8 +68,8 @@ export function CartButton() {
 }
 
 /**
- * The cart, always under the thumb: a pill with the count and ₪ total that opens
- * the cart as a sheet, where the request is sent too. There's no checkout page.
+ * The cart sheet, where the request is sent too (there's no checkout page), and on
+ * phones a pill under the thumb with the count and ₪ total that opens it.
  */
 export function CartPill() {
   const { mode, lines, team } = useCart();
@@ -120,7 +128,8 @@ export function CartPill() {
           onClick={openSheet}
           onPointerEnter={loadPanel}
           onTouchStart={loadPanel}
-          className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-12 w-max items-center gap-3 rounded-full btn-brand ps-5 pe-6 shadow-lift transition-transform duration-300 ease-spring starting:scale-75 active:scale-95 md:inset-x-auto md:end-8 md:bottom-8 md:mx-0 print:hidden"
+          // Phones only: from 768px the header's cart button carries the count and total, and the pill would cover cards.
+          className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-12 w-max items-center gap-3 rounded-full btn-brand ps-5 pe-6 shadow-lift transition-transform duration-300 ease-spring starting:scale-75 active:scale-95 md:hidden print:hidden"
         >
           <ShoppingBag size={20} strokeWidth={1.75} aria-hidden />
           <span className="text-callout font-medium">
@@ -139,7 +148,7 @@ export function CartPill() {
         onClick={(e) => e.target === sheet.current && close()}
       >
         <div className="flex h-full max-h-[inherit] flex-col">
-          <div className="flex items-center justify-between gap-3 border-b border-line px-6 py-2">
+          <div className="flex items-center justify-between gap-2 border-b border-line px-6 py-2">
             <div className="flex min-w-0 flex-col">
               <h2 className="truncate text-section font-semibold">
                 {team ? (
@@ -152,7 +161,10 @@ export function CartPill() {
               </h2>
               {count > 0 && <span className="text-caption text-muted">{count === 1 ? "פריט אחד" : `${count} פריטים`}</span>}
             </div>
-            <CloseButton onClick={close} />
+            <div className="flex shrink-0 items-center">
+              <ShareCartButton />
+              <CloseButton onClick={close} />
+            </div>
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto px-6 pt-2">
             {panelMounted && <CartPanel key={panelKey} onNavigate={close} onContinue={close} />}
