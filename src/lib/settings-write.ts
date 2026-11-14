@@ -2,7 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { updateTag } from "next/cache";
 import { db, schema } from "@/db";
-import { parseSettings, type Settings } from "@/domain/settings";
+import { contentSchema, parseSettings, type Content, type Settings } from "@/domain/settings";
 
 /** The stored settings, read past the cache (for a save that changes one section). */
 export async function currentSettings(): Promise<Settings> {
@@ -22,3 +22,22 @@ export async function writeSettings(actorId: string, action: string, before: Set
   updateTag("settings");
 }
 
+
+/**
+ * Changes part of the site content (תוכן האתר) for the actions of the messages and content pages: the
+ * `part` is merged over the stored content, checked, written with its audit_log row, and returned
+ * with what it replaced, for the Undo toast.
+ */
+export async function updateContent(
+  actorId: string,
+  action: string,
+  part: (content: Content) => Partial<Content>,
+): Promise<{ ok: true; before: Partial<Content> } | { ok: false }> {
+  const settings = await currentSettings();
+  const changed = part(settings.content);
+  const content = contentSchema.safeParse({ ...settings.content, ...changed });
+  if (!content.success) return { ok: false };
+  const before = Object.fromEntries(Object.keys(changed).map((k) => [k, settings.content[k as keyof Content]])) as Partial<Content>;
+  await writeSettings(actorId, action, settings, { ...settings, content: content.data });
+  return { ok: true, before };
+}

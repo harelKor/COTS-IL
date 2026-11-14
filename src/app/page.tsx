@@ -14,9 +14,10 @@ import { cartCount, latestOrder } from "@/lib/orders";
 import { getCatalogCounts, getDiscoveryPage, getFacets, getLastSync, getVendors } from "@/lib/catalog";
 import { DiscoveryStrip } from "@/components/discovery-strip";
 import { markupText } from "@/domain/pricing";
-import { getBusiness, getSiteFacts } from "@/lib/settings";
+import { getBusiness, getSettings, getSiteFacts } from "@/lib/settings";
 import { typicalLeadTime } from "@/domain/lead-time";
-import { HowItWorksSteps } from "@/components/how-it-works-steps";
+import { HowItWorksSteps } from "@/components/info-text-page";
+import { whyCards, splitLatin } from "@/domain/site-text";
 import { BadgeCheck, Bot, Boxes, Cog, Coins, FileCheck2, Truck, Undo2 } from "lucide-react";
 import { catalogHref } from "@/lib/catalog-filters";
 import { homeVendorOrder, vendorRows } from "@/domain/vendors";
@@ -183,26 +184,18 @@ async function TrustStrip() {
   );
 }
 
-const why = (times: string, vendors: number) => [
-  {
-    icon: Boxes,
-    title: "הזמנה אחת לכל הספקים",
-    text: vendors > 1 ? `סל אחד מכל ${vendors} הספקים, במקום ${vendors} הזמנות נפרדות.` : "סל אחד לכל הציוד, במקום הזמנות נפרדות.",
-  },
-  { icon: Coins, title: "מחיר בשקלים", text: `מחיר הספק לפי השער היציג של בנק ישראל, כפול ${times}. בלי כרטיס אשראי בדולרים.` },
-  { icon: Truck, title: "משלוח מרוכז", text: "אנחנו מאחדים הזמנות למשלוח אחד ומוסרים לקבוצה." },
-  { icon: FileCheck2, title: "בלי ניירת מכס", text: "היבוא והשחרור עלינו. אתם מקבלים את החלקים." },
-];
+/** The four cards' icons, in order; their words are the admin's (תוכן האתר, דף הבית). */
+const WHY_ICONS = [Boxes, Coins, Truck, FileCheck2];
 
 async function WhyUs() {
-  const [business, { markupRange }, vendors] = await Promise.all([getBusiness(), getSiteFacts(), getVendors()]);
-  const WHY = why(markupText(markupRange), vendors.length);
+  const [{ business, content }, { markupRange }, vendors] = await Promise.all([getSettings(), getSiteFacts(), getVendors()]);
+  const WHY = whyCards(content.home, { markup: markupText(markupRange), vendors: vendors.length }).map((c, i) => ({ ...c, icon: WHY_ICONS[i] }));
   const items = business.returnPolicy
     ? [...WHY, { icon: Undo2, title: "החזרות בישראל", text: business.returnPolicy }]
     : WHY;
   return (
     <section>
-      <h2 className="mb-4 text-section font-semibold">למה דרך COTS-IL ולא ישירות מהספק</h2>
+      <h2 className="mb-4 text-section font-semibold">{content.home.whyHeading}</h2>
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((w) => (
           <li key={w.title} className="card-surface flex flex-col gap-2 rounded-card p-5">
@@ -213,6 +206,30 @@ async function WhyUs() {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** The motto and its sub-line: the admin's words (תוכן האתר, דף הבית), Latin words set left-to-right in the accent face. */
+async function HeroWords() {
+  const { home } = (await getSettings()).content;
+  return (
+    <>
+      <h1 className="motto">
+        <span className="block">
+          {splitLatin(home.mottoLine).map((part, i) =>
+            i % 2 === 1 ? (
+              <Ltr key={i} className="motto-latin">
+                {part}
+              </Ltr>
+            ) : (
+              part
+            ),
+          )}
+        </span>
+        <span className="motto-accent block">{home.mottoAccent}</span>
+      </h1>
+      <p className="motto-sub -mt-2 text-body lg:-mt-3 lg:text-[19px]">{home.sub}</p>
+    </>
   );
 }
 
@@ -254,13 +271,7 @@ export default function HomePage() {
         <section className="scene-hero relative flex flex-col">
           <ScenePhoto kind="short" />
           <div className="scene-hero-lane flex flex-col gap-6 pt-2 lg:gap-8 lg:pt-6">
-            <h1 className="motto">
-              <span className="block">
-                ציוד <Ltr className="motto-latin">FRC</Ltr> ו-<Ltr className="motto-latin">FTC</Ltr> מכל הספקים,
-              </span>
-              <span className="motto-accent block">בהזמנה אחת</span>
-            </h1>
-            <p className="motto-sub -mt-2 text-body lg:-mt-3 lg:text-[19px]">כל החלקים הרשמיים, משלוח מרוכז ומק״טים מדויקים במקום אחד.</p>
+            <HeroWords />
             <Suspense fallback={<div aria-hidden className="scene-telemetry min-h-8 w-full" />}>
               <Telemetry />
             </Suspense>

@@ -14,10 +14,11 @@ import {
   type TeamAddress,
 } from "@/domain/notifications";
 import { orderStatus } from "@/domain/order-status";
+import { quoteLinkDays } from "@/domain/quote-link";
 import { UNDO_SECONDS } from "@/domain/quote-view";
-import { getBusiness } from "@/lib/settings";
+import { getBusiness, getSettings } from "@/lib/settings";
 import { deliver, resendTransport, type Transport } from "@/lib/email-transport";
-import { renderEmail, type EmailData, type EmailLine } from "@/lib/email-templates";
+import { renderEmail, renderOptions, type EmailData, type EmailLine } from "@/lib/email-templates";
 import { getOrderLines } from "@/lib/order-status";
 import { getApproveLinks } from "@/lib/quote-links";
 import { siteUrl } from "@/lib/site-url";
@@ -81,10 +82,10 @@ export async function send<E extends NotifyEvent>(s: Send<E>): Promise<number> {
     console.info(`[notify] email is off (RESEND_API_KEY or EMAIL_FROM missing): ${s.event} for ${s.entity} ${s.entityId} not sent`);
     return 0;
   }
-  const [team, admins] = await Promise.all([s.teamId ? teamAddresses(s.teamId) : Promise.resolve([]), adminAddresses()]);
-  const recipients = recipientsFor(s.event, { team, admins });
+  const [team, admins, settings] = await Promise.all([s.teamId ? teamAddresses(s.teamId) : Promise.resolve([]), adminAddresses(), getSettings()]);
+  const recipients = recipientsFor(s.event, { team, admins, adminsOff: settings.content.emails.adminsOff });
   if (recipients.length === 0) return 0;
-  const results = await deliver(recipients, (r) => renderEmail(s.event, r.audience, s.data(r)), t);
+  const results = await deliver(recipients, (r) => renderEmail(s.event, r.audience, s.data(r), renderOptions(settings, s.event, r.audience)), t);
   await db.insert(auditLog).values(
     results.map((r) => ({
       actorId: null,
@@ -154,13 +155,15 @@ export async function notifyQuoteReady(orderId: string, event: "quote_ready" | "
   const links = await getApproveLinks(orderId);
   const urlFor = (userId: string) => (links && !links.missingSecret ? (links.members.find((m) => m.userId === userId)?.url ?? null) : null);
   const base = { orderNumber: row.order.number, teamName: row.teamName, orderUrl: orderUrl(orderId) };
+  // The link lasts as long as the quote is valid (פרטי העסק, תוקף הצעה).
+  const linkDays = quoteLinkDays((await getBusiness()).quoteValidDays);
   return event === "quote_ready"
     ? send({
         event: "quote_ready",
         teamId: row.team.id,
         entity: "quote",
         entityId: latest.quote.id,
-        data: (r) => ({ ...base, totalIls: latest.totalIls, approveUrl: urlFor(r.userId), linkDays: 14 }),
+        data: (r) => ({ ...base, totalIls: latest.totalIls, approveUrl: urlFor(r.userId), linkDays }),
       })
     : send({
         event: "quote_reminder",
@@ -199,7 +202,12 @@ export async function notifyInvite(teamId: string, invitationId: string, email: 
   }
   const [team] = await db.select().from(teams).where(eq(teams.id, teamId));
   if (!team) return 0;
-  const [r] = await deliver([{ userId: "", email, audience: "team" }], (rcpt) => renderEmail("invite", rcpt.audience, { teamName: teamDisplay(team), url }), t);
+  const settings = await getSettings();
+  const [r] = await deliver(
+    [{ userId: "", email, audience: "team" }],
+    (rcpt) => renderEmail("invite", rcpt.audience, { teamName: teamDisplay(team), url, days: settings.content.emails.inviteDays }, renderOptions(settings, "invite", rcpt.audience)),
+    t,
+  );
   await db.insert(auditLog).values({
     actorId: null,
     entity: "team_invitation",
@@ -341,8 +349,9 @@ export async function runDailyNotifications(now = new Date()) {
         ).map((r) => r.id),
   );
   let reminders = 0;
+  const { reminderAfterDays } = (await getSettings()).content.emails;
   for (const w of waiting) {
-    if (!reminderDue(w.sentAt, reminded.has(w.quoteId), now)) continue;
+    if (!reminderDue(w.sentAt, reminded.has(w.quoteId), now, reminderAfterDays)) continue;
     const days = Math.floor((now.getTime() - w.sentAt.getTime()) / 86_400_000);
     reminders += await notifyQuoteReady(w.orderId, "quote_reminder", days);
   }

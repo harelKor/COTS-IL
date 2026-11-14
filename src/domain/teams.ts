@@ -3,10 +3,19 @@ export function wouldLeaveNoMembers(memberIds: string[], removedId: string): boo
   return !memberIds.some((id) => id !== removedId);
 }
 
+/** Days a join link lasts, until the admin sets another (תוכן האתר, מיילים). */
 export const INVITE_DAYS = 14;
 
-export function inviteExpiry(now: Date): Date {
-  return new Date(now.getTime() + INVITE_DAYS * 24 * 60 * 60 * 1000);
+export function inviteExpiry(now: Date, days = INVITE_DAYS): Date {
+  return new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+/** How long a join link lasts, as the invite email says it: "לשבועיים", "לשבוע", "ל-10 ימים". */
+export function inviteLasts(days: number): string {
+  if (days === 14) return "לשבועיים";
+  if (days === 7) return "לשבוע";
+  if (days === 1) return "ליום";
+  return `ל-${days} ימים`;
 }
 
 /** FRC and FTC numbers both stay well under this; one limit for every form and the lookup API. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PAGES, INFO_PAGES, inlineFacts, parseInfoText, parseInline, resolveInfo, unknownTokens, writeUsHref } from "./info-text";
+import { CONTACT_US, CONTACT_US_IN_ORDER, DEFAULT_PAGES, INFO_PAGES, inlineFacts, parseInfoText, parseInline, resolveInfo, unknownTokens, writeUsHref } from "./info-text";
 
 describe("info text", () => {
   it("parses bold, links and facts", () => {
@@ -76,5 +76,41 @@ describe("vendor and contact tokens", () => {
     for (const key of INFO_PAGES.map((p) => p.key)) {
       expect(DEFAULT_PAGES[key]).not.toMatch(/AndyMark|WCP|CTRE|Thrifty|\(\/contact\)/);
     }
+  });
+});
+
+describe("steps and the pages that moved here (M6)", () => {
+  const base = { priceIncludes: null, quoteLeadBusinessDays: null, handlingFee: null, paymentTerms: null, returnPolicy: null };
+
+  it("reads numbered bold-title lines as one steps block", () => {
+    const doc = parseInfoText("intro\n\n1. **אחד** טקסט א\n2. **שניים** טקסט **ב**\n\n## כותרת\ntext");
+    expect(doc.intro.map((b) => b.t)).toEqual(["p", "steps"]);
+    const steps = doc.intro[1];
+    expect(steps.t === "steps" && steps.items.map((s) => s.title)).toEqual(["אחד", "שניים"]);
+    expect(doc.sections[0].blocks.map((b) => b.t)).toEqual(["p"]);
+  });
+
+  it("keeps how-it-works as four steps and the sections it had", () => {
+    const doc = parseInfoText(DEFAULT_PAGES.how);
+    const steps = doc.intro.find((b) => b.t === "steps");
+    expect(steps?.t === "steps" && steps.items.map((s) => s.title)).toEqual(["בונים סל", "שולחים בקשה", "מאשרים הצעה", "מקבלים"]);
+    expect(doc.sections.map((s) => s.title)).toEqual(["מה הקבוצה עושה", "מה הספק הישראלי עושה", "איפה רואים מה קורה"]);
+  });
+
+  it("shows the business days only when they are set", () => {
+    const site = { vendorNames: ["A"], hasContact: true };
+    expect(inlineFacts(base, "1.6", site)["תוך ימי עסקים"]).toBe("");
+    expect(inlineFacts({ ...base, quoteLeadBusinessDays: 2 }, "1.6", site)["תוך ימי עסקים"]).toBe(" תוך 2 ימי עסקים");
+  });
+
+  it("says where to write when there is no way to reach the business", () => {
+    expect(inlineFacts(base, "1.6", { vendorNames: [], hasContact: true })["צרו קשר"]).toBe(CONTACT_US);
+    expect(inlineFacts(base, "1.6", { vendorNames: [], hasContact: false })["צרו קשר"]).toBe(CONTACT_US_IN_ORDER);
+  });
+
+  it("drops the terms page's payment section until payment terms are set", () => {
+    const doc = parseInfoText(DEFAULT_PAGES.terms);
+    expect(resolveInfo(doc, { "תנאי תשלום": "" }, new Set()).sections.map((s) => s.title)).toEqual(["מחירים והצעות", "חשבון הקבוצה", "זמינות ואספקה"]);
+    expect(resolveInfo(doc, { "תנאי תשלום": "העברה" }, new Set()).sections.at(-1)?.title).toBe("תשלום");
   });
 });

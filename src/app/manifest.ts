@@ -1,15 +1,17 @@
 import type { MetadataRoute } from "next";
+import { getSettings } from "@/lib/settings";
 
 /**
  * Makes the site installable as an app (home screen, dock, start menu). The icons in
  * public/ are the header's blue badge; the maskable one leaves room for the OS's crop.
  */
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const { content } = await getSettings();
   return {
     id: "/",
     name: "COTS-IL",
     short_name: "COTS-IL",
-    description: "ציוד FRC ו-FTC מכל הספקים בהזמנה אחת, במחירים בשקלים לפי שער בנק ישראל",
+    description: content.tagline,
     lang: "he",
     dir: "rtl",
     start_url: "/",

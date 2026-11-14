@@ -62,3 +62,31 @@ describe("whatsappHref", () => {
     expect(whatsappHref("972501234567", "שלום")).toBe("https://wa.me/972501234567?text=%D7%A9%D7%9C%D7%95%D7%9D");
   });
 });
+
+describe("content settings added in M6", () => {
+  it("default to the text the site had, 14-day links and a 3-day reminder, and every admin getting email", () => {
+    const c = DEFAULT_SETTINGS.content;
+    expect(c.tagline).toBe("ציוד FRC ו-FTC מכל הספקים בהזמנה אחת, במחירים בשקלים לפי שער בנק ישראל");
+    expect(c.home.mottoAccent).toBe("בהזמנה אחת");
+    expect(c.home.why).toHaveLength(4);
+    expect(c.emails).toEqual({ templates: {}, inviteDays: 14, reminderAfterDays: 3, adminsOff: [] });
+    expect(c.pages.how).toBeNull();
+    expect(c.pages.privacy).toBeNull();
+    expect(c.pages.terms).toBeNull();
+  });
+
+  it("reads a settings row saved before they existed", () => {
+    const s = parseSettings({ content: { searchExamples: ["a"], tagline: "אחר" } });
+    expect(s.content.searchExamples).toEqual(["a"]);
+    expect(s.content.tagline).toBe("אחר");
+    expect(s.content.emails.inviteDays).toBe(14);
+  });
+
+  it("keeps a template and who is off, and refuses a join link of zero days", () => {
+    const s = parseSettings({ content: { emails: { templates: { "quote_ready:team": { subject: "x", body: "" } }, adminsOff: ["u1"], inviteDays: 7 } } });
+    expect(s.content.emails.templates["quote_ready:team"]).toEqual({ subject: "x", body: null });
+    expect(s.content.emails.adminsOff).toEqual(["u1"]);
+    expect(s.content.emails.inviteDays).toBe(7);
+    expect(parseSettings({ content: { emails: { inviteDays: 0 } } }).content).toEqual(DEFAULT_SETTINGS.content);
+  });
+});

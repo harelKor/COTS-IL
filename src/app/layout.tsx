@@ -13,6 +13,7 @@ import { AnnouncementBanner } from "@/components/announcement-banner";
 import { SiteFactsProvider } from "@/components/site-facts-provider";
 import { Toaster } from "@/components/toast";
 import "./globals.css";
+import { getSettings } from "@/lib/settings";
 import { siteUrl } from "@/lib/site-url";
 
 // The home motto's Hebrew, and the body text wherever the system has no SF or Segoe (Android; see --font-sans).
@@ -34,15 +35,19 @@ const inter = Inter({
 
 const SITE_NAME = "COTS-IL";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl()),
-  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
-  description: "ציוד FRC ו-FTC מכל הספקים בהזמנה אחת, במחירים בשקלים לפי שער בנק ישראל",
-  openGraph: { siteName: SITE_NAME, locale: "he_IL", type: "website" },
-  // Installed from Safari, the app opens full screen with its own name and icon.
-  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "default" },
-  icons: { apple: "/apple-touch-icon.png" },
-};
+/** The description is the admin's tagline (תוכן האתר). */
+export async function generateMetadata(): Promise<Metadata> {
+  const { content } = await getSettings();
+  return {
+    metadataBase: new URL(siteUrl()),
+    title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+    description: content.tagline,
+    openGraph: { siteName: SITE_NAME, locale: "he_IL", type: "website" },
+    // Installed from Safari, the app opens full screen with its own name and icon.
+    appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "default" },
+    icons: { apple: "/apple-touch-icon.png" },
+  };
+}
 
 export const viewport: Viewport = {
   // Light only (docs/REDESIGN.md, "Visual language"): the top of the page's ice-blue fade.

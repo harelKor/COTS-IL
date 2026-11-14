@@ -6,9 +6,10 @@ import { Ltr } from "@/components/ltr";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { db, schema } from "@/db";
 import { requireAdmin } from "@/lib/auth";
+import { getSettings } from "@/lib/settings";
 import { addAdmin } from "../actions";
 import { SettingsForm } from "../settings-form";
-import { RemoveAdminButton } from "./admin-forms";
+import { AdminEmailToggle, RemoveAdminButton } from "./admin-forms";
 
 export const metadata: Metadata = { title: "הגדרות: מנהלים" };
 
@@ -19,10 +20,16 @@ async function Admins() {
     .from(schema.profiles)
     .where(eq(schema.profiles.isAdmin, true))
     .orderBy(asc(schema.profiles.email));
+  const { adminsOff } = (await getSettings()).content.emails;
   return (
     <div className="flex flex-col gap-6">
       <Card className="flex flex-col gap-3">
-        <h2 className="text-section font-semibold">מנהלי האתר</h2>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-section font-semibold">מנהלי האתר</h2>
+          <p className="text-caption text-muted">
+            ״מקבל/ת מיילים״: בקשות חדשות, החלטות של קבוצות והסיכום היומי. מי שמכבה לא מקבל אותם בכלל. התראות על תקלות באתר יוצאות לכל המנהלים.
+          </p>
+        </div>
         <ul className="divide-y divide-line">
           {admins.map((a) => (
             <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-callout">
@@ -31,7 +38,10 @@ async function Admins() {
                 {a.fullName && <span className="block text-caption text-muted">{a.fullName}</span>}
                 {a.id === viewer.id && <span className="block text-caption text-muted">זה אתם</span>}
               </span>
-              {a.id !== viewer.id && <RemoveAdminButton email={a.email} disabled={admins.length <= 1} />}
+              <span className="flex flex-wrap items-center gap-3">
+                <AdminEmailToggle userId={a.id} email={a.email} on={!adminsOff.includes(a.id)} />
+                {a.id !== viewer.id && <RemoveAdminButton email={a.email} disabled={admins.length <= 1} />}
+              </span>
             </li>
           ))}
         </ul>

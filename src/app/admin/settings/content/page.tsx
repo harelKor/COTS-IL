@@ -10,7 +10,9 @@ import { BLOCK_TOKENS, DEFAULT_PAGES, INFO_PAGES, INLINE_TOKENS, type InfoPageKe
 import { requireAdmin } from "@/lib/auth";
 import { familyHref } from "@/lib/catalog-links";
 import { getSettings } from "@/lib/settings";
+import { DEFAULT_HOME, DEFAULT_TAGLINE } from "@/domain/site-text";
 import { BannerForm, ExamplesForm, PageEditor } from "./content-forms";
+import { HomeWordsForm, TaglineForm } from "./home-forms";
 import { PinForm, UnpinButton } from "./pin-forms";
 
 export const metadata: Metadata = { title: "הגדרות: תוכן האתר" };
@@ -72,6 +74,23 @@ async function Content({ searchParams }: { searchParams: PageProps<"/admin/setti
             <p className="text-caption text-muted">פס מעל הכותרת בכל העמודים, למשל ״סגור בחג עד 20.11״.</p>
           </div>
           <BannerForm banner={content.banner} />
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-section font-semibold">תיאור האתר</h2>
+            <p className="text-caption text-muted">משפט אחד: תיאור האתר בגוגל ובשיתוף, באפליקציה המותקנת ובתחתית המיילים. בתמונת השיתוף הוא מופיע רק אם כתוב באנגלית.</p>
+          </div>
+          <TaglineForm tagline={content.tagline} edited={content.tagline !== DEFAULT_TAGLINE} />
+        </Card>
+        <Card className="flex flex-col gap-3 lg:col-span-2">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-section font-semibold">דף הבית</h2>
+            <p className="text-caption text-muted">הסיסמה שבראש הדף ו״למה דרך COTS-IL״. העיצוב נשאר כמו שהוא; רק המילים משתנות.</p>
+          </div>
+          <HomeWordsForm home={content.home} edited={JSON.stringify(content.home) !== JSON.stringify(DEFAULT_HOME)} />
         </Card>
       </div>
 

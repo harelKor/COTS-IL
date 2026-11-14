@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emailConfig, emailOffFromForm, recipientsFor, reminderDue, stageDue, waitingTooLong } from "./notifications";
+import { emailAudiences, emailConfig, emailOffFromForm, recipientsFor, reminderDue, stageDue, waitingTooLong } from "./notifications";
 
 const team = [
   { userId: "u1", email: "Team@Example.com", emailOff: [] },
@@ -85,5 +85,42 @@ describe("emailOffFromForm", () => {
     expect(emailOffFromForm(["progress"])).toEqual(["reminders"]);
     expect(emailOffFromForm([])).toEqual(["progress", "reminders"]);
     expect(emailOffFromForm(["progress", "reminders", "junk"])).toEqual([]);
+  });
+});
+
+describe("admin email routing", () => {
+  const two = { team, admins: [...admins, { userId: "a2", email: "other@example.com" }] };
+
+  it("sends everything to every admin unless one turned emails off", () => {
+    expect(emails(recipientsFor("quote_approved", two))).toEqual(["admin:admin@example.com", "admin:other@example.com"]);
+    expect(emails(recipientsFor("quote_approved", { ...two, adminsOff: [] }))).toEqual(["admin:admin@example.com", "admin:other@example.com"]);
+  });
+
+  it("skips an admin who is off, and leaves the team's emails alone", () => {
+    const off = { ...two, adminsOff: ["a1"] };
+    expect(emails(recipientsFor("quote_approved", off))).toEqual(["admin:other@example.com"]);
+    expect(emails(recipientsFor("request_received", off))).toEqual(["team:team@example.com", "team:mentor@example.com", "admin:other@example.com"]);
+  });
+});
+
+describe("the reminder's timing", () => {
+  it("waits as many days as the admin set", () => {
+    const now = new Date("2026-11-10T12:00:00Z");
+    const sent = new Date("2026-11-06T12:00:00Z");
+    expect(reminderDue(sent, false, now)).toBe(true);
+    expect(reminderDue(sent, false, now, 7)).toBe(false);
+    expect(reminderDue(sent, false, now, 2)).toBe(true);
+  });
+});
+
+describe("emailAudiences", () => {
+  it("lists every event once with who gets it, the invite going to a team address", () => {
+    const list = emailAudiences();
+    const byEvent = Object.fromEntries(list.map((x) => [x.event, x.audiences]));
+    expect(list.length).toBe(new Set(list.map((x) => x.event)).size);
+    expect(byEvent.request_received).toEqual(["team", "admin"]);
+    expect(byEvent.quote_approved).toEqual(["admin"]);
+    expect(byEvent.stage).toEqual(["team"]);
+    expect(byEvent.invite).toEqual(["team"]);
   });
 });

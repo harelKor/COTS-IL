@@ -1,6 +1,10 @@
+import { bodyFrom, eventTokens, factTokens, subjectFrom, templateKey, type EmailTemplate, type TokenValues } from "@/domain/email-overrides";
 import type { Audience, NotifyEvent, Stage } from "@/domain/notifications";
 import { statusLabel, type OrderStatusKey } from "@/domain/order-status";
 import { formatIls } from "@/domain/pricing";
+import type { Business } from "@/domain/settings";
+import { DEFAULT_TAGLINE } from "@/domain/site-text";
+import { inviteLasts } from "@/domain/teams";
 
 /**
  * The Hebrew, right-to-left emails (S3). Plain HTML strings with inline styles, because
@@ -19,7 +23,8 @@ export type EmailData = {
   quote_rejected: { orderNumber: number; teamName: string; reason: string | null; adminUrl: string };
   order_cancelled: { orderNumber: number; teamName: string; adminUrl: string };
   change_requested: { orderNumber: number; teamName: string; reason: string | null; adminUrl: string };
-  invite: { teamName: string; url: string };
+  /** `days`: how long the link lasts (14 when missing). */
+  invite: { teamName: string; url: string; days?: number };
   link_requested: { orderNumber: number; teamName: string; email: string; adminUrl: string };
   stage: { orderNumber: number; teamName: string; stage: Stage; pickup: boolean; orderUrl: string };
   quote_reminder: { orderNumber: number; teamName: string; days: number; approveUrl: string | null; orderUrl: string };
@@ -46,9 +51,21 @@ export function esc(value: string | number): string {
 /** Part names, SKUs, emails and numbers keep their own direction inside the Hebrew text. */
 const ltr = (value: string | number) => `<bdi dir="ltr" style="unicode-bidi:isolate">${esc(value)}</bdi>`;
 
+/**
+ * What the admin changed (M6): a template's subject and body, the business facts and the site
+ * tagline. Set for the length of one renderEmail call (synchronous), so `layout` reads it and every
+ * event, including ones added later, takes an override without its own code.
+ */
+type RenderContext = { template: EmailTemplate | null; values: TokenValues; tagline: string };
+let context: RenderContext | null = null;
+
 type Body = { subject: string; heading: string; paragraphs: string[]; table?: string; button?: { label: string; url: string }; after?: string[]; textLines: string[] };
 
 function layout(b: Body): RenderedEmail {
+  const ctx = context;
+  const subject = (ctx?.template && subjectFrom(ctx.template.subject, ctx.values)) || b.subject;
+  const custom = ctx?.template ? bodyFrom(ctx.template.body, ctx.values) : null;
+  b = { ...b, subject, paragraphs: custom ? custom.html : b.paragraphs, textLines: custom ? custom.text : b.textLines };
   const p = (html: string) => `<p style="margin:0 0 12px;font-size:16px;line-height:1.6;color:${C.text}">${html}</p>`;
   const button = b.button
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0"><tr><td style="border-radius:999px;background:${C.brand}"><a href="${esc(b.button.url)}" style="display:inline-block;padding:13px 26px;font-size:16px;font-weight:600;color:#FFFFFF;text-decoration:none;border-radius:999px">${esc(b.button.label)}</a></td></tr></table>`
@@ -65,7 +82,7 @@ ${b.table ?? ""}
 ${button}
 ${(b.after ?? []).map((t) => `<p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:${C.muted}">${t}</p>`).join("\n")}
 </div>
-<p style="margin:16px 0 0;font-size:13px;color:${C.muted}">${ltr("COTS-IL")}, רכש חלקים לקבוצות ${ltr("FIRST")} בישראל.</p>
+<p style="margin:16px 0 0;font-size:13px;color:${C.muted}">${ltr("COTS-IL")}, ${esc(ctx?.tagline ?? DEFAULT_TAGLINE)}.</p>
 </div></body></html>`;
   const text = [...b.textLines, ...(b.button ? [`${b.button.label}: ${b.button.url}`] : [])].join("\n\n");
   return { subject: b.subject, html, text };
@@ -97,8 +114,43 @@ const STAGE_BODY: Record<Stage, (pickup: boolean) => string> = {
   delivered: () => "בהצלחה בעונה!",
 };
 
-/** One email for one audience. `request_received` reads differently for the team and the admin. */
-export function renderEmail<E extends NotifyEvent>(event: E, audience: Audience, data: EmailData[E]): RenderedEmail {
+/** The tokens a template of `event` can use, with their values for this `data`: the event's own, the stage's name and message, and the business facts. */
+export function tokenValuesFor(event: NotifyEvent, data: EmailData[NotifyEvent], facts: TokenValues = {}): TokenValues {
+  const extra: TokenValues = { ...facts };
+  if (event === "stage") {
+    const x = data as EmailData["stage"];
+    extra["סטטוס"] = { value: statusLabel(STAGE_STATUS[x.stage], "team", x.pickup) };
+    extra["הודעת השלב"] = { value: STAGE_BODY[x.stage](x.pickup) };
+  }
+  return eventTokens(data, extra);
+}
+
+export type RenderOptions = { template?: EmailTemplate | null; facts?: TokenValues; tagline?: string };
+
+/** The options for one email from the admin's settings: its template, the business facts and the tagline. */
+export function renderOptions(
+  settings: { business: Business; content: { tagline: string; emails: { templates: Record<string, EmailTemplate> } } },
+  event: NotifyEvent,
+  audience: Audience,
+): RenderOptions {
+  return { template: settings.content.emails.templates[templateKey(event, audience)] ?? null, facts: factTokens(settings.business), tagline: settings.content.tagline };
+}
+
+/**
+ * One email for one audience, in the admin's words where they set any (`options`). `request_received`
+ * reads differently for the team and the admin.
+ */
+export function renderEmail<E extends NotifyEvent>(event: E, audience: Audience, data: EmailData[E], options: RenderOptions = {}): RenderedEmail {
+  context = { template: options.template ?? null, values: tokenValuesFor(event, data, options.facts), tagline: options.tagline ?? DEFAULT_TAGLINE };
+  try {
+    return buildEmail(event, audience, data);
+  } finally {
+    context = null;
+  }
+}
+
+/** One email for one audience, built-in text. */
+function buildEmail<E extends NotifyEvent>(event: E, audience: Audience, data: EmailData[E]): RenderedEmail {
   const d = data as EmailData[NotifyEvent];
   switch (event) {
     case "request_received": {
@@ -209,7 +261,7 @@ export function renderEmail<E extends NotifyEvent>(event: E, audience: Audience,
       return layout({
         subject: `הוזמנתם לחשבון ${x.teamName} ב-COTS-IL`,
         heading: `הצטרפות ל${esc(x.teamName)}`,
-        paragraphs: ["הכתובת הזאת נוספה לחשבון הקבוצה ב-COTS-IL. אחרי ההצטרפות אפשר לבנות סל, לשלוח בקשות ולאשר הצעות.", "הקישור תקף לשבועיים."],
+        paragraphs: ["הכתובת הזאת נוספה לחשבון הקבוצה ב-COTS-IL. אחרי ההצטרפות אפשר לבנות סל, לשלוח בקשות ולאשר הצעות.", `הקישור תקף ${inviteLasts(x.days ?? 14)}.`],
         button: { label: "הצטרפות לקבוצה", url: x.url },
         textLines: [`הצטרפות לחשבון ${x.teamName} ב-COTS-IL: ${x.url}`],
       });

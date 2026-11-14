@@ -2,7 +2,10 @@ import { z } from "zod";
 import { DEFAULT_CATEGORY_GROUPS } from "./category-groups";
 import { DEFAULT_SEARCH_EXAMPLES } from "./content";
 import { DEFAULT_PAGES, INFO_PAGES } from "./info-text";
+import { REMINDER_AFTER_DAYS } from "./notifications";
 import { DEFAULT_MARKUP } from "./pricing";
+import { DEFAULT_HOME, DEFAULT_TAGLINE, WHY_CARD_COUNT } from "./site-text";
+import { INVITE_DAYS } from "./teams";
 
 /**
  * The admin's settings (S16), stored as one JSON row in `site_settings` and read
@@ -98,6 +101,32 @@ const pagesShape = Object.fromEntries(INFO_PAGES.map((p) => [p.key, z.string().m
   z.ZodDefault<z.ZodNullable<z.ZodString>>
 >;
 
+// M6: the site's own words (tagline, home page), and the emails (templates, timings, who gets them).
+export const homeSchema = z.object({
+  mottoLine: z.string().trim().min(1).max(80).default(DEFAULT_HOME.mottoLine),
+  mottoAccent: z.string().trim().min(1).max(40).default(DEFAULT_HOME.mottoAccent),
+  sub: z.string().trim().min(1).max(200).default(DEFAULT_HOME.sub),
+  whyHeading: z.string().trim().min(1).max(80).default(DEFAULT_HOME.whyHeading),
+  why: z
+    .array(z.object({ title: z.string().trim().min(1).max(60), text: z.string().trim().min(1).max(300) }))
+    .length(WHY_CARD_COUNT)
+    .default(() => DEFAULT_HOME.why.map((c) => ({ ...c }))),
+});
+
+const emailTemplateSchema = z.object({ subject: text(200).default(null), body: text(3000).default(null) });
+
+export const emailsSchema = z.object({
+  /** Subject and body overrides per event and audience, keyed "<event>:<audience>" (templateKey); none means the built-in text. */
+  templates: z.record(z.string(), emailTemplateSchema).default({}),
+  /** Days a join link lasts. */
+  inviteDays: z.number().int().min(1).max(90).default(INVITE_DAYS),
+  /** Days a quote waits for the team before its one reminder. */
+  reminderAfterDays: z.number().int().min(1).max(30).default(REMINDER_AFTER_DAYS),
+  /** Admins (profile ids) who get no email from the site; every other admin gets everything. */
+  adminsOff: z.array(z.string()).max(100).default([]),
+});
+export type EmailsSettings = z.infer<typeof emailsSchema>;
+
 export const contentSchema = z.object({
   /** The catalog's groups in order; each category points at one by id (categories.group_id). */
   categoryGroups: z
@@ -109,6 +138,10 @@ export const contentSchema = z.object({
   banner: bannerSchema.default(() => bannerSchema.parse({})),
   /** Each info page's text; null shows the built-in text (DEFAULT_PAGES). */
   pages: z.object(pagesShape).default(() => z.object(pagesShape).parse({})),
+  /** One line about the site (page description, app manifest, share card, email footer). */
+  tagline: z.string().trim().min(1).max(160).default(DEFAULT_TAGLINE),
+  home: homeSchema.default(() => homeSchema.parse({})),
+  emails: emailsSchema.default(() => emailsSchema.parse({})),
 });
 export type Content = z.infer<typeof contentSchema>;
 

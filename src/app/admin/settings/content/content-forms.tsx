@@ -9,7 +9,7 @@ import { parseInfoText, resolveInfo, unknownTokens, type InfoPageKey } from "@/d
 import { restoreContent, saveBanner, saveExamples, savePage, type ContentResult } from "./actions";
 
 /** "נשמר" with Undo, or the error. */
-function done(r: ContentResult, after?: () => void) {
+export function done(r: ContentResult, after?: () => void) {
   if (!r.ok) return showToast(r.error, "error");
   const before = r.before;
   after?.();
@@ -140,6 +140,11 @@ export function PageEditor({
               <li>
                 <code>**מודגש**</code>, <code>[טקסט](/contact)</code> לקישור.
               </li>
+              {page === "how" && (
+                <li>
+                  <code>1. **כותרת** טקסט</code> הוא שלב בכרטיס. השלבים מופיעים גם בדף הבית.
+                </li>
+              )}
               {inlineHelp.map(([k, v]) => (
                 <li key={k}>
                   <code>{`{${k}}`}</code>: {v}

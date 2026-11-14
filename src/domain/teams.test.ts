@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstTeamUrl, inviteExpiry, isPersonName, isPhone, isTeamName, parseTeamNumber, TEAM_NUMBER_MAX, wouldLeaveNoMembers } from "./teams";
+import { firstTeamUrl, inviteExpiry, inviteLasts, isPersonName, isPhone, isTeamName, parseTeamNumber, TEAM_NUMBER_MAX, wouldLeaveNoMembers } from "./teams";
 
 describe("wouldLeaveNoMembers", () => {
   it("protects the team's last sign-in email", () => {
@@ -69,5 +69,17 @@ describe("firstTeamUrl", () => {
   it("points each program to its events site", () => {
     expect(firstTeamUrl("FRC", 1690)).toBe("https://frc-events.firstinspires.org/team/1690");
     expect(firstTeamUrl("FTC", 5)).toBe("https://ftc-events.firstinspires.org/team/5");
+  });
+});
+
+describe("invite timing", () => {
+  it("lasts the days the admin set, 14 by default", () => {
+    expect(inviteExpiry(new Date("2026-01-01T00:00:00Z"), 3).toISOString()).toBe("2026-01-04T00:00:00.000Z");
+  });
+
+  it("says how long in words", () => {
+    expect(inviteLasts(14)).toBe("לשבועיים");
+    expect(inviteLasts(7)).toBe("לשבוע");
+    expect(inviteLasts(30)).toBe("ל-30 ימים");
   });
 });

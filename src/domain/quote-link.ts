@@ -8,7 +8,18 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  */
 export type QuoteLinkClaims = { quoteId: string; userId: string; contentHash: string; expiresAt: number };
 
-export const QUOTE_LINK_DAYS = 14;
+/** How long an approval link lasts when the business hasn't set `quoteValidDays`. */
+export const DEFAULT_QUOTE_LINK_DAYS = 14;
+
+/** The link lasts as long as the quote it opens is valid (פרטי העסק, תוקף הצעה), 14 days when that is empty. */
+export function quoteLinkDays(quoteValidDays: number | null | undefined): number {
+  return quoteValidDays && quoteValidDays > 0 ? quoteValidDays : DEFAULT_QUOTE_LINK_DAYS;
+}
+
+/** When a link made `now` expires, in ms since the epoch. */
+export function quoteLinkExpiresAt(quoteValidDays: number | null | undefined, now = Date.now()): number {
+  return now + quoteLinkDays(quoteValidDays) * 24 * 60 * 60 * 1000;
+}
 
 const b64 = (data: string | Buffer) => Buffer.from(data).toString("base64url");
 

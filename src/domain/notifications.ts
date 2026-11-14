@@ -60,12 +60,25 @@ const AUDIENCE: Record<NotifyEvent, { team: EmailGroup | "always" | null; admin:
   admin_digest: { team: null, admin: true },
 };
 
+/** Every email event with the audiences that get it, for the admin's list of email templates (M6). An event nobody is listed for (the invite) goes straight to a team address. */
+export function emailAudiences(): { event: NotifyEvent; audiences: Audience[] }[] {
+  return (Object.keys(AUDIENCE) as NotifyEvent[]).map((event) => {
+    const rule = AUDIENCE[event];
+    const audiences: Audience[] = [...(rule.team ? (["team"] as const) : []), ...(rule.admin ? (["admin"] as const) : [])];
+    return { event, audiences: audiences.length > 0 ? audiences : ["team"] };
+  });
+}
+
 export type TeamAddress = { userId: string; email: string; emailOff: readonly string[] };
 export type AdminAddress = { userId: string; email: string };
 export type Recipient = { userId: string; email: string; audience: Audience };
 
 /** Each address once per audience; an admin who is also on the team gets both emails. */
-export function recipientsFor(event: NotifyEvent, people: { team: TeamAddress[]; admins: AdminAddress[] }): Recipient[] {
+export function recipientsFor(
+  event: NotifyEvent,
+  /** `adminsOff`: the admins who chose to get no email (M6, מנהלים); everyone else gets everything. */
+  people: { team: TeamAddress[]; admins: AdminAddress[]; adminsOff?: readonly string[] },
+): Recipient[] {
   const rule = AUDIENCE[event];
   const out: Recipient[] = [];
   const seen = new Set<string>();
@@ -82,7 +95,7 @@ export function recipientsFor(event: NotifyEvent, people: { team: TeamAddress[];
       add({ userId: m.userId, email: m.email, audience: "team" });
     }
   }
-  if (rule.admin) for (const a of people.admins) add({ userId: a.userId, email: a.email, audience: "admin" });
+  if (rule.admin) for (const a of people.admins) if (!people.adminsOff?.includes(a.userId)) add({ userId: a.userId, email: a.email, audience: "admin" });
   return out;
 }
 
@@ -110,12 +123,13 @@ export function stageDue(status: OrderStatusKey, sent: readonly Stage[]): Stage 
   return sent.some((s) => STAGES.indexOf(s) >= at) ? null : stage;
 }
 
+/** Days a quote waits before its one reminder, until the admin sets another (תוכן האתר, מיילים). */
 export const REMINDER_AFTER_DAYS = 3;
 const DAY = 24 * 60 * 60 * 1000;
 
-/** One reminder per quote version, once it has waited more than three days. */
-export function reminderDue(sentAt: Date, alreadyReminded: boolean, now = new Date()): boolean {
-  return !alreadyReminded && now.getTime() - sentAt.getTime() > REMINDER_AFTER_DAYS * DAY;
+/** One reminder per quote version, once it has waited more than `afterDays` (three by default). */
+export function reminderDue(sentAt: Date, alreadyReminded: boolean, now = new Date(), afterDays = REMINDER_AFTER_DAYS): boolean {
+  return !alreadyReminded && now.getTime() - sentAt.getTime() > afterDays * DAY;
 }
 
 /** The admin digest lists requests without a quote for longer than this. */

@@ -9,6 +9,7 @@ import type { ActionState } from "@/components/action-form";
 import { emailOffFromForm } from "@/domain/notifications";
 import { inviteExpiry, isPersonName, isTeamName, wouldLeaveNoMembers } from "@/domain/teams";
 import { getViewer, orderingTeam } from "@/lib/auth";
+import { getSettings } from "@/lib/settings";
 import { hashInviteToken, newInviteToken } from "@/lib/invitations";
 import { siteUrl } from "@/lib/site-url";
 import { emailEnabled, notifyInvite, notifyLater } from "@/lib/notify";
@@ -50,6 +51,7 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
   if (existing) return { error: "הכתובת כבר בחשבון הקבוצה" };
 
   const token = newInviteToken();
+  const { inviteDays } = (await getSettings()).content.emails;
   const invitationId = await db.transaction(async (tx) => {
     // A new link replaces any earlier one for this address.
     await tx
@@ -70,7 +72,7 @@ export async function inviteMember(_prev: InviteState, formData: FormData): Prom
         email,
         tokenHash: hashInviteToken(token),
         invitedBy: viewer.id,
-        expiresAt: inviteExpiry(new Date()),
+        expiresAt: inviteExpiry(new Date(), inviteDays),
       })
       .returning();
     await tx.insert(auditLog).values({

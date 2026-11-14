@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { bannerSchema, contentSchema, type Content } from "@/domain/settings";
+import { bannerSchema, contentSchema, homeSchema, type Content } from "@/domain/settings";
+import { DEFAULT_HOME, DEFAULT_TAGLINE, HOME_TOKENS, unknownNames } from "@/domain/site-text";
 import { INFO_PAGES, type InfoPageKey } from "@/domain/info-text";
 import { requireAdmin } from "@/lib/auth";
 import { currentSettings, writeSettings } from "@/lib/settings-write";
@@ -63,6 +64,32 @@ export async function savePage(key: InfoPageKey, text: string | null): Promise<C
     { pages: { ...settings.content.pages, [k.data]: text === null || !text.trim() ? null : text.replace(/\r\n?/g, "\n") } },
     text === null ? `״${title}״ חזר לטקסט המקורי` : `״${title}״ נשמר`,
   );
+}
+
+/** The one-line description of the site; empty brings the built-in line back. */
+export async function saveTagline(formData: FormData): Promise<ContentResult> {
+  const tagline = String(formData.get("tagline") ?? "").replace(/\s+/g, " ").trim();
+  if (tagline.length > 160) return { ok: false, error: "עד 160 תווים" };
+  return save("update_tagline", { tagline: tagline || DEFAULT_TAGLINE }, tagline ? "התיאור נשמר" : "התיאור חזר לטקסט המקורי");
+}
+
+/** The home page's motto, sub-line and four cards; `reset` brings the built-in words back. */
+export async function saveHome(formData: FormData, reset = false): Promise<ContentResult> {
+  const field = (k: string) => String(formData.get(k) ?? "").replace(/\s+/g, " ").trim();
+  const input = reset
+    ? DEFAULT_HOME
+    : {
+        mottoLine: field("mottoLine"),
+        mottoAccent: field("mottoAccent"),
+        sub: field("sub"),
+        whyHeading: field("whyHeading"),
+        why: DEFAULT_HOME.why.map((_, i) => ({ title: field(`why${i}title`), text: field(`why${i}text`) })),
+      };
+  const parsed = homeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "כל שדה צריך טקסט: כותרות עד 60 תווים, טקסט בכרטיס עד 300, שורת הסיסמה עד 80" };
+  const unknown = unknownNames(parsed.data.why.map((c) => c.text).join(" "), Object.keys(HOME_TOKENS));
+  if (unknown.length > 0) return { ok: false, error: `לא מוכר: ${unknown.map((u) => `{${u}}`).join(", ")}` };
+  return save("update_home", { home: parsed.data }, reset ? "דף הבית חזר לטקסט המקורי" : "טקסט דף הבית נשמר");
 }
 
 /** Undo: puts back what a save replaced. */

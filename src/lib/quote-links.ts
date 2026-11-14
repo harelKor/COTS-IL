@@ -2,7 +2,8 @@ import "server-only";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { canDecideQuote, quoteContentHash, teamCanOrder } from "@/domain/orders";
-import { createQuoteLinkToken, QUOTE_LINK_DAYS, readQuoteLinkToken, readSignedQuoteLinkToken } from "@/domain/quote-link";
+import { createQuoteLinkToken, quoteLinkExpiresAt, readQuoteLinkToken, readSignedQuoteLinkToken } from "@/domain/quote-link";
+import { getBusiness } from "@/lib/settings";
 import { siteUrl } from "@/lib/site-url";
 
 const { memberships, profiles, quoteLines, quotes, teamOrders, teams } = schema;
@@ -43,7 +44,7 @@ export async function getApproveLinks(orderId: string) {
     .where(eq(memberships.teamId, order.teamId))
     .orderBy(asc(memberships.createdAt));
   const [team] = await db.select().from(teams).where(eq(teams.id, order.teamId));
-  const expiresAt = Date.now() + QUOTE_LINK_DAYS * 24 * 60 * 60 * 1000;
+  const expiresAt = quoteLinkExpiresAt((await getBusiness()).quoteValidDays);
 
   return {
     missingSecret: false as const,

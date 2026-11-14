@@ -5,6 +5,7 @@
  *   text before the first ## is the page's intro
  *   an empty line       a new paragraph
  *   - item              a list item
+ *   1. **כותרת** טקסט   a numbered step, shown as a card (the "איך זה עובד" page and the home page)
  *   **bold**, [text](/path)
  *   {מכפיל}             a fact from פרטי העסק or תמחור, inline (INLINE_TOKENS)
  *   {{זמני אספקה}}      a block the site builds from the settings, on a line of its own (BLOCK_TOKENS)
@@ -16,9 +17,12 @@
 import { vendorNameList } from "./vendors";
 
 export const INFO_PAGES = [
+  { key: "how", path: "/how-it-works", title: "איך זה עובד" },
   { key: "faq", path: "/faq", title: "שאלות נפוצות" },
   { key: "shipping", path: "/shipping", title: "משלוח וזמני אספקה" },
   { key: "returns", path: "/returns", title: "החזרות" },
+  { key: "terms", path: "/terms", title: "תנאי שימוש" },
+  { key: "privacy", path: "/privacy", title: "פרטיות" },
   { key: "about", path: "/about", title: "מי אנחנו" },
   { key: "contact", path: "/contact", title: "צור קשר" },
 ] as const;
@@ -29,11 +33,17 @@ export const INLINE_TOKENS = {
   כולל: "״, כולל …״ ממה כלול במחיר, או כלום",
   "זמן הצעה": "״ ושולח הצעה תוך N ימי עסקים״, או כלום",
   "דמי טיפול": "דמי הטיפול",
+  "תוך ימי עסקים": "״ תוך N ימי עסקים״, או כלום",
   "תנאי תשלום": "תנאי התשלום",
   "מדיניות החזרות": "מדיניות ההחזרות",
   ספקים: "שמות הספקים הפעילים בקטלוג, למשל ״A, B ו-C״",
   "כתבו לנו": "קישור ל״צור קשר״ כשיש דוא״ל, טלפון או וואטסאפ, ואחרת לדף ההזמנות",
+  "צרו קשר": "״צרו קשר״ כקישור כשיש דרך ליצור קשר, ואחרת ״כתבו בדף ההזמנה של הקבוצה״ עם קישור להזמנות",
 } as const;
+
+/** What the {צרו קשר} token says: a link to /contact, or (no way to reach the business yet) where to write instead. */
+export const CONTACT_US = "צרו קשר";
+export const CONTACT_US_IN_ORDER = "כתבו בדף ההזמנה של הקבוצה";
 
 /** What the {כתבו לנו} token says: with a way to reach the business it links to /contact, without one to the orders page. */
 export const WRITE_US = "כתבו לנו";
@@ -46,11 +56,13 @@ export const BLOCK_TOKENS = {
   איסוף: "כתובת ושעות איסוף עצמי",
   "פרטי העסק": "שם העסק ומספר ח.פ.",
   "דרכי קשר": "דוא״ל, טלפון, כתובת ווואטסאפ",
+  "שלבי ההזמנה": "תגיות שלבי ההזמנה כפי שהקבוצה רואה אותם",
 } as const;
 export type BlockToken = keyof typeof BLOCK_TOKENS;
 
 export type Inline = { t: "text"; v: string } | { t: "bold"; v: string } | { t: "link"; v: string; href: string } | { t: "fact"; name: string; v: string };
-export type Block = { t: "p"; inline: Inline[] } | { t: "list"; items: Inline[][] } | { t: "auto"; name: string };
+export type Step = { title: string; text: Inline[] };
+export type Block = { t: "p"; inline: Inline[] } | { t: "list"; items: Inline[][] } | { t: "steps"; items: Step[] } | { t: "auto"; name: string };
 export type Section = { title: string; blocks: Block[] };
 export type InfoDoc = { intro: Block[]; sections: Section[] };
 
@@ -70,15 +82,21 @@ export function parseInline(line: string): Inline[] {
   return out;
 }
 
+/** "1. **title** text": a step. */
+const STEP = /^\d+\.\s+\*\*(.+?)\*\*\s*(.*)$/;
+
 function blocksOf(lines: string[]): Block[] {
   const blocks: Block[] = [];
   let para: string[] = [];
   let list: Inline[][] | null = null;
+  let steps: Step[] | null = null;
   const flush = () => {
     if (para.length) blocks.push({ t: "p", inline: parseInline(para.join(" ")) });
     if (list) blocks.push({ t: "list", items: list });
+    if (steps) blocks.push({ t: "steps", items: steps });
     para = [];
     list = null;
+    steps = null;
   };
   for (const raw of lines) {
     const line = raw.trim();
@@ -87,11 +105,15 @@ function blocksOf(lines: string[]): Block[] {
     else if (auto) {
       flush();
       blocks.push({ t: "auto", name: auto[1].trim() });
+    } else if (STEP.test(line)) {
+      if (para.length || list) flush();
+      const [, title, rest] = STEP.exec(line)!;
+      (steps ??= []).push({ title: title.trim(), text: parseInline(rest.trim()) });
     } else if (/^[-*] /.test(line)) {
-      if (para.length) flush();
+      if (para.length || steps) flush();
       (list ??= []).push(parseInline(line.slice(2).trim()));
     } else {
-      if (list) flush();
+      if (list || steps) flush();
       para.push(line);
     }
   }
@@ -127,6 +149,7 @@ export function resolveInfo(doc: InfoDoc, facts: Partial<Record<string, string>>
         const inline = fill(b.inline);
         return hasWords(inline) ? [{ t: "p", inline }] : [];
       }
+      if (b.t === "steps") return [{ t: "steps", items: b.items.map((i) => ({ ...i, text: fill(i.text) })) }];
       const items = b.items.map(fill).filter(hasWords);
       return items.length ? [{ t: "list", items }] : [];
     });
@@ -148,6 +171,30 @@ export function unknownTokens(text: string): string[] {
 
 /** Today's text of each page, so nothing changes on the site until the admin edits it. */
 export const DEFAULT_PAGES: Record<InfoPageKey, string> = {
+  how: `COTS-IL מרכז ציוד FRC ו-FTC מ-{ספקים}. הקבוצה בונה סל ושולחת בקשה, והספק הישראלי מזמין מכל ספק, מרכז ומוסר.
+
+1. **בונים סל** מחפשים חלקים מכל הספקים ומוסיפים לסל אחד. בלי הרשמה ובלי תשלום.
+2. **שולחים בקשה** נכנסים לחשבון הקבוצה ושולחים את הסל כבקשה להצעת מחיר. זה לא מחייב.
+3. **מאשרים הצעה** הספק הישראלי בודק מחיר וזמינות עדכניים, מוסיף משלוח בישראל ושולח הצעה. מאשרים באתר או מקישור.
+4. **מקבלים** אנחנו מזמינים מכל ספק, מרכזים את המשלוחים ומוסרים לקבוצה עם תעודת משלוח. הסטטוס מתעדכן בדף ההזמנה.
+
+## מה הקבוצה עושה
+בונה סל, נכנסת לחשבון הקבוצה ושולחת בקשה להצעת מחיר, ואז מאשרת או דוחה את ההצעה.
+
+לכל קבוצה יש חשבון אחד. כל מי שמחובר/ת אליו יכול/ה לבנות את הסל, לשלוח, לאשר, לבטל ולנהל את פרטי הקבוצה. אפשר להשתמש בכתובת דוא״ל משותפת אחת או בכמה כתובות, וכולן שוות.
+
+קבוצה חדשה יכולה לשלוח בקשה ראשונה מיד: הספק הישראלי מאשר את הקבוצה יחד איתה.
+
+## מה הספק הישראלי עושה
+בודק כל בקשה מול המחיר והזמינות העדכניים אצל הספק, מוסיף משלוח בישראל ושולח הצעת מחיר{תוך ימי עסקים}. שינוי במחיר או בכמות מגיע עם הסבר.
+
+אחרי האישור: מזמין מכל ספק, מטפל במשלוח וביבוא, קולט את הסחורה ומוסר לקבוצה עם תעודת משלוח.
+
+## איפה רואים מה קורה
+בדף [ההזמנות](/orders) כל הזמנה מראה איפה היא:
+
+{{שלבי ההזמנה}}
+`,
   faq: `## האם הוספה לסל או שליחת בקשה מחייבות?
 לא. הוספה לסל ושליחת בקשה לא מחייבות תשלום. ההזמנה יוצאת לספקים רק אחרי שהקבוצה מאשרת את הצעת המחיר.
 
@@ -205,6 +252,36 @@ export const DEFAULT_PAGES: Record<InfoPageKey, string> = {
 ## מדיניות החזרות
 {מדיניות החזרות}
 `,
+  terms: `## מחירים והצעות
+המחירים בקטלוג מתעדכנים מאתרי הספקים ומשמשים להערכה. המחיר המחייב הוא זה שבהצעת המחיר שהקבוצה אישרה.
+
+בקשה להצעת מחיר לא מחייבת. הזמנה נוצרת רק כשהקבוצה מאשרת הצעה, וכל שינוי בהצעה אחר כך צריך אישור מחדש.
+
+אפשר לבטל בקשה או הצעה כל עוד היא לא אושרה.
+
+## חשבון הקבוצה
+כל מי שמחובר/ת לחשבון הקבוצה פועל/ת בשמה: שולח/ת בקשות, מאשר/ת הצעות ומבטל/ת. הקבוצה אחראית למי שיש לו גישה לחשבון.
+
+## זמינות ואספקה
+זמינות ומחירים אצל הספקים עשויים להשתנות. אם פריט שאושר לא זמין, נעדכן את הקבוצה ונציע חלופה או נוריד אותו מההזמנה.
+
+## תשלום
+{תנאי תשלום}
+`,
+  privacy: `## מה נשמר
+שם הקבוצה ומספרה, כתובות הדוא״ל שמתחברות לחשבון הקבוצה, פרטי מסירה, הסל, הבקשות וההזמנות.
+
+סל של מי שלא מחובר/ת נשמר רק בדפדפן שלו/ה.
+
+## למה
+כדי לתמחר, להזמין מהספקים, למסור לקבוצה ולעדכן אותה על ההזמנה. המידע לא נמכר ולא משמש לפרסום.
+
+## איפה
+הנתונים שמורים במסד נתונים מאובטח באירופה, עם גיבוי מוצפן כל לילה. לספקים בחו״ל עוברים רק פרטי ההזמנה שהם צריכים.
+
+## מחיקה
+אפשר להסיר כתובת דוא״ל מחשבון הקבוצה בעמוד הקבוצה. למחיקת החשבון כולו, {צרו קשר}.
+`,
   about: `## COTS-IL
 COTS-IL הוא פורטל רכש לקבוצות FIRST בישראל. במקום שכל קבוצה תזמין לבד מכמה אתרים בחו״ל, בדולרים ובכמה משלוחים, בונים כאן סל אחד מ-{ספקים}, ואנחנו מזמינים, מרכזים ומוסרים.
 
@@ -232,6 +309,8 @@ export function inlineFacts(
     מכפיל: markup,
     כולל: business.priceIncludes ? `, כולל ${business.priceIncludes}` : "",
     "זמן הצעה": business.quoteLeadBusinessDays ? ` ושולח הצעה תוך ${business.quoteLeadBusinessDays} ימי עסקים` : "",
+    "תוך ימי עסקים": business.quoteLeadBusinessDays ? ` תוך ${business.quoteLeadBusinessDays} ימי עסקים` : "",
+    "צרו קשר": site.hasContact ? CONTACT_US : CONTACT_US_IN_ORDER,
     "דמי טיפול": business.handlingFee ?? "",
     "תנאי תשלום": business.paymentTerms ?? "",
     "מדיניות החזרות": business.returnPolicy ?? "",

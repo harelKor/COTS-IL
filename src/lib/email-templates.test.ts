@@ -111,3 +111,56 @@ describe("deliver", () => {
     expect(resendTransport({ RESEND_API_KEY: "re_x", EMAIL_FROM: "COTS-IL <x@y.z>" })).toBeTypeOf("function");
   });
 });
+
+describe("the admin's own wording (M6)", () => {
+  const options = (template: { subject: string | null; body: string | null }) => ({ template });
+
+  it("changes nothing without a template, apart from the site tagline in the footer", () => {
+    const plain = renderEmail("quote_ready", "team", SAMPLES.quote_ready);
+    expect(renderEmail("quote_ready", "team", SAMPLES.quote_ready, options({ subject: null, body: null }))).toEqual(plain);
+    expect(plain.html).toContain("בשקלים לפי שער בנק ישראל");
+  });
+
+  it("swaps in the subject and body with the order's details, keeping the heading, button and link note", () => {
+    const email = renderEmail("quote_ready", "team", SAMPLES.quote_ready, options({ subject: "הצעה {מספר הזמנה} מחכה", body: "היי {קבוצה}, ההצעה על {סכום} מוכנה.\n\nהקישור תקף {ימים} ימים." }));
+    expect(email.subject).toBe("הצעה 1071 מחכה");
+    expect(email.html).toContain("היי אורביט FRC 1690, ההצעה על");
+    expect(email.html).toContain("הצעת המחיר מוכנה");
+    expect(email.html).toContain("צפייה ואישור");
+    expect(email.text).toContain("היי אורביט FRC 1690");
+    expect(email.text).not.toContain("כולל משלוח");
+  });
+
+  it("escapes what a template or a value carries", () => {
+    const email = renderEmail("quote_rejected", "admin", { ...SAMPLES.quote_rejected, reason: "<script>x</script>" }, options({ subject: null, body: "סיבה: {סיבה} <b>" }));
+    expect(email.html).not.toContain("<script>x");
+    expect(email.html).toContain("&lt;script&gt;");
+    expect(email.html).not.toContain("<b>");
+  });
+
+  it("uses the business facts and the stage's own words as tokens", () => {
+    const email = renderEmail("stage", "team", SAMPLES.stage, {
+      template: { subject: "{סטטוס}", body: "{הודעת השלב} שלום, אפשר להתקשר ל{טלפון העסק}" },
+      facts: { "טלפון העסק": { value: "03-1234567", ltr: true } },
+    });
+    expect(email.subject).toBe(statusLabel("to_team", "team", true));
+    expect(email.html).toContain("אפשר לבוא לאסוף.");
+    expect(email.html).toContain("03-1234567");
+  });
+
+  it("takes the tagline in the footer, and the days a join link lasts", () => {
+    expect(renderEmail("invite", "team", SAMPLES.invite, { tagline: "המשפט שלנו" }).html).toContain("COTS-IL</bdi>, המשפט שלנו.");
+    expect(renderEmail("invite", "team", SAMPLES.invite).html).toContain("לשבועיים");
+    expect(renderEmail("invite", "team", { ...SAMPLES.invite, days: 7 }).html).toContain("לשבוע.");
+  });
+
+  it("leaves nothing behind for the next email", () => {
+    renderEmail("quote_ready", "team", SAMPLES.quote_ready, options({ subject: "אחר", body: "אחר" }));
+    expect(renderEmail("quote_ready", "team", SAMPLES.quote_ready).subject).toBe("הצעת המחיר להזמנה 1071 מוכנה");
+  });
+
+  it("shows the approval link's real lifetime", () => {
+    expect(renderEmail("quote_ready", "team", { ...SAMPLES.quote_ready, linkDays: 30 }).html).toContain("בתוקף");
+    expect(renderEmail("quote_ready", "team", { ...SAMPLES.quote_ready, linkDays: 30 }).html).toContain(">30<");
+  });
+});

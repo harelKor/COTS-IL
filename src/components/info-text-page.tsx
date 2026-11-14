@@ -2,14 +2,16 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { contactChannels, hasContactDetails } from "@/domain/go-live";
 import { inlineFacts, parseInfoText, resolveInfo, type BlockToken, type InfoPageKey, INFO_PAGES } from "@/domain/info-text";
+import { ORDER_STEPS, statusLabel } from "@/domain/order-status";
 import { leadTimeText } from "@/domain/lead-time";
 import { markupText } from "@/domain/pricing";
 import { pageText, type Business } from "@/domain/settings";
 import { getFacets } from "@/lib/catalog";
 import { getSettings, getSiteFacts } from "@/lib/settings";
 import { ContactButtons } from "./contact-buttons";
+import { StatusTag } from "./form";
 import { InfoPage } from "./info-page";
-import { InfoBody, InfoIntro } from "./info-text";
+import { InfoBody, InfoIntro, StepCards } from "./info-text";
 import { Ltr } from "./ltr";
 import { WhatsAppLink } from "./whatsapp-link";
 
@@ -18,10 +20,23 @@ import { WhatsAppLink } from "./whatsapp-link";
  * פרטי העסק. `infoBlocks` also feeds the editor's preview.
  */
 
+/** The steps in the words the order page and the emails use (T4); "ready" in both its forms. */
+const TEAM_STEPS = ORDER_STEPS.flatMap((s) => (s === "to_team" ? [statusLabel(s, "team", true), statusLabel(s, "team", false)] : [statusLabel(s, "team")]));
+
 /** The blocks the settings can fill now; a block with nothing to show is left out. */
 export async function infoBlocks(business: Business): Promise<Partial<Record<BlockToken, ReactNode>>> {
   const { suppliers } = await getFacets();
-  const out: Partial<Record<BlockToken, ReactNode>> = {};
+  const out: Partial<Record<BlockToken, ReactNode>> = {
+    "שלבי ההזמנה": (
+      <ol className="flex flex-wrap gap-2" aria-label="שלבי ההזמנה">
+        {TEAM_STEPS.map((label) => (
+          <li key={label}>
+            <StatusTag>{label}</StatusTag>
+          </li>
+        ))}
+      </ol>
+    ),
+  };
   const leads = suppliers.flatMap((s) => {
     const text = leadTimeText(business.leadTimes[s.code]);
     return text ? [{ code: s.code, name: s.name, text }] : [];
@@ -95,6 +110,15 @@ export async function infoFacts(business: Business) {
     vendorNames: suppliers.map((s) => s.name),
     hasContact: contactChannels(business).length > 0,
   });
+}
+
+/** The four order steps from the "איך זה עובד" text, as the home page shows them. */
+export async function HowItWorksSteps() {
+  const { business, content } = await getSettings();
+  const facts = await infoFacts(business);
+  const doc = resolveInfo(parseInfoText(pageText(content, "how")), facts, new Set());
+  const steps = [...doc.intro, ...doc.sections.flatMap((s) => s.blocks)].flatMap((b) => (b.t === "steps" ? b.items : []));
+  return steps.length > 0 ? <StepCards steps={steps} /> : null;
 }
 
 export async function InfoTextPage({ page }: { page: InfoPageKey }) {
