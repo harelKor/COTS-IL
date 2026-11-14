@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accentColor, accentStyle, isStoreFront, vendorBlurb, vendorHref, vendorSpans } from "./vendors";
+import { accentColor, accentStyle, isStoreFront, vendorBlurb, vendorHref, vendorRows, spansBoth } from "./vendors";
 
 describe("vendorHref", () => {
   it("puts the vendor in the path and drops ?supplier=", () => {
@@ -43,19 +43,22 @@ describe("vendorBlurb", () => {
   });
 });
 
-describe("vendorSpans", () => {
-  const rowsFull = (spans: number[], cols: number) => spans.reduce((a, b) => a + b, 0) % cols === 0;
-  it("never leaves a gap in the last row, for any count", () => {
-    for (let n = 1; n <= 13; n++) {
-      const s = vendorSpans(n);
-      expect(rowsFull(s.map((x) => x.sm), 2)).toBe(true);
-      expect(rowsFull(s.map((x) => x.lg), 6)).toBe(true);
-    }
+describe("vendorRows", () => {
+  it("puts up to 3 vendors in the first row and the rest after", () => {
+    expect(vendorRows(7)).toEqual({ first: 3, rest: 4 });
+    expect(vendorRows(3)).toEqual({ first: 3, rest: 0 });
+    expect(vendorRows(2)).toEqual({ first: 2, rest: 0 });
+    expect(vendorRows(0)).toEqual({ first: 0, rest: 0 });
   });
-  it("widens only the last boxes", () => {
-    expect(vendorSpans(4).map((x) => x.lg)).toEqual([2, 2, 2, 6]);
-    expect(vendorSpans(5).map((x) => x.lg)).toEqual([2, 2, 2, 3, 3]);
-    expect(vendorSpans(6).map((x) => x.lg)).toEqual([2, 2, 2, 2, 2, 2]);
-    expect(vendorSpans(3).map((x) => x.sm)).toEqual([1, 1, 2]);
+});
+
+describe("spansBoth", () => {
+  it("widens only a lone last box, so 2-column rows are always full", () => {
+    for (let n = 1; n <= 9; n++) {
+      const cells = Array.from({ length: n }, (_, i) => (spansBoth(i, n) ? 2 : 1)).reduce((a, b) => a + b, 0);
+      expect(cells % 2).toBe(0);
+    }
+    expect([0, 1, 2].map((i) => spansBoth(i, 3))).toEqual([false, false, true]);
+    expect([0, 1, 2, 3].map((i) => spansBoth(i, 4))).toEqual([false, false, false, false]);
   });
 });

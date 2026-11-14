@@ -66,6 +66,7 @@ Open:
 | To change | Look in |
 |---|---|
 | Home page (vendor boxes first, then categories across all vendors) | `src/app/page.tsx`, `src/components/vendor-boxes.tsx`, `src/components/category-showcase.tsx`, `src/components/home-command-bar.tsx` |
+| Home competition scene (navy canvas, the two 1690 photos, dark glass; Nov 14, 2026) | `src/components/home-scene.tsx`, `src/components/scroll-parallax.tsx`, "The home page as one competition photograph" at the end of `src/app/globals.css`; photos `public/orbit-1690-{tall,short}.jpg`, smaller copies from `npm run robot-photos` |
 | Vendor stores `/v/<code>` (most wanted, groups, search; vendor prices on cards) | `src/app/v/[vendor]/page.tsx`, `getVendors`/`getVendorStore`/`getVendorPopular` and `toCards(rows, supplierCode)` in `src/lib/catalog.ts`, `src/domain/vendors.ts` |
 | Catalog queries, facets, search | `src/lib/catalog.ts`, `src/lib/catalog-filters.ts`, `src/app/api/search/route.ts` |
 | Catalog grid and filters | `src/app/catalog/page.tsx`, `src/components/catalog-browser.tsx`, `src/components/family-card.tsx` |
@@ -116,7 +117,7 @@ Open:
 | Font | `-apple-system, "SF Pro Text", "SF Hebrew", "Segoe UI", Heebo, sans-serif`; mono `ui-monospace, "SF Mono", "JetBrains Mono"` |
 | Type scale | 48/40 hero, 28 page title (`text-title`), 20 section, 17 body, 15 callout (`text-callout`), 13 caption (the minimum); headlines 600, tracking −0.02em |
 | Brand | **COTS-IL** everywhere (never "פורטל רכש FIRST"); header mark = `.btn-brand` badge + gradient "COTS-IL" in `<Ltr>` + "FRC / FTC" pill |
-| Palette (light only, "Blue & White Fade") | background #F6F9FF, surface #FFFFFF, subtle #ECF3FF / hover #DCE8FF, text #0B1528, secondary #52658A, hairline #D8E4FA, brand #1D4ED8 (strong #1E3A8A, soft #DBEAFE), tile #F2F7FF. No dark theme, no `dark:` variants: supplier photos are shot on white |
+| Palette (light only, "Blue & White Fade") | background #F6F9FF, surface #FFFFFF, subtle #ECF3FF / hover #DCE8FF, text #0B1528, secondary #52658A, hairline #D8E4FA, brand #1D4ED8 (strong #1E3A8A, soft #DBEAFE), tile #F2F7FF. No dark theme, no `dark:` variants: supplier photos are shot on white. One exception (user decision, Nov 14, 2026): the home page is a deep Orbit-navy competition scene (`.home-scene` re-points the tokens; its header and footer follow via `body:has(.home-scene)`; dialogs and popovers inside get the light tokens back; product photos and logos stay on white tiles) |
 | Backdrop | `body` has an ice-blue radial fade at the top; `theme-color` #EBF3FF |
 | Status | green #177A33, amber #995A00, red #D70015 (AA at 13px). Status is a small square `StatusTag`, never a pill that looks like a button |
 | Cards | `.card-surface` (white-to-#F9FBFF fade, inner blue hairline, soft cobalt shadow), radius 18, hover lift 2px + `shadow-lift`; photos on `.tile-fade` |

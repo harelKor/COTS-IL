@@ -60,7 +60,7 @@ async function Account() {
         aria-label="החשבון שלי"
         className="group flex size-11 shrink-0 items-center justify-center"
       >
-        <span className="flex h-9 min-w-9 items-center justify-center rounded-full border border-line bg-white/90 px-1.5 text-caption font-semibold tabular-nums shadow-2xs transition-colors group-hover:bg-subtle">
+        <span className="account-chip flex h-9 min-w-9 items-center justify-center rounded-full border border-line bg-white/90 px-1.5 text-caption font-semibold tabular-nums shadow-2xs transition-colors group-hover:bg-subtle">
           {initial}
         </span>
       </button>
@@ -136,7 +136,7 @@ async function Account() {
 /** Slim frosted bar: logo, search, cart, account. The floating pill shows the cart's total once it has items. */
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-30 border-b border-line/70 bg-glass backdrop-blur-xl backdrop-saturate-150 print:hidden">
+    <header className="site-header sticky top-0 z-30 border-b border-line/70 bg-glass backdrop-blur-xl backdrop-saturate-150 print:hidden">
       <div className="mx-auto flex h-[52px] max-w-[1200px] items-center gap-3 px-4 md:px-12">
         <Link href="/" aria-label="COTS-IL, דף הבית" className="flex h-11 shrink-0 items-center gap-2">
           <span aria-hidden className="btn-brand flex size-9 items-center justify-center rounded-xl">

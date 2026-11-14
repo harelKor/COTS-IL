@@ -5,7 +5,14 @@ import { Ltr } from "./ltr";
  * name as its alt text; without a logo, the name in the brand gradient. One height for every logo
  * (wide ones stop at the max width), never stretched.
  */
-export function VendorMark({ name, logoUrl, size = "md", eager = false }: { name: string; logoUrl: string | null; size?: "md" | "lg"; eager?: boolean }) {
+const LOGO_SIZE = {
+  md: "h-12 max-w-[min(100%,220px)] sm:h-14",
+  lg: "h-14 max-w-[260px] sm:h-16",
+  // Inside the home boxes' white pill (vendor-boxes.tsx).
+  pill: "h-9 max-w-[min(100%,180px)] sm:h-10",
+};
+
+export function VendorMark({ name, logoUrl, size = "md", eager = false }: { name: string; logoUrl: string | null; size?: "md" | "lg" | "pill"; eager?: boolean }) {
   if (!logoUrl) {
     return <Ltr className="text-brand-gradient text-[24px] leading-tight font-semibold tracking-tight sm:text-[28px]">{name}</Ltr>;
   }
@@ -17,7 +24,7 @@ export function VendorMark({ name, logoUrl, size = "md", eager = false }: { name
       alt={name}
       loading={eager ? "eager" : "lazy"}
       referrerPolicy="no-referrer"
-      className={`w-auto object-contain object-start ${size === "lg" ? "h-14 max-w-[260px] sm:h-16" : "h-12 max-w-[min(100%,220px)] sm:h-14"}`}
+      className={`w-auto object-contain object-start ${LOGO_SIZE[size]}`}
     />
   );
 }

@@ -46,15 +46,16 @@ export function isStoreFront(filters: Pick<CatalogFilters, "q" | "category">): b
 }
 
 /**
- * How many columns each vendor box spans so the grid's last row is always full: 2 columns from
- * 640px (`sm`, out of 2) and 3 per row from 1024px (`lg`, out of a 6-column grid). A lone last box
- * spans the whole row; two last boxes share it. Holds for any number of vendors.
+ * The home page's vendor boxes (S17, Nov 14, 2026): the first row holds up to 3 vendors across the
+ * page, under the tall robot; the rest sit two to a row beside the short robot. How many go in
+ * each part.
  */
-export function vendorSpans(count: number): { sm: 1 | 2; lg: 2 | 3 | 6 }[] {
-  return Array.from({ length: count }, (_, i) => {
-    const sm = count % 2 === 1 && i === count - 1 ? 2 : 1;
-    const rest = count % 3;
-    const lg = rest === 1 && i === count - 1 ? 6 : rest === 2 && i >= count - 2 ? 3 : 2;
-    return { sm, lg };
-  });
+export function vendorRows(count: number): { first: number; rest: number } {
+  const first = Math.min(3, Math.max(0, count));
+  return { first, rest: Math.max(0, count - first) };
+}
+
+/** Whether box i of a part with `count` boxes spans both columns of a 2-column row: a lone last box, so no row has a gap. */
+export function spansBoth(i: number, count: number): boolean {
+  return count % 2 === 1 && i === count - 1;
 }

@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
 import { GroupBoxes } from "@/components/group-boxes";
 import { VendorBoxes } from "@/components/vendor-boxes";
-import { FrcDoodles } from "@/components/frc-doodles";
-import { RobotBackdrop } from "@/components/robot-backdrop";
+import { ScenePhoto } from "@/components/home-scene";
+import { ScrollParallax } from "@/components/scroll-parallax";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
 import { ReorderButton } from "@/components/reorder-button";
@@ -19,6 +19,7 @@ import { typicalLeadTime } from "@/domain/lead-time";
 import { HowItWorksSteps } from "@/components/how-it-works-steps";
 import { BadgeCheck, Bot, Boxes, Cog, Coins, FileCheck2, Truck, Undo2 } from "lucide-react";
 import { catalogHref } from "@/lib/catalog-filters";
+import { vendorRows } from "@/domain/vendors";
 import { siteUrl } from "@/lib/site-url";
 
 /**
@@ -61,16 +62,31 @@ async function TeamNotice() {
   );
 }
 
-/** The way in: one big box per vendor. */
+/**
+ * The way in: one box per vendor. The first row runs across the page right under the tall
+ * robot's bumpers; the rest sit in a 2-column grid on the right on a desktop, leaving the left
+ * lane open for the short robot (on phones, a window between the two groups shows it).
+ */
 async function Vendors() {
   const vendors = await getVendors();
+  const { first } = vendorRows(vendors.length);
+  const rest = vendors.slice(first);
   return (
-    <section id="vendors" aria-labelledby="vendors-title" className="scroll-mt-20">
-      <h2 id="vendors-title" className="mb-4 flex w-fit items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-section font-semibold shadow-2xs backdrop-blur-md">
-        <Cog size={20} strokeWidth={1.75} aria-hidden className="doodle-spin text-brand" />
+    <section id="vendors" aria-labelledby="vendors-title" className="flex scroll-mt-20 flex-col gap-4 lg:gap-5">
+      <h2 id="vendors-title" className="scene-pill flex w-fit items-center gap-2 rounded-full px-4 py-1.5 text-section font-semibold">
+        <Cog size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
         מאיזה ספק קונים?
       </h2>
-      <VendorBoxes vendors={vendors} />
+      <VendorBoxes vendors={vendors.slice(0, first)} layout="row" eager={first} />
+      {rest.length > 0 && (
+        <div className="scene-lane relative">
+          <ScenePhoto kind="short" />
+          <div aria-hidden className="scene-window" />
+          <div className="scene-lane-cards">
+            <VendorBoxes vendors={rest} layout="bento" />
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -88,7 +104,7 @@ async function Browse() {
     <section aria-labelledby="browse-title">
       <div className="mb-4 flex flex-col gap-1">
         <h2 id="browse-title" className="flex items-center gap-2 text-section font-semibold">
-          <Bot size={20} strokeWidth={1.75} aria-hidden className="doodle-drift text-brand" />
+          <Bot size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
           לפי סוג מוצר, מכל הספקים
         </h2>
         <p className="text-caption text-muted">אותו חלק מכמה ספקים מופיע פעם אחת, עם ההצעה הזולה שבמלאי.</p>
@@ -186,40 +202,42 @@ async function OrganizationJsonLd() {
 export default function HomePage() {
   return (
     <ViewTransition enter="page-enter" exit="page-exit" default="none">
-      {/* One continuous competition photograph: the ambient tones run from under the navbar to the footer. */}
-      <div className="relative isolate flex flex-col gap-8">
-        <div aria-hidden className="home-ambient pointer-events-none absolute -z-20" />
-        <FrcDoodles />
-        <RobotBackdrop slot="hero" />
+      {/*
+        One continuous competition photograph: a deep Orbit navy canvas from under the navbar to the
+        footer, the tall robot on the right at the top, the short one in the left lane lower down.
+      */}
+      <div className="home-scene relative isolate flex flex-col gap-8">
+        <div aria-hidden className="scene-canvas pointer-events-none absolute -z-20" />
+        <ScrollParallax />
         <OrganizationJsonLd />
-        <Suspense>
-          <TeamNotice />
-        </Suspense>
 
-        {/* The motto alone, in open space: on a desktop in the left part, the tall robot on the right. */}
-        <section className="grid min-h-[min(62vh,520px)] items-center py-10 lg:min-h-[calc(70vh-84px)] lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <h1 className="motto mx-auto max-w-[14ch] text-center lg:col-start-2">
-            ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים, <span className="motto-accent">בהזמנה אחת</span>
-          </h1>
+        {/* The motto in the left part (on phones, at the top); the hero ends where the robot's bumpers do. */}
+        <section className="scene-hero relative flex flex-col">
+          <div aria-hidden className="scene-carpet pointer-events-none absolute -z-10" />
+          <ScenePhoto kind="tall" />
+          <div className="scene-hero-lane flex flex-col gap-6">
+            <h1 className="motto">
+              ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים, <span className="motto-accent">בהזמנה אחת</span>
+            </h1>
+            <Suspense>
+              <TeamNotice />
+            </Suspense>
+          </div>
         </section>
 
-        {/* The vendors and today's picks, with the compact robot on the left edge behind them. */}
-        <div className="relative flex flex-col gap-8">
-          <RobotBackdrop slot="lower" />
-          <Suspense
-            fallback={
-              <Loading>
-                <TileGridSkeleton count={4} />
-              </Loading>
-            }
-          >
-            <Vendors />
-          </Suspense>
+        <Suspense
+          fallback={
+            <Loading>
+              <TileGridSkeleton count={4} />
+            </Loading>
+          }
+        >
+          <Vendors />
+        </Suspense>
 
-          <Suspense>
-            <Discover />
-          </Suspense>
-        </div>
+        <Suspense>
+          <Discover />
+        </Suspense>
 
         <ValueStrip />
 
