@@ -71,7 +71,6 @@ export function TabsNav({ pathname, badges }: { pathname: string; badges: Badges
               <li key={tab.href}>
                 <Link
                   href={tab.href}
-                  prefetch={false}
                   aria-current={active ? "page" : undefined}
                   className={`flex min-h-11 items-center gap-2 rounded-full px-4 text-sm whitespace-nowrap transition-colors ${
                     active ? "bg-surface font-semibold text-brand-strong shadow-sm" : "text-muted hover:bg-subtle-hover"

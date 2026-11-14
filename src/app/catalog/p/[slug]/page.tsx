@@ -14,7 +14,7 @@ import { companionRules } from "@/domain/families/companions";
 import { measure } from "@/domain/families/parse";
 import { compareOptionValues, optionLabel } from "@/domain/families/sort";
 import { formatIls, priceIls, type PriceContext } from "@/domain/pricing";
-import { getCompanions, getFamily, type FamilyVariant } from "@/lib/catalog";
+import { getCompanions, getFamily, getVendorPopular, getVendors, type FamilyVariant } from "@/lib/catalog";
 import { priceContext } from "@/lib/settings";
 import { catalogHref } from "@/lib/catalog-filters";
 import { familyHref } from "@/lib/catalog-links";
@@ -23,6 +23,20 @@ import { siteUrl } from "@/lib/site-url";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
 export const maxDuration = 30;
+
+/**
+ * The parts teams open most, each vendor's "most wanted" list, are prerendered at build, so
+ * the click from a store lands on a finished page. The rest render on their first visit and
+ * are kept. Safe with `?vendor=` and `?v=`: the page body doesn't read the query
+ * (FamilyView reads it in the browser; only the suggestions do, under their own Suspense).
+ */
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  const vendors = await getVendors();
+  const lists = await Promise.all(vendors.map((v) => getVendorPopular(v.code, 8)));
+  const slugs = [...new Set(lists.flat().map((f) => f.slug))];
+  // Cache Components needs at least one.
+  return slugs.length > 0 ? slugs.map((slug) => ({ slug })) : [{ slug: "steel-spur-gear-20-dp" }];
+}
 
 export async function generateMetadata({ params }: PageProps<"/catalog/p/[slug]">): Promise<Metadata> {
   const { slug } = await params;

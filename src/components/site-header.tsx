@@ -22,7 +22,8 @@ const menuLink = "flex h-11 items-center rounded-lg px-3 hover:bg-subtle";
  * and the cart handed to the cart pill. Streams in after the static header.
  */
 async function Account() {
-  const [viewer, googleSignIn] = await Promise.all([getViewer(), googleSignInEnabled()]);
+  // All at once: the session, the Google flag and the price settings (both cached) don't wait on each other.
+  const [viewer, googleSignIn, prices] = await Promise.all([getViewer(), googleSignInEnabled(), priceContext()]);
   const team = viewer && orderingTeam(viewer);
 
   let cart: CartState;
@@ -34,7 +35,7 @@ async function Account() {
       mode: "ordering",
       team: { name: team.name, program: team.program, number: team.number, status: team.status },
       checkout,
-      lines: lines.map(toSheetLine(await priceContext())),
+      lines: lines.map(toSheetLine(prices)),
     };
   }
 

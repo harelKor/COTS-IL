@@ -28,42 +28,54 @@ export type Viewer = {
 /** The team switcher's cookie (switchTeam in src/app/cart/actions.ts). */
 export const TEAM_COOKIE = "cots-il-team";
 
-/** The signed-in user, verified with the Auth server, or null. Once per request: the header, page and actions share it. */
+/**
+ * The signed-in user, or null. Once per request: the header, page and actions share it.
+ *
+ * The session's JWT is verified with getClaims() (signature and expiry, checked locally
+ * against the project's signing keys), not getUser(), which is an HTTP round trip to the
+ * Auth server on every request. The proxy has already refreshed the session by now. Who is
+ * an admin and which teams someone is in always come from the database, in one query.
+ */
 export const getViewer = cache(async function getViewer(): Promise<Viewer | null> {
   // Session checks depend on the clock and the request, so never prerender them.
   await connection();
   const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
+  const [{ data }, cookieStore] = await Promise.all([supabase.auth.getClaims(), cookies()]);
+  const userId = data?.claims?.sub;
+  if (!userId) return null;
 
-  const profile = await db.query.profiles.findFirst({
-    where: eq(schema.profiles.id, data.user.id),
-  });
-  if (!profile) return null;
-
+  const { profiles, memberships, teams } = schema;
   const rows = await db
-    .select({ team: schema.teams })
-    .from(schema.memberships)
-    .innerJoin(schema.teams, eq(schema.teams.id, schema.memberships.teamId))
-    .where(eq(schema.memberships.userId, profile.id))
+    .select({
+      id: profiles.id,
+      email: profiles.email,
+      fullName: profiles.fullName,
+      isAdmin: profiles.isAdmin,
+      team: {
+        id: teams.id,
+        program: teams.program,
+        number: teams.number,
+        name: teams.name,
+        status: teams.status,
+        rejectionReason: teams.rejectionReason,
+      },
+    })
+    .from(profiles)
+    .leftJoin(memberships, eq(memberships.userId, profiles.id))
+    .leftJoin(teams, eq(teams.id, memberships.teamId))
+    .where(eq(profiles.id, userId))
     // Deterministic: the team joined first comes first (S1 task 11).
-    .orderBy(asc(schema.memberships.createdAt), asc(schema.teams.number));
-  const preferred = (await cookies()).get(TEAM_COOKIE)?.value ?? null;
+    .orderBy(asc(memberships.createdAt), asc(teams.number));
+  const profile = rows[0];
+  if (!profile) return null;
 
   return {
     id: profile.id,
     email: profile.email,
     fullName: profile.fullName,
     isAdmin: profile.isAdmin,
-    teams: rows.map(({ team }) => ({
-      id: team.id,
-      program: team.program,
-      number: team.number,
-      name: team.name,
-      status: team.status,
-      rejectionReason: team.rejectionReason,
-    })),
-    preferredTeamId: preferred,
+    teams: rows.flatMap(({ team }) => (team?.id ? [team] : [])),
+    preferredTeamId: cookieStore.get(TEAM_COOKIE)?.value ?? null,
   };
 });
 

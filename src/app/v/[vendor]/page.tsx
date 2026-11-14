@@ -17,7 +17,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skeleton";
 import { aliveStyle } from "@/domain/alive";
 import { isStoreFront, vendorBlurb, vendorHref, vendorTheme } from "@/domain/vendors";
-import { getDiscoveryPage, getSpecFacets, getVendorPopular, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
+import { getDiscoveryPage, getSpecFacets, getVendorPopular, getVendors, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
 import { hasFilters, PAGE_SIZE, parseFilters, type CatalogFilters } from "@/lib/catalog-filters";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
@@ -253,38 +253,60 @@ function StoreResults({ store, filters }: { store: Store; filters: CatalogFilter
   );
 }
 
+/** A store's view of the URL's query: its front page, or a search or category. The only part of the store that reads it. */
+async function StoreBody({ store, searchParams }: { store: Store; searchParams: Props["searchParams"] }) {
+  // The vendor is the path: a `?supplier=` in the URL can't switch the store.
+  const filters = { ...parseFilters(await searchParams), supplier: store.code };
+  return isStoreFront(filters) ? <StoreFront store={store} /> : <StoreResults store={store} filters={filters} />;
+}
+
+/** Where the store's content will be, in the store's own colours, while the query is read. */
+function StoreBodySkeleton() {
+  return (
+    <Loading>
+      {/* A full screen tall, so the footer isn't in view and pushed down when the store streams in. */}
+      <div className="flex min-h-dvh flex-col gap-6">
+        <div className="skeleton h-36 w-full rounded-card" />
+        <TileGridSkeleton />
+      </div>
+    </Loading>
+  );
+}
+
+/**
+ * Everything that comes from the path alone: the store, its palette and canvas. Prerendered
+ * per vendor (generateStaticParams) and cached, so opening a store doesn't wait on the server
+ * for it; only what the query string asks for (StoreBody) renders per request.
+ */
 async function VendorStore({ params, searchParams }: Props) {
   const { vendor } = await params;
   const store = await getVendorStore(vendor);
   if (!store) notFound();
-  // The vendor is the path: a `?supplier=` in the URL can't switch the store.
-  const filters = { ...parseFilters(await searchParams), supplier: store.code };
   // The price note comes with the store, not under its skeleton, so nothing below jumps when it streams in.
   // The whole store wears the vendor's palette (vendorTheme): every token, card and wash on the page reads it.
   return (
     <div style={vendorTheme(store) as React.CSSProperties} className="vendor-theme relative flex flex-col gap-8">
       <div aria-hidden className="store-canvas pointer-events-none absolute -z-10" />
-      {isStoreFront(filters) ? <StoreFront store={store} /> : <StoreResults store={store} filters={filters} />}
+      <Suspense fallback={<StoreBodySkeleton />}>
+        <StoreBody store={store} searchParams={searchParams} />
+      </Suspense>
       <PriceNote />
     </div>
   );
+}
+
+/** Every active vendor's store is prerendered at build; one added later renders on its first visit and is kept. */
+export async function generateStaticParams(): Promise<{ vendor: string }[]> {
+  const vendors = await getVendors();
+  // Cache Components needs at least one; AndyMark is always there.
+  return vendors.length > 0 ? vendors.map((v) => ({ vendor: v.code })) : [{ vendor: "andymark" }];
 }
 
 export default function VendorPage(props: Props) {
   // Dark from the first frame (store-scene), so the page doesn't flash white while the store streams in.
   return (
     <div className="store-scene relative isolate flex flex-col gap-8">
-      <Suspense
-        fallback={
-          <Loading>
-            {/* A full screen tall, so the footer isn't in view and pushed down when the store streams in. */}
-            <div className="flex min-h-dvh flex-col gap-6">
-              <div className="skeleton h-36 w-full rounded-card" />
-              <TileGridSkeleton />
-            </div>
-          </Loading>
-        }
-      >
+      <Suspense fallback={<StoreBodySkeleton />}>
         <VendorStore {...props} />
       </Suspense>
     </div>

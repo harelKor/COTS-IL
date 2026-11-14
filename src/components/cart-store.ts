@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { maxMerge } from "@/domain/cart";
+import { hasAuthCookie } from "@/domain/session-cookie";
 
 /**
  * What the viewer can do with a cart. "guest" keeps one in the browser until
@@ -59,7 +60,6 @@ export type CartState = {
  * moves the moment you tap, before the server answers. A guest's cart lives
  * only here, saved in the browser.
  */
-let state: CartState = { mode: "loading", lines: [] };
 const listeners = new Set<() => void>();
 const GUEST_KEY = "cots-il:guest-cart";
 
@@ -105,6 +105,18 @@ export function stashGuestLines(incoming: CartSheetLine[]) {
 /** Modes whose cart lives in the browser: a guest's, and one signed in but without a team yet. */
 const isLocal = (mode: CartMode) => mode === "guest" || mode === "noteam";
 
+/**
+ * Without a session cookie nobody is signed in, so the browser starts as a guest, with "+"
+ * on every card, before the header's account part arrives from the server. With one, it
+ * waits ("loading") for the server to say which team, so a signed-in viewer never sees guest mode.
+ */
+function initialState(): CartState {
+  if (typeof document === "undefined" || hasAuthCookie(document.cookie)) return { mode: "loading", lines: [] };
+  return { mode: "guest", lines: readGuestCart() };
+}
+
+let state: CartState = initialState();
+
 function set(next: CartState) {
   state = next;
   if (isLocal(next.mode)) saveGuestCart(next.lines);
@@ -120,6 +132,33 @@ const serverSnapshot: CartState = { mode: "loading", lines: [] };
 
 export function useCart(): CartState {
   return useSyncExternalStore(subscribe, () => state, () => serverSnapshot);
+}
+
+/**
+ * One slice of the cart, for components that show only a part of it (each product card):
+ * they re-render when their slice changes, not on every change to the cart. `select`
+ * must return a primitive (or the same object) for an unchanged cart.
+ */
+function useCartSlice<T>(select: (s: CartState) => T, server: T): T {
+  return useSyncExternalStore(
+    subscribe,
+    () => select(state),
+    () => server,
+  );
+}
+
+export function useCartMode(): CartMode {
+  return useCartSlice((s) => s.mode, "loading");
+}
+
+/** How many of this part are in the cart (0 when none, or no part chosen yet). */
+export function useLineQty(variantId: string | null | undefined): number {
+  return useCartSlice((s) => (variantId ? (s.lines.find((l) => l.variantId === variantId)?.qty ?? 0) : 0), 0);
+}
+
+/** How many parts of the family whose page is `page` are in the cart, across its options. */
+export function useFamilyQty(page: string): number {
+  return useCartSlice((s) => s.lines.reduce((n, l) => (l.href === page || l.href.startsWith(`${page}?`) ? n + l.qty : n), 0), 0);
 }
 
 export function cartSnapshot(): CartState {

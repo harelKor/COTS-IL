@@ -12,7 +12,7 @@ import type { CardFamily, CardVariant } from "@/lib/catalog";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
 import { imageLoading, shopifyImage } from "@/lib/images";
 import { addToCartNow, type AddableLine } from "./cart-actions";
-import { canEditCart, useCart } from "./cart-store";
+import { canEditCart, findLine, useCartMode, useFamilyQty, useLineQty } from "./cart-store";
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
 
@@ -86,22 +86,28 @@ const SHEET_QUERY = "(max-width: 639px)";
  * the cart, "+" becomes a stepper. Nothing here leaves the page.
  */
 export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style, glow = false, dataKey, morph = true }: Props) {
-  const { mode, lines } = useCart();
+  // Only this card's slice of the cart, so an add elsewhere doesn't re-render every card on the page.
+  const mode = useCartMode();
   const [open, setOpen] = useState(false);
   const [asSheet, setAsSheet] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
   // Only a single part comes with its variant; the others load theirs on the first "+".
   const [variants, setVariants] = useState<CardVariant[] | null>(family.onlyVariant ? [family.onlyVariant] : null);
   const loading = useRef<Promise<CardVariant[]> | null>(null);
+  // The product page is prefetched in full only once the pointer or a finger is on this card
+  // (a grid prefetching every card's page would wake the server once per card); until then,
+  // the route's shared shell, as for any link.
+  const [intent, setIntent] = useState(false);
+  const want = () => setIntent(true);
+  const pagePrefetch = { prefetch: intent ? true : ("auto" as const), onPointerEnter: want, onTouchStart: want, onFocus: want };
   const image = useRef<HTMLDivElement>(null);
 
   const keys = family.optionKeys;
   const picked = pick(variants ?? [], keys, { ...preset, ...choices });
   const singlePart = family.onlyVariant !== null;
   const current = singlePart ? family.onlyVariant : variants ? picked.chosen : null;
-  const inCart = current ? lines.find((l) => l.variantId === current.id) : undefined;
-  const page = familyHref(family.slug);
-  const familyInCart = lines.filter((l) => l.href === page || l.href.startsWith(`${page}?`)).reduce((n, l) => n + l.qty, 0);
+  const inCartQty = useLineQty(current?.id);
+  const familyInCart = useFamilyQty(familyHref(family.slug));
   const canAdd = canEditCart(mode) && family.orderable;
 
   /** Starts loading the variants (on hover or focus, so the chips are usually ready by the tap). */
@@ -161,13 +167,13 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     // already in the cart isn't added again; its stepper shows instead. The sheet stays
     // open with the stepper, for the quantity; the picker over the card closes.
     if (settled) {
-      if (!lines.some((l) => l.variantId === settled.id)) addToCartNow(lineFor(family, settled), 1, image.current);
+      if (!findLine(settled.id)) addToCartNow(lineFor(family, settled), 1, image.current);
       if (!asSheet) setOpen(false);
     }
   }
 
-  const action = !canAdd ? null : inCart ? (
-    <QtyStepper variantId={inCart.variantId} qty={inCart.qty} label={family.title} size="sm" />
+  const action = !canAdd ? null : current && inCartQty > 0 ? (
+    <QtyStepper variantId={current.id} qty={inCartQty} label={family.title} size="sm" />
   ) : (
     <button
       type="button"
@@ -221,7 +227,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     ));
 
   const detailsLink = (
-    <Link href={href} className="flex min-h-11 items-center gap-1 text-caption text-brand hover:underline">
+    <Link href={href} {...pagePrefetch} className="flex min-h-11 items-center gap-1 text-caption text-brand hover:underline">
       כל הפרטים והאפשרויות
       <ChevronLeft size={14} aria-hidden className="rtl:rotate-0 ltr:rotate-180" />
     </Link>
@@ -270,9 +276,9 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
         </div>
         <div className="flex flex-col gap-4 overflow-y-auto px-4 py-4">{optionGroups(false, true)}</div>
         <div className="flex items-center justify-between gap-3 border-t border-line px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {inCart ? (
+          {current && inCartQty > 0 ? (
             <>
-              <QtyStepper variantId={inCart.variantId} qty={inCart.qty} label={family.title} />
+              <QtyStepper variantId={current.id} qty={inCartQty} label={family.title} />
               <button type="button" onClick={closeSheet} className="flex h-11 items-center rounded-full btn-brand px-6 font-semibold">
                 סיום
               </button>
@@ -292,12 +298,12 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     return (
       <li className="flex flex-col gap-2 border-b border-line py-3 last:border-b-0">
         <div className="flex items-center gap-3">
-          <Link href={href} className="shrink-0">
+          <Link href={href} {...pagePrefetch} className="shrink-0">
             <div ref={image} className="card-photo size-16 overflow-hidden rounded-xl bg-white p-1 ring-1 ring-line">
               {photo_}
             </div>
           </Link>
-          <Link href={href} className="min-w-0 flex-1 hover:text-brand">
+          <Link href={href} {...pagePrefetch} className="min-w-0 flex-1 hover:text-brand">
             <Ltr className="line-clamp-2 text-start text-callout font-medium">{family.title}</Ltr>
             <span className="block truncate text-caption text-muted">
               <Ltr>{family.supplierNames.join(", ")}</Ltr>
@@ -345,7 +351,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       className={`family-card card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift ${glow ? "glow-card" : ""} ${className}`}
     >
       {glow && <span aria-hidden className="card-shine" />}
-      <Link href={href} className="flex flex-col gap-3">
+      <Link href={href} {...pagePrefetch} className="flex flex-col gap-3">
         {morph ? (
           <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
             {tile}

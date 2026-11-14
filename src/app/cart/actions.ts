@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -13,7 +13,7 @@ import { getViewer, orderingTeam, orderingTeams, TEAM_COOKIE, type Viewer } from
 import { notifyLater, notifyRequest } from "@/lib/notify";
 import { cookies } from "next/headers";
 import { priceContext } from "@/lib/settings";
-import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
+import { getCart, getCheckoutDefaults, toSheetLine, type CartLine } from "@/lib/orders";
 import { getSharedLines } from "@/lib/catalog";
 import type { CartSheetLine } from "@/components/cart-store";
 import { missingAddressParts, parseAddress } from "@/domain/display";
@@ -40,31 +40,60 @@ type Team = NonNullable<ReturnType<typeof orderingTeam>>;
 
 
 
-/** Adds to the team's cart, or raises the quantity of a line that's already there. Returns an error message, or null. */
-async function addLine(teamId: string, userId: string, variantId: string, count: number): Promise<string | null> {
-  const [variant] = await db
-    .select({ priceUsd: variants.priceUsd, variantMissing: variants.missingSince, status: products.status, productMissing: products.missingSince })
-    .from(variants)
-    .innerJoin(products, eq(products.id, variants.productId))
-    .where(eq(variants.id, variantId));
-  if (!variant || !isOrderable({ ...variant, productStatus: variant.status })) {
-    return "לא ניתן להזמין את הפריט הזה";
-  }
+/**
+ * The `variants` rows a team may put in its cart: the part and its product still in the
+ * catalog, published, with a dollar price. The SQL twin of isOrderable() in src/domain/cart.ts.
+ */
+const orderableVariant = (variantId: string) =>
+  and(
+    eq(variants.id, variantId),
+    isNull(variants.missingSince),
+    isNull(products.missingSince),
+    eq(products.status, "published"),
+    gt(variants.priceUsd, "0"),
+  );
 
-  await db
+/**
+ * Adds to the team's cart, or raises the quantity of a line that's already there, in one
+ * statement: INSERT … SELECT from the variant only when it's orderable. Returns the line's
+ * id, or null when the part can't be ordered.
+ */
+function upsertLine(teamId: string, userId: string, variantId: string, count: number) {
+  return db
     .insert(cartItems)
-    .values({ teamId, variantId, qty: count, addedBy: userId })
+    .select(
+      db
+        .select({
+          teamId: sql`${teamId}::uuid`.as("team_id"),
+          variantId: variants.id,
+          qty: sql`${count}::int`.as("qty"),
+          addedBy: sql`${userId}::uuid`.as("added_by"),
+          // Drizzle's INSERT … SELECT wants every column, in the table's order.
+          createdAt: sql`now()`.as("created_at"),
+        })
+        .from(variants)
+        .innerJoin(products, eq(products.id, variants.productId))
+        .where(orderableVariant(variantId)),
+    )
     .onConflictDoUpdate({
       target: [cartItems.teamId, cartItems.variantId],
       set: { qty: sql`LEAST(${cartItems.qty} + excluded.qty, ${MAX_QTY})` },
-    });
-  return null;
+    })
+    .returning({ variantId: cartItems.variantId, qty: cartItems.qty });
+}
+
+const NOT_ORDERABLE = "לא ניתן להזמין את הפריט הזה";
+
+/** Adds to the team's cart, or raises the quantity of a line that's already there. Returns an error message, or null. */
+async function addLine(teamId: string, userId: string, variantId: string, count: number): Promise<string | null> {
+  const added = await upsertLine(teamId, userId, variantId, count);
+  return added.length > 0 ? null : NOT_ORDERABLE;
 }
 
 /** The cart line as it now is in the database, for the client store to put in place. Null when it's gone. */
 async function lineNow(teamId: string, variantId: string): Promise<CartSheetLine | null> {
-  const [line] = await getCart(teamId, [variantId]);
-  return line ? toSheetLine(await priceContext())(line) : null;
+  const [[line], ctx] = await Promise.all([getCart(teamId, [variantId]), priceContext()]);
+  return line ? toSheetLine(ctx)(line) : null;
 }
 
 export type LineResult = { error?: string; line?: CartSheetLine | null };
@@ -72,16 +101,48 @@ export type LineResult = { error?: string; line?: CartSheetLine | null };
 /**
  * For the catalog, the search panel and Undo, which add without a form and stay
  * on the page. Answers with the changed line instead of re-rendering the page,
- * so taps in flight don't jump back.
+ * so taps in flight don't jump back. One query adds (checking the part can be
+ * ordered) and reads the line back with everything the sheet shows.
  */
 export async function quickAdd(variantId: string, count: number): Promise<LineResult> {
   const { viewer, team } = await requireOrderingTeam();
   const parsed = z.object({ variantId: z.uuid(), qty }).safeParse({ variantId, qty: count });
   if (!parsed.success) return { error: "כמות לא תקינה" };
 
-  const error = await addLine(team.id, viewer.id, parsed.data.variantId, parsed.data.qty);
-  if (error) return { error };
-  return { line: await lineNow(team.id, parsed.data.variantId) };
+  const added = db.$with("added").as(upsertLine(team.id, viewer.id, parsed.data.variantId, parsed.data.qty));
+  const [[line], ctx] = await Promise.all([
+    db
+      .with(added)
+      .select({
+        variantId: added.variantId,
+        qty: added.qty,
+        supplierCode: suppliers.code,
+        supplierName: suppliers.name,
+        supplierSku: variants.supplierSku,
+        options: variants.options,
+        priceUsd: variants.priceUsd,
+        markup: variants.markup,
+        fixedIls: variants.fixedIls,
+        available: variants.available,
+        shipsLater: variants.shipsLater,
+        shipsLaterEta: variants.shipsLaterEta,
+        checkedAt: variants.checkedAt,
+        variantMissing: variants.missingSince,
+        title: products.title,
+        handle: products.handle,
+        image: sql<string | null>`${products.images}[1]`,
+        productUrl: products.url,
+        productStatus: products.status,
+        productMissing: products.missingSince,
+      } satisfies Record<keyof CartLine, unknown>)
+      .from(added)
+      .innerJoin(variants, eq(variants.id, added.variantId))
+      .innerJoin(products, eq(products.id, variants.productId))
+      .innerJoin(suppliers, eq(suppliers.id, variants.supplierId)),
+    priceContext(),
+  ]);
+  if (!line) return { error: NOT_ORDERABLE };
+  return { line: toSheetLine(ctx)(line) };
 }
 
 /** Sets a cart line's quantity from a stepper (debounced on the client). */

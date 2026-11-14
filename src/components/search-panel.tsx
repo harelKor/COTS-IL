@@ -18,7 +18,7 @@ import { shopifyImage } from "@/lib/images";
 import { normalizeSearch, parseQuickQuery } from "@/lib/quick-query";
 import { useSiteFacts } from "./site-facts";
 import { addToCartNow } from "./cart-actions";
-import { canEditCart, useCart } from "./cart-store";
+import { canEditCart, useCartMode } from "./cart-store";
 import { CategoryIcon } from "./category-icon";
 import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
@@ -106,7 +106,8 @@ export function SearchPanel() {
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const { mode } = useCart();
+  // The mode only: the header's panel needn't re-render on every cart change.
+  const mode = useCartMode();
   const shortcut = useSyncExternalStore(
     noSubscribe,
     shortcutLabel,

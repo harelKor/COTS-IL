@@ -1,22 +1,30 @@
 import "server-only";
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 
 /**
  * Whether Google sign-in is switched on in the Supabase project, so the button
- * only shows once it works. Read from Supabase's public auth settings.
+ * only shows once it works. Read from Supabase's public auth settings. It almost
+ * never changes and the header asks on every page, so it's kept for hours (a
+ * settings save expires it with the rest of the `settings` tag).
  */
 export async function googleSignInEnabled(): Promise<boolean> {
   "use cache";
-  cacheLife("minutes");
+  cacheTag("settings");
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return false;
+  if (!url || !key) {
+    cacheLife("hours");
+    return false;
+  }
   try {
     const res = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: key } });
-    if (!res.ok) return false;
+    if (!res.ok) throw new Error(`auth settings ${res.status}`);
     const body = (await res.json()) as { external?: { google?: boolean } };
+    cacheLife("hours");
     return body.external?.google === true;
   } catch {
+    // A failed read is kept briefly, so a blip doesn't hide the button for hours.
+    cacheLife("minutes");
     return false;
   }
 }
