@@ -1,4 +1,6 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
+import { contactChannels, hasContactDetails } from "@/domain/go-live";
 import { inlineFacts, parseInfoText, resolveInfo, type BlockToken, type InfoPageKey, INFO_PAGES } from "@/domain/info-text";
 import { leadTimeText } from "@/domain/lead-time";
 import { markupText } from "@/domain/pricing";
@@ -52,41 +54,46 @@ export async function infoBlocks(business: Business): Promise<Partial<Record<Blo
         )}
       </>
     );
-  out["דרכי קשר"] = (
-    <>
-      {business.email && (
-        <p>
-          דוא״ל:{" "}
-          <a href={`mailto:${business.email}`} className="text-brand hover:underline">
-            <Ltr>{business.email}</Ltr>
-          </a>
-        </p>
-      )}
-      {business.phone && (
-        <p>
-          טלפון:{" "}
-          <a href={`tel:${business.phone.replace(/[^\d+]/g, "")}`} className="text-brand hover:underline">
-            <Ltr>{business.phone}</Ltr>
-          </a>
-        </p>
-      )}
-      {business.pickupAddress && (
-        <p>
-          כתובת: {business.pickupAddress}
-          {business.pickupHours ? `, ${business.pickupHours}` : ""}
-        </p>
-      )}
-      <WhatsAppLink />
-      {!business.email && !business.phone && !business.whatsapp && !business.pickupAddress && <p>על כל בקשה ששלחתם עונים בדף ההזמנה שלה, יחד עם הצעת המחיר.</p>}
-    </>
-  );
+  // Nothing to list (no email, phone, WhatsApp or address): no block, so the section and its
+  // heading are dropped instead of standing empty.
+  if (hasContactDetails(business))
+    out["דרכי קשר"] = (
+      <>
+        {business.email && (
+          <p>
+            דוא״ל:{" "}
+            <a href={`mailto:${business.email}`} className="text-brand hover:underline">
+              <Ltr>{business.email}</Ltr>
+            </a>
+          </p>
+        )}
+        {business.phone && (
+          <p>
+            טלפון:{" "}
+            <a href={`tel:${business.phone.replace(/[^\d+]/g, "")}`} className="text-brand hover:underline">
+              <Ltr>{business.phone}</Ltr>
+            </a>
+          </p>
+        )}
+        {business.pickupAddress && (
+          <p>
+            כתובת: {business.pickupAddress}
+            {business.pickupHours ? `, ${business.pickupHours}` : ""}
+          </p>
+        )}
+        <WhatsAppLink />
+      </>
+    );
   return out;
 }
 
 /** The facts for the inline tokens. */
 export async function infoFacts(business: Business) {
-  const { markupRange } = await getSiteFacts();
-  return inlineFacts(business, markupText(markupRange));
+  const [{ markupRange }, { suppliers }] = await Promise.all([getSiteFacts(), getFacets()]);
+  return inlineFacts(business, markupText(markupRange), {
+    vendorNames: suppliers.map((s) => s.name),
+    hasContact: contactChannels(business).length > 0,
+  });
 }
 
 export async function InfoTextPage({ page }: { page: InfoPageKey }) {
@@ -94,8 +101,25 @@ export async function InfoTextPage({ page }: { page: InfoPageKey }) {
   const [blocks, facts] = await Promise.all([infoBlocks(business), infoFacts(business)]);
   const doc = resolveInfo(parseInfoText(pageText(content, page)), facts, new Set(Object.keys(blocks)));
   const title = INFO_PAGES.find((p) => p.key === page)!.title;
+  // With no contact details yet, the contact page says where a question does get an answer.
+  const noContact = page === "contact" && !hasContactDetails(business);
   return (
-    <InfoPage title={title} lead={<InfoIntro doc={doc} auto={blocks} />}>
+    <InfoPage
+      title={title}
+      lead={
+        <>
+          <InfoIntro doc={doc} auto={blocks} />
+          {noContact && (
+            <p className="text-muted">
+              שאלה על בקשה ששלחתם נענית בדף ההזמנה שלה, יחד עם הצעת המחיר.{" "}
+              <Link href="/orders" className="text-brand hover:underline">
+                ההזמנות של הקבוצה
+              </Link>
+            </p>
+          )}
+        </>
+      }
+    >
       <InfoBody doc={doc} auto={blocks} faq={page === "faq"} />
     </InfoPage>
   );

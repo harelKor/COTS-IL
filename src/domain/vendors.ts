@@ -33,6 +33,16 @@ export function vendorBlurb(categories: { name: string; count: number }[], max =
   return `${names.slice(0, -1).join(", ")} ו${names.at(-1)}`;
 }
 
+/**
+ * Vendor names as one Hebrew list for running text: "A", "A ו-B", "A, B ו-C". The "ו-" has a hyphen
+ * because the names are Latin. Copy takes the names from the DB, so a vendor added in the admin
+ * shows up in it by itself.
+ */
+export function vendorNameList(names: readonly string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} ו-${names.at(-1)}`;
+}
+
 /** A vendor's store URL with the usual catalog filters; the vendor is the path, never `?supplier=`. */
 export function vendorHref(code: string, filters: Partial<CatalogFilters> = {}): string {
   const query = catalogQuery({ ...filters, supplier: "" });

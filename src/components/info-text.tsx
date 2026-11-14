@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
-import type { Block, InfoDoc, Inline } from "@/domain/info-text";
+import { writeUsHref, type Block, type InfoDoc, type Inline } from "@/domain/info-text";
 import { InfoSection } from "./info-page";
 import { Ltr } from "./ltr";
 
@@ -32,6 +32,12 @@ function InlineView({ inline }: { inline: Inline[] }) {
       );
     }
     if (i.t === "fact" && i.name === "מכפיל") return <bdi key={n} dir="ltr">{i.v}</bdi>;
+    if (i.t === "fact" && i.name === "כתבו לנו")
+      return (
+        <Link key={n} href={writeUsHref(i.v)} className="text-brand hover:underline">
+          {i.v}
+        </Link>
+      );
     return <Fragment key={n}>{text(i.v)}</Fragment>;
   });
 }

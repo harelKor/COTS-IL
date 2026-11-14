@@ -162,7 +162,7 @@ Sessions in one wave touch different files, so they run at the same time. A wave
 
 | Task | Wave | State | Branch | Notes |
 |---|---|---|---|---|
-| T1 Honest copy, go-live checklist | 1 | not started | | |
+| T1 Honest copy, go-live checklist | 1 | done (Nov 14, 2026) | `claude/t1-honest-copy-c1e128` | vendor names from the DB (`{ספקים}`, `{כתבו לנו}` tokens), go-live banner on `/admin` (`src/domain/go-live.ts`) |
 | T2 Product identity, merges | 1 | not started | | |
 | T3 Sign-in redirect, reports | 1 | done | claude/t3-redirect-reports-c52e81 | B-1, B-2, B-8, A-09, A-10, A-12 (A-11: revenue no longer divided by 1.18, import costs already in the profit) |
 | T4 Status dictionary | 2 | not started | | |

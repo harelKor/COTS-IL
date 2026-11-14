@@ -3,6 +3,8 @@ import Link from "next/link";
 import { HowItWorksSteps } from "@/components/how-it-works-steps";
 import { InfoPage, InfoSection } from "@/components/info-page";
 import { Ltr } from "@/components/ltr";
+import { VendorNames } from "@/components/vendor-names";
+import { getFacets } from "@/lib/catalog";
 import { getBusiness } from "@/lib/settings";
 
 export const metadata: Metadata = {
@@ -11,14 +13,14 @@ export const metadata: Metadata = {
 };
 
 export default async function HowItWorksPage() {
-  const business = await getBusiness();
+  const [business, { suppliers }] = await Promise.all([getBusiness(), getFacets()]);
   return (
     <InfoPage
       title="איך זה עובד"
       intro={
         <>
-          COTS-IL מרכז ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מ-<Ltr>AndyMark</Ltr>, <Ltr>WCP</Ltr>, <Ltr>CTRE</Ltr> ו-<Ltr>The Thrifty Bot</Ltr>. הקבוצה בונה
-          סל ושולחת בקשה, והספק הישראלי מזמין מכל ספק, מרכז ומוסר.
+          COTS-IL מרכז ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מ-<VendorNames names={suppliers.map((s) => s.name)} />. הקבוצה בונה סל ושולחת בקשה, והספק הישראלי
+          מזמין מכל ספק, מרכז ומוסר.
         </>
       }
     >

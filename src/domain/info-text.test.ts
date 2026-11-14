@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PAGES, INFO_PAGES, parseInfoText, parseInline, resolveInfo, unknownTokens } from "./info-text";
+import { DEFAULT_PAGES, INFO_PAGES, inlineFacts, parseInfoText, parseInline, resolveInfo, unknownTokens, writeUsHref } from "./info-text";
 
 describe("info text", () => {
   it("parses bold, links and facts", () => {
@@ -49,5 +49,32 @@ describe("banner", () => {
     expect(bannerShows({ ...b, endsOn: null }, "2030-01-01")).toBe(true);
     expect(bannerShows({ ...b, enabled: false }, "2026-11-01")).toBe(false);
     expect(bannerShows({ ...b, text: "" }, "2026-11-01")).toBe(false);
+  });
+});
+
+describe("vendor and contact tokens", () => {
+  const business = { priceIncludes: null, quoteLeadBusinessDays: null, handlingFee: null, paymentTerms: null, returnPolicy: null };
+  const names = ["AndyMark", "WCP", "goBILDA", "REV", "CTRE", "The Thrifty Bot", "Other"];
+
+  it("lists every vendor from the DB in the default pages", () => {
+    const facts = inlineFacts(business, "1.6", { vendorNames: names, hasContact: false });
+    for (const key of ["faq", "about"] as const) {
+      const doc = resolveInfo(parseInfoText(DEFAULT_PAGES[key]), facts, new Set());
+      const text = JSON.stringify(doc);
+      for (const n of names) expect(text).toContain(n);
+    }
+  });
+
+  it("only says \"write to us\" with a /contact page behind it when there is a way to write", () => {
+    const withChannel = inlineFacts(business, "1.6", { vendorNames: names, hasContact: true });
+    const without = inlineFacts(business, "1.6", { vendorNames: names, hasContact: false });
+    expect(writeUsHref(withChannel["כתבו לנו"])).toBe("/contact");
+    expect(writeUsHref(without["כתבו לנו"])).toBe("/orders");
+  });
+
+  it("has no hard-coded vendor names or contact links left in the default pages", () => {
+    for (const key of INFO_PAGES.map((p) => p.key)) {
+      expect(DEFAULT_PAGES[key]).not.toMatch(/AndyMark|WCP|CTRE|Thrifty|\(\/contact\)/);
+    }
   });
 });

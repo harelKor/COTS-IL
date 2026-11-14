@@ -75,7 +75,9 @@ async function BusinessForm() {
 
       <Card className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h2 className="text-section font-semibold">זמני אספקה לפי ספק</h2>
+          <h2 id="lead-times" className="scroll-mt-24 text-section font-semibold">
+            זמני אספקה לפי ספק
+          </h2>
           <p className="text-caption text-muted">ימים מאישור ההצעה עד המסירה בישראל. בדף המוצר ובעמוד המשלוח.</p>
         </div>
         <ul className="flex flex-col gap-3">

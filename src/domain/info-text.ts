@@ -13,6 +13,8 @@
  * left with nothing, are hidden, as the pages did before they were editable.
  */
 
+import { vendorNameList } from "./vendors";
+
 export const INFO_PAGES = [
   { key: "faq", path: "/faq", title: "שאלות נפוצות" },
   { key: "shipping", path: "/shipping", title: "משלוח וזמני אספקה" },
@@ -29,7 +31,14 @@ export const INLINE_TOKENS = {
   "דמי טיפול": "דמי הטיפול",
   "תנאי תשלום": "תנאי התשלום",
   "מדיניות החזרות": "מדיניות ההחזרות",
+  ספקים: "שמות הספקים הפעילים בקטלוג, למשל ״A, B ו-C״",
+  "כתבו לנו": "קישור ל״צור קשר״ כשיש דוא״ל, טלפון או וואטסאפ, ואחרת לדף ההזמנות",
 } as const;
+
+/** What the {כתבו לנו} token says: with a way to reach the business it links to /contact, without one to the orders page. */
+export const WRITE_US = "כתבו לנו";
+export const WRITE_US_IN_ORDER = "כתבו לנו בדף ההזמנה";
+export const writeUsHref = (v: string) => (v === WRITE_US ? "/contact" : "/orders");
 export type InlineToken = keyof typeof INLINE_TOKENS;
 
 export const BLOCK_TOKENS = {
@@ -167,7 +176,7 @@ export const DEFAULT_PAGES: Record<InfoPageKey, string> = {
 תלוי בספק ובזמינות. הפירוט בעמוד [משלוח וזמני אספקה](/shipping).
 
 ## חסר חלק בקטלוג?
-כרגע הקטלוג כולל את AndyMark, WCP, CTRE ו-The Thrifty Bot. [כתבו לנו](/contact) ונבדוק.
+כרגע הקטלוג כולל את {ספקים}. {כתבו לנו} ונבדוק.
 `,
   shipping: `## מה כלול במחיר
 המחיר בקטלוג הוא מחיר הספק בדולרים, כפול השער היציג של בנק ישראל (מתעדכן כל יום), כפול {מכפיל}{כולל}.
@@ -191,13 +200,13 @@ export const DEFAULT_PAGES: Record<InfoPageKey, string> = {
   returns: `## פריט פגום או חסר
 כל משלוח נבדק כשהוא מגיע אלינו: יחידות פגומות לא נמסרות, ומה שחסר נשאר פתוח בהזמנה עד שהוא מגיע.
 
-קיבלתם משהו פגום, חסר או לא נכון? [כתבו לנו](/contact) עם מספר ההזמנה ונטפל.
+קיבלתם משהו פגום, חסר או לא נכון? {כתבו לנו} עם מספר ההזמנה ונטפל.
 
 ## מדיניות החזרות
 {מדיניות החזרות}
 `,
   about: `## COTS-IL
-COTS-IL הוא פורטל רכש לקבוצות FIRST בישראל. במקום שכל קבוצה תזמין לבד מכמה אתרים בחו״ל, בדולרים ובכמה משלוחים, בונים כאן סל אחד מ-AndyMark, WCP, CTRE ו-The Thrifty Bot, ואנחנו מזמינים, מרכזים ומוסרים.
+COTS-IL הוא פורטל רכש לקבוצות FIRST בישראל. במקום שכל קבוצה תזמין לבד מכמה אתרים בחו״ל, בדולרים ובכמה משלוחים, בונים כאן סל אחד מ-{ספקים}, ואנחנו מזמינים, מרכזים ומוסרים.
 
 הקטלוג מתעדכן מאתרי הספקים כל לילה, כך שהמחירים והזמינות קרובים למה שהספק מציג.
 
@@ -215,8 +224,11 @@ COTS-IL הוא פורטל רכש לקבוצות FIRST בישראל. במקום �
 export function inlineFacts(
   business: { priceIncludes: string | null; quoteLeadBusinessDays: number | null; handlingFee: string | null; paymentTerms: string | null; returnPolicy: string | null },
   markup: string,
+  site: { vendorNames: readonly string[]; hasContact: boolean },
 ): Record<InlineToken, string> {
   return {
+    ספקים: vendorNameList(site.vendorNames),
+    "כתבו לנו": site.hasContact ? WRITE_US : WRITE_US_IN_ORDER,
     מכפיל: markup,
     כולל: business.priceIncludes ? `, כולל ${business.priceIncludes}` : "",
     "זמן הצעה": business.quoteLeadBusinessDays ? ` ושולח הצעה תוך ${business.quoteLeadBusinessDays} ימי עסקים` : "",

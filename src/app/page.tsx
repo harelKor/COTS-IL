@@ -149,7 +149,9 @@ async function Browse() {
 async function ValueStrip() {
   const business = await getBusiness();
   const items = [
-    business.priceIncludes ? `מחיר בש״ח כולל ${business.priceIncludes}` : "מחיר הספק בש״ח, בלי תוספת",
+    // What is true without any business facts: the supplier's dollar price at the Bank of Israel
+    // rate (the multiplier is stated once, under "מחיר בשקלים" below), shipping priced in the quote.
+    business.priceIncludes ? `מחיר בש״ח כולל ${business.priceIncludes}` : "מחיר בש״ח לפי השער היציג, משלוח בהצעת המחיר",
     "הצעת מחיר בלי התחייבות",
     business.pickupAddress ? "איסוף או משלוח בישראל" : "מסירה בישראל",
   ];
@@ -183,16 +185,20 @@ async function TrustStrip() {
   );
 }
 
-const why = (times: string) => [
-  { icon: Boxes, title: "הזמנה אחת לכל הספקים", text: "סל אחד מכל ארבעת הספקים, במקום ארבע הזמנות נפרדות." },
+const why = (times: string, vendors: number) => [
+  {
+    icon: Boxes,
+    title: "הזמנה אחת לכל הספקים",
+    text: vendors > 1 ? `סל אחד מכל ${vendors} הספקים, במקום ${vendors} הזמנות נפרדות.` : "סל אחד לכל הציוד, במקום הזמנות נפרדות.",
+  },
   { icon: Coins, title: "מחיר בשקלים", text: `מחיר הספק לפי השער היציג של בנק ישראל, כפול ${times}. בלי כרטיס אשראי בדולרים.` },
   { icon: Truck, title: "משלוח מרוכז", text: "אנחנו מאחדים הזמנות למשלוח אחד ומוסרים לקבוצה." },
   { icon: FileCheck2, title: "בלי ניירת מכס", text: "היבוא והשחרור עלינו. אתם מקבלים את החלקים." },
 ];
 
 async function WhyUs() {
-  const [business, { markupRange }] = await Promise.all([getBusiness(), getSiteFacts()]);
-  const WHY = why(markupText(markupRange));
+  const [business, { markupRange }, vendors] = await Promise.all([getBusiness(), getSiteFacts(), getVendors()]);
+  const WHY = why(markupText(markupRange), vendors.length);
   const items = business.returnPolicy
     ? [...WHY, { icon: Undo2, title: "החזרות בישראל", text: business.returnPolicy }]
     : WHY;

@@ -1,11 +1,17 @@
 import { ImageResponse } from "next/og";
+import { getFacets } from "@/lib/catalog";
 
 /** The share card for WhatsApp and the like: home, catalog and shared carts. Latin only, so no font needs loading. */
 export const alt = "COTS-IL: FRC and FTC parts from every supplier, in one order";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+  // The vendors on the site, from the catalog (the cached facets), so a new one appears by itself.
+  // A failed read leaves the pills out; the card still renders.
+  const suppliers = await getFacets()
+    .then((f) => f.suppliers)
+    .catch(() => []);
   return new ImageResponse(
     (
       <div
@@ -42,10 +48,10 @@ export default function OpengraphImage() {
           <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: -4, color: "#1D4ED8" }}>COTS-IL</div>
         </div>
         <div style={{ fontSize: 44, color: "#52658A" }}>FRC / FTC parts from every supplier, in one order</div>
-        <div style={{ display: "flex", gap: 16, fontSize: 32, fontWeight: 600 }}>
-          {["AndyMark", "WCP", "CTRE", "The Thrifty Bot"].map((s) => (
-            <div key={s} style={{ padding: "10px 24px", borderRadius: 999, background: "white", border: "2px solid #D8E4FA" }}>
-              {s}
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, maxWidth: 1080, fontSize: 30, fontWeight: 600 }}>
+          {suppliers.map((s) => (
+            <div key={s.code} style={{ padding: "8px 22px", borderRadius: 999, background: "white", border: "2px solid #D8E4FA" }}>
+              {s.name}
             </div>
           ))}
         </div>

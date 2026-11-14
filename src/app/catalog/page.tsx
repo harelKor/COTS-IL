@@ -7,6 +7,7 @@ import { CategoryGroups } from "@/components/category-groups";
 import { CardGridSkeleton, Loading } from "@/components/skeleton";
 import { getFacets, getSpecFacets, getSupplierCounts, resolveSearch, searchCards } from "@/lib/catalog";
 import { Ltr } from "@/components/ltr";
+import { vendorNameList } from "@/domain/vendors";
 import { catalogHref, hasFilters, PAGE_SIZE, parseFilters } from "@/lib/catalog-filters";
 
 /** The page's name: the category, or the search. */
@@ -24,10 +25,10 @@ async function catalogTitle(filters: ReturnType<typeof parseFilters>) {
 export async function generateMetadata({ searchParams }: PageProps<"/catalog">): Promise<Metadata> {
   const filters = parseFilters(await searchParams);
   const variation = !!(filters.q || hasFilters(filters) || filters.sort !== "relevance" || filters.view !== "grid" || filters.page > 1);
-  const title = await catalogTitle(filters);
+  const [title, { suppliers }] = await Promise.all([catalogTitle(filters), getFacets()]);
   return {
     title,
-    description: `${title}: חלקים לקבוצות FRC ו-FTC מ-AndyMark, WCP, CTRE ומ-The Thrifty Bot, במחירים בשקלים, עם הצעת מחיר מהספק הישראלי.`,
+    description: `${title}: חלקים לקבוצות FRC ו-FTC מ-${vendorNameList(suppliers.map((s) => s.name))}, במחירים בשקלים, עם הצעת מחיר מהספק הישראלי.`,
     alternates: { canonical: catalogHref({ category: filters.category }) },
     ...(variation ? { robots: { index: false, follow: true } } : {}),
   };

@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { accentColor, accentStyle, darkLogo, homeVendorOrder, isStoreFront, vendorBlurb, vendorGlass, vendorHref, vendorPalette, vendorTheme, vendorRows, spansBoth } from "./vendors";
+import { accentColor, accentStyle, darkLogo, homeVendorOrder, isStoreFront, vendorBlurb, vendorGlass, vendorHref, vendorNameList, vendorPalette, vendorTheme, vendorRows, spansBoth } from "./vendors";
+
+describe("vendorNameList", () => {
+  it("joins names as a Hebrew list", () => {
+    expect(vendorNameList([])).toBe("");
+    expect(vendorNameList(["AndyMark"])).toBe("AndyMark");
+    expect(vendorNameList(["AndyMark", "WCP"])).toBe("AndyMark ו-WCP");
+    expect(vendorNameList(["AndyMark", "WCP", "The Thrifty Bot"])).toBe("AndyMark, WCP ו-The Thrifty Bot");
+  });
+  it("lists all seven live vendors", () => {
+    const names = ["AndyMark", "WCP", "goBILDA", "REV", "CTRE", "The Thrifty Bot", "Other"];
+    const text = vendorNameList(names);
+    for (const n of names) expect(text).toContain(n);
+  });
+});
 
 describe("vendorHref", () => {
   it("puts the vendor in the path and drops ?supplier=", () => {

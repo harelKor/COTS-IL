@@ -10,6 +10,7 @@ import { formatIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { countByStatus, getOrderSummaries, type AdminOrderSummary } from "@/lib/admin-orders";
 import { Loading, PageSkeleton } from "@/components/skeleton";
+import { GoLiveBanner } from "./go-live-banner";
 import { OrderPanel } from "./order-panel";
 import { FinishedSection, OrderCardShell } from "./order-card-shell";
 import { STATUS_STYLE } from "./status-style";
@@ -241,6 +242,9 @@ export default function AdminPage({ searchParams }: PageProps<"/admin">) {
   return (
     <div>
       <h1 className="mb-6 text-title font-semibold tracking-[-0.02em]">כל ההזמנות</h1>
+      <Suspense>
+        <GoLiveBanner />
+      </Suspense>
       <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
         <AllOrders searchParams={searchParams as Promise<Params>} />
       </Suspense>
