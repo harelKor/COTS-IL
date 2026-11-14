@@ -31,6 +31,9 @@ const memberVariant = sql`${variants.familyId} = ${families.id} AND ${products.s
  *   Each hit is a network read, so it's for the hot reads every visitor shares (facets,
  *   vendors, stores, the discovery pool, product pages, plain category browsing). Searches and
  *   spec filters, with their endless keys, stay in memory.
+ * Each shared read sits behind an in-memory one of the same name (getFacets → facetsShared):
+ * an instance that already has it answers from memory, a new instance reads the region's copy
+ * instead of the database. Neither survives a deploy (the key includes the build id).
  * Both carry the `catalog` tag, so /api/revalidate and admin saves expire them.
  */
 function catalogCache() {
@@ -368,6 +371,13 @@ export async function searchCards(filters: CatalogFilters, offset: number, limit
 }
 
 async function browseCards(filters: CatalogFilters, offset: number, limit: number) {
+  "use cache";
+  catalogCache();
+  return browseCardsShared(filters, offset, limit);
+}
+
+/** The shared (remote) entry behind browseCards's in-memory one. */
+async function browseCardsShared(filters: CatalogFilters, offset: number, limit: number) {
   "use cache: remote";
   catalogCache();
   return findCards(filters, offset, limit);
@@ -562,6 +572,13 @@ async function supplierCounts(filters: CatalogFilters) {
  * also carries up to three photos of its main items (motors, not the screws filed next to them).
  */
 export async function getFacets() {
+  "use cache";
+  catalogCache();
+  return facetsShared();
+}
+
+/** The shared (remote) entry behind getFacets's in-memory one. */
+async function facetsShared() {
   "use cache: remote";
   catalogCache();
   const count = sql<number>`count(*)::int`;
@@ -593,6 +610,13 @@ export async function getFacets() {
 
 /** A family with every listed variant, from every supplier that sells it. */
 export async function getFamily(slug: string) {
+  "use cache";
+  catalogCache();
+  return familyShared(slug);
+}
+
+/** The shared (remote) entry behind getFamily's in-memory one. */
+async function familyShared(slug: string) {
   "use cache: remote";
   catalogCache();
 
@@ -1049,6 +1073,13 @@ export const POPULAR_COUNT = 8;
 
 /** The top of a vendor's store: its most wanted families as cards, with this vendor's prices. */
 export async function getVendorPopular(code: string, limit = POPULAR_COUNT): Promise<CardFamily[]> {
+  "use cache";
+  catalogCache();
+  return vendorPopularShared(code, limit);
+}
+
+/** The shared (remote) entry behind getVendorPopular's in-memory one. */
+async function vendorPopularShared(code: string, limit: number): Promise<CardFamily[]> {
   "use cache: remote";
   catalogCache();
   return toCards(await vendorPopularRows(code, limit), code);
@@ -1072,6 +1103,13 @@ export type VendorSummary = {
  * logo, accent, biggest categories and photos of its 3 most wanted.
  */
 export async function getVendors(): Promise<VendorSummary[]> {
+  "use cache";
+  catalogCache();
+  return vendorsShared();
+}
+
+/** The shared (remote) entry behind getVendors's in-memory one. */
+async function vendorsShared(): Promise<VendorSummary[]> {
   "use cache: remote";
   catalogCache();
   const byCategoryQuery = db
@@ -1104,6 +1142,13 @@ export async function getVendors(): Promise<VendorSummary[]> {
  * families each holds and the photo of the best-ranked one. Null for an unknown or inactive vendor.
  */
 export async function getVendorStore(code: string) {
+  "use cache";
+  catalogCache();
+  return vendorStoreShared(code);
+}
+
+/** The shared (remote) entry behind getVendorStore's in-memory one. */
+async function vendorStoreShared(code: string) {
   "use cache: remote";
   catalogCache();
   const ofVendor = and(visible, sql`${code} = ANY(${families.supplierCodes})`);

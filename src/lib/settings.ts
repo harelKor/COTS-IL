@@ -16,6 +16,14 @@ import { SEARCH_CATEGORIES } from "./search-examples";
  * it from the region's cache instead of the database (docs/AUDIT-2026-11-14.md S-2).
  */
 export async function getSettings(): Promise<Settings> {
+  "use cache";
+  cacheLife("days");
+  cacheTag("settings");
+  return settingsShared();
+}
+
+/** The shared (remote) entry behind getSettings's in-memory one. */
+async function settingsShared(): Promise<Settings> {
   "use cache: remote";
   cacheLife("days");
   cacheTag("settings");
