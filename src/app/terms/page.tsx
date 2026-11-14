@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "תנאי שימוש", description: "
 export default async function TermsPage() {
   const business = await getBusiness();
   return (
-    <InfoPage title="תנאי שימוש">
+    <InfoPage title="תנאי שימוש" path="/terms">
       <InfoSection title="מחירים והצעות">
         <p>המחירים בקטלוג מתעדכנים מאתרי הספקים ומשמשים להערכה. המחיר המחייב הוא זה שבהצעת המחיר שהקבוצה אישרה.</p>
         <p>בקשה להצעת מחיר לא מחייבת. הזמנה נוצרת רק כשהקבוצה מאשרת הצעה, וכל שינוי בהצעה אחר כך צריך אישור מחדש.</p>

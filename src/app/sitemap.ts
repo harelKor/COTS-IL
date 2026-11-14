@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { INFO_LINKS } from "@/components/site-footer";
+import { INFO_LINKS } from "@/domain/site-nav";
 import { siteUrl } from "@/lib/site-url";
 import { vendorHref } from "@/domain/vendors";
 import { getFacets } from "@/lib/catalog";

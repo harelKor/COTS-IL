@@ -10,7 +10,7 @@ export default async function PrivacyPage() {
   // "Contact us" only where there is a way to: otherwise the message goes in an order's page.
   const hasContact = contactChannels(await getBusiness()).length > 0;
   return (
-    <InfoPage title="פרטיות">
+    <InfoPage title="פרטיות" path="/privacy">
       <InfoSection title="מה נשמר">
         <p>שם הקבוצה ומספרה, כתובות הדוא״ל שמתחברות לחשבון הקבוצה, פרטי מסירה, הסל, הבקשות וההזמנות.</p>
         <p>סל של מי שלא מחובר/ת נשמר רק בדפדפן שלו/ה.</p>

@@ -17,6 +17,7 @@ export default async function HowItWorksPage() {
   return (
     <InfoPage
       title="איך זה עובד"
+      path="/how-it-works"
       intro={
         <>
           COTS-IL מרכז ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מ-<VendorNames names={suppliers.map((s) => s.name)} />. הקבוצה בונה סל ושולחת בקשה, והספק הישראלי

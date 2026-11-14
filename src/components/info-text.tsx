@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { writeUsHref, type Block, type InfoDoc, type Inline } from "@/domain/info-text";
@@ -79,12 +80,10 @@ export function InfoBody({ doc, auto, faq }: { doc: InfoDoc; auto: Partial<Recor
     return (
       <div className="card-surface flex flex-col divide-y divide-line rounded-card px-5 sm:px-6">
         {doc.sections.map((s, n) => (
-          <details key={n} className="group py-2">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-medium">
+          <details key={n} open={n === 0} className="group py-2">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-medium [&::-webkit-details-marker]:hidden">
               <span>{text(s.title)}</span>
-              <span aria-hidden className="text-muted transition-transform group-open:rotate-45">
-                +
-              </span>
+              <ChevronDown size={20} strokeWidth={1.75} aria-hidden className="shrink-0 text-muted transition-transform duration-200 group-open:rotate-180" />
             </summary>
             <div className="flex flex-col gap-2 pb-3 leading-relaxed text-muted">
               <Blocks blocks={s.blocks} auto={auto} />

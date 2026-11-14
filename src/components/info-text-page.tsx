@@ -7,6 +7,7 @@ import { markupText } from "@/domain/pricing";
 import { pageText, type Business } from "@/domain/settings";
 import { getFacets } from "@/lib/catalog";
 import { getSettings, getSiteFacts } from "@/lib/settings";
+import { ContactButtons } from "./contact-buttons";
 import { InfoPage } from "./info-page";
 import { InfoBody, InfoIntro } from "./info-text";
 import { Ltr } from "./ltr";
@@ -99,16 +100,21 @@ export async function infoFacts(business: Business) {
 export async function InfoTextPage({ page }: { page: InfoPageKey }) {
   const { business, content } = await getSettings();
   const [blocks, facts] = await Promise.all([infoBlocks(business), infoFacts(business)]);
-  const doc = resolveInfo(parseInfoText(pageText(content, page)), facts, new Set(Object.keys(blocks)));
-  const title = INFO_PAGES.find((p) => p.key === page)!.title;
+  const contact = page === "contact";
+  // The contact page leads with the buttons, so its "how to reach us" list would say it twice.
+  const shown = contact ? Object.fromEntries(Object.entries(blocks).filter(([k]) => k !== "דרכי קשר")) : blocks;
+  const doc = resolveInfo(parseInfoText(pageText(content, page)), facts, new Set(Object.keys(shown)));
+  const { title, path } = INFO_PAGES.find((p) => p.key === page)!;
   // With no contact details yet, the contact page says where a question does get an answer.
-  const noContact = page === "contact" && !hasContactDetails(business);
+  const noContact = contact && !hasContactDetails(business);
   return (
     <InfoPage
       title={title}
+      path={path}
       lead={
         <>
-          <InfoIntro doc={doc} auto={blocks} />
+          {contact && <ContactButtons business={business} />}
+          <InfoIntro doc={doc} auto={shown} />
           {noContact && (
             <p className="text-muted">
               שאלה על בקשה ששלחתם נענית בדף ההזמנה שלה, יחד עם הצעת המחיר.{" "}
@@ -120,7 +126,7 @@ export async function InfoTextPage({ page }: { page: InfoPageKey }) {
         </>
       }
     >
-      <InfoBody doc={doc} auto={blocks} faq={page === "faq"} />
+      <InfoBody doc={doc} auto={shown} faq={page === "faq"} />
     </InfoPage>
   );
 }
