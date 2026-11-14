@@ -31,6 +31,7 @@ npm run db:reset         # rebuild local DB from migrations, then seed again
 npm run sync             # sync Shopify suppliers (npm run sync -- wcp for one), then regroup families
 npm run regroup          # rebuild product families from the DB, no fetching
 npm run icons            # redraw the app icons in public/ (manifest and Apple touch icon)
+npm run vendor-logos     # white-ink copies of public/vendors logos for the dark home page (public/vendors/on-dark)
 ```
 
 ## Production and access
@@ -66,7 +67,7 @@ Open:
 | To change | Look in |
 |---|---|
 | Home page (vendor boxes first, then categories across all vendors) | `src/app/page.tsx`, `src/components/vendor-boxes.tsx`, `src/components/category-showcase.tsx`, `src/components/home-command-bar.tsx` |
-| Home competition scene (navy canvas, the two 1690 photos, dark glass; Nov 14, 2026) | `src/components/home-scene.tsx`, `src/components/scroll-parallax.tsx`, "The home page as one competition photograph" at the end of `src/app/globals.css`; photos `public/orbit-1690-{tall,short}.jpg`, smaller copies from `npm run robot-photos` |
+| Home competition scene (navy canvas, Orbit royal blue, the two 1690 photos with splash masks and colour splashes, vendor-coloured glass boxes with white-ink logos; Nov 14, 2026) | `src/components/home-scene.tsx`, `src/components/scroll-parallax.tsx`, `vendorGlass`/`darkLogo` in `src/domain/vendors.ts`, "The home page as one competition photograph" at the end of `src/app/globals.css`; photos `public/orbit-1690-{tall,short}.jpg`, smaller copies from `npm run robot-photos`, logos from `npm run vendor-logos` |
 | Vendor stores `/v/<code>` (most wanted, groups, search; vendor prices on cards) | `src/app/v/[vendor]/page.tsx`, `getVendors`/`getVendorStore`/`getVendorPopular` and `toCards(rows, supplierCode)` in `src/lib/catalog.ts`, `src/domain/vendors.ts` |
 | Catalog queries, facets, search | `src/lib/catalog.ts`, `src/lib/catalog-filters.ts`, `src/app/api/search/route.ts` |
 | Catalog grid and filters | `src/app/catalog/page.tsx`, `src/components/catalog-browser.tsx`, `src/components/family-card.tsx` |

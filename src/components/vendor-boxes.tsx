@@ -1,7 +1,7 @@
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { aliveStyle } from "@/domain/alive";
-import { spansBoth, vendorBlurb, vendorHref } from "@/domain/vendors";
+import { spansBoth, vendorBlurb, vendorGlass, vendorHref } from "@/domain/vendors";
 import type { VendorSummary } from "@/lib/catalog";
 import { shopifyImage } from "@/lib/images";
 import { VendorMark } from "./vendor-mark";
@@ -49,7 +49,7 @@ function PhotoRow({ images, seed }: { images: string[]; seed: string }) {
 
 /**
  * The way into the site: one box per vendor in the `suppliers` table (a vendor added in the admin
- * appears by itself), with its logo on a white pill, its biggest categories, how many products and
+ * appears by itself), with its logo in white ink straight on glass tinted in its own colour, its biggest categories, how many products and
  * a row of its most wanted parts on white tiles, in dark glass over the home photos. The whole box
  * is one link to its store.
  * - "row": the first row, up to 3 across from 1024px, under the tall robot.
@@ -67,22 +67,23 @@ export function VendorBoxes({ vendors, layout, eager = 0 }: { vendors: VendorSum
           <li key={v.code} className={`@container ${wide}`}>
             <Link
               href={vendorHref(v.code)}
-              className="group glass-dark flex h-full flex-col gap-4 p-5 hover:-translate-y-0.5 lg:p-6"
+              style={vendorGlass(v) as React.CSSProperties}
+              className="group glass-dark vendor-glass flex h-full flex-col gap-4 p-5 hover:-translate-y-0.5 lg:p-6"
             >
               <span className="flex items-start justify-between gap-3">
-                <span className="flex min-w-0 flex-col items-start gap-2">
-                  {/* The heading is the vendor's logo (alt = its name), or its name when it has none, on a white pill. */}
-                  <h3 className="logo-pill flex min-h-12 items-center rounded-xl bg-white/95 px-3.5 py-1.5 shadow-sm">
-                    <VendorMark name={v.name} logoUrl={v.logoUrl} size="pill" eager={i < eager} />
+                <span className="flex min-w-0 flex-col items-start gap-2.5">
+                  {/* The heading is the vendor's logo (alt = its name), white ink straight on the glass, or its name when it has none. */}
+                  <h3 className="flex min-h-14 items-center">
+                    <VendorMark name={v.name} logoUrl={v.logoUrl} size="card" tone="dark" eager={i < eager} />
                   </h3>
                   {blurb && <span className="line-clamp-2 text-caption leading-snug text-muted">{blurb}</span>}
                 </span>
-                <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-0.5 text-caption font-semibold text-brand tabular-nums">
+                <span className="vendor-count shrink-0 rounded-full px-2.5 py-0.5 text-caption font-semibold tabular-nums">
                   {v.count.toLocaleString("he-IL")} מוצרים
                 </span>
               </span>
               <PhotoRow images={v.images} seed={v.code} />
-              <span className="mt-auto flex items-center gap-1 text-callout font-semibold text-brand">
+              <span className="vendor-go mt-auto flex items-center gap-1 text-callout font-semibold">
                 לחנות
                 <ChevronLeft size={20} strokeWidth={1.75} aria-hidden className="transition-transform duration-300 ease-out group-hover:-translate-x-0.5" />
               </span>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accentColor, accentStyle, isStoreFront, vendorBlurb, vendorHref, vendorRows, spansBoth } from "./vendors";
+import { accentColor, accentStyle, darkLogo, isStoreFront, vendorBlurb, vendorGlass, vendorHref, vendorRows, spansBoth } from "./vendors";
 
 describe("vendorHref", () => {
   it("puts the vendor in the path and drops ?supplier=", () => {
@@ -60,5 +60,29 @@ describe("spansBoth", () => {
     }
     expect([0, 1, 2].map((i) => spansBoth(i, 3))).toEqual([false, false, true]);
     expect([0, 1, 2, 3].map((i) => spansBoth(i, 4))).toEqual([false, false, false, false]);
+  });
+});
+
+describe("vendorGlass", () => {
+  it("gives the known vendors their own colours, by code or by name", () => {
+    expect(vendorGlass({ code: "gobilda", name: "goBILDA" })["--v-deep"]).toBe("#f59e0b");
+    expect(vendorGlass({ code: "swerve", name: "Swerve Drive Specialties" })["--v-light"]).toBe("#cbd5e1");
+    expect(vendorGlass({ code: "ttb", name: "The Thrifty Bot" })["--v-deep"]).toBe("#10b981");
+  });
+  it("falls back to the admin's accent, then Orbit blue", () => {
+    expect(vendorGlass({ code: "acme", name: "Acme", accentColor: "#123456" })).toEqual({ "--v-deep": "#123456", "--v-light": "#123456" });
+    expect(vendorGlass({ code: "acme", name: "Acme", accentColor: null })["--v-deep"]).toBe("#0a58ff");
+  });
+});
+
+describe("darkLogo", () => {
+  it("maps a bundled logo, by path or full URL, to its white-ink copy", () => {
+    expect(darkLogo("https://cots-il.vercel.app/vendors/gobilda.svg")).toBe("/vendors/on-dark/gobilda.png");
+    expect(darkLogo("http://localhost:3005/vendors/wcp.png")).toBe("/vendors/on-dark/wcp.png");
+    expect(darkLogo("/vendors/sds.png")).toBe("/vendors/on-dark/sds.png");
+  });
+  it("leaves uploads and missing logos alone", () => {
+    expect(darkLogo("https://x.supabase.co/storage/v1/object/public/supplier-logos/acme.png")).toBeNull();
+    expect(darkLogo(null)).toBeNull();
   });
 });

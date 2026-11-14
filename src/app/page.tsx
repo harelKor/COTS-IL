@@ -63,8 +63,8 @@ async function TeamNotice() {
 }
 
 /**
- * The way in: one box per vendor. The first row runs across the page right under the tall
- * robot's bumpers; the rest sit in a 2-column grid on the right on a desktop, leaving the left
+ * The way in: one box per vendor. The first row runs across the page in front of the tall robot's
+ * lower half, visible on load; the rest sit in a 2-column grid on the right on a desktop, leaving the left
  * lane open for the short robot (on phones, a window between the two groups shows it).
  */
 async function Vendors() {
@@ -211,14 +211,24 @@ export default function HomePage() {
         <ScrollParallax />
         <OrganizationJsonLd />
 
-        {/* The motto in the left part (on phones, at the top); the hero ends where the robot's bumpers do. */}
+        {/*
+          A short hero, so the first vendor row shows on load: the motto toward the middle, the tall
+          robot behind it on the right, running down behind the first row.
+        */}
         <section className="scene-hero relative flex flex-col">
-          <div aria-hidden className="scene-carpet pointer-events-none absolute -z-10" />
           <ScenePhoto kind="tall" />
-          <div className="scene-hero-lane flex flex-col gap-6">
+          <div className="scene-hero-lane flex flex-col gap-4">
+            <p className="scene-eyebrow flex w-fit items-center gap-2 rounded-full px-3 py-1 text-caption font-medium">
+              <span aria-hidden className="scene-eyebrow-dot size-1.5 rounded-full" />
+              פלטפורמת הרכש לקבוצות רובוטיקה בישראל
+            </p>
             <h1 className="motto">
-              ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים, <span className="motto-accent">בהזמנה אחת</span>
+              <span className="block">
+                ציוד <Ltr className="motto-latin">FRC</Ltr> ו-<Ltr className="motto-latin">FTC</Ltr> מכל הספקים,
+              </span>
+              <span className="motto-accent block">בהזמנה אחת</span>
             </h1>
+            <p className="motto-sub text-body">כל החלקים הרשמיים, משלוח מרוכז ומק״טים מדויקים במקום אחד.</p>
             <Suspense>
               <TeamNotice />
             </Suspense>

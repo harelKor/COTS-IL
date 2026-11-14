@@ -19,6 +19,7 @@
     "admin": "tsx scripts/admin.ts",
     "icons": "node scripts/app-icons.mjs",
     "robot-photos": "node scripts/robot-photos.mjs",
+    "vendor-logos": "node scripts/vendor-logos-dark.mjs",
     "e2e": "playwright test",
     "supabase:start": "supabase start"
   },

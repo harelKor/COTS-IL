@@ -24,11 +24,11 @@ export function CartButton() {
       type="button"
       onClick={openCart}
       aria-label={count > 0 ? `הסל, ${count} פריטים` : "הסל"}
-      className="relative flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-white/90 shadow-2xs hover:bg-subtle text-foreground transition-colors"
+      className="cart-button relative flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-white/90 shadow-2xs hover:bg-subtle text-foreground transition-colors"
     >
       <ShoppingBag size={20} strokeWidth={1.75} aria-hidden />
       {count > 0 && (
-        <span className="absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-caption font-semibold text-white tabular-nums ring-2 ring-white">
+        <span className="cart-count absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-caption font-semibold text-white tabular-nums ring-2 ring-white">
           {count > 99 ? "99+" : count}
         </span>
       )}
