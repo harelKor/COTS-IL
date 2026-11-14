@@ -1,3 +1,4 @@
+import { BatteryFull, Bolt, Cable, Camera, Cpu, Disc3, Wrench, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 /**
@@ -88,6 +89,17 @@ const DOODLES: Doodle[] = [
   { shape: "spark", top: "6%", start: "70%", size: 16, tint: "text-brand/25", wide: true, d: 4.5 },
 ];
 
+/** Product line icons that drift slowly across the empty space, in Orbit's blue and purple. */
+const PARTS: { icon: LucideIcon; top: string; start: string; size: number; tint: string; dur: number; delay: number; wide?: boolean }[] = [
+  { icon: Cpu, top: "18%", start: "12%", size: 26, tint: "text-orbit-blue/25", dur: 70, delay: -10 },
+  { icon: BatteryFull, top: "36%", start: "78%", size: 24, tint: "text-orbit-purple/30", dur: 85, delay: -30, wide: true },
+  { icon: Bolt, top: "62%", start: "20%", size: 22, tint: "text-brand/25", dur: 64, delay: -5 },
+  { icon: Disc3, top: "74%", start: "70%", size: 28, tint: "text-orbit-blue/22", dur: 90, delay: -50, wide: true },
+  { icon: Cable, top: "48%", start: "48%", size: 24, tint: "text-orbit-purple/25", dur: 76, delay: -20, wide: true },
+  { icon: Wrench, top: "86%", start: "40%", size: 22, tint: "text-brand/22", dur: 68, delay: -40 },
+  { icon: Camera, top: "28%", start: "35%", size: 22, tint: "text-orbit-blue/22", dur: 80, delay: -60, wide: true },
+];
+
 export function FrcDoodles() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -95,6 +107,18 @@ export function FrcDoodles() {
       <div className="doodle-wash absolute -top-24 start-[-10%] size-[420px] rounded-full bg-sky-300/25 blur-3xl" />
       <div className="doodle-wash absolute top-[35%] end-[-12%] size-[480px] rounded-full bg-brand/10 blur-3xl [animation-delay:-6s]" />
       <div className="doodle-wash absolute bottom-[-10%] start-[15%] size-[380px] rounded-full bg-amber-200/20 blur-3xl [animation-delay:-12s]" />
+      {/* Orbit 1690: a hint of its LED purple and bumper blue. */}
+      <div className="doodle-wash absolute top-[55%] start-[-8%] size-[360px] rounded-full bg-orbit-purple/10 blur-3xl [animation-delay:-3s]" />
+      <div className="doodle-wash absolute bottom-[5%] end-[5%] size-[320px] rounded-full bg-orbit-blue/10 blur-3xl [animation-delay:-9s]" />
+      {PARTS.map(({ icon: Icon, ...p }, i) => (
+        <span
+          key={`p${i}`}
+          style={{ top: p.top, insetInlineStart: p.start, "--dur": `${p.dur}s`, "--delay": `${p.delay}s` } as React.CSSProperties}
+          className={`part-float absolute ${p.tint} ${p.wide ? "hidden lg:block" : ""}`}
+        >
+          <Icon size={p.size} strokeWidth={1.5} />
+        </span>
+      ))}
       {DOODLES.map((d, i) => (
         <svg
           key={i}

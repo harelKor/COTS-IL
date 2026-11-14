@@ -3,6 +3,7 @@ import { Suspense, ViewTransition } from "react";
 import { GroupBoxes } from "@/components/group-boxes";
 import { VendorBoxes } from "@/components/vendor-boxes";
 import { FrcDoodles } from "@/components/frc-doodles";
+import { RobotBackdrop } from "@/components/robot-backdrop";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
 import { ReorderButton } from "@/components/reorder-button";
@@ -187,6 +188,7 @@ export default function HomePage() {
     <ViewTransition enter="page-enter" exit="page-exit" default="none">
       <div className="flex flex-col gap-8">
         <FrcDoodles />
+        <RobotBackdrop />
         <OrganizationJsonLd />
         <Suspense>
           <TeamNotice />

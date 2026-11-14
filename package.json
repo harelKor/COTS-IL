@@ -18,6 +18,7 @@
     "regroup": "tsx scripts/regroup.ts",
     "admin": "tsx scripts/admin.ts",
     "icons": "node scripts/app-icons.mjs",
+    "robot-photos": "node scripts/robot-photos.mjs",
     "e2e": "playwright test",
     "supabase:start": "supabase start"
   },
