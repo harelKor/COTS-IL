@@ -118,6 +118,8 @@
 
 /* An ice-blue atmospheric fade at the top of every page, settling into the background. */
 body {
+  /* Full-bleed home layers are 100vw wide: clip the scrollbar's sliver (clip keeps sticky working). */
+  overflow-x: clip;
   background-color: var(--background);
   background-image: radial-gradient(110% 520px at 50% 0%, #d6e6ff 0%, #ebf3ff 48%, transparent 100%);
   background-repeat: no-repeat;
@@ -683,6 +685,7 @@ dialog.sheet-side.sheet-wide {
 
 /* Re-declared where they're used, so a vendor's --accent (set on the box itself) tints them. */
 .glow-box,
+.glass-box,
 .glow-outline,
 .glow-card {
   /* The vendor's second brand colour, or a lighter shade of its first. */
@@ -813,6 +816,7 @@ dialog.sheet-side.sheet-wide {
 
 @media (prefers-reduced-motion: reduce) {
   .glow-box::after,
+  .glass-box::after,
   .glow-outline::after,
   .glow-card::before {
     transition: none;
@@ -850,74 +854,154 @@ dialog.sheet-side.sheet-wide {
 }
 
 /*
- * The home page's robot backdrop (robot-backdrop.tsx): team 1690 Orbit's colours, the bumper's
- * royal blue and a hint of the LED purple. The photo hugs the right edge (start, in RTL), half
- * see-through, its inner and bottom edges fading into the page; a wash of the same colours ties
- * it to the area beside it. Phones get a smaller, fainter top band.
+ * Team 1690 Orbit's palette for the home page: deep royal blue, electric cyan highlights, clean
+ * whites, metallic silver, and a faint warm alliance-red glow lower down (the red-bumper robot).
  */
 :root {
-  --orbit-blue: #2446c8;
+  --orbit-blue: #1d4ed8;
+  --orbit-royal: #0a3899;
+  --orbit-cyan: #38bdf8;
   --orbit-purple: #9b5cf6;
+  --orbit-red: #e11d48;
+  --orbit-silver: #94a3b8;
 }
-.robot-backdrop {
-  width: 72vw;
-  height: 400px;
-  opacity: 0.3;
-  -webkit-mask-image: linear-gradient(to left, #000 30%, transparent 100%), linear-gradient(to bottom, #000 40%, transparent 100%);
-  mask-image: linear-gradient(to left, #000 30%, transparent 100%), linear-gradient(to bottom, #000 40%, transparent 100%);
+
+/*
+ * The home page as one continuous competition photograph (page.tsx, robot-backdrop.tsx).
+ * .home-ambient spans the whole page, edge to edge, from under the navbar to the footer: royal
+ * blue and cyan at the top, silver through the middle, a faint alliance red low on the left.
+ * Full-bleed layers sit at calc(50% - 50vw) of the home column; body clips the scrollbar's sliver.
+ */
+.home-ambient {
+  top: -84px;
+  bottom: -64px;
+  inset-inline-start: calc(50% - 50vw);
+  width: 100vw;
+  background:
+    radial-gradient(60% 900px at 85% 0%, color-mix(in srgb, var(--orbit-blue) 16%, transparent), transparent 70%),
+    radial-gradient(45% 700px at 30% 6%, color-mix(in srgb, var(--orbit-cyan) 13%, transparent), transparent 70%),
+    radial-gradient(70% 30% at 50% 45%, color-mix(in srgb, var(--orbit-silver) 10%, transparent), transparent 75%),
+    radial-gradient(55% 28% at 10% 62%, color-mix(in srgb, var(--orbit-red) 7%, transparent), transparent 75%),
+    radial-gradient(60% 25% at 85% 88%, color-mix(in srgb, var(--orbit-royal) 9%, transparent), transparent 75%);
+}
+
+/* The tall robot: the right edge (start, in RTL), from under the navbar, as tall as the window and more. */
+.robot-slot-hero {
+  top: -84px;
+  inset-inline-start: calc(50% - 50vw);
+  height: clamp(560px, 112vh, 1180px);
+  aspect-ratio: 1421 / 1993;
+  /* Never wider than the window: the photo is contained, so it just gets smaller. */
+  max-width: 100vw;
+  opacity: 0.32;
+  -webkit-mask-image: linear-gradient(to bottom, #000 88%, transparent), linear-gradient(to left, #000 80%, transparent);
+  mask-image: linear-gradient(to bottom, #000 88%, transparent), linear-gradient(to left, #000 80%, transparent);
   -webkit-mask-composite: source-in;
   mask-composite: intersect;
 }
-/*
- * From 640px the whole robot fits on screen: the box starts under the header, is as tall as the
- * hero (as tall as the window on wide screens) and a little wider than the photo, which sits whole against the
- * right edge (contained, never cropped). The photo itself turns see-through away from the robot.
- */
 @media (min-width: 640px) {
-  .robot-backdrop {
-    top: 52px;
-    height: 430px;
-    aspect-ratio: 1450 / 1660;
-    width: auto;
-    max-width: 52vw;
-    opacity: 0.38;
-    /* The photo's haze already melts away from the robot (see scripts/robot-photos.mjs): only the wash needs fading. */
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
-  .robot-backdrop .robot-photo {
-    object-fit: contain;
-    object-position: 100% 50%;
+  .robot-slot-hero {
+    opacity: 0.45;
   }
 }
-/* Laptops: the robot stands whole in the open hero beside the motto, above the vendor boxes. */
 @media (min-width: 1024px) {
-  .robot-backdrop {
-    opacity: 0.5;
+  .robot-slot-hero {
+    opacity: 0.94;
+    -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent), linear-gradient(to left, #000 88%, transparent);
+    mask-image: linear-gradient(to bottom, #000 90%, transparent), linear-gradient(to left, #000 88%, transparent);
   }
 }
-/* Wide screens have an empty margin beside the content: the robot grows to the window's height. */
-@media (min-width: 1700px) {
-  .robot-backdrop {
-    height: clamp(520px, calc(100dvh - 72px), 1000px);
+
+/* The compact robot: the left edge (end, in RTL), behind the lower vendor cards and "גלו עוד". */
+.robot-slot-lower {
+  top: 24%;
+  inset-inline-end: calc(50% - 50vw);
+  width: min(92vw, 760px);
+  aspect-ratio: 800 / 598;
+  opacity: 0.4;
+  -webkit-mask-image: radial-gradient(75% 80% at 60% 55%, #000 55%, transparent 100%);
+  mask-image: radial-gradient(75% 80% at 60% 55%, #000 55%, transparent 100%);
+}
+@media (min-width: 640px) {
+  .robot-slot-lower {
+    width: min(48vw, 760px);
+    opacity: 0.85;
   }
 }
+
 .robot-photo {
-  object-position: var(--focus, 50% 40%);
-  filter: saturate(0.92) contrast(0.96);
+  filter: saturate(0.95) contrast(1.02);
 }
 @media (prefers-reduced-motion: no-preference) {
   .robot-photo {
     transition: opacity 1600ms ease-in-out;
   }
 }
+/* A royal blue and cyan colour wash over each photo, every wave ending inside its box. */
 .robot-wash {
-  /* closest-side: every wave ends inside the box, so the box's edge never shows. */
   background:
-    radial-gradient(closest-side at 56% 30%, color-mix(in srgb, var(--orbit-purple) 18%, transparent), transparent),
-    radial-gradient(closest-side at 58% 62%, color-mix(in srgb, var(--orbit-blue) 34%, transparent), transparent),
-    radial-gradient(closest-side at 66% 85%, color-mix(in srgb, var(--orbit-blue) 26%, transparent), transparent);
+    radial-gradient(closest-side at 50% 28%, color-mix(in srgb, var(--orbit-cyan) 22%, transparent), transparent),
+    radial-gradient(closest-side at 55% 62%, color-mix(in srgb, var(--orbit-blue) 30%, transparent), transparent),
+    radial-gradient(closest-side at 40% 50%, color-mix(in srgb, var(--orbit-royal) 18%, transparent), transparent);
   mix-blend-mode: soft-light;
+}
+.robot-slot-lower .robot-wash {
+  background:
+    radial-gradient(closest-side at 60% 60%, color-mix(in srgb, var(--orbit-red) 16%, transparent), transparent),
+    radial-gradient(closest-side at 40% 40%, color-mix(in srgb, var(--orbit-blue) 22%, transparent), transparent);
+}
+
+/*
+ * The motto, in Orbit's athletic style: Rubik at its heaviest (like the team's bumper numbers),
+ * tight, with a soft white halo so it reads over the robot. "בהזמנה אחת" runs royal to cyan.
+ */
+.motto {
+  font-family: var(--font-display), var(--font-sans);
+  font-weight: 900;
+  font-size: clamp(40px, 5.4vw, 84px);
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  color: var(--foreground);
+  filter: drop-shadow(0 0 22px color-mix(in srgb, #f6f9ff 90%, transparent)) drop-shadow(0 2px 0 color-mix(in srgb, #ffffff 70%, transparent));
+}
+.motto-accent {
+  background: linear-gradient(100deg, var(--orbit-royal) 0%, var(--orbit-blue) 45%, var(--orbit-cyan) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/*
+ * The vendor boxes as refined glass over the photo: white at about 75%, blurred behind,
+ * a translucent border in the vendor's colour, an inner highlight and the vendor's glow.
+ */
+@utility glass-box {
+  position: relative;
+  isolation: isolate;
+  border-radius: 22px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  background:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent) 0%, transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, rgb(255 255 255 / 0.8)) 0%, rgb(255 255 255 / 0.74) 55%, rgb(255 255 255 / 0.8) 100%);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.85), inset 0 0 0 1px rgb(255 255 255 / 0.35), var(--glow);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -1.5px;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow: var(--glow-strong);
+    opacity: 0;
+    transition: opacity 250ms var(--ease-out);
+  }
+  &:hover::after,
+  &:focus-visible::after {
+    opacity: 1;
+  }
 }
 
 /* Product line icons drifting slowly across the empty background (frc-doodles.tsx); still under reduced motion. */

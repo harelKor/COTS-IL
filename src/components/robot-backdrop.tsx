@@ -1,27 +1,33 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { israelDay, photoOfTheDay, photoSrc, ROBOT_PHOTOS } from "@/domain/robot-photos";
+import { israelDay, photoOfTheDay, photoSrc, photoSrcSet, ROBOT_PHOTOS, type RobotSlot } from "@/domain/robot-photos";
 
-/** Seconds each photo stays before the next fades in (only when there is more than one). */
+/** How long each photo stays before the next fades in (only when a slot has more than one). */
 const HOLD_MS = 14_000;
 
 const noSubscribe = () => () => {};
-/** Today's photo on the client; the server renders the first (a date there would break the static render). */
-const todayIndex = () => photoOfTheDay(ROBOT_PHOTOS.length, israelDay(new Date()));
+
+const SIZES: Record<RobotSlot, string> = {
+  hero: "(min-width: 1024px) min(82vh, 840px), 92vw",
+  lower: "(min-width: 640px) min(48vw, 760px), 92vw",
+};
 
 /**
- * The home page's backdrop: a 1690 Orbit robot on the right edge of the page (the start side in
- * RTL), behind the vendor boxes' top area. Pale and half see-through, its inner and bottom edges
- * fade into the page, and an Orbit wash (royal blue, a hint of the LED purple) blends it into the
- * area around it. With more photos it starts on the photo of the day and crossfades to the next
- * every 14 s (1.6 s fade; never under reduced motion). Decorative, hidden from assistive tech,
- * absolutely placed so nothing moves when it loads. A smaller, fainter band on phones.
+ * A 1690 Orbit robot behind the home page, in one of two slots: "hero" (the tall robot on the
+ * right edge, beside the motto, its chassis running down behind the first vendor cards) and
+ * "lower" (the compact robot on the left edge, behind the lower vendor cards and "גלו עוד").
+ * The photos are prepared transparent (the robot sharp, the arena a blue texture that melts
+ * away), and globals.css places, sizes, masks and tints each slot. Several photos in a slot start
+ * on the photo of the day and crossfade every 14 s (1.6 s; never under reduced motion).
+ * Decorative and hidden from assistive tech; absolutely placed, so nothing shifts as it loads.
  */
-export function RobotBackdrop() {
-  const first = useSyncExternalStore(noSubscribe, todayIndex, () => 0);
+export function RobotBackdrop({ slot }: { slot: RobotSlot }) {
+  const photos = ROBOT_PHOTOS[slot];
+  const count = photos.length;
+  // Today's photo on the client; the server renders the first (a date there would break the static render).
+  const first = useSyncExternalStore(noSubscribe, () => photoOfTheDay(count, israelDay(new Date())), () => 0);
   const [step, setStep] = useState(0);
-  const count = ROBOT_PHOTOS.length;
 
   useEffect(() => {
     if (count < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -29,25 +35,28 @@ export function RobotBackdrop() {
     return () => clearInterval(timer);
   }, [count]);
 
-  const active = (first + step) % Math.max(count, 1);
-  // Only the photo fading out, the one in view and the next are in the page: later photos load just before they show.
+  if (count === 0) return null;
+  const active = (first + step) % count;
+  // Only the photo fading out, the one in view and the next are in the page.
   const shown = count < 2 ? [active] : [...new Set([(active - 1 + count) % count, active, (active + 1) % count])].sort((a, b) => a - b);
 
   return (
-    <div aria-hidden className="robot-backdrop pointer-events-none absolute top-0 start-0 -z-10 overflow-hidden">
+    <div aria-hidden className={`robot-slot robot-slot-${slot} pointer-events-none absolute -z-10 overflow-hidden`}>
       {shown.map((i) => {
-        const p = ROBOT_PHOTOS[i];
+        const p = photos[i];
         return (
           <picture key={p.id}>
-            <source type="image/avif" srcSet={`${photoSrc(p.id, 640, "avif")} 640w, ${photoSrc(p.id, 960, "avif")} 960w`} sizes="(min-width: 640px) 46vw, 72vw" />
-            <source type="image/webp" srcSet={`${photoSrc(p.id, 640, "webp")} 640w, ${photoSrc(p.id, 960, "webp")} 960w`} sizes="(min-width: 640px) 46vw, 72vw" />
+            <source type="image/avif" srcSet={photoSrcSet(p, "avif")} sizes={SIZES[slot]} />
+            <source type="image/webp" srcSet={photoSrcSet(p, "webp")} sizes={SIZES[slot]} />
             <img
-              src={photoSrc(p.id, 960, "webp")}
+              src={photoSrc(p.id, p.widths[1] ?? p.widths[0], "webp")}
               alt=""
+              width={p.width}
+              height={p.height}
               decoding="async"
-              fetchPriority="low"
-              style={{ "--focus": p.focus } as React.CSSProperties}
-              className={`robot-photo absolute inset-0 size-full object-cover ${i === active ? "opacity-100" : "opacity-0"}`}
+              loading={slot === "hero" ? "eager" : "lazy"}
+              fetchPriority={slot === "hero" ? "high" : "low"}
+              className={`robot-photo absolute inset-0 size-full object-contain ${i === active ? "opacity-100" : "opacity-0"}`}
             />
           </picture>
         );

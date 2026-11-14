@@ -66,7 +66,7 @@ async function Vendors() {
   const vendors = await getVendors();
   return (
     <section id="vendors" aria-labelledby="vendors-title" className="scroll-mt-20">
-      <h2 id="vendors-title" className="mb-4 flex items-center gap-2 text-section font-semibold">
+      <h2 id="vendors-title" className="mb-4 flex w-fit items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-section font-semibold shadow-2xs backdrop-blur-md">
         <Cog size={20} strokeWidth={1.75} aria-hidden className="doodle-spin text-brand" />
         מאיזה ספק קונים?
       </h2>
@@ -186,35 +186,40 @@ async function OrganizationJsonLd() {
 export default function HomePage() {
   return (
     <ViewTransition enter="page-enter" exit="page-exit" default="none">
-      <div className="flex flex-col gap-8">
+      {/* One continuous competition photograph: the ambient tones run from under the navbar to the footer. */}
+      <div className="relative isolate flex flex-col gap-8">
+        <div aria-hidden className="home-ambient pointer-events-none absolute -z-20" />
         <FrcDoodles />
-        <RobotBackdrop />
+        <RobotBackdrop slot="hero" />
         <OrganizationJsonLd />
         <Suspense>
           <TeamNotice />
         </Suspense>
 
-        {/* The motto alone, centred in open space: the robot backdrop fades in around it on the right. */}
-        <section className="flex flex-col items-center justify-center py-12 text-center sm:min-h-[380px]">
-          <h1 className="max-w-3xl text-hero-sm font-semibold sm:text-hero">
-            ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים,{" "}
-            <span className="text-brand-gradient">בהזמנה אחת</span>
+        {/* The motto alone, in open space: on a desktop in the left part, the tall robot on the right. */}
+        <section className="grid min-h-[min(62vh,520px)] items-center py-10 lg:min-h-[calc(70vh-84px)] lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <h1 className="motto mx-auto max-w-[14ch] text-center lg:col-start-2">
+            ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים, <span className="motto-accent">בהזמנה אחת</span>
           </h1>
         </section>
 
-        <Suspense
-          fallback={
-            <Loading>
-              <TileGridSkeleton count={4} />
-            </Loading>
-          }
-        >
-          <Vendors />
-        </Suspense>
+        {/* The vendors and today's picks, with the compact robot on the left edge behind them. */}
+        <div className="relative flex flex-col gap-8">
+          <RobotBackdrop slot="lower" />
+          <Suspense
+            fallback={
+              <Loading>
+                <TileGridSkeleton count={4} />
+              </Loading>
+            }
+          >
+            <Vendors />
+          </Suspense>
 
-        <Suspense>
-          <Discover />
-        </Suspense>
+          <Suspense>
+            <Discover />
+          </Suspense>
+        </div>
 
         <ValueStrip />
 

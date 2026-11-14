@@ -66,7 +66,7 @@ export function VendorBoxes({ vendors }: { vendors: VendorSummary[] }) {
             <Link
               href={vendorHref(v.code)}
               style={accentStyle(v.accentColor, v.accentColor2)}
-              className="group glow-box flex h-full flex-col gap-4 p-5 transition-[translate] duration-200 ease-out hover:-translate-y-0.5 lg:p-6 @4xl:flex-row @4xl:items-center @4xl:gap-8"
+              className="group glass-box flex h-full flex-col gap-4 p-5 transition-[translate] duration-200 ease-out hover:-translate-y-0.5 lg:p-6 @4xl:flex-row @4xl:items-center @4xl:gap-8"
             >
               <span className="flex items-start justify-between gap-3 @4xl:w-72 @4xl:shrink-0">
                 <span className="flex min-w-0 flex-col items-start gap-2">

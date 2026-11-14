@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
-import { Heebo } from "next/font/google";
+import { Heebo, Rubik } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CartPill } from "@/components/cart-pill";
@@ -19,6 +19,14 @@ const heebo = Heebo({
   variable: "--font-heebo",
   subsets: ["hebrew", "latin"],
   preload: false,
+});
+
+// The home motto's athletic display face (Orbit 1690's heavy, rounded bumper numbers).
+const rubik = Rubik({
+  variable: "--font-display",
+  subsets: ["hebrew", "latin"],
+  weight: ["900"],
+  display: "swap",
 });
 
 const SITE_NAME = "COTS-IL";
@@ -41,7 +49,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} h-full antialiased`}>
+    <html lang="he" dir="rtl" className={`${heebo.variable} ${rubik.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
         {/* Before hydration, so the browser's install prompt isn't missed (src/components/install-app.tsx). */}
         <script dangerouslySetInnerHTML={{ __html: CAPTURE_INSTALL_PROMPT }} />
