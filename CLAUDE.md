@@ -73,7 +73,7 @@ Open:
 | Catalog grid and filters | `src/app/catalog/page.tsx`, `src/components/catalog-browser.tsx`, `src/components/family-card.tsx` |
 | Product (family) page (`?v=` a variant id or SKU, `?vendor=` settles a SKU two vendors share: `findLinked`/`variantParam` in `src/domain/families/link.ts`) | `src/app/catalog/p/[slug]/page.tsx`, `src/components/family-view.tsx` |
 | Cart sheet and sending a request | `src/components/cart-pill.tsx`, `cart-panel.tsx`, `cart-store.ts`, `src/app/cart/actions.ts` |
-| Header, search panel | `src/components/site-header.tsx`, `src/components/search-panel.tsx` |
+| Header, search panel (T18: "קטגוריות" and "ספקים" menus from 1024px, inside the account/guest menu below that; `HeaderMenu` is a popover disclosure) | `src/components/site-header.tsx`, `src/components/header-menu.tsx`, `src/components/header-nav.tsx`, `src/lib/header-nav.ts`, `src/components/search-panel.tsx` |
 | Orders, quotes, approvals | `src/app/orders`, `src/app/q/[token]`, `src/lib/orders.ts`, `src/domain/orders.ts` |
 | Admin: `/admin` (כל ההזמנות), `/admin/purchasing` (הזמנות ספקים), order cards | `src/app/admin/*` (guarded by `requireAdmin`), `src/lib/admin-orders.ts`, `src/domain/admin-orders.ts`, `src/lib/purchasing.ts` |
 | Catalog overrides (`/admin/catalog`: hide, photos, category, merge, pin) | `src/app/admin/catalog`, `src/domain/catalog-overrides.ts` |

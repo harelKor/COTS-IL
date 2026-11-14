@@ -1,29 +1,31 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Boxes, Check } from "lucide-react";
+import { Boxes, Check, Menu, UserRound } from "lucide-react";
 import { switchTeam } from "@/app/cart/actions";
+import { teamDisplay } from "@/domain/display";
 import { getViewer, orderingTeam, orderingTeams } from "@/lib/auth";
 import { googleSignInEnabled } from "@/lib/auth-providers";
+import { getHeaderNav } from "@/lib/header-nav";
 import { priceContext } from "@/lib/settings";
 import { getCart, getCheckoutDefaults, toSheetLine } from "@/lib/orders";
 import type { CartState } from "./cart-store";
 import { CartButton } from "./cart-pill";
 import { CartSync } from "./cart-sync";
+import { HeaderMenu } from "./header-menu";
+import { HeaderNav, HeaderNavFallback, menuLink, MenuNavSections } from "./header-nav";
 import { InstallAppButton } from "./install-app";
 import { Ltr } from "./ltr";
 import { SearchPanel } from "./search-panel";
 import { SignInLink } from "./sign-in-link";
 import { SignOutButton } from "./sign-out-button";
 
-const menuLink = "flex h-11 items-center rounded-lg px-3 hover:bg-subtle";
-
 /**
- * Everything in the header that depends on who is signed in: the account menu,
- * and the cart handed to the cart pill. Streams in after the static header.
+ * Everything in the header that depends on who is signed in: the account menu (below 1024px also
+ * the categories and vendors), and the cart handed to the cart pill. Streams in after the static header.
  */
 async function Account() {
-  // All at once: the session, the Google flag and the price settings (both cached) don't wait on each other.
-  const [viewer, googleSignIn, prices] = await Promise.all([getViewer(), googleSignInEnabled(), priceContext()]);
+  // All at once: the session, the Google flag, the price settings and the menu's lists (all but the session cached).
+  const [viewer, googleSignIn, prices, nav] = await Promise.all([getViewer(), googleSignInEnabled(), priceContext(), getHeaderNav()]);
   const team = viewer && orderingTeam(viewer);
 
   let cart: CartState;
@@ -40,35 +42,59 @@ async function Account() {
   }
 
   if (!viewer) {
+    // A guest: "כניסה" from 640px, and below 1024px a menu with the categories and vendors ("כניסה" too on phones).
     return (
       <>
         <CartSync cart={cart} />
-        <SignInLink />
+        <span className="hidden sm:contents">
+          <SignInLink />
+        </span>
+        <HeaderMenu
+          id="account-menu"
+          label="תפריט"
+          trigger={<Menu size={20} strokeWidth={1.75} aria-hidden />}
+          chevron={false}
+          triggerClassName="account-chip flex size-11 shrink-0 items-center justify-center rounded-full border transition-colors lg:hidden"
+          width={320}
+          align="end"
+          panelClassName="lg:hidden"
+        >
+          <div className="flex flex-col border-b border-line pb-1 sm:hidden">
+            <SignInLink className={`${menuLink} font-semibold text-brand`} />
+          </div>
+          <MenuNavSections nav={nav} />
+          <div className="flex flex-col pt-1 empty:hidden">
+            <InstallAppButton variant="menu" />
+          </div>
+        </HeaderMenu>
       </>
     );
   }
 
   const shown = team ?? viewer.teams[0];
   const switchable = orderingTeams(viewer);
-  const initial = shown ? String(shown.number).slice(0, 4) : viewer.email.slice(0, 1).toUpperCase();
 
   return (
     <>
       <CartSync cart={cart} />
-      <button
-        type="button"
-        popoverTarget="account-menu"
-        aria-label="החשבון שלי"
-        className="group flex size-11 shrink-0 items-center justify-center"
-      >
-        <span className="account-chip flex h-9 min-w-9 items-center justify-center rounded-full border border-line bg-surface px-1.5 text-caption font-semibold tabular-nums shadow-2xs transition-colors group-hover:bg-subtle">
-          {initial}
-        </span>
-      </button>
-      <div
+      <HeaderMenu
         id="account-menu"
-        popover="auto"
-        className="fixed inset-auto end-4 top-[60px] m-0 w-64 rounded-card border border-line bg-surface p-2 text-callout text-foreground shadow-lift"
+        label={shown ? `${teamDisplay(shown)}, החשבון` : "החשבון שלי"}
+        trigger={
+          shown ? (
+            // The team the cart and orders belong to: its number, and from 1280px its name too.
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="hidden max-w-[10rem] truncate xl:inline">{shown.name}</span>
+              <Ltr className="tabular-nums">{String(shown.number)}</Ltr>
+            </span>
+          ) : (
+            <UserRound size={20} strokeWidth={1.75} aria-hidden />
+          )
+        }
+        chevron="hidden sm:block"
+        triggerClassName="account-chip flex h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-full border px-3 text-callout font-semibold transition-colors"
+        width={320}
+        align="end"
       >
         <div className="border-b border-line px-3 pt-1 pb-2 text-caption text-muted">
           {shown ? (
@@ -96,14 +122,11 @@ async function Account() {
             ))}
           </div>
         )}
-        <nav className="flex flex-col pt-1">
-          <Link href="/catalog" className={`${menuLink} sm:hidden`}>
-            קטלוג
-          </Link>
+        <nav aria-label="החשבון" className="flex flex-col py-1">
           {team ? (
             <>
               <Link href="/orders" className={menuLink}>
-                הזמנות
+                ההזמנות שלנו
               </Link>
               <Link href="/cart" className={menuLink}>
                 הסל
@@ -124,19 +147,38 @@ async function Account() {
               ניהול
             </Link>
           )}
+        </nav>
+        <div className="border-t border-line lg:hidden" />
+        <MenuNavSections nav={nav} />
+        <div className="flex flex-col border-t border-line pt-1 lg:border-t-0">
           <InstallAppButton variant="menu" />
           <SignOutButton className={`${menuLink} w-full text-start text-danger`} />
-        </nav>
-      </div>
+        </div>
+      </HeaderMenu>
     </>
   );
 }
 
-/** Slim frosted bar: logo, search, cart (with its total from 768px; on phones the floating pill shows it), account. */
+/** "ההזמנות שלנו" for a signed-in team, from 1024px (below that it's in the account menu). */
+async function OrdersLink() {
+  const viewer = await getViewer();
+  if (!viewer || !orderingTeam(viewer)) return null;
+  return (
+    <Link href="/orders" className="hidden h-11 shrink-0 items-center px-2 text-callout text-foreground hover:text-brand lg:flex">
+      ההזמנות שלנו
+    </Link>
+  );
+}
+
+/**
+ * Slim frosted bar: logo, קטלוג with the "קטגוריות" and "ספקים" menus (from 1024px; below that
+ * they're in the account menu), search, the team's orders, cart (with its total from 768px; on
+ * phones the floating pill shows it), account.
+ */
 export function SiteHeader() {
   return (
     <header className="site-header sticky top-0 z-30 border-b border-line/70 bg-glass backdrop-blur-xl backdrop-saturate-150 print:hidden">
-      <div className="mx-auto flex h-[52px] max-w-[1200px] items-center gap-3 px-4 md:px-12">
+      <div className="mx-auto flex h-[52px] max-w-[1200px] items-center gap-2 px-4 sm:gap-3 md:px-12">
         <Link href="/" aria-label="COTS-IL, דף הבית" className="flex h-11 shrink-0 items-center gap-2">
           <span aria-hidden className="btn-brand flex size-9 items-center justify-center rounded-xl">
             <Boxes size={20} strokeWidth={1.75} />
@@ -148,14 +190,22 @@ export function SiteHeader() {
             <Ltr>FRC / FTC</Ltr>
           </span>
         </Link>
-        <Link href="/catalog" className="hidden h-11 shrink-0 items-center px-2 text-callout text-foreground hover:text-brand sm:flex">
-          קטלוג
-        </Link>
+        <nav aria-label="ראשי" className="hidden shrink-0 items-center sm:flex">
+          <Link href="/catalog" className="flex h-11 shrink-0 items-center px-2 text-callout text-foreground hover:text-brand">
+            קטלוג
+          </Link>
+          <Suspense fallback={<HeaderNavFallback />}>
+            <HeaderNav />
+          </Suspense>
+        </nav>
         <div className="flex min-w-0 flex-1 justify-end sm:justify-center">
           <SearchPanel />
         </div>
+        <Suspense fallback={null}>
+          <OrdersLink />
+        </Suspense>
         <CartButton />
-        <div className="flex w-14 shrink-0 justify-end">
+        <div className="flex min-w-11 shrink-0 items-center justify-end gap-2">
           <Suspense fallback={<span className="skeleton m-1 size-9 rounded-full" aria-hidden />}>
             <Account />
           </Suspense>

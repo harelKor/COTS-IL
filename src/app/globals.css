@@ -924,7 +924,8 @@ dialog.sheet-side.sheet-wide {
   box-shadow: none;
 }
 .cart-button:hover,
-.group:hover .account-chip {
+.account-chip:hover,
+.account-chip[aria-expanded="true"] {
   border-color: rgb(110 133 255 / 0.6);
   background-color: rgb(0 20 190 / 0.45);
 }

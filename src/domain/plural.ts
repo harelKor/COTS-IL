@@ -9,6 +9,7 @@ export const ITEM: Noun = { one: "פריט", many: "פריטים", gender: "m" }
 export const ORDER: Noun = { one: "הזמנה", many: "הזמנות", gender: "f" };
 export const UNIT: Noun = { one: "יחידה", many: "יחידות", gender: "f" };
 export const LINE: Noun = { one: "שורה", many: "שורות", gender: "f" };
+export const PRODUCT: Noun = { one: "מוצר", many: "מוצרים", gender: "m" };
 
 const number = (n: number) => n.toLocaleString("he-IL");
 
