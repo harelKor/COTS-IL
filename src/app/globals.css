@@ -879,17 +879,17 @@ body:has(:is(.home-scene, .store-scene)) {
   background-image: none;
 }
 /*
- * From 1024px the home page runs wider than the site's 1200px column, 64px from each window edge
- * (at most 1440px), so the vendor cards spread toward the edges; the header and footer follow.
+ * From 1024px the home page runs wider than the site's 1200px column, 32px from each window edge
+ * (at most 1600px), so the vendor cards spread toward the edges; the header and footer follow.
  */
 @media (min-width: 1024px) {
   .home-scene {
-    --scene-w: min(calc(100vw - 128px), 1440px);
+    --scene-w: min(calc(100vw - 64px), 1600px);
     width: var(--scene-w);
     margin-inline: calc((100% - var(--scene-w)) / 2);
   }
   body:has(.home-scene) :is(.site-header, .site-footer) > div {
-    max-width: calc(min(calc(100vw - 128px), 1440px) + 96px);
+    max-width: calc(min(calc(100vw - 64px), 1600px) + 96px);
   }
 }
 /* No page scrollbar on the dark pages (home, vendor stores): a white track down the night canvas. The page still scrolls. */
@@ -982,7 +982,7 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   /* The photo's x 28% on the window's left edge. */
   --photo-x: calc(-0.28 * var(--photo-w));
   /* Phones: the robot (y 62-85%) at the top of the hero, behind the motto. */
-  --photo-top: calc(-0.6 * var(--photo-h));
+  --photo-top: calc(-0.63 * var(--photo-h));
   min-height: calc(52svh - 176px);
   justify-content: center;
 }
@@ -990,8 +990,8 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   .scene-hero {
     --photo-w: 150vw;
     --photo-x: calc(-0.26 * var(--photo-w));
-    /* The bumpers' bottom (y 85%) just above the first row, under the vendors heading. */
-    --photo-top: calc(100% + 64px - 0.85 * var(--photo-h));
+    /* The bumpers' bottom (y 85%) a little above the vendors heading. */
+    --photo-top: calc(100% + 16px - 0.85 * var(--photo-h));
   }
 }
 @media (min-width: 1024px) {
@@ -1104,8 +1104,8 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
  * cage (the photo's right ~21%) runs off the window's right edge.
  */
 .scene-lane {
-  --win: min(88vw, 360px);
-  --photo-w: max(190vw, 640px);
+  --win: min(96vw, 420px);
+  --photo-w: max(210vw, 700px);
   --photo-h: calc(var(--photo-w) * 0.751);
   /* The robot (y 37-92%) centred in the window. */
   --photo-top: calc(var(--win) / 2 - 0.645 * var(--photo-h));
@@ -1119,18 +1119,20 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   height: var(--photo-h);
 }
 .scene-photo-tall .scene-frame {
-  left: calc(100vw - 0.79 * var(--photo-w));
+  left: calc(100vw - 0.83 * var(--photo-w));
   width: var(--photo-w);
   --fade: linear-gradient(to bottom, transparent 18%, #000 32%, #000 93%, transparent 100%);
+  /* The field cage, where it shows at the window's right edge, fades away. */
+  --hfade: linear-gradient(to left, rgb(0 0 0 / 0.2) 17%, #000 27%);
   --core: radial-gradient(ellipse 20% 44% at 62% 64%, #000 66%, transparent 100%);
   --lobe-reef: radial-gradient(ellipse 26% 26% at 36% 56%, rgb(0 0 0 / 0.85) 25%, transparent 100%);
   --lobe-crowd: radial-gradient(ellipse 30% 14% at 58% 28%, rgb(0 0 0 / 0.4), transparent 100%);
   --lobe-floor: radial-gradient(ellipse 34% 8% at 50% 88%, rgb(0 0 0 / 0.6), transparent 100%);
   --lobe-far: radial-gradient(ellipse 12% 16% at 14% 40%, rgb(0 0 0 / 0.3), transparent 100%);
-  -webkit-mask-image: var(--fade), var(--core), var(--lobe-reef), var(--lobe-crowd), var(--lobe-floor), var(--lobe-far);
-  -webkit-mask-composite: source-in, source-over, source-over, source-over, source-over;
-  mask-image: var(--fade), var(--core), var(--lobe-reef), var(--lobe-crowd), var(--lobe-floor), var(--lobe-far);
-  mask-composite: intersect, add, add, add, add;
+  -webkit-mask-image: var(--fade), var(--hfade), var(--core), var(--lobe-reef), var(--lobe-crowd), var(--lobe-floor), var(--lobe-far);
+  -webkit-mask-composite: source-in, source-in, source-over, source-over, source-over, source-over;
+  mask-image: var(--fade), var(--hfade), var(--core), var(--lobe-reef), var(--lobe-crowd), var(--lobe-floor), var(--lobe-far);
+  mask-composite: intersect, intersect, add, add, add, add;
 }
 .scene-photo-tall .scene-img {
   filter: brightness(0.92) contrast(1.05);
@@ -1156,17 +1158,17 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 }
 @media (min-width: 1024px) {
   .scene-lane {
-    --photo-w: min(100vw, 160vh);
-    /* The robot's top (y 37%) just under the first row; the stands fade in behind that row. */
-    --photo-top: calc(24px - 0.37 * var(--photo-h));
+    --photo-w: min(112vw, 180vh);
+    /* The robot's top (y 37%) at the first row's bottom edge, so its bumpers clear "גלו עוד"; the stands fade in behind that row. */
+    --photo-top: calc(-40px - 0.37 * var(--photo-h));
   }
   .scene-window {
     display: none;
   }
-  /* The remaining vendors on the left, under AndyMark and WCP; the physical right ~43% stays open for the robot. */
+  /* The remaining vendors on the left; the physical right ~46% stays open for the robot. */
   .scene-lane-cards {
     margin-right: auto;
-    width: 57%;
+    width: 54%;
   }
 }
 

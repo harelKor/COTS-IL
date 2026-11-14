@@ -55,11 +55,11 @@ export function vendorRows(count: number): { first: number; rest: number } {
   return { first, rest: Math.max(0, count - first) };
 }
 
-/** The home page's first row, in order (the first sits on the right): goBILDA, WCP, AndyMark. */
-const FIRST_ROW = [/gobilda/i, /^wcp$|west coast/i, /andymark/i];
+/** The home page's first row, in order (the first sits on the right): AndyMark, WCP, goBILDA. */
+const FIRST_ROW = [/andymark/i, /^wcp$|west coast/i, /gobilda/i];
 
 /**
- * The vendors in home-page order: goBILDA, WCP and AndyMark first, in that order, when they're
+ * The vendors in home-page order: AndyMark, WCP and goBILDA first, in that order, when they're
  * there; everyone else after them in the order given (the catalog's, biggest first).
  */
 export function homeVendorOrder<T extends { code: string; name: string }>(vendors: T[]): T[] {

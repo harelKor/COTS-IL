@@ -117,9 +117,9 @@ describe("darkLogo", () => {
 
 describe("homeVendorOrder", () => {
   const v = (code: string, name = code) => ({ code, name });
-  it("puts goBILDA, WCP and AndyMark first, in that order, and keeps the rest as given", () => {
+  it("puts AndyMark, WCP and goBILDA first, in that order, and keeps the rest as given", () => {
     const order = homeVendorOrder([v("am", "AndyMark"), v("wcp"), v("gobilda", "goBILDA"), v("rev"), v("ctre")]);
-    expect(order.map((x) => x.code)).toEqual(["gobilda", "wcp", "am", "rev", "ctre"]);
+    expect(order.map((x) => x.code)).toEqual(["am", "wcp", "gobilda", "rev", "ctre"]);
   });
   it("leaves a list without them alone", () => {
     expect(homeVendorOrder([v("rev"), v("ttb"), v("sds")]).map((x) => x.code)).toEqual(["rev", "ttb", "sds"]);
