@@ -17,7 +17,8 @@ const COLS_2XL = ["", "", "", "", "@2xl:grid-cols-4", "@2xl:grid-cols-5", "@2xl:
 
 /**
  * The vendor's most wanted parts, side by side on pearl tiles, clipped inside the box: 3 in a
- * normal box, 4 in a half-row box, 6 across a full-row one. Each tile hops now and then, on its own beat.
+ * normal box, 4 in a half-row box, 6 across a full-row one. With a mouse, each tile hops now and
+ * then, on its own beat (globals.css, `.alive-tile`).
  */
 function PhotoRow({ images, seed }: { images: string[]; seed: string }) {
   if (images.length === 0) return null;
@@ -67,6 +68,8 @@ export function VendorBoxes({ vendors, layout, eager = 0 }: { vendors: VendorSum
           <li key={v.code} className={`@container ${wide}`}>
             <Link
               href={vendorHref(v.code)}
+              // The way into the site: the whole store is fetched ahead, so its click is instant.
+              prefetch={true}
               style={vendorGlass(v) as React.CSSProperties}
               className="group glass-dark vendor-glass flex h-full flex-col gap-4 p-5 hover:-translate-y-0.5 lg:p-6"
             >

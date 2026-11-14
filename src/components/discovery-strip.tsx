@@ -24,8 +24,9 @@ type Anchor = { key: string; left: number };
  * "גלו עוד": today's less common picks in an endless row. More pages load from /api/discover as it
  * nears either end (pages wrap around, so a part repeats only after the whole pool), the far end
  * is dropped past 4 pages, and the cards in view never move when that happens. It moves on by
- * itself, one card at a time, and stops while a pointer is over the strip or its arrows, something
- * in it has focus, or after a touch; never under reduced motion. Every card keeps its one-tap "+".
+ * itself, one card at a time, and stops while it is off screen, a pointer is over the strip or its
+ * arrows, something in it has focus, or after a touch; never under reduced motion. Every card keeps
+ * its one-tap "+".
  */
 export function DiscoveryStrip({
   cards,
@@ -133,6 +134,14 @@ export function DiscoveryStrip({
     const cleanup = () => el.removeEventListener("scroll", onScroll);
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return cleanup;
 
+    // Off screen it neither moves nor loads (its scrolling is what fetches more pages), and its
+    // cards' motion pauses (data-offscreen, globals.css).
+    let visible = false;
+    const seen = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      box.toggleAttribute("data-offscreen", !visible);
+    });
+    seen.observe(box);
     let pausedUntil = 0;
     let hover = false;
     const onEnter = () => (hover = true);
@@ -143,7 +152,7 @@ export function DiscoveryStrip({
     box.addEventListener("touchstart", onTouch, { passive: true });
     el.addEventListener("wheel", onTouch, { passive: true });
     const timer = setInterval(() => {
-      if (hover || Date.now() < pausedUntil || document.hidden || box.contains(document.activeElement)) return;
+      if (!visible || hover || Date.now() < pausedUntil || document.hidden || box.contains(document.activeElement)) return;
       const card = el.querySelector("li");
       if (!card) return;
       el.scrollBy({ left: forward(el) * (card.getBoundingClientRect().width + 12), behavior: "smooth" });
@@ -151,6 +160,7 @@ export function DiscoveryStrip({
     return () => {
       cleanup();
       clearInterval(timer);
+      seen.disconnect();
       box.removeEventListener("pointerenter", onEnter);
       box.removeEventListener("pointerleave", onLeave);
       box.removeEventListener("touchstart", onTouch);

@@ -478,21 +478,24 @@ dialog.sheet-search[open] {
   }
 }
 
-/* Page changes crossfade, and streamed content fades in where its skeleton was. */
+/*
+ * Page changes: a quick crossfade (≈120 ms, no delay, so a click shows its page at once).
+ * Streamed results simply appear where their skeleton was: `.reveal` has no animation of its own.
+ */
 ::view-transition-old(.page-exit) {
-  animation: 150ms var(--ease-out) both vt-fade reverse;
+  animation: 100ms var(--ease-out) both vt-fade reverse;
 }
 
 ::view-transition-new(.page-enter) {
-  animation: 250ms var(--ease-out) 100ms both vt-fade;
+  animation: 120ms var(--ease-out) both vt-fade;
 }
 
 ::view-transition-new(.reveal) {
-  animation: 250ms var(--ease-out) both vt-fade;
+  animation: none;
 }
 
 ::view-transition-group(.morph) {
-  animation-duration: 300ms;
+  animation-duration: 200ms;
   animation-timing-function: var(--ease-spring);
 }
 
@@ -550,14 +553,25 @@ header.sticky {
 }
 
 /*
- * "גלו עוד" (src/components/discovery-strip.tsx): a staggered entrance, then the same motion as `.alive`.
- * Only transform and opacity animate, and nothing moves under prefers-reduced-motion.
+ * "גלו עוד" (src/components/discovery-strip.tsx): a staggered entrance, then (with a mouse, see
+ * `.alive` below) the same motion as `.alive`, paused while the strip is off screen
+ * (data-offscreen, set by the strip). Only transform and opacity animate, and nothing moves under
+ * prefers-reduced-motion.
  */
 @media (prefers-reduced-motion: no-preference) {
+  .discover-card {
+    animation: discover-in 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms) both;
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
   .discover-card {
     animation:
       discover-in 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms) both,
       alive var(--hop, 9s) ease-in-out calc(var(--d, 0ms) + var(--hd, 0s) + 700ms) infinite;
+  }
+  /* The entrance runs on; only the endless motion waits. */
+  [data-offscreen] .discover-card {
+    animation-play-state: running, paused;
   }
 }
 @keyframes discover-in {
@@ -578,8 +592,10 @@ header.sticky {
  * `transform` animates: hover's lift (translate) and the playful hover tilt and tap squish
  * (rotate, scale) are separate properties, so they combine. A card stops while hovered or
  * focused; nothing moves under prefers-reduced-motion.
+ * Only with a mouse (hover: hover, pointer: fine): on phones and tablets the endless motion kept
+ * the page redrawing (audit S-1, Nov 14, 2026), so there the cards stay still.
  */
-@media (prefers-reduced-motion: no-preference) {
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
   .alive {
     animation: alive var(--hop, 9s) ease-in-out var(--hd, 0s) infinite;
   }
@@ -592,6 +608,8 @@ header.sticky {
   .discover-card:focus-within {
     animation-play-state: paused;
   }
+}
+@media (prefers-reduced-motion: no-preference) {
   .glow-card {
     transition:
       translate 200ms var(--ease-out),
@@ -1014,59 +1032,32 @@ html::-webkit-scrollbar {
   top: var(--photo-top);
   height: var(--photo-h);
 }
+/*
+ * The night look (a darker colour grade, the red stage wall turned ultramarine, a midnight wash
+ * above the robot and, on a desktop, a darker right side behind the headline, the ultramarine
+ * soft-light and the soft edges) is baked into the photo files with an alpha channel
+ * (scripts/robot-photos.mjs), so the browser draws a plain picture: no masks, filters or blend
+ * modes to recompute on scroll (audit S-1, Nov 14, 2026).
+ */
 .scene-photo-short .scene-frame {
   left: var(--photo-x);
   width: var(--photo-w);
-  --fade: linear-gradient(to bottom, transparent 30%, #000 54%, #000 86%, transparent 99%);
-  --core: radial-gradient(ellipse 24% 28% at 45% 74%, #000 42%, rgb(0 0 0 / 0.55) 70%, transparent 100%);
-  --lobe-wall: radial-gradient(ellipse 15% 13% at 36% 54%, rgb(0 0 0 / 0.55), transparent 100%);
-  --lobe-floor: radial-gradient(ellipse 24% 8% at 62% 87%, rgb(0 0 0 / 0.6), transparent 100%);
-  --lobe-in: radial-gradient(ellipse 26% 20% at 62% 70%, rgb(0 0 0 / 0.22), transparent 100%);
-  --lobe-edge: radial-gradient(ellipse 10% 20% at 28% 76%, rgb(0 0 0 / 0.65), transparent 100%);
-  -webkit-mask-image: var(--fade), var(--core), var(--lobe-wall), var(--lobe-floor), var(--lobe-in), var(--lobe-edge);
-  -webkit-mask-composite: source-in, source-over, source-over, source-over, source-over;
-  mask-image: var(--fade), var(--core), var(--lobe-wall), var(--lobe-floor), var(--lobe-in), var(--lobe-edge);
-  mask-composite: intersect, add, add, add, add;
 }
 .scene-photo-short .scene-img {
-  /* Scroll pushes in a touch around the robot's base (scroll-parallax.tsx). */
+  /* On a desktop, scroll pushes in a touch around the robot's base (below). */
   transform-origin: 45% 85%;
-  transform: scale(calc(1 + 0.05 * var(--zoom, 0)));
-  /* A bright venue: brought down to the night canvas. Never blurred. */
-  filter: brightness(0.8) contrast(1.06) saturate(1.05);
-}
-/* The flat red stage wall above the robot, turned toward ultramarine so it doesn't glare under the navbar. */
-.scene-tint {
-  background: linear-gradient(to bottom, rgb(0 20 190 / 0.75) 0%, rgb(0 20 190 / 0.55) 56%, transparent 64%);
-  mix-blend-mode: color;
-}
-/* A top-down midnight wash above the robot, and on a desktop a darker right side behind the headline. */
-.scene-photo-short .scene-shade {
-  background: linear-gradient(to bottom, var(--orbit-night) 0%, rgb(2 4 22 / 0.78) 42%, rgb(2 4 22 / 0.3) 58%, transparent 66%);
-}
-@media (min-width: 1024px) {
-  .scene-photo-short .scene-shade {
-    background:
-      linear-gradient(to left, rgb(2 4 22 / 0.7) 0%, rgb(2 4 22 / 0.3) 30%, transparent 44%),
-      linear-gradient(to bottom, var(--orbit-night) 0%, rgb(2 4 22 / 0.78) 42%, rgb(2 4 22 / 0.3) 58%, transparent 66%);
-  }
-}
-/* The same ultramarine light on both photos. */
-.scene-grade {
-  background: var(--orbit-blue);
-  mix-blend-mode: soft-light;
-  opacity: 0.22;
 }
 
 /*
  * Paint splashing out of each photo into the open canvas beside it: uneven ellipses at different
- * sizes, softened and screened onto the midnight (behind the photos, never over them). In window
- * coordinates; the hero's reach right toward the headline in Orbit ultramarine with a little bumper crimson.
+ * sizes, softened, on the midnight (behind the photos, never over them). In window coordinates;
+ * the hero's reach right toward the headline in Orbit ultramarine with a little bumper crimson.
+ * Plain blending: over the dark canvas it looks the same as the `screen` it had, without making
+ * the whole page a blend group.
  */
 .scene-splash {
   left: calc(50% - 50vw);
   width: 100vw;
-  mix-blend-mode: screen;
   filter: blur(44px);
 }
 .scene-splash-short {
@@ -1133,32 +1124,67 @@ html::-webkit-scrollbar {
   top: var(--photo-top);
   height: var(--photo-h);
 }
+/*
+ * Its look (the grade, the stands dimmed around the robot, the field cage fading at the window's
+ * edge, the soft edges) is baked into the files too, for the photo drawn at 106%.
+ */
 .scene-photo-tall .scene-frame {
   left: calc(100vw - 0.83 * var(--photo-w));
   width: var(--photo-w);
-  --fade: linear-gradient(to bottom, transparent 25%, #000 33%, #000 98%, transparent 100%);
-  /* The field cage, where it shows at the window's right edge, fades away. */
-  --hfade: linear-gradient(to left, rgb(0 0 0 / 0.2) 17%, #000 27%);
-  --core: radial-gradient(ellipse 20% 44% at 62% 64%, #000 66%, transparent 100%);
-  --lobe-reef: radial-gradient(ellipse 26% 26% at 36% 56%, rgb(0 0 0 / 0.85) 25%, transparent 100%);
-  --lobe-crowd: radial-gradient(ellipse 30% 14% at 58% 28%, rgb(0 0 0 / 0.4), transparent 100%);
-  --lobe-floor: radial-gradient(ellipse 34% 8% at 50% 88%, rgb(0 0 0 / 0.6), transparent 100%);
-  --lobe-far: radial-gradient(ellipse 12% 16% at 14% 40%, rgb(0 0 0 / 0.3), transparent 100%);
-  -webkit-mask-image: var(--fade), var(--hfade), var(--core), var(--lobe-reef), var(--lobe-crowd), var(--lobe-floor), var(--lobe-far);
-  -webkit-mask-composite: source-in, source-in, source-over, source-over, source-over, source-over;
-  mask-image: var(--fade), var(--hfade), var(--core), var(--lobe-reef), var(--lobe-crowd), var(--lobe-floor), var(--lobe-far);
-  mask-composite: intersect, intersect, add, add, add, add;
 }
 .scene-photo-tall .scene-img {
-  filter: brightness(0.92) contrast(1.05);
-  /* 2D on purpose, with no will-change: a 3D layer inside the masked box stops it painting in Chromium. */
-  transform: translate(0, calc(var(--drift, 0) * 24px)) scale(1.06);
+  transform: scale(1.06);
 }
-/* The stands, softly: dimmed to about 55% around the robot, which stays at full strength. */
-.scene-photo-tall .scene-shade {
-  background: radial-gradient(ellipse 16% 34% at 63% 52%, transparent 66%, rgb(2 4 22 / 0.45) 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 8%, #000 18%, #000 46%, transparent 60%);
-  mask-image: linear-gradient(to bottom, transparent 8%, #000 18%, #000 46%, transparent 60%);
+
+/*
+ * The parallax, on a desktop only: CSS scroll-driven animations, run by the compositor with no
+ * script and no restyling (audit S-1). The hero pushes in by 5% as it scrolls away
+ * (exit-crossing: from its top at the window's top to its bottom there); the lower photo drifts
+ * 24px down to 24px up, slower than the page, while its middle runs a window above and below
+ * the window's middle. Browsers without scroll timelines get the same from ScrollParallax
+ * (--zoom, --drift on the photo boxes); nothing moves under reduced motion.
+ */
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .scene-photo-short .scene-img {
+    transform: scale(calc(1 + 0.05 * var(--zoom, 0)));
+  }
+  .scene-photo-tall .scene-img {
+    transform: translate(0, calc(var(--drift, 0) * 24px)) scale(1.06);
+  }
+  @supports (animation-timeline: view()) {
+    .scene-photo-short {
+      view-timeline: --scene-zoom block;
+    }
+    .scene-photo-short .scene-img {
+      animation: scene-zoom linear both;
+      animation-timeline: --scene-zoom;
+      animation-range: exit-crossing 0% exit-crossing 100%;
+    }
+    .scene-photo-tall {
+      view-timeline: --scene-drift block;
+    }
+    .scene-photo-tall .scene-img {
+      animation: scene-drift linear both;
+      animation-timeline: --scene-drift;
+      animation-range: cover calc(50% - 100vh) cover calc(50% + 100vh);
+    }
+  }
+}
+@keyframes scene-zoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.05);
+  }
+}
+@keyframes scene-drift {
+  from {
+    transform: translate(0, 24px) scale(1.06);
+  }
+  to {
+    transform: translate(0, -24px) scale(1.06);
+  }
 }
 /* "גלו עוד"'s heading can sit on the photo's lower edge: a soft dark halo keeps it readable. */
 .home-scene section[aria-labelledby="discover"] > div:first-child {
@@ -1269,17 +1295,20 @@ html::-webkit-scrollbar {
 }
 
 /*
- * Ultramarine-tinted dark glass over the photos: vendor boxes and the cards further down. Heavy
- * blur, so the arena floor and the paint splashes breathe through without competing, and a crisp
- * specular line along the top edge.
+ * Ultramarine-tinted dark glass over the photos: the vendor boxes. On a desktop a heavy blur, so
+ * the arena floor and the paint splashes breathe through without competing (the first row sits on
+ * the hero photo's lower edge); below 1024px the boxes sit on the plain canvas, where a blur shows
+ * nothing and only costs redraws, so there is none. A crisp specular line along the top edge.
  */
 @utility glass-dark {
   position: relative;
   border-radius: 22px;
   border: 1px solid var(--glass-line);
   background: var(--glass-fill);
-  -webkit-backdrop-filter: blur(24px) saturate(1.3);
-  backdrop-filter: blur(24px) saturate(1.3);
+  @media (min-width: 1024px) {
+    -webkit-backdrop-filter: blur(24px) saturate(1.3);
+    backdrop-filter: blur(24px) saturate(1.3);
+  }
   box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.09), 0 10px 36px rgb(1 2 12 / 0.5);
   transition:
     border-color 300ms var(--ease-out),
@@ -1348,10 +1377,13 @@ html::-webkit-scrollbar {
   mix-blend-mode: multiply;
 }
 
+/*
+ * Cards and boxes have no backdrop blur (audit S-1, Nov 14, 2026): dozens of blurred cards kept
+ * phones, and even desktops, too busy to paint their text. Their fill is opaque enough to look the
+ * same over the canvas.
+ */
 .card-surface {
   background: var(--glass-fill);
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.09), inset 0 0 0 1px var(--glass-line), var(--shadow-card),
     var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
@@ -1364,10 +1396,6 @@ html::-webkit-scrollbar {
 }
 :is(.glow-card:hover, .glow-card:focus-within, .glow-box:hover, .glow-box:focus-visible) {
   border-color: var(--glass-line-hover);
-}
-.glow-box {
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
 }
 .glow-outline {
   background: rgb(4 9 36 / 0.6);
@@ -1528,9 +1556,7 @@ html::-webkit-scrollbar {
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.25);
   background:
     linear-gradient(20deg, rgb(var(--vendor-primary-rgb) / 0.16) 0%, rgb(var(--vendor-primary-rgb) / 0.04) 45%, transparent 75%),
-    rgb(7 13 34 / 0.75);
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
+    rgb(7 13 34 / 0.85);
   box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.08), 0 8px 30px rgb(0 0 0 / 0.4);
   --glow-strong: 0 16px 44px -14px rgb(var(--vendor-primary-rgb) / 0.6);
   transition:
@@ -1555,9 +1581,7 @@ html::-webkit-scrollbar {
  */
 :is(.card-surface, .glow-card) {
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.22);
-  background: rgb(7 13 34 / 0.8);
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
+  background: rgb(7 13 34 / 0.88);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.07), 0 8px 30px rgb(0 0 0 / 0.45), var(--tw-ring-offset-shadow, 0 0 #0000),
     var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
@@ -1573,7 +1597,7 @@ li.family-card:is(:hover, :focus-within) {
   border-color: rgb(var(--vendor-primary-rgb) / 0.6);
   background:
     radial-gradient(90% 50% at 50% 115%, rgb(var(--vendor-primary-rgb) / 0.22), transparent 70%),
-    rgb(7 13 34 / 0.8);
+    rgb(7 13 34 / 0.88);
 }
 .card-photo {
   background: linear-gradient(to bottom, rgb(241 245 249 / 0.95), rgb(226 232 240 / 0.88));
@@ -1592,10 +1616,8 @@ li.family-card:is(:hover, :focus-within) {
 /* "גלו עוד"'s arrows: dark glass that fills with the vendor's colour on hover. */
 .strip-arrow {
   border: 1px solid rgb(var(--vendor-primary-rgb, 0 24 224) / 0.4);
-  background: rgb(11 19 43 / 0.9);
+  background: rgb(11 19 43 / 0.95);
   color: #ffffff;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
   box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.45), 0 8px 10px -6px rgb(0 0 0 / 0.4);
   transition:
     background-color 200ms var(--ease-out),
