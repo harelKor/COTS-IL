@@ -8,6 +8,7 @@ import { Ltr } from "@/components/ltr";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { formatIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
+import { getCatalogCounts } from "@/lib/catalog";
 import { categoryChoices, editorPart, familyEditHref, PAGE_SIZE, productCards, supplierChoices, type ProductCard } from "@/lib/product-admin";
 import { PartSheet } from "./part-sheet";
 
@@ -30,7 +31,7 @@ function PriceRange({ min, max }: { min: number | null; max: number | null }) {
   return <span className="text-callout font-semibold tabular-nums">{min === max || max === null ? formatIls(min) : `${formatIls(min)} עד ${formatIls(max)}`}</span>;
 }
 
-function PartCard({ card, href }: { card: ProductCard; href: string }) {
+function PartCard({ card, href, showSupplier }: { card: ProductCard; href: string; showSupplier: boolean }) {
   return (
     <li>
       <Link href={href} scroll={false} className="card-surface flex h-full flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-lift">
@@ -47,6 +48,11 @@ function PartCard({ card, href }: { card: ProductCard; href: string }) {
           <p className="line-clamp-2 text-callout font-medium">
             <Ltr>{card.title}</Ltr>
           </p>
+          {showSupplier && (
+            <p className="text-caption text-muted">
+              <Ltr>{card.supplierName}</Ltr>
+            </p>
+          )}
           <div className="mt-auto flex flex-wrap items-center gap-2">
             <PriceRange min={card.minIls} max={card.maxIls} />
             <StatusTag tone={card.available === true ? "success" : card.available === false ? "danger" : "neutral"}>
@@ -75,41 +81,62 @@ async function Products({ searchParams }: { searchParams: PageProps<"/admin/sett
     const href = await familyEditHref(str(params.family));
     if (href) redirect(href);
   }
-  const [suppliers, categories] = await Promise.all([supplierChoices(), categoryChoices()]);
-  const supplier = suppliers.find((s) => s.code === str(params.s)) ?? suppliers.find((s) => s.active) ?? suppliers[0];
-  if (!supplier) return <Card>אין ספקים עדיין. הוסיפו ספק בלשונית ספקים.</Card>;
+  const [suppliers, categories, counts] = await Promise.all([supplierChoices(), categoryChoices(), getCatalogCounts()]);
+  if (suppliers.length === 0) return <Card>אין ספקים עדיין. הוסיפו ספק בלשונית ספקים.</Card>;
+  // Every supplier at once unless one is chosen (A-18): opening on one supplier hid the rest.
+  const supplier = suppliers.find((s) => s.code === str(params.s)) ?? null;
+  const all = {
+    parts: suppliers.reduce((n, s) => n + s.parts, 0),
+    hidden: suppliers.reduce((n, s) => n + s.hidden, 0),
+    variants: suppliers.reduce((n, s) => n + s.variants, 0),
+    families: counts.families,
+  };
+  const scope = supplier ?? all;
 
   const q = str(params.q).slice(0, 100);
   const categoryId = categories.some((c) => c.id === str(params.c)) ? str(params.c) : "";
   const showHidden = str(params.hidden) === "1";
   const onlyEdited = str(params.edited) === "1";
   const page = Math.max(0, Math.min(500, Number(str(params.page)) || 0));
-  const base = { s: supplier.code, q, c: categoryId, hidden: showHidden ? "1" : "", edited: onlyEdited ? "1" : "", page: page ? String(page) : "" };
+  const base = { s: supplier?.code ?? "", q, c: categoryId, hidden: showHidden ? "1" : "", edited: onlyEdited ? "1" : "", page: page ? String(page) : "" };
   const edit = str(params.edit);
 
-  const [{ cards, total }, part] = await Promise.all([
-    productCards({ supplierId: supplier.id, q, categoryId, showHidden, onlyEdited, page }),
+  const [{ cards, total, variants }, part] = await Promise.all([
+    productCards({ supplierId: supplier?.id ?? "", q, categoryId, showHidden, onlyEdited, page }),
     edit && edit !== "new" && /^[0-9a-f-]{36}$/i.test(edit) ? editorPart(edit) : Promise.resolve(null),
   ]);
   const closeHref = hrefWith(base, {});
-  const editing = part && part.supplierId === supplier.id ? part : null;
+  const editing = part && (!supplier || part.supplierId === supplier.id) ? part : null;
+  const editingSupplier = suppliers.find((s) => s.id === (editing?.supplierId ?? supplier?.id)) ?? null;
   const pages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <div className="flex flex-col gap-5">
       <nav aria-label="ספק" className="-mx-6 overflow-x-auto px-6 md:mx-0 md:px-0">
         <ul className="flex w-max gap-2">
+          <li>
+            <Link
+              href={hrefWith({}, {})}
+              aria-current={!supplier ? "page" : undefined}
+              className={`flex min-h-11 items-center gap-2 rounded-full border px-4 text-callout whitespace-nowrap ${
+                !supplier ? "border-brand bg-brand-soft font-semibold text-brand-strong" : "border-line bg-surface hover:bg-subtle"
+              }`}
+            >
+              כל הספקים
+              <span className="text-caption text-muted tabular-nums">{all.parts.toLocaleString("he-IL")}</span>
+            </Link>
+          </li>
           {suppliers.map((s) => (
             <li key={s.id}>
               <Link
                 href={hrefWith({}, { s: s.code })}
-                aria-current={s.id === supplier.id ? "page" : undefined}
+                aria-current={s.id === supplier?.id ? "page" : undefined}
                 className={`flex min-h-11 items-center gap-2 rounded-full border px-4 text-callout whitespace-nowrap ${
-                  s.id === supplier.id ? "border-brand bg-brand-soft font-semibold text-brand-strong" : "border-line bg-surface hover:bg-subtle"
+                  s.id === supplier?.id ? "border-brand bg-brand-soft font-semibold text-brand-strong" : "border-line bg-surface hover:bg-subtle"
                 }`}
               >
                 <Ltr>{s.name}</Ltr>
-                <span className="text-caption text-muted tabular-nums">{s.parts}</span>
+                <span className="text-caption text-muted tabular-nums">{s.parts.toLocaleString("he-IL")}</span>
                 {!s.active && <span className="text-caption text-warning">מוסתר</span>}
               </Link>
             </li>
@@ -118,7 +145,7 @@ async function Products({ searchParams }: { searchParams: PageProps<"/admin/sett
       </nav>
 
       <form role="search" className="flex flex-wrap items-end gap-2">
-        <input type="hidden" name="s" value={supplier.code} />
+        <input type="hidden" name="s" value={supplier?.code ?? ""} />
         <Input name="q" defaultValue={q} placeholder="שם או מק״ט" aria-label="חיפוש חלק" className="min-w-0 flex-1 basis-48" />
         <Select name="c" defaultValue={categoryId} aria-label="קטגוריה" className="min-w-0 basis-40">
           <option value="">כל הקטגוריות</option>
@@ -139,20 +166,31 @@ async function Products({ searchParams }: { searchParams: PageProps<"/admin/sett
         <button type="submit" className={buttonClass("secondary")}>
           סינון
         </button>
-        <Link href={hrefWith(base, { edit: "new" })} scroll={false} className={buttonClass("primary", "ms-auto")}>
-          <Plus size={20} aria-hidden />
-          הוספת חלק
-        </Link>
+        {supplier ? (
+          <Link href={hrefWith(base, { edit: "new" })} scroll={false} className={buttonClass("primary", "ms-auto")}>
+            <Plus size={20} aria-hidden />
+            הוספת חלק
+          </Link>
+        ) : (
+          <span className="ms-auto text-caption text-muted">להוספת חלק בחרו ספק</span>
+        )}
       </form>
 
-      <p className="text-caption text-muted" role="status">
-        {total === 0 ? "לא נמצאו חלקים" : `${total} חלקים`}
-        {supplier.platform === "manual" && ", ספק ידני: כל החלקים שלו מתווספים כאן"}
-      </p>
+      <div className="flex flex-col gap-1">
+        <p className="text-callout" role="status">
+          {total === 0 ? "לא נמצאו חלקים" : `${total.toLocaleString("he-IL")} חלקים, ${variants.toLocaleString("he-IL")} וריאנטים`}
+          {supplier?.platform === "manual" && ", ספק ידני: כל החלקים שלו מתווספים כאן"}
+        </p>
+        <p className="text-caption text-muted">
+          {supplier ? <Ltr>{supplier.name}</Ltr> : "כל הספקים"}: {scope.families.toLocaleString("he-IL")} משפחות, {scope.parts.toLocaleString("he-IL")} חלקים, {scope.variants.toLocaleString("he-IL")} וריאנטים
+          {!showHidden && scope.hidden > 0 ? `, ועוד ${scope.hidden.toLocaleString("he-IL")} חלקים מוסתרים (מופיעים עם "גם מוסתרים")` : ""}. משפחה היא מה שהלקוחות רואים בכרטיס אחד, חלק הוא
+          דף מוצר אצל הספק, וריאנט הוא גודל או אפשרות בתוכו.
+        </p>
+      </div>
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {cards.map((c) => (
-          <PartCard key={c.id} card={c} href={hrefWith(base, { edit: c.id })} />
+          <PartCard key={c.id} card={c} href={hrefWith(base, { edit: c.id })} showSupplier={!supplier} />
         ))}
       </ul>
 
@@ -174,11 +212,11 @@ async function Products({ searchParams }: { searchParams: PageProps<"/admin/sett
         </nav>
       )}
 
-      {(edit === "new" || editing) && (
+      {editingSupplier && (edit === "new" || editing) && (
         <PartSheet
           key={editing?.id ?? "new"}
           part={editing}
-          supplier={{ id: supplier.id, name: supplier.name }}
+          supplier={{ id: editingSupplier.id, name: editingSupplier.name }}
           categories={categories}
           closeHref={closeHref}
         />

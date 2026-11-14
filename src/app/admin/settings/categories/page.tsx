@@ -6,6 +6,7 @@ import { Loading, PageSkeleton } from "@/components/skeleton";
 import { db, schema } from "@/db";
 import { groupOf } from "@/domain/category-groups";
 import { requireAdmin } from "@/lib/auth";
+import { getCatalogCounts } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { CategoryRow, GroupsEditor } from "./category-forms";
 
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "הגדרות: קטגוריות" };
 async function Categories() {
   await requireAdmin();
   const { categories, productFamilies: families } = schema;
-  const [{ content }, rows, photos] = await Promise.all([
+  const [{ content }, categoryRows, counts, photos] = await Promise.all([
     getSettings(),
     db
       .select({
@@ -25,10 +26,12 @@ async function Categories() {
         hidden: categories.hidden,
         homeImage: categories.homeImage,
         images: categories.images,
-        count: sql<number>`(SELECT count(*)::int FROM ${families} f WHERE f.category_id = ${categories.id} AND f.status = 'published' AND f.missing_since IS NULL)`,
       })
       .from(categories)
       .orderBy(asc(categories.sortOrder)),
+    // Families customers can see, from the one count the whole site uses. (A correlated
+    // subquery on categories.id here matched f.id instead: every category read 0.)
+    getCatalogCounts(),
     // Photo choices: the first photo of each category's best-ranked families.
     db.execute<{ category_id: string; image: string }>(sql`
       SELECT category_id, image FROM (
@@ -38,6 +41,7 @@ async function Categories() {
         WHERE f.status = 'published' AND f.missing_since IS NULL AND cardinality(f.images) > 0
       ) x WHERE n <= 12`),
   ]);
+  const rows = categoryRows.map((c) => ({ ...c, count: counts.categories[c.id] ?? 0 }));
   const choices = new Map<string, string[]>();
   for (const p of photos.rows) choices.set(p.category_id, [...(choices.get(p.category_id) ?? []), p.image]);
   const groups = content.categoryGroups;
@@ -56,7 +60,7 @@ async function Categories() {
         <div className="flex flex-col gap-1">
           <h2 className="text-section font-semibold">קטגוריות ({rows.length})</h2>
           <p className="text-caption text-muted">
-            הסדר כאן הוא הסדר בכל האתר. קטגוריה מוסתרת לא מופיעה ברשימות הקטגוריות, והחלקים שלה עדיין נמצאים בחיפוש.
+            הסדר כאן הוא הסדר בכל האתר. קטגוריה מוסתרת לא מופיעה ברשימות הקטגוריות, והחלקים שלה עדיין נמצאים בחיפוש. המספר הוא משפחות: חלק אחד בכל הגדלים שלו, כפי שהלקוחות רואים בכרטיס אחד.
           </p>
         </div>
         <ul className="flex flex-col gap-3">

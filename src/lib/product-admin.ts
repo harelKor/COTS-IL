@@ -3,6 +3,7 @@ import { asc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { optionNames, partBadges, type PartSource, type VariantOption } from "@/domain/part-editor";
 import { priceIls } from "@/domain/pricing";
+import { getCatalogCounts } from "./catalog";
 import { priceContext } from "./settings";
 
 /** מוצרים (S16c): what /admin/settings/products lists and edits. */
@@ -17,13 +18,19 @@ export type ProductCard = {
   maxIls: number | null;
   available: boolean | null;
   variantCount: number;
+  /** Which supplier sells it (shown when the list spans all of them). */
+  supplierName: string;
   badges: ReturnType<typeof partBadges>;
 };
 
 export type ProductFilter = { supplierId: string; q: string; categoryId: string; showHidden: boolean; onlyEdited: boolean; page: number };
 
-/** One supplier's parts as the catalog shows them (overrides applied), newest custom parts first, then by name. */
-export async function productCards(f: ProductFilter): Promise<{ cards: ProductCard[]; total: number }> {
+/**
+ * The parts as the catalog shows them (overrides applied), custom parts first, then by name: one
+ * supplier's, or every supplier's when `supplierId` is empty. `total` counts parts (a supplier's
+ * product pages), `variants` the sizes and options inside them; both follow the filters.
+ */
+export async function productCards(f: ProductFilter): Promise<{ cards: ProductCard[]; total: number; variants: number }> {
   const ctx = await priceContext();
   const q = f.q.trim().toLowerCase();
   const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -38,21 +45,25 @@ export async function productCards(f: ProductFilter): Promise<{ cards: ProductCa
     max_list: string | null;
     available: boolean | null;
     variants: number;
+    supplier_name: string;
     total: number;
+    variants_total: number;
   }>(sql`
     WITH parts AS (
-      SELECT p.id, p.title, p.images[1] AS image, p.source, p.created_at,
+      SELECT p.id, p.title, p.images[1] AS image, p.source, p.created_at, su.name AS supplier_name,
              (coalesce(o.hidden, false) OR p.status = 'hidden') AS hidden,
              coalesce(o.category_id, p.category_id) AS category_id, p.search_text,
              (o.product_id IS NOT NULL OR EXISTS (SELECT 1 FROM variants v JOIN variant_overrides vo ON vo.variant_id = v.id WHERE v.product_id = p.id)) AS edited
-        FROM products p LEFT JOIN product_overrides o ON o.product_id = p.id
-       WHERE p.supplier_id = ${f.supplierId} AND p.missing_since IS NULL
+        FROM products p JOIN suppliers su ON su.id = p.supplier_id LEFT JOIN product_overrides o ON o.product_id = p.id
+       WHERE (${f.supplierId} = '' OR p.supplier_id::text = ${f.supplierId}) AND p.missing_since IS NULL
     )
     SELECT parts.id, parts.title, parts.image, parts.source, parts.hidden,
            EXISTS (SELECT 1 FROM variants v JOIN variant_overrides vo ON vo.variant_id = v.id
                     WHERE v.product_id = parts.id AND (vo.price_usd IS NOT NULL OR vo.fixed_ils IS NOT NULL)) AS manual_price,
            s.min_list, s.max_list, s.available, coalesce(s.variants, 0)::int AS variants,
-           count(*) OVER ()::int AS total
+           parts.supplier_name,
+           count(*) OVER ()::int AS total,
+           (sum(coalesce(s.variants, 0)) OVER ())::int AS variants_total
       FROM parts
       LEFT JOIN LATERAL (
         SELECT min(l)::text AS min_list, max(l)::text AS max_list, bool_or(v.available) AS available, count(*) AS variants
@@ -69,6 +80,7 @@ export async function productCards(f: ProductFilter): Promise<{ cards: ProductCa
      LIMIT ${PAGE_SIZE} OFFSET ${f.page * PAGE_SIZE}`);
   return {
     total: rows.rows[0]?.total ?? 0,
+    variants: rows.rows[0]?.variants_total ?? 0,
     cards: rows.rows.map((r) => ({
       id: r.id,
       title: r.title,
@@ -77,6 +89,7 @@ export async function productCards(f: ProductFilter): Promise<{ cards: ProductCa
       maxIls: priceIls(r.max_list, ctx, 1),
       available: r.available,
       variantCount: r.variants,
+      supplierName: r.supplier_name,
       badges: partBadges({ hidden: r.hidden, source: r.source, manualPrice: r.manual_price }),
     })),
   };
@@ -184,14 +197,26 @@ export async function orderLineCount(variantIds: string[]): Promise<number> {
   return items.n + lines.n;
 }
 
-export type SupplierChoice = { id: string; code: string; name: string; platform: string; active: boolean; parts: number };
+/**
+ * A supplier as the filter chips show it: `parts` are its product pages the list shows by default,
+ * `hidden` the ones it leaves out, `variants` the sizes and options inside them, `families` what customers see as cards (from the site-wide count, so it
+ * matches the vendor box; a part two vendors sell is in both).
+ */
+export type SupplierChoice = { id: string; code: string; name: string; platform: string; active: boolean; parts: number; hidden: number; variants: number; families: number };
 
 export async function supplierChoices(): Promise<SupplierChoice[]> {
-  const rows = await db.execute<SupplierChoice>(sql`
-    SELECT s.id, s.code, s.name, s.platform::text AS platform, s.active,
-           (SELECT count(*)::int FROM products p WHERE p.supplier_id = s.id AND p.missing_since IS NULL) AS parts
-      FROM suppliers s ORDER BY s.active DESC, s.name`);
-  return rows.rows;
+  const [rows, counts] = await Promise.all([
+    db.execute<Omit<SupplierChoice, "families">>(sql`
+      SELECT s.id, s.code, s.name, s.platform::text AS platform, s.active,
+             (SELECT count(*)::int FROM products p LEFT JOIN product_overrides o ON o.product_id = p.id
+               WHERE p.supplier_id = s.id AND p.missing_since IS NULL AND NOT (coalesce(o.hidden, false) OR p.status = 'hidden')) AS parts,
+             (SELECT count(*)::int FROM products p LEFT JOIN product_overrides o ON o.product_id = p.id
+               WHERE p.supplier_id = s.id AND p.missing_since IS NULL AND (coalesce(o.hidden, false) OR p.status = 'hidden')) AS hidden,
+             (SELECT count(*)::int FROM variants v WHERE v.supplier_id = s.id AND v.missing_since IS NULL) AS variants
+        FROM suppliers s ORDER BY s.active DESC, s.name`),
+    getCatalogCounts(),
+  ]);
+  return rows.rows.map((r) => ({ ...r, families: counts.vendors[r.code] ?? 0 }));
 }
 
 export async function categoryChoices() {

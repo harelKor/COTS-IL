@@ -99,7 +99,7 @@ export function CategoryRow({ category: c, groups, choices, first, last }: { cat
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className="text-body font-semibold">{c.name}</span>
-          <StatusTag>{c.count.toLocaleString("he-IL")} מוצרים</StatusTag>
+          <StatusTag>{c.count.toLocaleString("he-IL")} משפחות</StatusTag>
           {c.hidden && <StatusTag tone="warning">מוסתרת</StatusTag>}
         </div>
         <div className="flex">

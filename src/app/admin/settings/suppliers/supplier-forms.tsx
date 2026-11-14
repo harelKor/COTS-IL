@@ -189,7 +189,7 @@ function jobText(job: SyncJobView | null, platform: SupplierCardData["platform"]
   if (!job) return "עוד לא סונכרן";
   if (job.status === "running") return `מסתנכרן מאז ${when.format(new Date(job.startedAt))}`;
   const at = when.format(new Date(job.finishedAt ?? job.startedAt));
-  return job.status === "succeeded" ? `סונכרן ב-${at}${job.products !== null ? `, ${job.products} מוצרים` : ""}` : `הסנכרון נכשל ב-${at}`;
+  return job.status === "succeeded" ? `סונכרן ב-${at}${job.products !== null ? `, ${job.products} חלקים` : ""}` : `הסנכרון נכשל ב-${at}`;
 }
 
 /** "סנכרון עכשיו", then the job's status every 5 s until it finishes (or 15 minutes pass). */
@@ -293,7 +293,7 @@ export function SupplierCard({
             <Ltr>{supplier.baseUrl.replace(/^https?:\/\//, "")}</Ltr>
           </a>
           <p className="text-caption text-muted">
-            {supplier.products} מוצרים, <Ltr>{supplier.programs.join(" / ")}</Ltr>
+            {supplier.products} חלקים, <Ltr>{supplier.programs.join(" / ")}</Ltr>
           </p>
           <p className={`text-caption ${failed ? "text-danger" : "text-muted"}`} aria-live="polite">
             {jobText(job, supplier.platform)}
@@ -383,7 +383,7 @@ export function SupplierCard({
             {supplier.canDelete ? (
               confirmDelete ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-callout">למחוק את {supplier.name} ואת כל {supplier.products} המוצרים שלו? אי אפשר לבטל.</span>
+                  <span className="text-callout">למחוק את {supplier.name} ואת כל {supplier.products} החלקים שלו? אי אפשר לבטל.</span>
                   <Button
                     type="button"
                     variant="danger"

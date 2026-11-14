@@ -11,7 +11,7 @@ import { LastOrderNotice } from "@/components/last-order-notice";
 import { formatIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { cartCount, latestOrder } from "@/lib/orders";
-import { getDiscoveryPage, getFacets, getLastSync, getVendors } from "@/lib/catalog";
+import { getCatalogCounts, getDiscoveryPage, getFacets, getLastSync, getVendors } from "@/lib/catalog";
 import { DiscoveryStrip } from "@/components/discovery-strip";
 import { markupText } from "@/domain/pricing";
 import { getBusiness, getSiteFacts } from "@/lib/settings";
@@ -64,12 +64,11 @@ async function TeamNotice() {
 
 /**
  * The hero's telemetry line, from the live catalog: how many vendors and products, the shared
- * shipment. The product count is rounded down to hundreds.
+ * shipment. The product count is the exact number of families /catalog lists (one source,
+ * getCatalogCounts); the vendor boxes' counts overlap where two vendors sell one part.
  */
 async function Telemetry() {
-  const vendors = await getVendors();
-  const total = vendors.reduce((n, v) => n + v.count, 0);
-  const shown = total >= 1000 ? Math.floor(total / 100) * 100 : total;
+  const [vendors, { families: total }] = await Promise.all([getVendors(), getCatalogCounts()]);
   const sep = <span aria-hidden className="scene-telemetry-sep h-4 w-px" />;
   return (
     <div className="scene-telemetry flex w-full flex-wrap items-center gap-x-4 gap-y-2 pt-3 text-caption">
@@ -79,8 +78,7 @@ async function Telemetry() {
       {sep}
       <span>
         <Ltr className="scene-telemetry-num">
-          {shown.toLocaleString("he-IL")}
-          {total > shown ? "+" : ""}
+          {total.toLocaleString("he-IL")}
         </Ltr>{" "}
         מוצרים בקטלוג
       </span>

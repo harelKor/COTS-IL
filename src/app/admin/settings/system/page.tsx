@@ -166,7 +166,7 @@ async function System() {
                               {(j.counts.parsed ?? 0).toLocaleString("he-IL")} מתוך {(j.counts.pages - (j.counts.stubs ?? 0) - (j.counts.landing ?? 0)).toLocaleString("he-IL")} דפים
                             </span>
                           ) : null}
-                          {j.products !== null && <span className="text-caption text-muted tabular-nums">{j.products.toLocaleString("he-IL")} מוצרים</span>}
+                          {j.products !== null && <span className="text-caption text-muted tabular-nums">{j.products.toLocaleString("he-IL")} חלקים</span>}
                           {j.status === "succeeded" && needsAttention(j.counts) && <StatusTag tone="warning">בדיקה: חלק מהדפים בלי מחיר או מלאי</StatusTag>}
                           {j.status === "succeeded" ? (
                             <StatusTag tone="success">הצליח</StatusTag>

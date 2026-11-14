@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { db, schema } from "@/db";
+import { tallyFamilies, type CatalogCounts } from "@/domain/catalog-counts";
 import { ACCESSORY_TITLE_PATTERN, HARDWARE_CATEGORIES, MAIN_ITEM_MIN_USD } from "@/domain/catalog-rank";
 import { facetCountPlans, isRelevantFacet } from "@/domain/facets";
 import type { CompanionRule } from "@/domain/families/companions";
@@ -568,6 +569,28 @@ async function supplierCounts(filters: CatalogFilters) {
 }
 
 /**
+ * How many families customers can see: in all, per active vendor and per category. The single
+ * source of every count on the site (src/domain/catalog-counts.ts); /catalog's own total is the
+ * same set of rows, so with no filter they agree by construction.
+ */
+export async function getCatalogCounts(): Promise<CatalogCounts> {
+  "use cache";
+  catalogCache();
+  return catalogCountsShared();
+}
+
+/** The shared (remote) entry behind getCatalogCounts's in-memory one. */
+async function catalogCountsShared(): Promise<CatalogCounts> {
+  "use cache: remote";
+  catalogCache();
+  const [rows, active] = await Promise.all([
+    db.select({ supplierCodes: families.supplierCodes, categoryId: families.categoryId }).from(families).where(visible),
+    db.select({ code: suppliers.code }).from(suppliers).where(eq(suppliers.active, true)),
+  ]);
+  return tallyFamilies(rows, active.map((s) => s.code));
+}
+
+/**
  * Categories and suppliers that have something to show, with family counts. Each category
  * also carries up to three photos of its main items (motors, not the screws filed next to them).
  */
@@ -581,30 +604,25 @@ export async function getFacets() {
 async function facetsShared() {
   "use cache: remote";
   catalogCache();
-  const count = sql<number>`count(*)::int`;
 
   // The admin's home photo (S16d) leads the regroup's own picks.
   const images = sql<string[]>`CASE WHEN ${categories.homeImage} IS NULL THEN ${categories.images}
     ELSE (array_prepend(${categories.homeImage}, array_remove(${categories.images}, ${categories.homeImage})))[1:3] END`;
   const categoryQuery = db
-    .select({ slug: categories.slug, name: categories.name, group: categories.groupId, images, count })
-    .from(families)
-    .innerJoin(categories, eq(categories.id, families.categoryId))
-    .where(and(visible, eq(categories.hidden, false)))
-    .groupBy(categories.id)
+    .select({ id: categories.id, slug: categories.slug, name: categories.name, group: categories.groupId, images })
+    .from(categories)
+    .where(eq(categories.hidden, false))
     .orderBy(asc(categories.sortOrder));
   const supplierQuery = db
-    .select({ code: suppliers.code, name: suppliers.name, programs: suppliers.programs, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor, accentColor2: suppliers.accentColor2, count })
-    .from(families)
-    .innerJoin(suppliers, sql`${suppliers.code} = ANY(${families.supplierCodes})`)
-    .where(and(visible, eq(suppliers.active, true)))
-    .groupBy(suppliers.code, suppliers.name, suppliers.programs, suppliers.logoUrl, suppliers.accentColor, suppliers.accentColor2)
-    .orderBy(desc(count));
-  const [categoryRows, supplierRows] = await Promise.all([categoryQuery, supplierQuery]);
+    .select({ code: suppliers.code, name: suppliers.name, programs: suppliers.programs, logoUrl: suppliers.logoUrl, accentColor: suppliers.accentColor, accentColor2: suppliers.accentColor2 })
+    .from(suppliers)
+    .where(eq(suppliers.active, true));
+  const [categoryRows, supplierRows, counts] = await Promise.all([categoryQuery, supplierQuery, getCatalogCounts()]);
 
   return {
-    categories: categoryRows,
-    suppliers: supplierRows,
+    // Only what has something to show; the numbers are the shared ones.
+    categories: categoryRows.flatMap(({ id, ...c }) => (counts.categories[id] ? [{ ...c, count: counts.categories[id] }] : [])),
+    suppliers: supplierRows.flatMap((s) => (counts.vendors[s.code] ? [{ ...s, count: counts.vendors[s.code] }] : [])).sort((a, b) => b.count - a.count),
   };
 }
 
@@ -1175,12 +1193,14 @@ async function vendorStoreShared(code: string) {
     WHERE ${ofVendor} AND cardinality(${families.images}) > 0
     ORDER BY c.slug, ${families.pinnedRank} ASC NULLS LAST, ${families.available} IS TRUE DESC,
       (coalesce(${families.minPriceUsd}, 0) >= ${MAIN_ITEM_MIN_USD}) DESC, ${families.variantCount} DESC`);
-  const [[vendor], counts, photos] = await Promise.all([vendorQuery, countsQuery, photosQuery]);
+  const [[vendor], counts, photos, shared] = await Promise.all([vendorQuery, countsQuery, photosQuery, getCatalogCounts()]);
   if (!vendor) return null;
   const image = new Map(photos.rows.map((r) => [r.slug, r.image]));
   return {
     ...vendor,
-    count: counts.reduce((n, c) => n + c.count, 0),
+    // The same number the home page's vendor box shows; the categories below can add up to less
+    // (a hidden category or a family with none).
+    count: shared.vendors[code] ?? 0,
     categories: counts.map((c) => ({ slug: c.slug, name: c.name, group: c.group, count: c.count, images: image.has(c.slug) ? [image.get(c.slug)!] : [] })),
   };
 }
