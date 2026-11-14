@@ -1,4 +1,4 @@
-import type { OrderStatusKey, OrderView } from "./order-status";
+import { ORDER_STATUS_KEYS, statusTone, type OrderStatusKey, type OrderView } from "./order-status";
 import type { ConsolidatedLine } from "./purchasing";
 
 /** Orders that need the admin first, then the rest by stage; oldest first within each. */
@@ -34,8 +34,8 @@ export function batchOrderCount(lines: ConsolidatedLine[]): number {
   return new Set(lines.flatMap((l) => l.allocations.map((a) => a.orderNumber))).size;
 }
 
-/** Statuses where the next step is the admin's; the rest wait on the team, a supplier or the courier. */
-export const NEEDS_ADMIN: ReadonlySet<OrderStatusKey> = new Set(["awaiting_quote", "to_order", "at_warehouse", "to_team"]);
+/** Statuses where the next step is the admin's (tone "us"); the rest wait on the team, a supplier or the courier. */
+export const NEEDS_ADMIN: ReadonlySet<OrderStatusKey> = new Set(ORDER_STATUS_KEYS.filter((s) => statusTone(s) === "us"));
 
 export type InboxSort = "action" | "newest" | "team";
 export const INBOX_SORTS: { key: InboxSort; label: string }[] = [

@@ -8,7 +8,8 @@ import { formatDay } from "@/domain/display";
 import { getBusiness } from "@/lib/settings";
 import { ItemDescription, QuoteTable, formatDateTime } from "@/components/orders";
 import { groupBySupplier } from "@/domain/cart";
-import { isFinished, LINE_LABELS, lineStatus, type OrderStatusKey } from "@/domain/order-status";
+import { LineStatusTag, ShipmentTag } from "@/components/order-status-tag";
+import { deliveryLabel, isFinished, lineStatus, shipmentStatus, type OrderStatusKey } from "@/domain/order-status";
 import { canRejectOrder } from "@/domain/orders";
 import { priceIls } from "@/domain/pricing";
 import { priceContext } from "@/lib/settings";
@@ -26,7 +27,6 @@ import { ApproveLinks } from "./orders/[id]/approve-links";
 import { OrderMenu, QuoteEditor, type EditorLine } from "./orders/[id]/quote-editor";
 import { createShipment } from "./logistics/actions";
 import { addLinesToDraft, sendDraft, sendVendorBatch } from "./purchasing/actions";
-import { LINE_STYLE } from "./status-style";
 
 type Detail = NonNullable<Awaited<ReturnType<typeof getOrderForViewer>>>;
 
@@ -202,10 +202,11 @@ async function PoShipments({ po }: { po: { id: string; number: number; supplierN
       {shipping.shipments.length > 0 ? (
         <ul className="flex flex-col gap-1 text-sm">
           {shipping.shipments.map((s) => (
-            <li key={s.id} className="flex flex-wrap gap-x-3">
+            <li key={s.id} className="flex flex-wrap items-center gap-x-3">
               <Link href={`/admin/logistics/${s.id}`} className="text-brand hover:underline">
                 משלוח <Ltr>#{s.number}</Ltr>
               </Link>
+              <ShipmentTag shipped={s.shipped} received={s.received} />
               <span className="text-muted">
                 {[s.carrier, s.tracking].filter(Boolean).length > 0 ? <Ltr>{[s.carrier, s.tracking].filter(Boolean).join(" ")}</Ltr> : "בלי פרטי שילוח"}
               </span>
@@ -304,7 +305,7 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
               <li key={l.orderItemId} className="flex flex-col gap-1 border-t border-line py-3 first:border-t-0">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <ItemDescription item={item} />
-                  <span className={`rounded-full px-3 py-1 text-caption font-medium ${LINE_STYLE[stage]}`}>{LINE_LABELS[stage]}</span>
+                  <LineStatusTag status={stage} audience="admin" />
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-muted">
                   <span>כמות {l.quoted}</span>
@@ -404,25 +405,30 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
       {logistics.shipments.length > 0 && (
         <Section title="קליטה במחסן">
           <ul className="flex flex-col gap-2 text-sm">
-            {logistics.shipments.map((s) => (
+            {logistics.shipments.map((s) => {
+              const closed = shipmentStatus(s) === "received";
+              return (
               <li key={s.id} className="flex flex-wrap items-center justify-between gap-2">
-                <span>
-                  משלוח <Ltr>#{s.number}</Ltr>
-                  {s.carrier && <>, <Ltr>{s.carrier}</Ltr></>}
-                  {s.tracking && <>, מעקב <Ltr>{s.tracking}</Ltr></>}
-                  {s.received ? ", נקלט" : ", בדרך"}
+                <span className="flex flex-wrap items-center gap-x-2">
+                  <span>
+                    משלוח <Ltr>#{s.number}</Ltr>
+                    {s.carrier && <>, <Ltr>{s.carrier}</Ltr></>}
+                    {s.tracking && <>, מעקב <Ltr>{s.tracking}</Ltr></>}
+                  </span>
+                  <ShipmentTag shipped={s.shipped} received={s.received} />
                 </span>
-                {!s.received && (status === "ordered" || status === "to_warehouse") ? (
+                {!closed && (status === "ordered" || status === "to_warehouse") ? (
                   <Link href={`/admin/logistics/${s.id}`} className="flex min-h-11 items-center rounded-full bg-subtle px-4 text-sm font-medium hover:bg-subtle-hover">
                     קליטה במחסן
                   </Link>
                 ) : (
                   <Link href={`/admin/logistics/${s.id}`} className="flex min-h-11 items-center text-sm text-brand hover:underline">
-                    {s.received ? "פרטי הקליטה" : "פרטי המשלוח"}
+                    {s.received > 0 ? "פרטי הקליטה" : "פרטי המשלוח"}
                   </Link>
                 )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         </Section>
       )}
@@ -461,7 +467,8 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
               <li key={d.id} className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>
-                    תעודה <Ltr>#{d.number}</Ltr>, {d.status === "delivered" ? `נמסרה${d.deliveredAt ? ` ${formatDay(d.deliveredAt)}` : ""}` : "מוכנה, עוד לא נמסרה"}
+                    תעודה <Ltr>#{d.number}</Ltr>, {deliveryLabel(d.status, "admin")}
+                    {d.status === "delivered" && d.deliveredAt ? ` ${formatDay(d.deliveredAt)}` : ""}
                   </span>
                   <Link
                     href={`/admin/deliveries/${d.id}`}

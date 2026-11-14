@@ -156,27 +156,3 @@ export function OrderCardShell({
     </li>
   );
 }
-
-/** "Finished orders" opens and closes in the browser; its cards are already on the page. */
-export function FinishedSection({ initialOpen, count, children }: { initialOpen: boolean; count: number; children: ReactNode }) {
-  const [open, setOpen] = useState(initialOpen);
-  return (
-    <section className="flex flex-col gap-3">
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(!open);
-          setUrl("finished", open ? null : "1");
-        }}
-        aria-expanded={open}
-        className="flex min-h-11 cursor-pointer items-center justify-between rounded-full bg-subtle px-4 font-semibold hover:bg-subtle-hover"
-      >
-        הזמנות שהסתיימו ({count})
-        <span aria-hidden>{open ? "▴" : "▾"}</span>
-      </button>
-      <ul hidden={!open} className="flex flex-col gap-3">
-        {children}
-      </ul>
-    </section>
-  );
-}

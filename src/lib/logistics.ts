@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Viewer } from "@/lib/auth";
@@ -46,7 +46,16 @@ export async function listShipments() {
 
 /** A supplier order's shipments, and how much of each line has shipped. */
 export async function getPoShipping(poId: string) {
-  const list = await db.select().from(shipments).where(eq(shipments.poId, poId)).orderBy(asc(shipments.number));
+  const list = await db
+    .select({
+      ...getTableColumns(shipments),
+      // Spelled out: in a one-table select drizzle writes ${shipments.id} as a bare "id", which the subquery would read as its own.
+      shipped: sql<number>`(SELECT coalesce(sum(si.qty), 0)::int FROM shipment_items si WHERE si.shipment_id = shipments.id)`,
+      received: sql<number>`(SELECT coalesce(sum(l.qty_received), 0)::int FROM receipt_lines l JOIN receipts r ON r.id = l.receipt_id WHERE r.shipment_id = shipments.id)`,
+    })
+    .from(shipments)
+    .where(eq(shipments.poId, poId))
+    .orderBy(asc(shipments.number));
   const shippedRows = await db
     .select({ poLineId: shipmentItems.poLineId, qty: sql<number>`sum(${shipmentItems.qty})::int` })
     .from(shipmentItems)
@@ -182,6 +191,51 @@ export async function getReadyToDeliver() {
   return rows.filter((r) => r.qty > r.delivered);
 }
 
+/**
+ * Delivery notes not confirmed yet, with their lines (A-02). Their units already left the
+ * board above, but they are still the admin's to hand over, so "ready" lists them too.
+ */
+export async function getOpenDeliveries() {
+  const notes = await db
+    .select({
+      id: deliveries.id,
+      number: deliveries.number,
+      method: deliveries.method,
+      address: deliveries.address,
+      createdAt: deliveries.createdAt,
+      teamId: teams.id,
+      teamName: teams.name,
+      teamProgram: teams.program,
+      teamNumber: teams.number,
+    })
+    .from(deliveries)
+    .innerJoin(teams, eq(teams.id, deliveries.teamId))
+    .where(eq(deliveries.status, "prepared"))
+    .orderBy(asc(teams.number), asc(deliveries.number));
+  if (notes.length === 0) return [];
+  const items = await db
+    .select({
+      deliveryId: deliveryItems.deliveryId,
+      allocationId: deliveryItems.allocationId,
+      qty: deliveryItems.qty,
+      title: teamOrderItems.title,
+      supplierSku: teamOrderItems.supplierSku,
+      options: teamOrderItems.options,
+      orderNumber: teamOrders.number,
+      contactName: teamOrders.contactName,
+    })
+    .from(deliveryItems)
+    .innerJoin(stockAllocations, eq(stockAllocations.id, deliveryItems.allocationId))
+    .innerJoin(teamOrderItems, eq(teamOrderItems.id, stockAllocations.orderItemId))
+    .innerJoin(teamOrders, eq(teamOrders.id, teamOrderItems.orderId))
+    .where(inArray(deliveryItems.deliveryId, notes.map((n) => n.id)))
+    .orderBy(asc(teamOrders.number), asc(teamOrderItems.title));
+  return notes.map((n) => {
+    const lines = items.filter((i) => i.deliveryId === n.id);
+    return { ...n, items: lines, contactName: lines[0]?.contactName ?? "" };
+  });
+}
+
 export async function listDeliveries() {
   return db
     .select({ delivery: deliveries, teamName: teams.name, teamProgram: teams.program, teamNumber: teams.number })
@@ -260,6 +314,7 @@ export async function getOrderDeliveries(orderId: string) {
       id: deliveries.id,
       number: deliveries.number,
       status: deliveries.status,
+      method: deliveries.method,
       deliveredAt: deliveries.deliveredAt,
     })
     .from(deliveries)

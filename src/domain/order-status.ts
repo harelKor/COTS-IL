@@ -34,31 +34,52 @@ export type OrderStatusKey = OrderStep | "rejected" | "cancelled";
 export const ORDER_STATUS_KEYS: OrderStatusKey[] = [...ORDER_STEPS, "rejected", "cancelled"];
 
 /**
- * Each status in the admin's words and the team's. Both say the same thing, and none
- * is a bare "נשלחה": it always says where to.
+ * Whose move it is, which picks the status colour on every screen (D-07): nothing to do
+ * but wait on a supplier or courier, the Israeli supplier's move, the team's move, done,
+ * or stopped.
  */
-export const STATUS_LABELS: Record<OrderStatusKey, { admin: string; team: string }> = {
-  awaiting_quote: { admin: "מחכה להצעה שלך", team: "מחכה להצעת מחיר" },
-  quote_sent: { admin: "מחכה לאישור הקבוצה", team: "הצעת המחיר מחכה לאישורכם" },
-  to_order: { admin: "אושרה, להזמין מהספק", team: "אושרה, בהזמנה מהספקים" },
-  ordered: { admin: "הוזמנה מהספק", team: "הוזמנה מהספק" },
-  to_warehouse: { admin: "בדרך למחסן", team: "בדרך למחסן בישראל" },
-  at_warehouse: { admin: "במחסן", team: "הגיעה למחסן בישראל" },
-  to_team: { admin: "מוכנה למסירה", team: "מוכנה למסירה" },
-  delivered: { admin: "נמסרה", team: "נמסרה" },
-  rejected: { admin: "נדחתה", team: "נדחתה" },
-  cancelled: { admin: "בוטלה", team: "בוטלה" },
+export type StatusTone = "neutral" | "us" | "team" | "done" | "problem";
+
+export type Audience = "admin" | "team";
+
+/**
+ * The status dictionary (T4): each status once, in the admin's words and the team's, with
+ * its tone. Every screen and email reads its words from here, through `statusLabel`, so one
+ * order never has two names. None is a bare "נשלחה": it always says where to. The team's
+ * word for "ready" depends on pickup or delivery (`teamPickup`).
+ */
+export const STATUS: Record<OrderStatusKey, { admin: string; team: string; teamPickup?: string; tone: StatusTone }> = {
+  awaiting_quote: { admin: "מחכה להצעה שלך", team: "מחכה להצעת מחיר", tone: "us" },
+  quote_sent: { admin: "מחכה לאישור הקבוצה", team: "ההצעה מחכה לאישורכם", tone: "team" },
+  to_order: { admin: "אושרה, להזמין מהספק", team: "אושרה, בהזמנה מהספקים", tone: "us" },
+  ordered: { admin: "הוזמנה מהספק", team: "הוזמנה מהספקים", tone: "neutral" },
+  to_warehouse: { admin: "בדרך למחסן", team: "בדרך למחסן בישראל", tone: "neutral" },
+  at_warehouse: { admin: "במחסן", team: "הגיעה למחסן בישראל", tone: "us" },
+  to_team: { admin: "מוכנה למסירה", team: "מוכנה למשלוח אליכם", teamPickup: "מוכנה לאיסוף", tone: "us" },
+  delivered: { admin: "נמסרה", team: "נמסרה", tone: "done" },
+  rejected: { admin: "נדחתה", team: "נדחתה", tone: "problem" },
+  cancelled: { admin: "בוטלה", team: "בוטלה", tone: "neutral" },
 };
 
-/** A line's chip: the same words on both sides. */
-export const LINE_LABELS: Record<LineStatus, string> = {
-  to_order: "ממתינה להזמנה מהספק",
-  ordered: "הוזמנה מהספק",
-  to_warehouse: "בדרך למחסן",
-  at_warehouse: "במחסן",
-  to_team: "מוכנה למסירה",
-  delivered: "נמסרה",
-};
+/** A status in one audience's words. For the team, `pickup` picks "מוכנה לאיסוף" over the delivery wording. */
+export function statusLabel(status: OrderStatusKey, audience: Audience, pickup = false): string {
+  const entry = STATUS[status];
+  if (audience === "admin") return entry.admin;
+  return (pickup && entry.teamPickup) || entry.team;
+}
+
+export const statusTone = (status: OrderStatusKey): StatusTone => STATUS[status].tone;
+
+/** A line's chip: the order's word for the same step, except a line still waiting to be ordered. */
+export function lineLabel(status: LineStatus, audience: Audience, pickup = false): string {
+  if (status === "to_order") return "ממתינה להזמנה מהספק";
+  return statusLabel(status, audience, pickup);
+}
+
+/** A delivery note's state is the order's "ready" until it is confirmed, then "delivered". */
+export function deliveryLabel(status: "prepared" | "delivered", audience: Audience, pickup = false): string {
+  return statusLabel(status === "delivered" ? "delivered" : "to_team", audience, pickup);
+}
 
 /** What the lines past the earliest one have done, for "3 מתוך 5 פריטים …". */
 const PAST_WORDS: Record<LineStatus, string> = {
@@ -120,12 +141,6 @@ export function isFinished(status: OrderStatusKey) {
 /** When each step was first reached, from the order, quote, purchasing and delivery records. */
 export type StepDates = Partial<Record<OrderStep, Date>>;
 
-/** The team's word for a step: for a pickup order, "ready to hand over" is "ready for pickup". */
-export function teamStepLabel(step: OrderStatusKey, pickup = false) {
-  if (step === "to_team") return pickup ? "מוכנה לאיסוף" : "במשלוח אליכם";
-  return STATUS_LABELS[step].team;
-}
-
 /**
  * The team's stepper: each step done, current or still ahead, with the date it was
  * reached when the records have one. A stopped order shows where it stopped.
@@ -134,8 +149,41 @@ export function orderTimeline(status: OrderStatusKey, stoppedAt: OrderStep = "aw
   const reached = ORDER_STEPS.indexOf(status === "rejected" || status === "cancelled" ? stoppedAt : status);
   return ORDER_STEPS.map((s, i) => {
     const state = i < reached ? ("done" as const) : i === reached ? ("current" as const) : ("ahead" as const);
-    return { step: s, label: teamStepLabel(s, pickup), state, date: state === "ahead" ? null : (dates[s] ?? null) };
+    return { step: s, label: statusLabel(s, "team", pickup), state, date: state === "ahead" ? null : (dates[s] ?? null) };
   });
+}
+
+/**
+ * The team's compact timeline (C-29): the steps already done (shown folded), the current
+ * one (shown large) and the one after it. A stopped order's current step is where it
+ * stopped, labelled with how it stopped, and has nothing after it.
+ */
+export function compactTimeline(status: OrderStatusKey, stoppedAt: OrderStep = "awaiting_quote", dates: StepDates = {}, pickup = false) {
+  const steps = orderTimeline(status, stoppedAt, dates, pickup);
+  const stopped = status === "rejected" || status === "cancelled";
+  const at = steps.findIndex((s) => s.state === "current");
+  const current = { ...steps[at], label: stopped ? statusLabel(status, "team") : steps[at].label };
+  return { done: steps.slice(0, at), current, next: stopped ? null : (steps[at + 1] ?? null), stopped };
+}
+
+/**
+ * A supplier shipment's state, worked out from its units and never stored (A-03): nothing
+ * received yet, some of it, or all of it, which closes the shipment. Damaged units count
+ * as received here; the replacement goes on a new shipment.
+ */
+export type ShipmentStatus = "in_transit" | "partly_received" | "received";
+
+export const SHIPMENT_LABELS: Record<ShipmentStatus, string> = {
+  in_transit: "בדרך",
+  partly_received: "התקבל בחלקו",
+  received: "התקבל",
+};
+
+export const SHIPMENT_TONES: Record<ShipmentStatus, StatusTone> = { in_transit: "neutral", partly_received: "us", received: "done" };
+
+export function shipmentStatus({ shipped, received }: { shipped: number; received: number }): ShipmentStatus {
+  if (received <= 0) return "in_transit";
+  return received >= shipped ? "received" : "partly_received";
 }
 
 /** The steps a unit goes through after the quote is approved (S13 task 3). */

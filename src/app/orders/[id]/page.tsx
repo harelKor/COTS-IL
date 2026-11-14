@@ -2,7 +2,7 @@ import { WhatsAppLink } from "@/components/whatsapp-link";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { Alert } from "@/components/form";
 import { formatDateTime, QuoteTable, RequestTable } from "@/components/orders";
 import { QuoteDecision } from "@/components/quote-decision";
@@ -10,8 +10,11 @@ import { QuoteView } from "@/components/quote-view";
 import { PrintButton } from "@/components/print-button";
 import { OrderTimeline, StageBadge } from "@/components/order-timeline";
 import { ReorderButton } from "@/components/reorder-button";
-import { orderStatus } from "@/domain/order-status";
-import { canCancelOrder, canDecideQuote, teamCanOrder } from "@/domain/orders";
+import { TONE_BOX } from "@/components/order-status-tag";
+import { deliveryLabel, orderStatus, statusTone, type OrderStatusKey } from "@/domain/order-status";
+import { canCancelOrder, canDecideQuote, quoteTotals, teamCanOrder } from "@/domain/orders";
+import { formatIls } from "@/domain/pricing";
+import type { Business } from "@/domain/settings";
 import { getViewer } from "@/lib/auth";
 import { getChangeRequest, getOrderForViewer, getStepDates, recentDecision } from "@/lib/orders";
 import { getBusiness } from "@/lib/settings";
@@ -22,6 +25,61 @@ import { TeamName } from "@/components/team-name";
 export const metadata: Metadata = { title: "הזמנה" };
 // A decision's email waits out the 30 s undo window in after().
 export const maxDuration = 60;
+
+/**
+ * What the team does or can expect next, above everything else: approve the quote, or
+ * where and when to pick up. Nothing shows while the next move is only ours to make.
+ */
+function NextAction({
+  stage,
+  pickup,
+  address,
+  business,
+  approveTotal,
+}: {
+  stage: OrderStatusKey;
+  pickup: boolean;
+  address: string | null;
+  business: Business;
+  approveTotal: number | null;
+}) {
+  const pickupAt = [business.pickupAddress, business.pickupHours].filter(Boolean).join(", ");
+  let body: ReactNode = null;
+  if (stage === "quote_sent" && approveTotal !== null) {
+    body = (
+      <>
+        <p className="text-callout">
+          לאשר את ההצעה: סה״כ לתשלום <span className="font-semibold tabular-nums">{formatIls(approveTotal)}</span>. נזמין מהספקים אחרי האישור.
+        </p>
+        <a href="#decision" className="btn-brand flex min-h-11 w-fit items-center rounded-full px-5 text-callout font-medium">
+          לאישור ההצעה
+        </a>
+      </>
+    );
+  } else if (stage === "awaiting_quote") {
+    body = (
+      <p className="text-callout">
+        {business.quoteLeadBusinessDays
+          ? `הצעת המחיר תגיע תוך ${business.quoteLeadBusinessDays} ימי עסקים מהשליחה, בדוא״ל ובדף הזה.`
+          : "הצעת המחיר תגיע בדוא״ל ובדף הזה."}
+      </p>
+    );
+  } else if (stage === "at_warehouse") {
+    body = (
+      <p className="text-callout">
+        {pickup ? `נכין אותה לאיסוף בקרוב${pickupAt ? `. איסוף מ: ${pickupAt}` : "."}` : `נשלח אותה בקרוב${address ? ` לכתובת: ${address}` : ""}.`}
+      </p>
+    );
+  } else if (stage === "to_team") {
+    body = <p className="text-callout">{pickup ? (pickupAt ? `איסוף מ: ${pickupAt}` : "אפשר לבוא לאסוף.") : `לכתובת: ${address ?? ""}`}</p>;
+  } else return null;
+  return (
+    <section aria-labelledby="next-step" className={`card-surface flex flex-col gap-3 border-s-4 p-4 print:hidden ${TONE_BOX[statusTone(stage)].edge}`}>
+      <h2 id="next-step" className="text-callout font-medium text-muted">הצעד הבא</h2>
+      {body}
+    </section>
+  );
+}
 
 async function Order({ params }: PageProps<"/orders/[id]">) {
   const { id } = await params;
@@ -85,19 +143,20 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
         )}
       </section>
 
-      <section className="rounded-card bg-surface p-4 print:hidden">
+      <NextAction
+        stage={stage}
+        pickup={pickup}
+        address={order.address}
+        business={business}
+        approveTotal={waitingForDecision && onTeam && latest ? quoteTotals(latest.lines, latest.shippingIls).total : null}
+      />
+
+      <section className="card-surface p-4 print:hidden">
         <OrderTimeline stage={stage} stoppedAt={stoppedAt} dates={dates} pickup={pickup} />
-        {pickup && (stage === "to_team" || stage === "at_warehouse") && (business.pickupAddress || business.pickupHours) && (
-          <p className="mt-3 text-callout">
-            {stage === "to_team" ? "ההזמנה מוכנה לאיסוף" : "ההזמנה במחסן ותהיה מוכנה לאיסוף בקרוב"}
-            {business.pickupAddress && `: ${business.pickupAddress}`}
-            {business.pickupHours && `, ${business.pickupHours}`}
-          </p>
-        )}
       </section>
 
       {latest ? (
-        <QuoteView orderNumber={order.number} team={team} items={items} quote={latest} previous={previous} progress={progress}>
+        <QuoteView orderNumber={order.number} team={team} items={items} quote={latest} previous={previous} progress={progress} pickup={pickup}>
           {previous && waitingForDecision && <Alert tone="info">ההצעה עודכנה מאז הגרסה הקודמת, וצריך לאשר מחדש.</Alert>}
           {changeRequest && (
             <Alert tone="info">
@@ -107,10 +166,12 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           )}
           {(waitingForDecision || decided) &&
             (onTeam ? (
-              <QuoteDecision
-                quoteId={latest.id}
-                decided={decided && (decided.action === "approve" || decided.action === "reject") ? { action: decided.action, at: decided.at.toISOString() } : null}
-              />
+              <div id="decision" className="scroll-mt-20">
+                <QuoteDecision
+                  quoteId={latest.id}
+                  decided={decided && (decided.action === "approve" || decided.action === "reject") ? { action: decided.action, at: decided.at.toISOString() } : null}
+                />
+              </div>
             ) : (
               !viewer.isAdmin && waitingForDecision && <Alert tone="info">ההצעה ממתינה לאישור הקבוצה.</Alert>
             ))}
@@ -128,7 +189,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           <h2 className="font-semibold">תעודות משלוח</h2>
           {deliveries.map((d) => (
             <Link key={d.id} href={`/deliveries/${d.id}`} className="text-brand hover:underline">
-              תעודה {d.number}, {d.status === "delivered" ? "נמסרה" : "בהכנה"}
+              תעודה {d.number}, {deliveryLabel(d.status, "team", d.method === "pickup")}
             </Link>
           ))}
         </section>

@@ -40,7 +40,9 @@ export type AdminOrderSummary = {
   teamStatus: string;
   /** Suppliers with lines in the approved quote that aren't on an ordered supplier order yet. */
   vendorsToOrder: { id: string; name: string }[];
+  /** Lines, and the units on them, in the latest quote (or the request before one). */
   itemCount: number;
+  unitCount: number;
   /** The vendors the order's items come from, by name. */
   supplierNames: string[];
   totalIls: number;
@@ -49,6 +51,7 @@ export type AdminOrderSummary = {
 
 /** Every order card's summary fields, in the admin's order. Two queries for any number of orders. */
 export async function getOrderSummaries(): Promise<AdminOrderSummary[]> {
+  const latestQuote = sql`(SELECT q.id FROM ${quotes} q WHERE q.order_id = ${teamOrders.id} AND q.status <> 'superseded' ORDER BY q.version DESC LIMIT 1)`;
   const rows = await db
     .select({
       id: teamOrders.id,
@@ -60,7 +63,13 @@ export async function getOrderSummaries(): Promise<AdminOrderSummary[]> {
       teamProgram: teams.program,
       teamNumber: teams.number,
       teamStatus: teams.status,
-      itemCount: sql<number>`(SELECT count(*)::int FROM ${teamOrderItems} WHERE ${teamOrderItems.orderId} = ${teamOrders.id})`,
+      // Lines and units in the latest quote that still counts, or in the request before any quote.
+      itemCount: sql<number>`CASE WHEN ${latestQuote} IS NULL
+        THEN (SELECT count(*)::int FROM ${teamOrderItems} WHERE ${teamOrderItems.orderId} = ${teamOrders.id})
+        ELSE (SELECT count(*)::int FROM ${quoteLines} ql WHERE ql.quote_id = ${latestQuote} AND ql.qty > 0) END`,
+      unitCount: sql<number>`CASE WHEN ${latestQuote} IS NULL
+        THEN (SELECT coalesce(sum(i.qty), 0)::int FROM ${teamOrderItems} i WHERE i.order_id = ${teamOrders.id})
+        ELSE (SELECT coalesce(sum(ql.qty), 0)::int FROM ${quoteLines} ql WHERE ql.quote_id = ${latestQuote}) END`,
       supplierNames: sql<string[]>`coalesce((SELECT array_agg(DISTINCT ${teamOrderItems.supplierName} ORDER BY ${teamOrderItems.supplierName}) FROM ${teamOrderItems} WHERE ${teamOrderItems.orderId} = ${teamOrders.id}), '{}')`,
       // The latest quote that still counts, or the request's own prices before any quote.
       totalIls: sql<number>`coalesce((
@@ -141,7 +150,10 @@ export async function getOrderLogistics(orderId: string) {
             poId: shipments.poId,
             carrier: shipments.carrier,
             tracking: shipments.tracking,
-            received: sql<boolean>`EXISTS (SELECT 1 FROM ${receipts} r WHERE r.shipment_id = ${shipments.id})`,
+            // Spelled out: in a one-table select drizzle writes ${shipments.id} as a bare "id", which the
+            // subquery reads as its own (the old EXISTS matched a receipt to itself, so shipments stayed "בדרך").
+            shipped: sql<number>`(SELECT coalesce(sum(si.qty), 0)::int FROM shipment_items si WHERE si.shipment_id = shipments.id)`,
+            received: sql<number>`(SELECT coalesce(sum(rl.qty_received), 0)::int FROM receipt_lines rl JOIN receipts r ON r.id = rl.receipt_id WHERE r.shipment_id = shipments.id)`,
           })
           .from(shipments)
           .where(inArray(shipments.poId, poIds))

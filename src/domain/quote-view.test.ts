@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { orderTimeline, teamStepLabel } from "./order-status";
+import { orderTimeline, statusLabel } from "./order-status";
 import { quoteChanges, quoteValidUntil, reorderLines, undoOpen, UNDO_SECONDS, waitingFirst } from "./quote-view";
 
 const items = [
@@ -91,6 +91,6 @@ describe("dated timeline", () => {
     expect(steps.find((s) => s.step === "to_team")?.label).toBe("מוכנה לאיסוף");
     // A step still ahead shows no date, even if one is passed.
     expect(steps.find((s) => s.step === "delivered")?.date).toBeNull();
-    expect(teamStepLabel("to_team", false)).toBe("במשלוח אליכם");
+    expect(statusLabel("to_team", "team", false)).toBe("מוכנה למשלוח אליכם");
   });
 });

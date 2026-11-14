@@ -5,22 +5,30 @@ import { Ltr } from "@/components/ltr";
 import { TeamName } from "@/components/team-name";
 import { groupInbox, INBOX_SORTS, NEEDS_ADMIN, parseInboxSort } from "@/domain/admin-orders";
 import { formatDay } from "@/domain/display";
-import { isFinished, ORDER_STEPS, STATUS_LABELS, type OrderStatusKey } from "@/domain/order-status";
+import { OrderStatusTag, TONE_BOX } from "@/components/order-status-tag";
+import { isFinished, ORDER_STEPS, statusLabel, type OrderStatusKey } from "@/domain/order-status";
+import { countOf, ITEM, units } from "@/domain/plural";
 import { formatIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { countByStatus, getOrderSummaries, type AdminOrderSummary } from "@/lib/admin-orders";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { GoLiveBanner } from "./go-live-banner";
 import { OrderPanel } from "./order-panel";
-import { FinishedSection, OrderCardShell } from "./order-card-shell";
+import { OrderCardShell } from "./order-card-shell";
 import { STATUS_STYLE } from "./status-style";
 import { BULK_FORM, BulkOrdered, InboxSearch } from "./inbox-controls";
 
 export const metadata: Metadata = { title: "כל ההזמנות" };
 
-type Params = { status?: string; q?: string; open?: string; finished?: string; edit?: string; sort?: string };
+type Params = { status?: string; q?: string; open?: string; edit?: string; sort?: string };
 
 const OPEN_STATUSES = ORDER_STEPS.filter((s) => !isFinished(s));
+
+/** The two tabs for orders that are over (A-05). "בוטלו" holds rejected orders too: both stopped. */
+const DONE_TABS = [
+  { key: "delivered", label: "נמסרו", statuses: ["delivered"], empty: "אין הזמנות שנמסרו." },
+  { key: "cancelled", label: "בוטלו", statuses: ["cancelled", "rejected"], empty: "אין הזמנות שבוטלו או נדחו." },
+] as const satisfies { key: OrderStatusKey; label: string; statuses: OrderStatusKey[]; empty: string }[];
 
 const MAIN_ACTION: Record<OrderStatusKey, string> = {
   awaiting_quote: "אישור ושליחה לקבוצה",
@@ -59,9 +67,11 @@ function matches(order: AdminOrderSummary, q: string) {
 }
 
 function Filters({ params, counts, total }: { params: Params; counts: Record<OrderStatusKey, number>; total: number }) {
+  const box = (active: boolean, style: { box: string; edge: string }) =>
+    `flex min-h-20 flex-col justify-between rounded-[18px] border-2 p-3 ${style.box} ${active ? style.edge : "border-transparent"}`;
   return (
     <div className="flex flex-col gap-3">
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-8">
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         <li>
           <Link
             href={href(params, { status: undefined, open: undefined })}
@@ -70,7 +80,7 @@ function Filters({ params, counts, total }: { params: Params; counts: Record<Ord
               !params.status ? "border-foreground" : "border-line"
             }`}
           >
-            <span className="text-sm font-medium">הכל</span>
+            <span className="text-sm font-medium">פתוחות</span>
             <span className="text-title font-semibold tabular-nums">{total}</span>
           </Link>
         </li>
@@ -81,12 +91,25 @@ function Filters({ params, counts, total }: { params: Params; counts: Record<Ord
               <Link
                 href={href(params, { status: active ? undefined : s, open: undefined })}
                 aria-current={active ? "true" : undefined}
-                className={`flex min-h-20 flex-col justify-between rounded-[18px] border-2 p-3 ${STATUS_STYLE[s].box} ${
-                  active ? STATUS_STYLE[s].edge : "border-transparent"
-                }`}
+                className={box(active, STATUS_STYLE[s])}
               >
-                <span className="text-sm font-medium">{STATUS_LABELS[s].admin}</span>
+                <span className="text-sm font-medium">{statusLabel(s, "admin")}</span>
                 <span className="text-title font-semibold tabular-nums">{counts[s]}</span>
+              </Link>
+            </li>
+          );
+        })}
+        {DONE_TABS.map((t) => {
+          const active = params.status === t.key;
+          return (
+            <li key={t.key}>
+              <Link
+                href={href(params, { status: active ? undefined : t.key, open: undefined })}
+                aria-current={active ? "true" : undefined}
+                className={box(active, TONE_BOX.neutral)}
+              >
+                <span className="text-sm font-medium">{t.label}</span>
+                <span className="text-title font-semibold tabular-nums">{t.statuses.reduce((n, s) => n + counts[s], 0)}</span>
               </Link>
             </li>
           );
@@ -123,14 +146,13 @@ function Filters({ params, counts, total }: { params: Params; counts: Record<Ord
 function OrderCard({ order, params, now }: { order: AdminOrderSummary; params: Params; now: number }) {
   const open = params.open === order.id;
   const style = STATUS_STYLE[order.view.status];
-  const label = STATUS_LABELS[order.view.status].admin;
   const mine = NEEDS_ADMIN.has(order.view.status);
   const selectable = order.view.status === "to_order" && order.vendorsToOrder.length > 0;
   return (
     <OrderCardShell
       orderId={order.id}
       status={order.view.status}
-      version={`${order.itemCount}:${order.totalIls}:${order.view.progress ?? ""}:${order.view.vendors ?? ""}`}
+      version={`${order.itemCount}:${order.unitCount}:${order.totalIls}:${order.view.progress ?? ""}:${order.view.vendors ?? ""}`}
       edgeClass={style.edge}
       initialOpen={open}
       serverPanel={open ? <OrderPanel orderId={order.id} status={order.view.status} edit={params.edit === "1"} /> : null}
@@ -151,12 +173,12 @@ function OrderCard({ order, params, now }: { order: AdminOrderSummary; params: P
               הזמנה <Ltr>#{order.number}</Ltr>, <Ltr>{formatDay(order.submittedAt, new Date(now))}</Ltr>, {age(order.submittedAt, now)}
             </div>
           </div>
-          <span className={`rounded-full px-3 py-1 text-caption font-semibold ${style.chip}`}>{label}</span>
+          <OrderStatusTag status={order.view.status} audience="admin" />
         </div>
       }
       meta={
         <span className="text-muted">
-          {order.itemCount} פריטים, {formatIls(order.totalIls)}
+          {countOf(order.itemCount, ITEM, "compact")}, {units(order.unitCount)}, {formatIls(order.totalIls)}
           {order.supplierNames.length > 0 && (
             <>
               , <Ltr>{order.supplierNames.join(", ")}</Ltr>
@@ -189,14 +211,23 @@ async function AllOrders({ searchParams }: { searchParams: Promise<Params> }) {
   const now = new Date().getTime();
   const everything = await getOrderSummaries();
   const all = everything.filter((o) => !isFinished(o.view.status));
-  const finished = everything.filter((o) => isFinished(o.view.status) && matches(o, params.q ?? "")).reverse();
-  const counts = countByStatus(all);
+  const q = params.q ?? "";
+  const counts = countByStatus(everything);
+  const doneTab = DONE_TABS.find((t) => t.key === params.status);
+  const sort = parseInboxSort(params.sort);
   // The open card stays in the list after its action moves it out of the filter.
-  const shown = all.filter(
-    (o) => o.id === params.open || ((!params.status || o.view.status === params.status) && matches(o, params.q ?? "")),
-  );
-  const finishedOpen = params.finished === "1";
-  const groups = groupInbox(shown, parseInboxSort(params.sort));
+  const keep = (o: AdminOrderSummary) => o.id === params.open || matches(o, q);
+  let groups: { heading: string; orders: AdminOrderSummary[] }[];
+  if (doneTab) {
+    const done = everything.filter((o) => (doneTab.statuses as readonly OrderStatusKey[]).includes(o.view.status) && keep(o));
+    groups = done.length ? [{ heading: doneTab.label, orders: [...done].reverse() }] : [];
+  } else {
+    const shown = all.filter((o) => o.id === params.open || ((!params.status || o.view.status === params.status) && matches(o, q)));
+    groups = groupInbox(shown, sort);
+    // A search under "פתוחות" still finds an order that is over.
+    const over = q.trim() && !params.status ? everything.filter((o) => isFinished(o.view.status) && matches(o, q)).reverse() : [];
+    if (over.length) groups.push({ heading: "הזמנות שהסתיימו", orders: over });
+  }
   const vendors = new Map<string, { id: string; name: string; orderIds: string[] }>();
   for (const o of all.filter((o) => o.view.status === "to_order"))
     for (const v of o.vendorsToOrder) {
@@ -210,8 +241,8 @@ async function AllOrders({ searchParams }: { searchParams: Promise<Params> }) {
     <div className="flex flex-col gap-6">
       <Filters params={params} counts={counts} total={all.length} />
 
-      {shown.length === 0 ? (
-        <p className="text-muted">{params.status || params.q ? "אין הזמנות שמתאימות לסינון." : "אין הזמנות פתוחות."}</p>
+      {groups.length === 0 ? (
+        <p className="text-muted">{params.q ? "אין הזמנות שמתאימות לחיפוש." : doneTab ? doneTab.empty : params.status ? "אין הזמנות שמתאימות לסינון." : "אין הזמנות פתוחות."}</p>
       ) : (
         groups.map((g) => (
           <section key={g.heading} className="flex flex-col gap-3" aria-label={g.heading}>
@@ -229,11 +260,6 @@ async function AllOrders({ searchParams }: { searchParams: Promise<Params> }) {
 
       <BulkOrdered vendors={[...vendors.values()]} today={today} />
 
-      <FinishedSection initialOpen={finishedOpen} count={finished.length}>
-        {finished.map((o) => (
-          <OrderCard key={o.id} order={o} params={params} now={now} />
-        ))}
-      </FinishedSection>
     </div>
   );
 }

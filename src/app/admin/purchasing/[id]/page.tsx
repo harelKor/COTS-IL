@@ -14,6 +14,7 @@ import { getPo, getPoRevenueIls, getPoUpdatedAt } from "@/lib/purchasing";
 import { formatDay } from "@/domain/display";
 import { Ltr } from "@/components/ltr";
 import { createShipment } from "../../logistics/actions";
+import { ShipmentTag } from "@/components/order-status-tag";
 import { PO_STATUS_LABELS } from "../status";
 import { CancelPoForm, PoRecordForm, RecordOrderedForm, RemoveLineButton } from "./po-forms";
 import { Loading, PageSkeleton } from "@/components/skeleton";
@@ -214,10 +215,11 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
           {shipping.shipments.length > 0 && (
             <ul className="flex flex-col gap-1 text-sm">
               {shipping.shipments.map((s) => (
-                <li key={s.id}>
+                <li key={s.id} className="flex flex-wrap items-center gap-x-2">
                   <Link href={`/admin/logistics/${s.id}`} className="text-brand hover:underline">
                     משלוח {s.number}
-                  </Link>{" "}
+                  </Link>
+                  <ShipmentTag shipped={s.shipped} received={s.received} />
                   <span className="ltr text-muted">{[s.carrier, s.tracking].filter(Boolean).join(" ")}</span>
                 </li>
               ))}

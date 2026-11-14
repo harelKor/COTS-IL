@@ -2,10 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { HowItWorksSteps } from "@/components/how-it-works-steps";
 import { InfoPage, InfoSection } from "@/components/info-page";
+import { StatusTag } from "@/components/form";
 import { Ltr } from "@/components/ltr";
 import { VendorNames } from "@/components/vendor-names";
 import { getFacets } from "@/lib/catalog";
+import { ORDER_STEPS, statusLabel } from "@/domain/order-status";
 import { getBusiness } from "@/lib/settings";
+
+/** The steps in the words the order page and the emails use (T4); "ready" in both its forms. */
+const TEAM_STEPS = ORDER_STEPS.flatMap((s) => (s === "to_team" ? [statusLabel(s, "team", true), statusLabel(s, "team", false)] : [statusLabel(s, "team")]));
 
 export const metadata: Metadata = {
   title: "איך זה עובד",
@@ -47,8 +52,15 @@ export default async function HowItWorksPage() {
           <Link href="/orders" className="text-brand hover:underline">
             ההזמנות
           </Link>{" "}
-          כל הזמנה מראה איפה היא: מחכה להצעת מחיר, הצעה לאישורכם, אושרה, הוזמנה מהספק, בדרך למחסן, במחסן, מוכנה למסירה, נמסרה.
+          כל הזמנה מראה איפה היא:
         </p>
+        <ol className="flex flex-wrap gap-2" aria-label="שלבי ההזמנה">
+          {TEAM_STEPS.map((label) => (
+            <li key={label}>
+              <StatusTag>{label}</StatusTag>
+            </li>
+          ))}
+        </ol>
       </InfoSection>
     </InfoPage>
   );

@@ -1,4 +1,4 @@
-import { LINE_LABELS, lineStatus, type LineFacts } from "@/domain/order-status";
+import { lineLabel, lineStatus, type LineFacts } from "@/domain/order-status";
 import { formatIls } from "@/domain/pricing";
 import { diffQuoteLines, quoteTotals, type QuoteLine } from "@/domain/orders";
 import { supplierSections } from "@/domain/cart";
@@ -65,7 +65,7 @@ export function RequestTable({ items }: { items: OrderItem[] }) {
   const { subtotal } = quoteTotals(items, 0);
   return (
     <div className="overflow-x-auto card-surface">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm tabular-nums">
         <thead className="bg-subtle text-muted">
           <tr>
             <th className="p-3 text-start font-medium">פריט</th>
@@ -103,13 +103,13 @@ export function RequestTable({ items }: { items: OrderItem[] }) {
   );
 }
 
-function ProgressNote({ progress }: { progress?: LineFacts }) {
+function ProgressNote({ progress, pickup }: { progress?: LineFacts; pickup: boolean }) {
   if (!progress || progress.quoted === 0) return null;
   const stage = lineStatus(progress);
   if (stage === "to_order") return null;
   return (
     <div className="mt-1 text-caption text-success">
-      {LINE_LABELS[stage]}
+      {lineLabel(stage, "team", pickup)}
       {progress.delivered > 0 && stage !== "delivered" && `, נמסרו ${progress.delivered} מתוך ${progress.quoted}`}
     </div>
   );
@@ -128,11 +128,13 @@ export function QuoteTable({
   previous,
   items,
   progress,
+  pickup = false,
 }: {
   quote: QuoteView;
   previous?: QuoteView;
   items: OrderItem[];
   progress?: Map<string, LineFacts>;
+  pickup?: boolean;
 }) {
   const linesByItem = new Map(quote.lines.map((line) => [line.itemId, line]));
   const changes = diffQuoteLines(previous?.lines ?? [], quote.lines);
@@ -141,7 +143,7 @@ export function QuoteTable({
 
   return (
     <div className="overflow-x-auto card-surface">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm tabular-nums">
         <thead className="bg-subtle text-muted">
           <tr>
             <th className="p-3 text-start font-medium">פריט</th>
@@ -169,7 +171,7 @@ export function QuoteTable({
                 <td className="p-3">
                   <ItemDescription item={item} />
                   {line.changeReason && <div className="mt-1 text-caption text-warning">סיבת השינוי: {line.changeReason}</div>}
-                  <ProgressNote progress={progress?.get(line.itemId)} />
+                  <ProgressNote progress={progress?.get(line.itemId)} pickup={pickup} />
                 </td>
                 <td className="p-3">
                   {qtyBefore !== undefined && <s className="me-1 text-caption text-muted">{qtyBefore}</s>}

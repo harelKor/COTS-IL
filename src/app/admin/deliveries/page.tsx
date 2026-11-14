@@ -4,16 +4,66 @@ import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { Button, Field, Input } from "@/components/form";
 import { formatDateTime } from "@/components/orders";
+import { Ltr } from "@/components/ltr";
+import { OrderStatusTag } from "@/components/order-status-tag";
+import { deliveryLabel } from "@/domain/order-status";
+import { countOf, ITEM } from "@/domain/plural";
 import { describeOptions } from "@/domain/purchasing";
 import { requireAdmin } from "@/lib/auth";
-import { getReadyToDeliver, listDeliveries } from "@/lib/logistics";
-import { createDelivery } from "./actions";
+import { getOpenDeliveries, getReadyToDeliver, listDeliveries } from "@/lib/logistics";
+import { confirmDelivery, createDelivery } from "./actions";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { TeamName } from "@/components/team-name";
 
 export const metadata: Metadata = { title: "מסירות" };
 
 type Ready = Awaited<ReturnType<typeof getReadyToDeliver>>[number];
+type OpenNote = Awaited<ReturnType<typeof getOpenDeliveries>>[number];
+
+const isoDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" });
+
+/** A note that is printed but not handed over yet: its lines and the one action left (A-02). */
+function NoteCard({ note }: { note: OpenNote }) {
+  return (
+    <section className="flex flex-col gap-3 card-surface p-4" aria-label={`תעודה ${note.number}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3 className="font-semibold">
+          <TeamName team={{ name: note.teamName, program: note.teamProgram, number: note.teamNumber }} />
+        </h3>
+        <OrderStatusTag status="to_team" audience="admin" />
+      </div>
+      <p className="text-sm text-muted">
+        <Link href={`/admin/deliveries/${note.id}`} className="text-brand hover:underline">
+          תעודה <Ltr>#{note.number}</Ltr>
+        </Link>
+        , {note.method === "ship" ? `משלוח לכתובת: ${note.address ?? ""}` : "איסוף עצמי"}, {countOf(note.items.length, ITEM)}
+      </p>
+      <ul className="flex flex-col">
+        {note.items.map((row) => (
+          <li key={row.allocationId} className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-2">
+            <div dir="ltr" className="min-w-48 flex-1 text-start text-sm">
+              <div className="font-medium">{row.title}</div>
+              <div className="text-caption text-muted">
+                {[describeOptions(row.options), row.supplierSku ?? "no supplier SKU", `#${row.orderNumber}`].filter(Boolean).join(", ")}
+              </div>
+            </div>
+            <span className="text-sm tabular-nums">כמות {row.qty}</span>
+          </li>
+        ))}
+      </ul>
+      <ActionForm action={confirmDelivery} className="flex flex-wrap items-end gap-3 border-t border-line pt-3">
+        <input type="hidden" name="deliveryId" value={note.id} />
+        <Field label="שם המקבל" name={`recipient-${note.id}`}>
+          <Input id={`recipient-${note.id}`} name="recipientName" required minLength={2} maxLength={100} defaultValue={note.contactName} />
+        </Field>
+        <Field label="תאריך" name={`delivered-${note.id}`}>
+          <Input id={`delivered-${note.id}`} name="deliveredAt" type="date" lang="he-IL" required defaultValue={isoDay.format(new Date())} />
+        </Field>
+        <Button>סימון כנמסר</Button>
+      </ActionForm>
+    </section>
+  );
+}
 
 function TeamBoard({ rows }: { rows: Ready[] }) {
   const [first] = rows;
@@ -72,18 +122,21 @@ function TeamBoard({ rows }: { rows: Ready[] }) {
 
 async function Deliveries() {
   await requireAdmin();
-  const [ready, list] = await Promise.all([getReadyToDeliver(), listDeliveries()]);
+  const [ready, notes, list] = await Promise.all([getReadyToDeliver(), getOpenDeliveries(), listDeliveries()]);
   const byTeam = [...Map.groupBy(ready, (r) => r.teamId)];
 
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <h2 className="font-semibold">מוכן למסירה</h2>
-        {byTeam.length === 0 ? (
-          <p className="text-muted">אין כרגע פריטים שהוקצו וממתינים למסירה.</p>
-        ) : (
-          byTeam.map(([teamId, rows]) => <TeamBoard key={teamId} rows={rows} />)
-        )}
+        {byTeam.length === 0 && notes.length === 0 && <p className="text-muted">אין כרגע פריטים שמחכים למסירה.</p>}
+        {notes.map((note) => (
+          <NoteCard key={note.id} note={note} />
+        ))}
+        {byTeam.length > 0 && notes.length > 0 && <h3 className="mt-2 text-callout font-semibold">עוד בלי תעודה</h3>}
+        {byTeam.map(([teamId, rows]) => (
+          <TeamBoard key={teamId} rows={rows} />
+        ))}
       </section>
 
       <section className="flex flex-col gap-3">
@@ -115,7 +168,7 @@ async function Deliveries() {
                     <td className="whitespace-nowrap px-4 py-2">
                       <span className="ltr">{formatDateTime(delivery.createdAt)}</span>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2">{delivery.status === "delivered" ? "נמסרה" : "ממתינה למסירה"}</td>
+                    <td className="whitespace-nowrap px-4 py-2">{deliveryLabel(delivery.status, "admin")}</td>
                   </tr>
                 ))}
               </tbody>

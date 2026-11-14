@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { teamDisplay } from "@/domain/display";
 import type { NextRequest } from "next/server";
-import { LINE_LABELS, lineStatus } from "@/domain/order-status";
+import { lineLabel, lineStatus } from "@/domain/order-status";
 import { profitSummary, purchaseCost } from "@/domain/reports";
 import { requireAdmin } from "@/lib/auth";
 import { getOrderLines } from "@/lib/order-status";
@@ -128,7 +128,7 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
         i.allocated,
         i.delivered,
         i.quoted - i.delivered,
-        LINE_LABELS[lineStatus(i)],
+        lineLabel(lineStatus(i), "admin"),
       ]),
     };
   }

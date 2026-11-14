@@ -11,6 +11,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getShipment } from "@/lib/logistics";
 import { addImportCost, deleteShipment, receiveShipment, removeImportCost, reverseReceipt, setAllocations } from "../actions";
 import { Loading, PageSkeleton } from "@/components/skeleton";
+import { ShipmentTag } from "@/components/order-status-tag";
 
 export const metadata: Metadata = { title: "משלוח" };
 
@@ -39,7 +40,10 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-title font-semibold">משלוח {shipment.number}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-title font-semibold">משלוח {shipment.number}</h1>
+          <ShipmentTag shipped={items.reduce((n, i) => n + i.shipped, 0)} received={receiptRows.reduce((n, r) => n + r.qtyReceived, 0)} />
+        </div>
         <p className="text-sm text-muted">
           <Link href={`/admin/purchasing/${po.id}`} className="hover:text-brand">
             הזמנת ספק {po.number}, <span className="ltr">{supplierName}</span>

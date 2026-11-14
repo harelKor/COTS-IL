@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PrintButton } from "@/components/print-button";
-import { LINE_LABELS, lineStatus } from "@/domain/order-status";
+import { lineLabel, lineStatus } from "@/domain/order-status";
 import { requireAdmin } from "@/lib/auth";
 import { getSupplierShortages } from "@/lib/logistics";
 import { getOrderLines } from "@/lib/order-status";
@@ -54,7 +54,7 @@ async function Shortages() {
                     <td className="p-2">{item.allocated}</td>
                     <td className="p-2">{item.delivered}</td>
                     <td className="p-2 font-semibold text-warning">{item.quoted - item.delivered}</td>
-                    <td className="whitespace-nowrap p-2 text-caption">{LINE_LABELS[lineStatus(item)]}</td>
+                    <td className="whitespace-nowrap p-2 text-caption">{lineLabel(lineStatus(item), "admin")}</td>
                   </tr>
                 ))}
               </tbody>

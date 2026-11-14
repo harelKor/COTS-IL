@@ -1,4 +1,5 @@
 import type { Audience, NotifyEvent, Stage } from "@/domain/notifications";
+import { statusLabel, type OrderStatusKey } from "@/domain/order-status";
 import { formatIls } from "@/domain/pricing";
 
 /**
@@ -86,15 +87,14 @@ function linesTable(lines: EmailLine[], totalIls: number | null) {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 4px;border-collapse:collapse;background:${C.tile};border-radius:12px">${rows}${total}</table>`;
 }
 
-const STAGE_TEXT: Record<Stage, { subject: string; heading: string; body: (pickup: boolean) => string }> = {
-  ordered: { subject: "הוזמנה מהספקים", heading: "ההזמנה שלכם הוזמנה מהספקים", body: () => "הזמנו את החלקים מהספקים בארה״ב. נעדכן כשהם יגיעו לישראל." },
-  arrived: { subject: "הגיעה לישראל", heading: "החלקים הגיעו למחסן בישראל", body: () => "החלקים הגיעו למחסן ונבדקו. נעדכן כשהם יהיו מוכנים למסירה." },
-  ready: {
-    subject: "מוכנה למסירה",
-    heading: "ההזמנה מוכנה למסירה",
-    body: (pickup) => (pickup ? "ההזמנה מוכנה לאיסוף." : "ההזמנה יוצאת אליכם במשלוח."),
-  },
-  delivered: { subject: "נמסרה", heading: "ההזמנה נמסרה", body: () => "ההזמנה נמסרה. בהצלחה בעונה!" },
+/** The order status each stage email announces: its words come from the status dictionary (T4). */
+const STAGE_STATUS: Record<Stage, OrderStatusKey> = { ordered: "ordered", arrived: "at_warehouse", ready: "to_team", delivered: "delivered" };
+
+const STAGE_BODY: Record<Stage, (pickup: boolean) => string> = {
+  ordered: () => "הזמנו את החלקים מהספקים בארה״ב. נעדכן כשהם יגיעו לישראל.",
+  arrived: (pickup) => `החלקים הגיעו ונבדקו. נעדכן כשההזמנה תהיה ${pickup ? "מוכנה לאיסוף" : "מוכנה למשלוח אליכם"}.`,
+  ready: (pickup) => (pickup ? "אפשר לבוא לאסוף." : "ההזמנה יוצאת אליכם במשלוח."),
+  delivered: () => "בהצלחה בעונה!",
 };
 
 /** One email for one audience. `request_received` reads differently for the team and the admin. */
@@ -226,14 +226,16 @@ export function renderEmail<E extends NotifyEvent>(event: E, audience: Audience,
     }
     case "stage": {
       const x = d as EmailData["stage"];
-      const t = STAGE_TEXT[x.stage];
+      const label = statusLabel(STAGE_STATUS[x.stage], "team", x.pickup);
+      const heading = `ההזמנה שלכם ${label}`;
+      const body = STAGE_BODY[x.stage](x.pickup);
       return layout({
-        subject: `הזמנה ${x.orderNumber} ${t.subject}`,
-        heading: t.heading,
-        paragraphs: [`הזמנה ${ltr(x.orderNumber)} של ${esc(x.teamName)}. ${esc(t.body(x.pickup))}`],
+        subject: `הזמנה ${x.orderNumber} ${label}`,
+        heading,
+        paragraphs: [`הזמנה ${ltr(x.orderNumber)} של ${esc(x.teamName)}. ${esc(body)}`],
         button: { label: "מעקב אחרי ההזמנה", url: x.orderUrl },
         after: ["אפשר לכבות את העדכונים האלה בעמוד חשבון הקבוצה."],
-        textLines: [`הזמנה ${x.orderNumber}: ${t.heading}. ${t.body(x.pickup)}`],
+        textLines: [`הזמנה ${x.orderNumber}: ${heading}. ${body}`],
       });
     }
     case "quote_reminder": {

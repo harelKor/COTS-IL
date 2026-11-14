@@ -1,3 +1,4 @@
+import { statusLabel } from "@/domain/order-status";
 import { describe, expect, it } from "vitest";
 import { recipientsFor, type Recipient } from "@/domain/notifications";
 import { renderEmail, type EmailData } from "./email-templates";
@@ -58,6 +59,12 @@ describe("renderEmail", () => {
   it("says pickup or delivery when the order is ready", () => {
     expect(renderEmail("stage", "team", SAMPLES.stage).html).toContain("מוכנה לאיסוף");
     expect(renderEmail("stage", "team", { ...SAMPLES.stage, pickup: false }).html).toContain("במשלוח");
+  });
+
+  it("names the stage with the team's word from the status dictionary", () => {
+    expect(renderEmail("stage", "team", SAMPLES.stage).subject).toBe(`הזמנה 1071 ${statusLabel("to_team", "team", true)}`);
+    expect(renderEmail("stage", "team", { ...SAMPLES.stage, pickup: false }).subject).toBe(`הזמנה 1071 ${statusLabel("to_team", "team", false)}`);
+    expect(renderEmail("stage", "team", { ...SAMPLES.stage, stage: "arrived" }).subject).toBe(`הזמנה 1071 ${statusLabel("at_warehouse", "team")}`);
   });
 
   it("never claims VAT", () => {

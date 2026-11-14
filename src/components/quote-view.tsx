@@ -62,6 +62,7 @@ export async function QuoteView({
   quote,
   previous,
   progress,
+  pickup = false,
   linkExpiresAt,
   children,
 }: {
@@ -71,6 +72,8 @@ export async function QuoteView({
   quote: Quote;
   previous?: Quote;
   progress?: Map<string, LineFacts>;
+  /** A pickup order: its lines say "מוכנה לאיסוף". */
+  pickup?: boolean;
   /** On /q/<token>: when the link stops working. */
   linkExpiresAt?: Date;
   /** The decision, or whatever the page puts under the quote. */
@@ -126,7 +129,7 @@ export async function QuoteView({
         </div>
       )}
 
-      <QuoteTable quote={quote} previous={previous} items={items} progress={progress} />
+      <QuoteTable quote={quote} previous={previous} items={items} progress={progress} pickup={pickup} />
 
       <div className="flex flex-col gap-1 text-caption text-muted">
         {validUntil && <p>ההצעה בתוקף עד {formatShortDate(validUntil)}.</p>}
