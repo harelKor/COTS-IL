@@ -3,7 +3,7 @@
 import { availabilityStatus } from "@/lib/availability-text";
 import { shopifyImage } from "@/lib/images";
 import { PriceNote } from "./price-note";
-import { Check, ChevronDown, Share2, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
@@ -810,13 +810,5 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
         <PriceNote />
       </CartFooter>
     </div>
-  );
-}
-
-export function CloseButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} aria-label="סגירה" className="-me-3 flex size-11 items-center justify-center rounded-full text-muted hover:text-foreground">
-      <X size={20} strokeWidth={1.75} aria-hidden />
-    </button>
   );
 }

@@ -1,14 +1,34 @@
 "use client";
 
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { formatIls } from "@/domain/pricing";
-import { CartPanel, CloseButton } from "./cart-panel";
 import { canEditCart, cartTotals, useCart } from "./cart-store";
 import { TeamName } from "@/components/team-name";
 
+// The panel (sign-in, team setup, sending) is most of the cart's code and is only needed
+// once the sheet opens, so it loads on first open; a hover, touch or a filled cart fetches it early.
+const loadPanel = () => import("./cart-panel");
+const CartPanel = dynamic(() => loadPanel().then((m) => m.CartPanel), {
+  loading: () => (
+    <div className="flex flex-col gap-3 py-4" aria-hidden>
+      <div className="h-16 animate-pulse rounded-xl bg-subtle" />
+      <div className="h-16 animate-pulse rounded-xl bg-subtle" />
+    </div>
+  ),
+});
+
 /** Opens the cart sheet from anywhere on the site. */
 export const openCart = () => window.dispatchEvent(new Event("cart:open"));
+
+function CloseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} aria-label="סגירה" className="-me-3 flex size-11 items-center justify-center rounded-full text-muted hover:text-foreground">
+      <X size={20} strokeWidth={1.75} aria-hidden />
+    </button>
+  );
+}
 
 /**
  * The header's cart button, so the cart can be found while it's still empty.
@@ -23,6 +43,9 @@ export function CartButton() {
     <button
       type="button"
       onClick={openCart}
+      onPointerEnter={loadPanel}
+      onTouchStart={loadPanel}
+      onFocus={loadPanel}
       aria-label={count > 0 ? `הסל, ${count} פריטים` : "הסל"}
       className="cart-button relative flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface shadow-2xs hover:bg-subtle text-foreground transition-colors"
     >
@@ -44,10 +67,20 @@ export function CartPill() {
   const { mode, lines, team } = useCart();
   const sheet = useRef<HTMLDialogElement>(null);
   const [wantOpen, setWantOpen] = useState(false);
+  // The panel mounts with the first open and stays; a new one each time the sheet closes.
+  const [panelMounted, setPanelMounted] = useState(false);
   // A new panel each time the sheet closes, so "sent" doesn't outlive the sheet.
   const [panelKey, setPanelKey] = useState(0);
   const { count, totalIls } = cartTotals(lines);
   const editable = canEditCart(mode);
+  const hasLines = count > 0;
+
+  // Someone with a filled cart is likely to open it: fetch the panel once the page is idle.
+  useEffect(() => {
+    if (!hasLines) return;
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 2000));
+    idle(() => void loadPanel());
+  }, [hasLines]);
 
   useEffect(() => {
     // Other parts of the page (the family page's buy bar on phones) open the sheet with this event.
@@ -66,12 +99,17 @@ export function CartPill() {
   // The sheet only exists once the cart has loaded, so an early request waits for it.
   useEffect(() => {
     if (!wantOpen || !editable || !sheet.current) return;
+    setPanelMounted(true);
     if (!sheet.current.open) sheet.current.showModal();
     setWantOpen(false);
   }, [wantOpen, editable]);
 
   if (!editable) return null;
   const close = () => sheet.current?.close();
+  const openSheet = () => {
+    setPanelMounted(true);
+    sheet.current?.showModal();
+  };
 
   return (
     <>
@@ -79,7 +117,9 @@ export function CartPill() {
         <button
           type="button"
           data-cart-pill
-          onClick={() => sheet.current?.showModal()}
+          onClick={openSheet}
+          onPointerEnter={loadPanel}
+          onTouchStart={loadPanel}
           className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-12 w-max items-center gap-3 rounded-full btn-brand ps-5 pe-6 shadow-lift transition-transform duration-300 ease-spring starting:scale-75 active:scale-95 md:inset-x-auto md:end-8 md:bottom-8 md:mx-0 print:hidden"
         >
           <ShoppingBag size={20} strokeWidth={1.75} aria-hidden />
@@ -115,7 +155,7 @@ export function CartPill() {
             <CloseButton onClick={close} />
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto px-6 pt-2">
-            <CartPanel key={panelKey} onNavigate={close} onContinue={close} />
+            {panelMounted && <CartPanel key={panelKey} onNavigate={close} onContinue={close} />}
           </div>
         </div>
       </dialog>

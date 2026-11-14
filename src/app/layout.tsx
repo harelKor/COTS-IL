@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { preconnect } from "react-dom";
 import type { Metadata, Viewport } from "next";
 import { Heebo, Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
@@ -14,11 +15,13 @@ import { Toaster } from "@/components/toast";
 import "./globals.css";
 import { siteUrl } from "@/lib/site-url";
 
-// Only the fallback: Apple devices get SF and Windows gets Segoe (see --font-sans).
+// The home motto's Hebrew, and the body text wherever the system has no SF or Segoe (Android; see --font-sans).
+// Hebrew subset only, preloaded (a 12 KB variable woff2), so the motto doesn't swap fonts after first paint;
+// the Latin subset (30 KB) isn't needed: Latin text falls back to the system face, and the motto's FRC/FTC use Inter.
 const heebo = Heebo({
   variable: "--font-heebo",
-  subsets: ["hebrew", "latin"],
-  preload: false,
+  subsets: ["hebrew"],
+  preload: true,
 });
 
 // The home motto's crisp technical Latin (FRC, FTC), beside Heebo's Hebrew.
@@ -48,6 +51,9 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  // Supplier photos come from these two CDNs: open the connections while the HTML is still being read.
+  preconnect("https://cdn.shopify.com");
+  preconnect("https://cdn11.bigcommerce.com");
   return (
     <html lang="he" dir="rtl" className={`${heebo.variable} ${inter.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
