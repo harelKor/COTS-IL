@@ -4,6 +4,7 @@ Source: `docs/AUDIT-UX-2026-11-14.md` (finding IDs C-xx, A-xx, L-xx, D-xx). It w
 
 Every session:
 - reads CLAUDE.md, its own task below, and the findings it names in the audit;
+- also reads "Design review additions" at the end of this file, which adds items to T4, T6, T7, T9, T11 and new tasks T17–T19;
 - **checks each finding in the code before changing anything**, because several were wrong or are already handled (see "Checked against the code");
 - commits, merges to `main` and pushes, applying any migration first; then checks the deploy (CLAUDE.md, "Production and access");
 - re-checks the acceptance items on production and ticks them in the Progress table.
@@ -173,3 +174,73 @@ Sessions in one wave touch different files, so they run at the same time. A wave
 | T9 Admin safety, titles | 2 | not started | | |
 | T10 Phone and team-flow test | 2 | not started | | last |
 | T11–T16 | 3 | not started | | |
+| T17 Catalog results bar, columns | 2 | not started | | after T6 |
+| T18 Header menus | 2 | not started | | after T6, T7 |
+| T19 Footer and info pages | 2 | not started | | before T8 |
+
+## Design review additions (Nov 14, 2026)
+
+Source: `docs/DESIGN-REVIEW-2026-11-14.md` (a second outside review, about layout, buttons, text and images). It was checked against the code, and the user decided the open questions on Nov 14.
+
+**The user's decisions:**
+- **Visual style stays:** dark glass, vendor-coloured glows, the current radii and fonts, white-ink logos. Only fix contrast (T8).
+- **Product cards:** a bigger, stronger price; the round "+" stays.
+- **Home page:** stays exactly as it is, with no layout or visual change and no search chips. Only the copy and count fixes from T1 and T5 apply.
+- **Admin:** stays close to how it is now. None of the review's admin redesign (sidebar, table views, bulk actions, settings layout). T12 and T13 stay as planned.
+
+**Wrong in the review:**
+- **Type sizes and tap targets.** It was measured at 75% zoom: every size it reports is exactly 0.75× the real token.
+  - Caption 13 → "9.75", callout 15 → "11.25", body 17 → "12.75", root 16 → "12".
+  - The 44px "+" (`family-card.tsx:185`, `size-11`) → "33×33".
+  - The real sizes already meet the 13px minimum, and `npm run design-lint` enforces it.
+- **"Add a `/cart` page".** It exists (`src/app/cart/page.tsx`).
+- **"Inter in 4 places".** That's on purpose: the home motto's FRC/FTC.
+
+**Against CLAUDE.md, not done:**
+- "(כולל מע״מ)" on totals, and the VAT note slot: prices carry no VAT.
+- "מחיר סופי בשקלים, כולל משלוח ויבוא": not true, because shipping is priced in the quote.
+- Dropping the "FRC / FTC" pill from the logo: it's part of the brand mark.
+- Removing the store's "הסתר" toggle and shrinking the store header: both are from the Nov 14 store design.
+
+**Added to existing tasks:**
+- **T4:** the order page gets a "next action" box at the top (approve the quote, or pickup details) and a compact timeline: date and time per step, finished steps collapsed, the current step larger. Prices in tables use `tabular-nums`.
+- **T6:** all product-card changes go here, so no other task edits `family-card.tsx` at the same time:
+  - the price becomes the strongest text on the card (≈18–20px, `font-semibold` or stronger, primary text colour, `tabular-nums`); the "+" stays;
+  - the variants line shows only "180 אפשרויות", with no raw option keys;
+  - check whether ₪ renders in a different font or size from the digits, and fix it if it does.
+- **T7:**
+  - cart lines: the trash icon at the line's far end, away from "−";
+  - the Undo toast for a removed line shows inside the drawer;
+  - "שיתוף הסל" moves to the drawer header;
+  - the "לא מחייב" disclaimer appears once per view, next to the main button;
+  - the header cart button shows the total beside the count.
+- **T9:** on login, "המשך עם Google" comes first, plus one line on why a team account is needed. In the teams admin, "דחייה" becomes a text button, weaker than "אישור".
+- **T11 (now "Product page layout and variant picker"):**
+  - the SKU chip moves off the photo, under the title (`family-view.tsx:282`);
+  - buy-column order: title, SKU and vendor, price, stock and ETA, options, quantity and add, then offers;
+  - the buy box stays visible while options are picked;
+  - "CAD ותיעוד" becomes a visible secondary button near the price;
+  - below the fold, tabs: מפרט, תיעוד ו-CAD, תיאור, מתאים לשימוש עם.
+
+**New tasks (wave 2):**
+- **T17. Catalog results bar and columns** (after T6, `catalog-browser.tsx`). Sonnet.
+  - One line above the grid: result count, sort and view toggle (sort moves out of the sidebar).
+  - 4 columns from 1024px, 5 from 1280px.
+  - Removable filter chips at least 32px tall.
+  - The vendor tiles stay.
+  - *Accept:* at 1440px the first product row starts higher than today; there's no horizontal scroll at 360px.
+- **T18. Header menus** (after T6 and T7, `site-header.tsx`, `cart-pill.tsx`). Opus.
+  - A "קטגוריות" menu next to קטלוג: 5 groups as columns and their categories, from `content.categoryGroups`.
+  - A "ספקים" menu with the vendor logos.
+  - "ההזמנות שלנו" visible to signed-in teams.
+  - The account chip shows the team name and number instead of an initial.
+  - On phones, these go into the existing menu.
+  - *Accept:* categories reachable in 1 click from every page; 44px targets; works at 360px.
+- **T19. Footer and info pages** (after T1, before T8; footer, `info-text-page.tsx`). Sonnet.
+  - The footer in four columns: קנייה, עזרה, העסק, צרו קשר. Business name and ID on the bottom line once they're filled in.
+  - A side nav across the info pages.
+  - FAQ: a rotating chevron, with the first question open.
+  - `/contact` leads with contact buttons (WhatsApp, email, pickup address) for the fields that are filled in.
+  - *Accept:* contact buttons first on `/contact`; nothing empty shows while a field is empty.
+
+Ordering in wave 2: T4, T5 and T9 start together. T6 starts after T5. T7 runs alongside T6, since T7 no longer edits `family-card.tsx`. T19 can start at once. T17 comes after T6, T18 after T6 and T7, T8 after T6, T7, T17, T18 and T19, and T10 runs last.
