@@ -143,7 +143,7 @@ function FacetValues({ facet, chosen, onToggle, large = false }: { facet: SpecFa
             }`}
           >
             <Ltr>{v.value}</Ltr>
-            <span className={`text-caption tabular-nums ${on ? "text-background/70" : "text-muted"}`}>{v.count.toLocaleString("he-IL")}</span>
+            <span className={`text-caption tabular-nums ${on ? "text-white/75" : "text-muted"}`}>{v.count.toLocaleString("he-IL")}</span>
           </button>
         );
       })}

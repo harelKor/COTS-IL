@@ -252,7 +252,7 @@ export function SearchPanel() {
 
   const optionId = (i: number) => `${listId}-${i}`;
   const chip =
-    "flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-caption hover:bg-subtle";
+    "flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-caption hover:bg-subtle";
 
   return (
     <>
@@ -484,7 +484,7 @@ export function SearchPanel() {
                           }
                           aria-expanded={expanded === r.id}
                           aria-label={`בחירת אפשרויות: ${r.title}`}
-                          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-white text-brand hover:bg-subtle"
+                          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-brand hover:bg-subtle"
                         >
                           <ChevronDown
                             size={20}

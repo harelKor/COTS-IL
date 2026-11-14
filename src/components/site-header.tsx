@@ -60,7 +60,7 @@ async function Account() {
         aria-label="החשבון שלי"
         className="group flex size-11 shrink-0 items-center justify-center"
       >
-        <span className="account-chip flex h-9 min-w-9 items-center justify-center rounded-full border border-line bg-white/90 px-1.5 text-caption font-semibold tabular-nums shadow-2xs transition-colors group-hover:bg-subtle">
+        <span className="account-chip flex h-9 min-w-9 items-center justify-center rounded-full border border-line bg-surface px-1.5 text-caption font-semibold tabular-nums shadow-2xs transition-colors group-hover:bg-subtle">
           {initial}
         </span>
       </button>

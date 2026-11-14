@@ -18,7 +18,7 @@ export const INFO_LINKS = [
 export async function SiteFooter() {
   const business = await getBusiness();
   return (
-    <footer className="site-footer border-t border-line bg-white/70 print:hidden">
+    <footer className="site-footer border-t border-line bg-glass print:hidden">
       <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 px-6 pt-8 pb-28 md:px-12">
         <nav aria-label="מידע">
           <ul className="grid grid-cols-2 gap-x-6 sm:grid-cols-4">

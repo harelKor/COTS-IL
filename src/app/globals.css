@@ -1,57 +1,70 @@
 @import "tailwindcss";
 
 /*
- * Design tokens from docs/REDESIGN.md ("Visual language"): the COTS-IL Blue & White Fade palette.
- * Light only, on purpose: supplier product photos are shot on white, so a dark page turns them
- * into glowing boxes. There is no dark colour-scheme override. The one exception is the home page's
- * navy competition scene (at the end of this file); every sheet, panel and menu that opens from it
- * gets these light tokens back.
+ * Design tokens: one dark system for the whole site (user decision, Nov 14, 2026), anchored on
+ * Orbit 1690 ultramarine (#0014BE) over a deep midnight. Three text tiers (bright white, silver
+ * slate, muted slate), surfaces in quiet layers of dark navy glass with ultramarine hairlines, and
+ * product photos on soft pearl wells (tile-fade, .card-photo), never whole white cards. The home
+ * page and the vendor stores add their scenes on top (end of this file); print stays black on white.
  */
-:root,
-:is(.home-scene, .store-scene, .site-header, .site-footer) :is(dialog, [popover]) {
-  --background: #f6f7ff;
-  --surface: #ffffff;
-  --subtle: #eef1ff;
-  --subtle-hover: #e0e6ff;
-  /* Deep navy-slate text and a cool cobalt-slate secondary, never a dead grey. */
-  --foreground: #0b1528;
-  --muted: #52658a;
-  --line: #dce2fa;
-  /* Orbit 1690 ultramarine (#0014BE), the team's own blue. */
-  --brand: #0014be;
-  --brand-strong: #000c8a;
-  --brand-soft: #e0e5ff;
-  --danger: #d70015;
-  --success: #177a33;
-  --warning: #995a00;
+:root {
+  --background: #020416;
+  --surface: #0b1336;
+  --subtle: rgb(110 133 255 / 0.08);
+  --subtle-hover: rgb(110 133 255 / 0.15);
+  --foreground: #f1f4ff;
+  --muted: #a3aed6;
+  --line: rgb(110 133 255 / 0.18);
+  /* Text, links, icons and focus rings in a light ultramarine tint; fills use --brand-fill. */
+  --brand: #8094ff;
+  --brand-strong: #b4c0ff;
+  --brand-soft: rgb(59 91 255 / 0.16);
+  --brand-fill: #0018e0;
+  --brand-fill-strong: #0014be;
+  /* Status text, readable on the dark surfaces (AA at 13px), and solid fills for white text. */
+  --danger: #f87171;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger-fill: #dc2626;
+  --success-fill: #16a34a;
+  --warning-fill: #b45309;
   /* Admin order statuses (S10A). */
-  --violet: #6d28d9;
-  --teal: #0f766e;
-  --indigo: #4338ca;
-  --slate: #52658a;
-  --glass: rgb(255 255 255 / 0.86);
-  /* Product photos sit on a near-white ice-blue tile. */
-  --tile: #f3f5ff;
+  --violet: #a78bfa;
+  --teal: #2dd4bf;
+  --indigo: #818cf8;
+  --slate: #94a3b8;
+  --glass: rgb(4 8 30 / 0.86);
+  --glass-fill: rgb(7 13 34 / 0.78);
+  --glass-line: rgb(110 133 255 / 0.2);
+  --glass-line-hover: rgb(110 133 255 / 0.5);
+  --glass-glow: rgb(0 24 224 / 0.5);
+  /* Product photos sit on a soft pearl well. */
+  --tile: #e6eaf3;
   /* Brand gradients, so TSX never carries hex colours. */
-  --gradient-brand-text: linear-gradient(to left, #000c8a, #0018e0 60%, #3b5bff);
-  --gradient-tile-card: linear-gradient(180deg, #eaedff 0%, #f6f7ff 50%, #ffffff 100%);
-  /* Glow look (Nov 13, 2026): ultramarine boxes with a gradient outline and a soft glow. */
-  --sky: #6e85ff;
-  --sky-soft: #e6eaff;
+  --gradient-brand-text: linear-gradient(to left, #ffffff, #c8d1ff 50%, #6e85ff);
+  --gradient-tile-card: linear-gradient(180deg, rgb(110 133 255 / 0.12) 0%, rgb(110 133 255 / 0.04) 60%, transparent 100%);
+  --sky: #a3b3ff;
+  --sky-soft: rgb(110 133 255 / 0.14);
   --gradient-glow-box:
-    radial-gradient(120% 70% at 50% 0%, rgb(110 133 255 / 0.22) 0%, transparent 60%),
-    linear-gradient(180deg, #e0e5ff 0%, #f0f2ff 45%, #ffffff 100%);
+    linear-gradient(20deg, rgb(0 24 224 / 0.14) 0%, rgb(0 24 224 / 0.04) 45%, transparent 75%),
+    rgb(9 15 40 / 0.85);
   --gradient-outline: linear-gradient(140deg, var(--accent) 0%, var(--sky) 50%, var(--brand) 100%);
   /* The accent a box glows in: brand blue unless the vendor has its own (suppliers.accent_color, set inline). */
   --accent: var(--brand);
-  --glow: 0 10px 30px -10px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
-  --glow-strong: 0 18px 44px -10px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 24px -4px color-mix(in srgb, var(--sky) 55%, transparent);
-  --shadow-lift: 0 14px 34px -8px rgb(0 20 190 / 0.14), 0 4px 12px -2px rgb(11 21 40 / 0.05);
-  --shadow-card: 0 4px 18px -4px rgb(0 20 190 / 0.07), 0 1px 3px 0 rgb(11 21 40 / 0.03);
+  --glow: 0 10px 30px -10px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+  --glow-strong: 0 18px 44px -10px color-mix(in srgb, var(--accent) 50%, transparent), 0 0 24px -4px color-mix(in srgb, var(--sky) 40%, transparent);
+  --shadow-lift: 0 14px 34px -8px rgb(1 2 12 / 0.6), 0 4px 12px -2px rgb(1 2 12 / 0.3);
+  --shadow-card: 0 8px 28px rgb(1 2 12 / 0.4);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   /* Close to a spring with no overshoot, for sheets and the stepper. */
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
-  color-scheme: light;
+  /* A page's brand colours (vendorTheme sets them on a vendor's store or product page). */
+  --vendor-primary: #0018e0;
+  --vendor-primary-rgb: 0 24 224;
+  --vendor-secondary: #3b5bff;
+  --vendor-text-accent: #a3b3ff;
+  --vendor-on-primary: #ffffff;
+  color-scheme: dark;
 }
 
 /* Printed quotes are always black on white, whatever the screen's theme. */
@@ -63,10 +76,21 @@
     --foreground: #000000;
     --muted: #444444;
     --line: #999999;
+    --brand: #0014be;
+    --brand-strong: #000c8a;
+    --danger: #d70015;
+    --success: #177a33;
     --warning: #7a4a00;
     --tile: #f5f5f7;
     --shadow-card: 0 0 #0000;
     color-scheme: light;
+  }
+  .card-surface,
+  .glow-box,
+  .glow-card {
+    background: #ffffff !important;
+    box-shadow: inset 0 0 0 1px #999999 !important;
+    backdrop-filter: none !important;
   }
   body {
     background-image: none;
@@ -119,12 +143,12 @@
   --ease-spring: var(--ease-spring);
 }
 
-/* An ice-blue atmospheric fade at the top of every page, settling into the background. */
+/* The midnight page with a soft ultramarine glow at the top, settling into the background. */
 body {
   /* Full-bleed home layers are 100vw wide: clip the scrollbar's sliver (clip keeps sticky working). */
   overflow-x: clip;
   background-color: var(--background);
-  background-image: radial-gradient(110% 520px at 50% 0%, #dfe4ff 0%, #eef1ff 48%, transparent 100%);
+  background-image: radial-gradient(110% 560px at 50% 0%, rgb(0 20 190 / 0.2) 0%, rgb(0 20 190 / 0.06) 50%, transparent 100%);
   background-repeat: no-repeat;
   color: var(--foreground);
   font-size: 1.0625rem;
@@ -154,15 +178,15 @@ h3 {
 }
 
 /*
- * A card with a white-to-ice vertical fade, a blue hairline drawn inside and a soft cobalt shadow.
+ * A card: layered dark navy glass, an ultramarine hairline drawn inside, a faint top highlight and a soft shadow.
  * Tailwind's ring and shadow slots come after them, so shadow-lift or hover:shadow-lift adds to the card instead of replacing it.
  */
 @utility card-surface {
-  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+  background: linear-gradient(180deg, rgb(14 23 62 / 0.92) 0%, rgb(9 15 42 / 0.92) 100%);
   border-radius: var(--radius-card);
   box-shadow:
-    inset 0 0 0 1px var(--line), var(--shadow-card), var(--tw-ring-offset-shadow, 0 0 #0000),
-    var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06), inset 0 0 0 1px var(--line), var(--shadow-card),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
 }
 
 /* The one primary action: a royal-blue fade that brightens on hover and springs down on press. */
@@ -190,10 +214,10 @@ h3 {
   }
 }
 
-/* Product photo tiles: a soft white-to-ice radial fade with a faint blue hairline. */
+/* Product photo wells: soft pearl, so photos shot on white stay clear without a stark white box. */
 @utility tile-fade {
-  background: radial-gradient(circle at 50% 35%, #ffffff 0%, #f0f2ff 100%);
-  box-shadow: inset 0 0 0 1px #e4e8ff;
+  background: radial-gradient(circle at 50% 30%, rgb(241 245 249 / 0.95), rgb(222 228 238 / 0.9));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18), inset 0 2px 8px rgb(15 23 42 / 0.18);
 }
 
 /* Gradient wordmark text (logo, hero highlight). */
@@ -204,21 +228,44 @@ h3 {
   color: transparent;
 }
 
-/* The home category cards' blue-to-white fade. */
+/* A quiet ultramarine wash for the category cards. */
 @utility bg-tile-card {
   background-image: var(--gradient-tile-card);
 }
 
-/* Secondary action: a soft white pill with a blue hairline. */
+/* Secondary action: a quiet glass pill with an ultramarine hairline. */
 @utility btn-soft {
-  background: #ffffff;
+  background: rgb(255 255 255 / 0.06);
   color: var(--foreground);
-  box-shadow: inset 0 0 0 1px var(--line), 0 1px 2px 0 rgb(11 21 40 / 0.04);
+  box-shadow: inset 0 0 0 1px var(--line);
   transition: background-color 150ms ease;
 
   &:hover {
-    background: var(--subtle);
+    background: rgb(255 255 255 / 0.11);
   }
+}
+
+/*
+ * Fills that carry white text use the deep fill tones, not the light text tints (unlayered, so
+ * they win over the utilities of the same name).
+ */
+.bg-brand,
+.hover\:bg-brand:hover {
+  background-color: var(--brand-fill);
+}
+.bg-brand-strong,
+.hover\:bg-brand-strong:hover {
+  background-color: var(--brand-fill-strong);
+}
+.bg-success,
+.disabled\:bg-success:disabled {
+  background-color: var(--success-fill);
+}
+.bg-danger {
+  background-color: var(--danger-fill);
+}
+.bg-warning {
+  background-color: var(--warning-fill);
 }
 
 /* A visible focus ring on everything that takes keyboard focus. */
@@ -314,7 +361,7 @@ dialog.sheet {
 }
 
 dialog.sheet::backdrop {
-  background: rgb(0 0 0 / 0.32);
+  background: rgb(1 2 12 / 0.6);
   backdrop-filter: blur(2px);
   opacity: 0;
   transition:
@@ -652,11 +699,11 @@ dialog.sheet-side.sheet-wide {
   --glow: 0 10px 30px -10px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
   --glow-strong: 0 18px 44px -10px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 24px -4px color-mix(in srgb, var(--accent-2-resolved) 55%, transparent);
 }
-/* A vendor's box takes a light wash of its own colour at the top (text stays on a near-white). */
+/* A vendor's box takes a wash of its own colour from a corner, on dark glass. */
 .glow-box {
   --gradient-glow-box:
-    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent) 0%, transparent 60%),
-    linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, white) 0%, color-mix(in srgb, var(--accent) 4%, white) 45%, #ffffff 100%);
+    linear-gradient(20deg, color-mix(in srgb, var(--accent) 16%, transparent) 0%, color-mix(in srgb, var(--accent) 4%, transparent) 45%, transparent 75%),
+    linear-gradient(rgb(9 15 40 / 0.85), rgb(9 15 40 / 0.85));
 }
 
 /*
@@ -696,7 +743,7 @@ dialog.sheet-side.sheet-wide {
   position: relative;
   border: 1px solid transparent;
   background:
-    linear-gradient(180deg, #ffffff, #f6f7ff) padding-box,
+    linear-gradient(rgb(9 15 40 / 0.85), rgb(9 15 40 / 0.85)) padding-box,
     var(--gradient-outline) border-box;
   box-shadow: var(--glow);
 
@@ -720,7 +767,7 @@ dialog.sheet-side.sheet-wide {
 .glow-card {
   border: 1.5px solid transparent;
   background:
-    linear-gradient(180deg, #ffffff 0%, #f7faff 100%) padding-box,
+    linear-gradient(rgb(9 15 40 / 0.85), rgb(9 15 40 / 0.85)) padding-box,
     var(--gradient-outline) border-box;
   box-shadow: var(--glow);
 }
@@ -752,7 +799,7 @@ dialog.sheet-side.sheet-wide {
   position: absolute;
   inset: -20% auto -20% 0;
   width: 45%;
-  background: linear-gradient(100deg, transparent 0%, rgb(255 255 255 / 0.7) 50%, transparent 100%);
+  background: linear-gradient(100deg, transparent 0%, rgb(255 255 255 / 0.12) 50%, transparent 100%);
   transform: translateX(-160%) skewX(-12deg);
   opacity: 0;
 }
@@ -781,7 +828,7 @@ dialog.sheet-side.sheet-wide {
 }
 
 /*
- * The header search, the site's main entry: from 640px a white pill with a cobalt-to-sky gradient
+ * The header search, the site's main entry: from 640px a dark pill with an ultramarine gradient
  * outline and a soft glow that grows (and lifts a touch) on hover and focus. On phones only the
  * cobalt circle shows.
  */
@@ -790,8 +837,8 @@ dialog.sheet-side.sheet-wide {
     height: 44px;
     border: 1.5px solid transparent;
     background:
-      linear-gradient(#ffffff, #ffffff) padding-box,
-      linear-gradient(90deg, color-mix(in srgb, var(--brand) 55%, transparent), color-mix(in srgb, #6e85ff 70%, transparent), color-mix(in srgb, var(--brand) 35%, transparent)) border-box;
+      linear-gradient(#050b2e, #050b2e) padding-box,
+      linear-gradient(90deg, rgb(59 91 255 / 0.6), rgb(110 133 255 / 0.75), rgb(0 20 190 / 0.7)) border-box;
     box-shadow: 0 6px 20px -8px color-mix(in srgb, var(--brand) 45%, transparent), 0 0 0 0 color-mix(in srgb, var(--brand) 0%, transparent);
   }
   .search-trigger:focus-visible {
@@ -833,52 +880,40 @@ dialog.sheet-side.sheet-wide {
 /* ---------- The home page as one competition photograph (page.tsx, home-scene.tsx) ---------- */
 
 /*
- * Dark tokens on the home scene and, while it's on the page, the header and footer around it, so
- * the dark arena photos melt into the midnight canvas instead of a grey halo on white. Product
- * photos sit on soft pearl tiles; vendor logos sit straight on the glass in white ink (vendor-mark.tsx).
+ * The header and footer on every page: translucent midnight with an ultramarine hairline; the cart
+ * button and team badge in dark ultramarine glass with a white icon.
  */
-.home-scene,
-.store-scene,
-body:has(:is(.home-scene, .store-scene)) :is(.site-header, .site-footer) {
-  --background: var(--orbit-night);
-  --surface: #070d33;
-  --subtle: rgb(110 133 255 / 0.1);
-  --subtle-hover: rgb(110 133 255 / 0.18);
-  --foreground: #f4f6ff;
-  --muted: #a8b2dc;
-  --line: rgb(110 133 255 / 0.2);
-  --brand: var(--orbit-200);
-  --brand-strong: var(--orbit-100);
-  --brand-soft: rgb(59 91 255 / 0.18);
-  --glass: rgb(2 4 22 / 0.92);
-  --accent: var(--orbit-200);
-  --sky: var(--orbit-100);
-  --gradient-brand-text: linear-gradient(to left, #ffffff, #c8d1ff 50%, #6e85ff);
-  --shadow-lift: 0 14px 34px -8px rgb(1 2 12 / 0.6), 0 4px 12px -2px rgb(1 2 12 / 0.3);
-  --shadow-card: 0 8px 32px rgb(1 2 12 / 0.45);
-  --glass-fill: rgb(4 9 36 / 0.6);
-  --glass-line: rgb(110 133 255 / 0.2);
-  --glass-line-hover: rgb(110 133 255 / 0.5);
-  --glass-glow: rgb(0 24 224 / 0.5);
-  color: var(--foreground);
-  color-scheme: dark;
+.site-header {
+  background-color: rgb(2 4 22 / 0.62);
+  border-bottom-color: var(--glass-line);
 }
-:is(.home-scene, .store-scene, .site-header, .site-footer) :is(dialog, [popover]) {
-  color: var(--foreground);
+.site-footer {
+  background-color: rgb(2 4 22 / 0.72);
+  border-top-color: var(--glass-line);
 }
-/* White text stays on an ultramarine fill (the brand token is a light tint here, for text and focus rings). */
-:is(.home-scene, .store-scene) .bg-brand {
-  background-color: var(--orbit-bright);
+:is(.cart-button, .account-chip) {
+  border-color: rgb(110 133 255 / 0.28);
+  background-color: rgb(7 13 51 / 0.72);
+  color: #ffffff;
+  box-shadow: none;
 }
-:is(.home-scene, .store-scene) .bg-brand-strong {
-  background-color: var(--orbit-blue);
+.cart-button:hover,
+.group:hover .account-chip {
+  border-color: rgb(110 133 255 / 0.6);
+  background-color: rgb(0 20 190 / 0.45);
+}
+.cart-button svg {
+  stroke: #ffffff;
+  opacity: 1;
+}
+.cart-count {
+  --tw-ring-color: var(--background);
 }
 
-body:has(:is(.home-scene, .store-scene)) {
-  background-color: var(--orbit-night);
-  background-image: none;
-}
 /*
+ * Rules for the home page only. Next keeps a page you left in the DOM, hidden with an inline
+ * display:none (React Activity), so "the home page is showing" is a home scene WITHOUT that style;
+ * a plain :has(.home-scene) would leak these onto every page visited after it.
  * From 1024px the home page runs wider than the site's 1200px column, 32px from each window edge
  * (at most 1600px), so the vendor cards spread toward the edges; the header and footer follow.
  */
@@ -888,50 +923,16 @@ body:has(:is(.home-scene, .store-scene)) {
     width: var(--scene-w);
     margin-inline: calc((100% - var(--scene-w)) / 2);
   }
-  body:has(.home-scene) :is(.site-header, .site-footer) > div {
+  body:has(.home-scene:not([style*="none"])) :is(.site-header, .site-footer) > div {
     max-width: calc(min(calc(100vw - 64px), 1600px) + 96px);
   }
 }
-/* No page scrollbar on the dark pages (home, vendor stores): a white track down the night canvas. The page still scrolls. */
-html:has(:is(.home-scene, .store-scene)) {
+/* No page scrollbar on the home page and the vendor stores (the others get a dark one from color-scheme). The page still scrolls. */
+html:has(:is(.home-scene, .store-scene):not([style*="none"])) {
   scrollbar-width: none;
 }
-html:has(:is(.home-scene, .store-scene))::-webkit-scrollbar {
+html:has(:is(.home-scene, .store-scene):not([style*="none"]))::-webkit-scrollbar {
   display: none;
-}
-body:has(:is(.home-scene, .store-scene)) .site-header {
-  background-color: rgb(2 4 22 / 0.62);
-  border-bottom-color: var(--glass-line);
-}
-body:has(:is(.home-scene, .store-scene)) .site-footer {
-  background-color: rgb(2 4 22 / 0.72);
-  border-top-color: var(--glass-line);
-}
-/* The header's cart button and team badge: dark ultramarine glass with a white icon (never white on white). */
-body:has(:is(.home-scene, .store-scene)) :is(.cart-button, .account-chip) {
-  border-color: rgb(110 133 255 / 0.28);
-  background-color: rgb(7 13 51 / 0.72);
-  color: #ffffff;
-  box-shadow: none;
-}
-body:has(:is(.home-scene, .store-scene)) .cart-button:hover,
-body:has(:is(.home-scene, .store-scene)) .group:hover .account-chip {
-  border-color: rgb(110 133 255 / 0.6);
-  background-color: rgb(0 20 190 / 0.45);
-}
-body:has(:is(.home-scene, .store-scene)) .cart-button svg {
-  stroke: #ffffff;
-  opacity: 1;
-}
-body:has(:is(.home-scene, .store-scene)) .cart-count {
-  --tw-ring-color: var(--orbit-night);
-}
-@media (min-width: 640px) {
-  body:has(:is(.home-scene, .store-scene)) .search-trigger {
-    background:
-      linear-gradient(#050b2e, #050b2e) padding-box,
-      linear-gradient(90deg, rgb(59 91 255 / 0.6), rgb(110 133 255 / 0.75), rgb(0 20 190 / 0.7)) border-box;
-  }
 }
 
 /*
@@ -1294,18 +1295,18 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
  * photos' white backgrounds multiplied into the tile so they sit inside the dark cards.
  */
 .scene-thumb,
-:is(.home-scene, .store-scene) :is(.tile-fade, .card-photo) {
+:is(.tile-fade, .card-photo) {
   background: radial-gradient(circle at 50% 30%, rgb(241 245 249 / 0.9), rgb(226 232 240 / 0.85));
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15), inset 0 2px 8px rgb(15 23 42 / 0.2);
 }
-:is(.home-scene, .store-scene) :is(.tile-fade, .card-photo) {
+:is(.tile-fade, .card-photo) {
   --tw-ring-color: rgb(255 255 255 / 0.15);
 }
-:is(.home-scene, .store-scene) :is(.tile-fade, .card-photo) img {
+:is(.tile-fade, .card-photo) img {
   mix-blend-mode: multiply;
 }
 
-:is(.home-scene, .store-scene) .card-surface {
+.card-surface {
   background: var(--glass-fill);
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
@@ -1313,51 +1314,42 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
     inset 0 1px 0 0 rgb(255 255 255 / 0.09), inset 0 0 0 1px var(--glass-line), var(--shadow-card),
     var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
 }
-:is(.home-scene, .store-scene) :is(.glow-card, .glow-box) {
+:is(.glow-card, .glow-box) {
   border-color: var(--glass-line);
   background: var(--glass-fill);
   box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.09), var(--shadow-card);
   transition: border-color 300ms var(--ease-out);
 }
-:is(.home-scene, .store-scene) :is(.glow-card:hover, .glow-card:focus-within, .glow-box:hover, .glow-box:focus-visible) {
+:is(.glow-card:hover, .glow-card:focus-within, .glow-box:hover, .glow-box:focus-visible) {
   border-color: var(--glass-line-hover);
 }
-:is(.home-scene, .store-scene) .glow-box {
+.glow-box {
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
 }
-:is(.home-scene, .store-scene) .glow-outline {
+.glow-outline {
   background: rgb(4 9 36 / 0.6);
   border-color: var(--glass-line);
   box-shadow: none;
 }
-:is(.home-scene, .store-scene) .card-shine::after {
+.card-shine::after {
   background: linear-gradient(100deg, transparent 0%, rgb(255 255 255 / 0.12) 50%, transparent 100%);
 }
-:is(.home-scene, .store-scene) .btn-soft {
+.btn-soft {
   background: rgb(255 255 255 / 0.08);
   color: var(--foreground);
   box-shadow: inset 0 0 0 1px var(--glass-line);
 }
-:is(.home-scene, .store-scene) .btn-soft:hover {
+.btn-soft:hover {
   background: rgb(255 255 255 / 0.14);
 }
 
 /* ---------- Vendor stores (/v/<code>): the night canvas in the vendor's own colours ---------- */
 
 /*
- * Every dark page reads its brand from --vendor-* (vendorTheme in src/domain/vendors.ts sets them
- * on a store's .vendor-theme wrapper). The home page and a store still streaming in use Orbit
- * ultramarine.
+ * Every page reads its brand from --vendor-* (Orbit ultramarine on :root; vendorTheme in
+ * src/domain/vendors.ts sets a vendor's on its store and its product pages, .vendor-theme).
  */
-.home-scene,
-.store-scene {
-  --vendor-primary: #0018e0;
-  --vendor-primary-rgb: 0 24 224;
-  --vendor-secondary: #3b5bff;
-  --vendor-text-accent: #a3b3ff;
-  --vendor-on-primary: #ffffff;
-}
 /* The site's tokens re-pointed at the vendor's palette, so every component on the page follows. */
 .vendor-theme {
   --brand: var(--vendor-text-accent);
@@ -1474,7 +1466,7 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   color: #ffffff;
 }
 /* Counts in the vendor's tint. */
-:is(.home-scene, .store-scene) .count-pill {
+.count-pill {
   background: rgb(var(--vendor-primary-rgb) / 0.15);
   color: var(--vendor-text-accent);
   box-shadow: inset 0 0 0 1px rgb(var(--vendor-primary-rgb) / 0.3);
@@ -1484,7 +1476,7 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
  * The category boxes: dark glass with the vendor's colour fading up from a corner, a 1px border
  * that brightens on hover, and the three part photos on pearl tiles.
  */
-:is(.home-scene, .store-scene) .glow-box {
+.glow-box {
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.25);
   background:
     linear-gradient(20deg, rgb(var(--vendor-primary-rgb) / 0.16) 0%, rgb(var(--vendor-primary-rgb) / 0.04) 45%, transparent 75%),
@@ -1497,15 +1489,15 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
     border-color 250ms var(--ease-out),
     translate 200ms var(--ease-out);
 }
-:is(.home-scene, .store-scene) :is(.glow-box:hover, .glow-box:focus-visible, .glow-box[aria-expanded="true"]) {
+:is(.glow-box:hover, .glow-box:focus-visible, .glow-box[aria-expanded="true"]) {
   border-color: rgb(var(--vendor-primary-rgb) / 0.65);
 }
-:is(.home-scene, .store-scene) .glow-outline {
+.glow-outline {
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.22);
   background: rgb(7 13 34 / 0.7);
   --glow-strong: 0 10px 30px -12px rgb(var(--vendor-primary-rgb) / 0.55);
 }
-:is(.home-scene, .store-scene) .glow-outline:hover {
+.glow-outline:hover {
   border-color: rgb(var(--vendor-primary-rgb) / 0.6);
 }
 
@@ -1513,7 +1505,7 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
  * Product cards: a dark-glass chassis with a 1px border in the vendor's colour and a glow from
  * below on hover, around a pearl image well; the price in the vendor's tint.
  */
-:is(.home-scene, .store-scene) :is(.card-surface, .glow-card) {
+:is(.card-surface, .glow-card) {
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.22);
   background: rgb(7 13 34 / 0.8);
   -webkit-backdrop-filter: blur(24px);
@@ -1529,20 +1521,20 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
     rotate 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
     scale 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-:is(.home-scene, .store-scene) li:is(.card-surface, .glow-card):is(:hover, :focus-within) {
+li.family-card:is(:hover, :focus-within) {
   border-color: rgb(var(--vendor-primary-rgb) / 0.6);
   background:
     radial-gradient(90% 50% at 50% 115%, rgb(var(--vendor-primary-rgb) / 0.22), transparent 70%),
     rgb(7 13 34 / 0.8);
 }
-:is(.home-scene, .store-scene) .card-photo {
+.card-photo {
   background: linear-gradient(to bottom, rgb(241 245 249 / 0.95), rgb(226 232 240 / 0.88));
   --tw-ring-color: rgb(255 255 255 / 0.2);
 }
-:is(.home-scene, .store-scene) .card-price {
+.card-price {
   color: var(--vendor-text-accent);
 }
-:is(.home-scene, .store-scene) .btn-plus {
+.btn-plus {
   box-shadow: 0 0 0 3px rgb(var(--vendor-primary-rgb) / 0.2), 0 6px 16px -4px rgb(var(--vendor-primary-rgb) / 0.55);
 }
 .vendor-theme .btn-plus.bg-brand {

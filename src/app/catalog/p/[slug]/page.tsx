@@ -1,3 +1,4 @@
+import { vendorTheme } from "@/domain/vendors";
 import { BackToList } from "@/components/back-to-list";
 import { ChevronDown, ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
@@ -225,8 +226,12 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
   const specs = mergeSpecs(specSummary(result.specs), description.specs);
   const docs = [...new Map(result.variants.flatMap((v) => documentLinks(v.productDescription)).map((d) => [d.href, d])).values()].slice(0, 8);
 
+  // A part sold by one vendor wears that vendor's colours (accents, borders, its fills), like its store.
+  const vendors = [...new Map(result.variants.map((v) => [v.supplierCode, { code: v.supplierCode, name: v.supplierName }])).values()];
+  const theme = vendors.length === 1 ? (vendorTheme(vendors[0]) as React.CSSProperties) : undefined;
+
   return (
-    <article className="flex flex-col gap-10">
+    <article style={theme} className={`flex flex-col gap-10 ${theme ? "vendor-theme" : ""}`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(productJsonLd(result, viewVariants, description.lead), breadcrumbJsonLd(result)) }} />
       <nav aria-label="ניווט" className="-mb-4 text-caption text-muted">
         <ol className="flex min-w-0 items-center gap-1">

@@ -260,7 +260,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
             onPointerDown={(e) => (swipe.current = { x: e.clientX, y: e.clientY })}
             onPointerUp={onPhotoUp}
             onPointerCancel={() => (swipe.current = null)}
-            className="relative aspect-square w-full cursor-zoom-in touch-pan-y overflow-hidden rounded-card glow-outline p-8 select-none"
+            className="relative aspect-square w-full cursor-zoom-in touch-pan-y overflow-hidden rounded-card tile-fade p-8 select-none"
           >
             {shown && (
               // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
@@ -300,7 +300,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
           ref={zoom}
           aria-label={family.title}
           onClick={() => zoom.current?.close()}
-          className="m-auto size-full max-h-none max-w-none bg-white p-0 backdrop:bg-foreground/60 md:size-[min(90vw,90vh)] md:rounded-card"
+          className="m-auto size-full max-h-none max-w-none tile-fade p-0 backdrop:bg-black/70 md:size-[min(90vw,90vh)] md:rounded-card"
         >
           {shown && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -396,7 +396,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
                   >
                     {chip.value === NONE ? "ללא" : <Ltr>{label(chip.value)}</Ltr>}
                     {showPrices && prices[i] !== null && (
-                      <span className={`text-caption ${chip.selected ? "text-background/75" : "text-muted"}`}>{formatIls(prices[i]!)}</span>
+                      <span className={`text-caption ${chip.selected ? "text-white/75" : "text-muted"}`}>{formatIls(prices[i]!)}</span>
                     )}
                   </button>
                 ))}

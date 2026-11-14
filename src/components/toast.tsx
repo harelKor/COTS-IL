@@ -82,7 +82,7 @@ function ToastItem({ toast }: { toast: Toast }) {
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
       className={`pointer-events-auto flex max-w-full items-center gap-3 rounded-full ps-5 py-1 text-caption font-medium shadow-lift transition-opacity duration-200 starting:opacity-0 ${
-        toast.tone === "error" ? "bg-danger text-white" : "bg-foreground text-background"
+        toast.tone === "error" ? "bg-danger text-white" : "bg-surface text-foreground ring-1 ring-line"
       } ${toast.action ? "pe-1" : "pe-5"}`}
     >
       <span className="py-2">{toast.text}</span>

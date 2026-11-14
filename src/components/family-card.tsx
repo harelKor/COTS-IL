@@ -254,7 +254,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     >
       <div className="flex max-h-[inherit] flex-col">
         <div className="flex items-center gap-3 border-b border-line px-4 py-3">
-          <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-white p-1 ring-1 ring-line">{photo_}</div>
+          <div className="card-photo size-16 shrink-0 overflow-hidden rounded-xl bg-white p-1 ring-1 ring-line">{photo_}</div>
           <div className="flex min-w-0 flex-1 flex-col">
             <Ltr className="line-clamp-2 text-start text-callout font-medium">{family.title}</Ltr>
             <span className="text-callout font-semibold">{price}</span>
@@ -342,7 +342,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     <li
       data-key={dataKey}
       style={style}
-      className={`card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift ${glow ? "glow-card" : ""} ${className}`}
+      className={`family-card card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift ${glow ? "glow-card" : ""} ${className}`}
     >
       {glow && <span aria-hidden className="card-shine" />}
       <Link href={href} className="flex flex-col gap-3">

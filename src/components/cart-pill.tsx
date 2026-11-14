@@ -24,7 +24,7 @@ export function CartButton() {
       type="button"
       onClick={openCart}
       aria-label={count > 0 ? `הסל, ${count} פריטים` : "הסל"}
-      className="cart-button relative flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-white/90 shadow-2xs hover:bg-subtle text-foreground transition-colors"
+      className="cart-button relative flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface shadow-2xs hover:bg-subtle text-foreground transition-colors"
     >
       <ShoppingBag size={20} strokeWidth={1.75} aria-hidden />
       {count > 0 && (
@@ -80,7 +80,7 @@ export function CartPill() {
           type="button"
           data-cart-pill
           onClick={() => sheet.current?.showModal()}
-          className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-12 w-max items-center gap-3 rounded-full bg-foreground ps-5 pe-6 text-background shadow-lift transition-transform duration-300 ease-spring starting:scale-75 active:scale-95 md:inset-x-auto md:end-8 md:bottom-8 md:mx-0 print:hidden"
+          className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-12 w-max items-center gap-3 rounded-full btn-brand ps-5 pe-6 shadow-lift transition-transform duration-300 ease-spring starting:scale-75 active:scale-95 md:inset-x-auto md:end-8 md:bottom-8 md:mx-0 print:hidden"
         >
           <ShoppingBag size={20} strokeWidth={1.75} aria-hidden />
           <span className="text-callout font-medium">

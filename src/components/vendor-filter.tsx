@@ -2,14 +2,15 @@
 
 import { Check, LayoutGrid } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { accentStyle } from "@/domain/vendors";
+import { darkLogo, vendorPalette, vendorTheme } from "@/domain/vendors";
 import { Ltr } from "./ltr";
 
 export type VendorOption = { code: string; name: string; count: number; logoUrl?: string | null; accentColor?: string | null; accentColor2?: string | null };
 
 /**
  * The catalog's main filter, above everything else: one big tile per vendor in its own colours
- * with its logo (alt = its name; the name when there is no logo) and how many products match.
+ * (vendorPalette) on dark glass, with its logo in white ink like the home page's boxes (alt = its
+ * name; the name when there is no logo) and how many products match.
  * A sideways row on every width; the chosen tile is ticked and outlined, and a second tap clears it.
  */
 export function VendorFilter({ vendors, value, onChange }: { vendors: VendorOption[]; value: string; onChange: (code: string) => void }) {
@@ -52,14 +53,19 @@ export function VendorFilter({ vendors, value, onChange }: { vendors: VendorOpti
               type="button"
               aria-pressed={on}
               onClick={() => onChange(on ? "" : v.code)}
-              style={accentStyle(v.accentColor, v.accentColor2)}
+              style={{ ...vendorTheme(v), "--accent": vendorPalette(v).primary } as React.CSSProperties}
               className={`${tile(on)} min-w-[136px]`}
             >
               {on && tick}
               {v.logoUrl ? (
                 // The vendor's own logo, the same one as on the home boxes.
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={v.logoUrl} alt={v.name} referrerPolicy="no-referrer" className="h-8 w-auto max-w-[120px] object-contain" />
+                <img
+                  src={darkLogo(v.logoUrl) ?? v.logoUrl}
+                  alt={v.name}
+                  referrerPolicy="no-referrer"
+                  className={`h-8 w-auto max-w-[120px] object-contain vendor-logo ${darkLogo(v.logoUrl) ? "" : "vendor-logo-invert"}`}
+                />
               ) : (
                 <Ltr className="text-brand-gradient text-body font-semibold leading-tight">{v.name}</Ltr>
               )}

@@ -726,7 +726,7 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
         <Link
           href="/catalog"
           onClick={onNavigate}
-          className="flex h-11 items-center rounded-full border border-line bg-white/90 px-5 text-callout font-medium text-brand shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle"
+          className="flex h-11 items-center rounded-full border border-line bg-surface px-5 text-callout font-medium text-brand shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle"
         >
           לקטלוג
         </Link>

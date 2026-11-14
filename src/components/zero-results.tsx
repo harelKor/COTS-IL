@@ -24,7 +24,7 @@ type Props = {
 };
 
 const chip =
-  "flex min-h-11 items-center rounded-full border border-line bg-white px-4 text-caption hover:bg-subtle";
+  "flex min-h-11 items-center rounded-full border border-line bg-surface px-4 text-caption hover:bg-subtle";
 
 /**
  * When a search finds nothing (S5 task 8): titles it may have meant, the categories,
@@ -156,7 +156,7 @@ export function RequestPart({
   return (
     <form
       action={action}
-      className="flex flex-col gap-3 rounded-card border border-line bg-white p-4"
+      className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4"
     >
       <p className="text-caption text-muted">{hint}</p>
       <input type="hidden" name="query" value={q} />
