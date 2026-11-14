@@ -67,7 +67,7 @@ export function spansBoth(i: number, count: number): boolean {
  */
 const VENDOR_GLASS: { match: RegExp; deep: string; light: string }[] = [
   { match: /gobilda/i, deep: "#f59e0b", light: "#facc15" },
-  { match: /^wcp$|west coast/i, deep: "#0a58ff", light: "#38bdf8" },
+  { match: /^wcp$|west coast/i, deep: "#3b5bff", light: "#a3b3ff" },
   { match: /andymark/i, deep: "#ef4444", light: "#f87171" },
   { match: /^ctre$|ctr electronics|cross the road/i, deep: "#22c55e", light: "#a3e635" },
   { match: /^rev$|rev robotics/i, deep: "#f97316", light: "#fb923c" },
@@ -79,7 +79,7 @@ const VENDOR_GLASS: { match: RegExp; deep: string; light: string }[] = [
 export function vendorGlass(vendor: { code: string; name: string; accentColor?: string | null }): Record<string, string> {
   const known = VENDOR_GLASS.find((v) => v.match.test(vendor.code) || v.match.test(vendor.name));
   if (known) return { "--v-deep": known.deep, "--v-light": known.light };
-  const own = accentColor(vendor.accentColor) ?? "#0a58ff";
+  const own = accentColor(vendor.accentColor) ?? "#0018e0";
   return { "--v-deep": own, "--v-light": own };
 }
 

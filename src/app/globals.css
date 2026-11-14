@@ -9,18 +9,18 @@
  */
 :root,
 :is(.home-scene, .site-header, .site-footer) :is(dialog, [popover]) {
-  --background: #f6f9ff;
+  --background: #f6f7ff;
   --surface: #ffffff;
-  --subtle: #ecf3ff;
-  --subtle-hover: #dce8ff;
+  --subtle: #eef1ff;
+  --subtle-hover: #e0e6ff;
   /* Deep navy-slate text and a cool cobalt-slate secondary, never a dead grey. */
   --foreground: #0b1528;
   --muted: #52658a;
-  --line: #d8e4fa;
-  /* Orbit royal cobalt. */
-  --brand: #1d4ed8;
-  --brand-strong: #1e3a8a;
-  --brand-soft: #dbeafe;
+  --line: #dce2fa;
+  /* Orbit 1690 ultramarine (#0014BE), the team's own blue. */
+  --brand: #0014be;
+  --brand-strong: #000c8a;
+  --brand-soft: #e0e5ff;
   --danger: #d70015;
   --success: #177a33;
   --warning: #995a00;
@@ -31,23 +31,23 @@
   --slate: #52658a;
   --glass: rgb(255 255 255 / 0.86);
   /* Product photos sit on a near-white ice-blue tile. */
-  --tile: #f2f7ff;
+  --tile: #f3f5ff;
   /* Brand gradients, so TSX never carries hex colours. */
-  --gradient-brand-text: linear-gradient(to left, #1e3a8a, #2563eb 60%, #3b82f6);
-  --gradient-tile-card: linear-gradient(180deg, #e8f1ff 0%, #f5f9ff 50%, #ffffff 100%);
-  /* Glow look (Nov 13, 2026): cobalt-to-sky boxes with a gradient outline and a soft glow. */
-  --sky: #38bdf8;
-  --sky-soft: #e0f2fe;
+  --gradient-brand-text: linear-gradient(to left, #000c8a, #0018e0 60%, #3b5bff);
+  --gradient-tile-card: linear-gradient(180deg, #eaedff 0%, #f6f7ff 50%, #ffffff 100%);
+  /* Glow look (Nov 13, 2026): ultramarine boxes with a gradient outline and a soft glow. */
+  --sky: #6e85ff;
+  --sky-soft: #e6eaff;
   --gradient-glow-box:
-    radial-gradient(120% 70% at 50% 0%, rgb(56 189 248 / 0.22) 0%, transparent 60%),
-    linear-gradient(180deg, #dbeafe 0%, #eef5ff 45%, #ffffff 100%);
+    radial-gradient(120% 70% at 50% 0%, rgb(110 133 255 / 0.22) 0%, transparent 60%),
+    linear-gradient(180deg, #e0e5ff 0%, #f0f2ff 45%, #ffffff 100%);
   --gradient-outline: linear-gradient(140deg, var(--accent) 0%, var(--sky) 50%, var(--brand) 100%);
   /* The accent a box glows in: brand blue unless the vendor has its own (suppliers.accent_color, set inline). */
   --accent: var(--brand);
   --glow: 0 10px 30px -10px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
   --glow-strong: 0 18px 44px -10px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 24px -4px color-mix(in srgb, var(--sky) 55%, transparent);
-  --shadow-lift: 0 14px 34px -8px rgb(29 78 216 / 0.14), 0 4px 12px -2px rgb(11 21 40 / 0.05);
-  --shadow-card: 0 4px 18px -4px rgb(29 78 216 / 0.07), 0 1px 3px 0 rgb(11 21 40 / 0.03);
+  --shadow-lift: 0 14px 34px -8px rgb(0 20 190 / 0.14), 0 4px 12px -2px rgb(11 21 40 / 0.05);
+  --shadow-card: 0 4px 18px -4px rgb(0 20 190 / 0.07), 0 1px 3px 0 rgb(11 21 40 / 0.03);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   /* Close to a spring with no overshoot, for sheets and the stepper. */
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
@@ -124,7 +124,7 @@ body {
   /* Full-bleed home layers are 100vw wide: clip the scrollbar's sliver (clip keeps sticky working). */
   overflow-x: clip;
   background-color: var(--background);
-  background-image: radial-gradient(110% 520px at 50% 0%, #d6e6ff 0%, #ebf3ff 48%, transparent 100%);
+  background-image: radial-gradient(110% 520px at 50% 0%, #dfe4ff 0%, #eef1ff 48%, transparent 100%);
   background-repeat: no-repeat;
   color: var(--foreground);
   font-size: 1.0625rem;
@@ -167,12 +167,12 @@ h3 {
 
 /* The one primary action: a royal-blue fade that brightens on hover and springs down on press. */
 @utility btn-brand {
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(180deg, #0018e0 0%, #0014be 100%);
   color: #ffffff;
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.28),
-    0 0 0 1px rgb(56 189 248 / 0.25),
-    0 6px 22px -2px rgb(37 99 235 / 0.45);
+    0 0 0 1px rgb(110 133 255 / 0.25),
+    0 6px 22px -2px rgb(0 24 224 / 0.45);
   transition:
     transform 150ms var(--ease-spring),
     box-shadow 200ms var(--ease-out),
@@ -182,7 +182,7 @@ h3 {
     filter: brightness(1.06);
     box-shadow:
       inset 0 1px 0 0 rgb(255 255 255 / 0.35),
-      0 6px 20px 0 rgb(29 78 216 / 0.36);
+      0 6px 20px 0 rgb(0 20 190 / 0.36);
   }
 
   &:active {
@@ -192,8 +192,8 @@ h3 {
 
 /* Product photo tiles: a soft white-to-ice radial fade with a faint blue hairline. */
 @utility tile-fade {
-  background: radial-gradient(circle at 50% 35%, #ffffff 0%, #eef4ff 100%);
-  box-shadow: inset 0 0 0 1px #e3edff;
+  background: radial-gradient(circle at 50% 35%, #ffffff 0%, #f0f2ff 100%);
+  box-shadow: inset 0 0 0 1px #e4e8ff;
 }
 
 /* Gradient wordmark text (logo, hero highlight). */
@@ -696,7 +696,7 @@ dialog.sheet-side.sheet-wide {
   position: relative;
   border: 1px solid transparent;
   background:
-    linear-gradient(180deg, #ffffff, #f5f9ff) padding-box,
+    linear-gradient(180deg, #ffffff, #f6f7ff) padding-box,
     var(--gradient-outline) border-box;
   box-shadow: var(--glow);
 
@@ -766,10 +766,10 @@ dialog.sheet-side.sheet-wide {
 
 /* The cards' "+": a bright blue glow, brightest on the glow cards. */
 .btn-plus {
-  box-shadow: 0 0 0 3px rgb(56 189 248 / 0.18), 0 6px 16px -4px rgb(37 99 235 / 0.55);
+  box-shadow: 0 0 0 3px rgb(110 133 255 / 0.18), 0 6px 16px -4px rgb(0 24 224 / 0.55);
 }
 .glow-card .btn-plus {
-  box-shadow: 0 0 0 4px rgb(56 189 248 / 0.25), 0 8px 22px -4px rgb(37 99 235 / 0.7), 0 0 18px -2px rgb(56 189 248 / 0.6);
+  box-shadow: 0 0 0 4px rgb(110 133 255 / 0.25), 0 8px 22px -4px rgb(0 24 224 / 0.7), 0 0 18px -2px rgb(110 133 255 / 0.6);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -791,7 +791,7 @@ dialog.sheet-side.sheet-wide {
     border: 1.5px solid transparent;
     background:
       linear-gradient(#ffffff, #ffffff) padding-box,
-      linear-gradient(90deg, color-mix(in srgb, var(--brand) 55%, transparent), color-mix(in srgb, #38bdf8 70%, transparent), color-mix(in srgb, var(--brand) 35%, transparent)) border-box;
+      linear-gradient(90deg, color-mix(in srgb, var(--brand) 55%, transparent), color-mix(in srgb, #6e85ff 70%, transparent), color-mix(in srgb, var(--brand) 35%, transparent)) border-box;
     box-shadow: 0 6px 20px -8px color-mix(in srgb, var(--brand) 45%, transparent), 0 0 0 0 color-mix(in srgb, var(--brand) 0%, transparent);
   }
   .search-trigger:focus-visible {
@@ -811,110 +811,111 @@ dialog.sheet-side.sheet-wide {
 }
 
 /*
- * Team 1690 Orbit's palette for the home page: a deep navy base, the royal blue of the team's
- * bumpers and shirts, and electric cobalt light for highlights (never cyan). The splash colours come
- * from the photos: Reefscape violet and algae teal, Crescendo bumper crimson and note orange.
+ * Team 1690 Orbit's palette, anchored on the team's own ultramarine (#0014BE): an ultramarine-tinted
+ * midnight base, ultramarine fills and glows, and a pure ultramarine light ramp for text and borders
+ * on dark glass (never cyan or teal). The splash colours come from the photos: Crescendo bumper
+ * crimson, Reefscape violet and a deep indigo.
  */
 :root {
-  --orbit-navy: #030818;
-  --orbit-midnight: #05102e;
-  --orbit-deep: #03091e;
-  --orbit-blue: #0047ff;
-  --orbit-royal: #0a58ff;
-  --orbit-electric: #3b82f6;
-  --orbit-light: #60a5fa;
-  --orbit-purple: #7c3aed;
-  --orbit-teal: #0d9488;
+  --orbit-night: #020416;
+  --orbit-midnight: #03082b;
+  --orbit-deep: #02051d;
+  --orbit-blue: #0014be;
+  --orbit-bright: #0018e0;
+  --orbit-300: #3b5bff;
+  --orbit-200: #6e85ff;
+  --orbit-100: #a3b3ff;
+  --orbit-purple: #6d28d9;
+  --orbit-indigo: #312e81;
   --orbit-crimson: #e11d48;
-  --orbit-orange: #ea580c;
 }
 
 /* ---------- The home page as one competition photograph (page.tsx, home-scene.tsx) ---------- */
 
 /*
  * Dark tokens on the home scene and, while it's on the page, the header and footer around it, so
- * the dark arena photos melt into navy instead of fading to a grey halo on white. Product photos
- * stay on white tiles; vendor logos sit straight on the glass in white ink (vendor-mark.tsx).
+ * the dark arena photos melt into the midnight canvas instead of a grey halo on white. Product
+ * photos sit on soft pearl tiles; vendor logos sit straight on the glass in white ink (vendor-mark.tsx).
  */
 .home-scene,
 body:has(.home-scene) :is(.site-header, .site-footer) {
-  --background: var(--orbit-navy);
-  --surface: #0a1638;
-  --subtle: rgb(96 165 250 / 0.1);
-  --subtle-hover: rgb(96 165 250 / 0.18);
-  --foreground: #f5f8ff;
-  --muted: #a9b8d6;
-  --line: rgb(96 165 250 / 0.2);
-  --brand: var(--orbit-light);
-  --brand-strong: #93c5fd;
-  --brand-soft: rgb(59 130 246 / 0.16);
-  --glass: rgb(5 12 34 / 0.92);
-  --accent: var(--orbit-light);
-  --sky: #93c5fd;
-  --gradient-brand-text: linear-gradient(to left, #ffffff, #bfdbfe 50%, #60a5fa);
-  --shadow-lift: 0 14px 34px -8px rgb(2 8 23 / 0.6), 0 4px 12px -2px rgb(2 8 23 / 0.3);
-  --shadow-card: 0 8px 32px rgb(2 8 23 / 0.45);
-  --glass-fill: rgb(15 23 42 / 0.55);
-  --glass-line: rgb(96 165 250 / 0.2);
-  --glass-line-hover: rgb(96 165 250 / 0.5);
-  --glass-glow: rgb(59 130 246 / 0.45);
+  --background: var(--orbit-night);
+  --surface: #070d33;
+  --subtle: rgb(110 133 255 / 0.1);
+  --subtle-hover: rgb(110 133 255 / 0.18);
+  --foreground: #f4f6ff;
+  --muted: #a8b2dc;
+  --line: rgb(110 133 255 / 0.2);
+  --brand: var(--orbit-200);
+  --brand-strong: var(--orbit-100);
+  --brand-soft: rgb(59 91 255 / 0.18);
+  --glass: rgb(2 4 22 / 0.92);
+  --accent: var(--orbit-200);
+  --sky: var(--orbit-100);
+  --gradient-brand-text: linear-gradient(to left, #ffffff, #c8d1ff 50%, #6e85ff);
+  --shadow-lift: 0 14px 34px -8px rgb(1 2 12 / 0.6), 0 4px 12px -2px rgb(1 2 12 / 0.3);
+  --shadow-card: 0 8px 32px rgb(1 2 12 / 0.45);
+  --glass-fill: rgb(4 9 36 / 0.6);
+  --glass-line: rgb(110 133 255 / 0.2);
+  --glass-line-hover: rgb(110 133 255 / 0.5);
+  --glass-glow: rgb(0 24 224 / 0.5);
   color: var(--foreground);
   color-scheme: dark;
 }
 :is(.home-scene, .site-header, .site-footer) :is(dialog, [popover]) {
   color: var(--foreground);
 }
-/* White text stays on a royal-blue fill (the brand token is light cobalt here, for text and focus rings). */
+/* White text stays on an ultramarine fill (the brand token is a light tint here, for text and focus rings). */
 .home-scene .bg-brand {
-  background-color: var(--orbit-royal);
+  background-color: var(--orbit-bright);
 }
 .home-scene .bg-brand-strong {
   background-color: var(--orbit-blue);
 }
 
 body:has(.home-scene) {
-  background-color: var(--orbit-navy);
+  background-color: var(--orbit-night);
   background-image: none;
 }
 body:has(.home-scene) .site-header {
-  background-color: rgb(3 8 24 / 0.6);
+  background-color: rgb(2 4 22 / 0.62);
   border-bottom-color: var(--glass-line);
 }
 body:has(.home-scene) .site-footer {
-  background-color: rgb(3 8 24 / 0.72);
+  background-color: rgb(2 4 22 / 0.72);
   border-top-color: var(--glass-line);
 }
-/* The header's cart button and team badge: dark royal glass with a white icon (never white on white). */
+/* The header's cart button and team badge: dark ultramarine glass with a white icon (never white on white). */
 body:has(.home-scene) :is(.cart-button, .account-chip) {
-  border-color: rgb(96 165 250 / 0.25);
-  background-color: rgb(23 37 84 / 0.6);
+  border-color: rgb(110 133 255 / 0.28);
+  background-color: rgb(7 13 51 / 0.72);
   color: #ffffff;
   box-shadow: none;
 }
 body:has(.home-scene) .cart-button:hover,
 body:has(.home-scene) .group:hover .account-chip {
-  border-color: rgb(96 165 250 / 0.6);
-  background-color: rgb(30 58 138 / 0.7);
+  border-color: rgb(110 133 255 / 0.6);
+  background-color: rgb(0 20 190 / 0.45);
 }
 body:has(.home-scene) .cart-button svg {
   stroke: #ffffff;
   opacity: 1;
 }
 body:has(.home-scene) .cart-count {
-  --tw-ring-color: var(--orbit-navy);
+  --tw-ring-color: var(--orbit-night);
 }
 @media (min-width: 640px) {
   body:has(.home-scene) .search-trigger {
     background:
-      linear-gradient(#071233, #071233) padding-box,
-      linear-gradient(90deg, rgb(59 130 246 / 0.6), rgb(96 165 250 / 0.75), rgb(0 71 255 / 0.6)) border-box;
+      linear-gradient(#050b2e, #050b2e) padding-box,
+      linear-gradient(90deg, rgb(59 91 255 / 0.6), rgb(110 133 255 / 0.75), rgb(0 20 190 / 0.7)) border-box;
   }
 }
 
 /*
- * The canvas: one deep navy fade from under the navbar to the footer, with soft royal-blue glows.
- * Every photo and splash layer is placed with physical left/width, on purpose: dir="rtl" must never
- * flip the right/left robot choreography.
+ * The canvas: one ultramarine-tinted midnight fade from under the navbar to the footer, with soft
+ * ultramarine glows. Every photo and splash layer is placed with physical left/width, on purpose:
+ * dir="rtl" must never flip the right/left robot choreography.
  */
 .scene-canvas {
   top: -84px;
@@ -922,68 +923,29 @@ body:has(.home-scene) .cart-count {
   left: calc(50% - 50vw);
   width: 100vw;
   background:
-    radial-gradient(60% 900px at 74% 0%, rgb(0 71 255 / 0.2), transparent 70%),
-    radial-gradient(60% 1100px at 84% 55%, rgb(0 71 255 / 0.11), transparent 70%),
-    radial-gradient(50% 900px at 22% 88%, rgb(59 130 246 / 0.06), transparent 70%),
-    linear-gradient(to bottom, var(--orbit-navy) 0%, var(--orbit-midnight) 38%, var(--orbit-deep) 100%);
+    radial-gradient(60% 900px at 76% 0%, rgb(0 20 190 / 0.26), transparent 70%),
+    radial-gradient(50% 1100px at 18% 50%, rgb(0 20 190 / 0.14), transparent 70%),
+    radial-gradient(50% 900px at 80% 90%, rgb(49 46 129 / 0.14), transparent 70%),
+    linear-gradient(to bottom, var(--orbit-night) 0%, var(--orbit-midnight) 40%, var(--orbit-deep) 100%);
 }
 
-/*
- * A short hero, so "מאיזה ספק קונים?" and the first vendor row start about half way down the
- * window (84px of header above, 92px of heading below). The tall photo is atmosphere: it runs from
- * under the navbar down behind the first row, shifted right so the field cage on its right is off
- * screen and the robot (x 50-78%) ends near the window's edge (its x 79% on the window's right).
- */
-.scene-hero {
-  --photo-w: 132vw;
-  /* The robot's top (the photo's y 37%) a little below the eyebrow. */
-  --photo-top: calc(150px - 0.37 * 0.751 * var(--photo-w));
-  --robot-x: 64%;
-  min-height: calc(52svh - 176px);
-  justify-content: center;
-}
-@media (min-width: 1024px) {
-  .scene-hero {
-    --photo-w: min(86vw, 133vh);
-    /* The arm and elevator in the hero beside the motto; the bumpers behind the first row. */
-    --photo-top: calc(60px - 0.37 * 0.751 * var(--photo-w));
-  }
-}
-
-/* The motto: centred on phones; on a desktop toward the middle, clear of the robot on the right. */
-.scene-hero-lane {
-  position: relative;
-  align-items: center;
-  text-align: center;
-}
-.scene-hero-lane::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  /* Within the page's width on phones (wider would widen the page). */
-  inset: -14% 0;
-  background: radial-gradient(closest-side, rgb(3 8 24 / 0.72), rgb(3 8 24 / 0.4) 60%, transparent);
-  pointer-events: none;
-}
-@media (min-width: 1024px) {
-  .scene-hero-lane::before {
-    inset: -18% -10%;
-  }
-  .scene-hero-lane {
-    margin-right: auto;
-    margin-left: clamp(0px, 4vw, 72px);
-    width: min(680px, 56%);
-    align-items: flex-start;
-    text-align: start;
-  }
-}
-
+/* Both photos: whole and sharp at their own shape (the frame), in a window-wide box that clips them. */
 .scene-photo {
   overflow: hidden;
+  left: calc(50% - 50vw);
+  width: 100vw;
 }
 .scene-frame {
   position: absolute;
+  top: 0;
+  bottom: 0;
+}
+/* Mirrored, so both robots face in toward the middle of the page. */
+.scene-frame picture {
+  position: absolute;
   inset: 0;
+  display: block;
+  transform: scaleX(-1);
 }
 .scene-img {
   position: absolute;
@@ -994,129 +956,196 @@ body:has(.home-scene) .cart-count {
 }
 
 /*
- * The tall Reefscape robot, whole and at its own 4:3 shape (the frame), in a window-wide box that
- * clips what runs past the window's right edge. Its mask is a splash, not a straight fade:
- * overlapping ellipses (added together) keep the robot and Reef and let uneven fingers of the arena
- * reach left into the canvas, intersected with a short fade at the top and bottom.
+ * The hero: short, so "מאיזה ספק קונים?" and the first vendor row start about half way down the
+ * window. Its photo is the Crescendo robot (3:2), mirrored so the shooter aims up and in toward the
+ * motto, large on the physical right with its bumpers just above the first row. The mirrored
+ * CRESCENDO sign (the photo's right 22%) runs off the window's right edge.
+ * Mask and overlay positions below are in mirrored photo coordinates (x' = 100% - x).
  */
-.scene-photo-tall {
-  left: calc(50% - 50vw);
-  width: 100vw;
-  top: var(--photo-top);
-  height: calc(var(--photo-w) * 0.751);
+.scene-hero {
+  --photo-w: 250vw;
+  --photo-h: calc(var(--photo-w) * 0.6667);
+  /* The photo's x' 72% on the window's right edge. */
+  --photo-x: calc(100vw - 0.72 * var(--photo-w));
+  /* Phones: the robot (y 62-85%) at the top of the hero, behind the motto. */
+  --photo-top: calc(-0.6 * var(--photo-h));
+  min-height: calc(52svh - 176px);
+  justify-content: center;
 }
-.scene-photo-tall .scene-frame {
-  inset: 0 auto 0 calc(100vw - 0.79 * var(--photo-w));
-  width: var(--photo-w);
-  --fade: linear-gradient(to bottom, transparent 0%, #000 9%, #000 78%, transparent 99%);
-  --core: radial-gradient(ellipse 44% 62% at 64% 56%, #000 58%, transparent 100%);
-  --lobe-reef: radial-gradient(ellipse 36% 26% at 34% 48%, rgb(0 0 0 / 0.9) 20%, transparent 100%);
-  --lobe-floor: radial-gradient(ellipse 30% 12% at 24% 76%, rgb(0 0 0 / 0.65), transparent 100%);
-  --lobe-crowd: radial-gradient(ellipse 20% 24% at 14% 30%, rgb(0 0 0 / 0.4), transparent 100%);
-  --lobe-cage: radial-gradient(ellipse 22% 40% at 86% 46%, rgb(0 0 0 / 0.75), transparent 100%);
-  -webkit-mask-image: var(--fade), var(--core), var(--lobe-reef), var(--lobe-floor), var(--lobe-crowd), var(--lobe-cage);
-  -webkit-mask-composite: source-in, source-over, source-over, source-over, source-over;
-  mask-image: var(--fade), var(--core), var(--lobe-reef), var(--lobe-floor), var(--lobe-crowd), var(--lobe-cage);
-  mask-composite: intersect, add, add, add, add;
-}
-.scene-photo-tall .scene-img {
-  /* Scroll pushes in a touch around the robot's base (scroll-parallax.tsx). */
-  transform-origin: 64% 90%;
-  transform: scale(calc(1 + 0.05 * var(--zoom, 0)));
-}
-/* The stands, softly: dimmed to about 60% around the robot, which stays at full strength. */
-.scene-crowd {
-  background: radial-gradient(ellipse 15% 32% at var(--robot-x) 46%, transparent 68%, rgb(3 8 24 / 0.42) 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 6%, #000 14%, #000 44%, transparent 58%);
-  mask-image: linear-gradient(to bottom, transparent 6%, #000 14%, #000 44%, transparent 58%);
-}
-/* Phones: navy over the top of the photo, where it runs under the motto. */
-.scene-vignette {
-  background: linear-gradient(to bottom, rgb(3 8 24 / 0.8) 0%, rgb(3 8 24 / 0.5) 34%, transparent 52%);
-}
-@media (min-width: 1024px) {
-  .scene-vignette {
-    background: linear-gradient(to right, rgb(3 8 24 / 0.5) 0%, transparent 36%);
+@media (min-width: 640px) {
+  .scene-hero {
+    --photo-w: 150vw;
+    --photo-x: calc(100vw - 0.74 * var(--photo-w));
+    /* The bumpers' bottom (y 85%) just above the first row, under the vendors heading. */
+    --photo-top: calc(100% + 64px - 0.85 * var(--photo-h));
   }
 }
-/* The same royal-blue light on both photos. */
+@media (min-width: 1024px) {
+  .scene-hero {
+    --photo-w: min(132vw, 228vh);
+    --photo-x: calc(100vw - 0.78 * var(--photo-w));
+  }
+}
+.scene-photo-short,
+.scene-splash-short {
+  top: var(--photo-top);
+  height: var(--photo-h);
+}
+.scene-photo-short .scene-frame {
+  left: var(--photo-x);
+  width: var(--photo-w);
+  --fade: linear-gradient(to bottom, transparent 30%, #000 54%, #000 86%, transparent 99%);
+  --core: radial-gradient(ellipse 20% 24% at 55% 74%, #000 58%, transparent 100%);
+  --lobe-wall: radial-gradient(ellipse 15% 13% at 64% 54%, rgb(0 0 0 / 0.55), transparent 100%);
+  --lobe-floor: radial-gradient(ellipse 24% 8% at 38% 87%, rgb(0 0 0 / 0.6), transparent 100%);
+  --lobe-in: radial-gradient(ellipse 13% 11% at 33% 67%, rgb(0 0 0 / 0.35), transparent 100%);
+  --lobe-edge: radial-gradient(ellipse 10% 20% at 72% 76%, rgb(0 0 0 / 0.65), transparent 100%);
+  -webkit-mask-image: var(--fade), var(--core), var(--lobe-wall), var(--lobe-floor), var(--lobe-in), var(--lobe-edge);
+  -webkit-mask-composite: source-in, source-over, source-over, source-over, source-over;
+  mask-image: var(--fade), var(--core), var(--lobe-wall), var(--lobe-floor), var(--lobe-in), var(--lobe-edge);
+  mask-composite: intersect, add, add, add, add;
+}
+.scene-photo-short .scene-img {
+  /* Scroll pushes in a touch around the robot's base (scroll-parallax.tsx); unmirrored coordinates. */
+  transform-origin: 45% 85%;
+  transform: scale(calc(1 + 0.05 * var(--zoom, 0)));
+  /* A bright venue: brought down to the night canvas. Never blurred. */
+  filter: brightness(0.8) contrast(1.06) saturate(1.05);
+}
+/* The flat red stage wall above the robot, turned toward ultramarine so it doesn't glare under the navbar. */
+.scene-tint {
+  background: linear-gradient(to bottom, rgb(0 20 190 / 0.75) 0%, rgb(0 20 190 / 0.55) 56%, transparent 64%);
+  mix-blend-mode: color;
+}
+/* A top-down midnight wash above the robot, and on a desktop a darker left side behind the motto. */
+.scene-photo-short .scene-shade {
+  background: linear-gradient(to bottom, var(--orbit-night) 0%, rgb(2 4 22 / 0.78) 42%, rgb(2 4 22 / 0.3) 58%, transparent 66%);
+}
+@media (min-width: 1024px) {
+  .scene-photo-short .scene-shade {
+    background:
+      linear-gradient(to right, rgb(2 4 22 / 0.7) 0%, rgb(2 4 22 / 0.3) 30%, transparent 44%),
+      linear-gradient(to bottom, var(--orbit-night) 0%, rgb(2 4 22 / 0.78) 42%, rgb(2 4 22 / 0.3) 58%, transparent 66%);
+  }
+}
+/* The same ultramarine light on both photos. */
 .scene-grade {
   background: var(--orbit-blue);
   mix-blend-mode: soft-light;
-  opacity: 0.18;
+  opacity: 0.22;
 }
 
 /*
- * Colour splashing out of each photo into the open canvas beside it: uneven ellipses at different
- * sizes and angles, softened and screened onto the navy (behind the photos, never over them).
- * Upper left (beside the tall robot): royal blue, Reefscape violet, a little algae teal.
+ * Paint splashing out of each photo into the open canvas beside it: uneven ellipses at different
+ * sizes, softened and screened onto the midnight (behind the photos, never over them). In window
+ * coordinates; the hero's reach left toward the motto in Orbit ultramarine with a little bumper crimson.
  */
 .scene-splash {
   left: calc(50% - 50vw);
   width: 100vw;
   mix-blend-mode: screen;
-  filter: blur(40px);
+  filter: blur(44px);
 }
-.scene-splash-tall {
-  top: var(--photo-top);
-  height: calc(var(--photo-w) * 0.751);
+.scene-splash-short {
   background:
-    radial-gradient(34% 11% at 50% 30%, rgb(0 71 255 / 0.55), transparent 72%),
-    radial-gradient(20% 17% at 31% 18%, rgb(124 58 237 / 0.42), transparent 72%),
-    radial-gradient(30% 7% at 24% 44%, rgb(13 148 136 / 0.26), transparent 72%),
-    radial-gradient(15% 24% at 9% 12%, rgb(0 71 255 / 0.3), transparent 72%),
-    radial-gradient(32% 9% at 36% 62%, rgb(124 58 237 / 0.3), transparent 72%),
-    radial-gradient(11% 15% at 16% 78%, rgb(59 130 246 / 0.22), transparent 72%),
-    radial-gradient(9% 22% at 44% 8%, rgb(124 58 237 / 0.2), transparent 72%);
+    radial-gradient(30% 8% at 46% 82%, rgb(0 24 224 / 0.5), transparent 72%),
+    radial-gradient(22% 13% at 32% 68%, rgb(0 20 190 / 0.42), transparent 72%),
+    radial-gradient(15% 17% at 14% 76%, rgb(0 20 190 / 0.3), transparent 72%),
+    radial-gradient(26% 6% at 24% 91%, rgb(59 91 255 / 0.22), transparent 72%),
+    radial-gradient(12% 7% at 54% 86%, rgb(225 29 72 / 0.12), transparent 72%),
+    radial-gradient(9% 10% at 38% 60%, rgb(225 29 72 / 0.1), transparent 72%),
+    radial-gradient(16% 15% at 66% 62%, rgb(0 20 190 / 0.32), transparent 72%);
+}
+
+/* The motto: on phones from the right edge; on a desktop in the physical-left half of the grid, clear of the robot. */
+.scene-hero-lane {
+  position: relative;
+  align-items: flex-start;
+  text-align: start;
+}
+.scene-hero-lane::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  /* Within the page's width (wider would widen the page). */
+  inset: -14% 0;
+  background: radial-gradient(closest-side, rgb(2 4 22 / 0.74), rgb(2 4 22 / 0.42) 60%, transparent);
+  pointer-events: none;
+}
+@media (min-width: 1024px) {
+  .scene-hero-lane {
+    margin-right: auto;
+    width: min(620px, 52%);
+  }
+  .scene-hero-lane::before {
+    inset: -20% -6%;
+  }
 }
 
 /*
- * The short Crescendo robot. Phones: full width, in a window between the vendor groups (--win).
- * Desktop: the open physical-left lane beside the right-aligned cards, running on into "גלו עוד".
- * Its mask is a splash too: the robot's ellipse plus fingers toward the speaker and the floor.
+ * Below the first row: the Reefscape robot (4:3), mirrored so its black arm and white coral tube
+ * reach up and in toward the cards beside the purple Reef. Phones: in a window between the vendor
+ * groups. Desktop: the open physical-left lane (~43%) beside the 2×2 grid, down into "גלו עוד",
+ * with the stands faded in above it. The mirrored field cage (the photo's left ~21%) runs off the
+ * window's left edge. Mask positions are in mirrored photo coordinates.
  */
 .scene-lane {
-  --win: min(64vw, 420px);
+  --win: min(88vw, 360px);
+  --photo-w: max(190vw, 640px);
+  --photo-h: calc(var(--photo-w) * 0.751);
+  /* The robot (y 37-92%) centred in the window. */
+  --photo-top: calc(var(--win) / 2 - 0.645 * var(--photo-h));
 }
 .scene-window {
   height: var(--win);
 }
-.scene-photo-short {
-  left: calc(50% - 50vw);
-  width: 100vw;
-  top: calc(var(--win) * -0.3);
-  height: calc(var(--win) * 1.4);
+.scene-photo-tall,
+.scene-splash-tall {
+  top: var(--photo-top);
+  height: var(--photo-h);
 }
-.scene-photo-short .scene-frame {
-  --fade: linear-gradient(to bottom, transparent 0%, #000 22%, #000 86%, transparent 100%);
-  --core: radial-gradient(ellipse 50% 40% at 46% 66%, #000 50%, transparent 100%);
-  --lobe-a: radial-gradient(ellipse 40% 18% at 74% 72%, rgb(0 0 0 / 0.75), transparent 100%);
-  --lobe-b: radial-gradient(ellipse 30% 28% at 32% 34%, rgb(0 0 0 / 0.65), transparent 100%);
-  --lobe-c: radial-gradient(ellipse 22% 14% at 12% 74%, rgb(0 0 0 / 0.45), transparent 100%);
-  -webkit-mask-image: var(--fade), var(--core), var(--lobe-a), var(--lobe-b), var(--lobe-c);
-  -webkit-mask-composite: source-in, source-over, source-over, source-over;
-  mask-image: var(--fade), var(--core), var(--lobe-a), var(--lobe-b), var(--lobe-c);
-  mask-composite: intersect, add, add, add;
+.scene-photo-tall .scene-frame {
+  left: calc(-0.21 * var(--photo-w));
+  width: var(--photo-w);
+  --fade: linear-gradient(to bottom, transparent 18%, #000 32%, #000 93%, transparent 100%);
+  --core: radial-gradient(ellipse 20% 44% at 38% 64%, #000 66%, transparent 100%);
+  --lobe-reef: radial-gradient(ellipse 26% 26% at 64% 56%, rgb(0 0 0 / 0.85) 25%, transparent 100%);
+  --lobe-crowd: radial-gradient(ellipse 30% 14% at 42% 28%, rgb(0 0 0 / 0.4), transparent 100%);
+  --lobe-floor: radial-gradient(ellipse 34% 8% at 50% 88%, rgb(0 0 0 / 0.6), transparent 100%);
+  --lobe-far: radial-gradient(ellipse 12% 16% at 86% 40%, rgb(0 0 0 / 0.3), transparent 100%);
+  -webkit-mask-image: var(--fade), var(--core), var(--lobe-reef), var(--lobe-crowd), var(--lobe-floor), var(--lobe-far);
+  -webkit-mask-composite: source-in, source-over, source-over, source-over, source-over;
+  mask-image: var(--fade), var(--core), var(--lobe-reef), var(--lobe-crowd), var(--lobe-floor), var(--lobe-far);
+  mask-composite: intersect, add, add, add, add;
 }
-.scene-photo-short .scene-img {
-  object-position: 46% 74%;
-  /* A brighter venue: brought down to the tall photo's light. Never blurred. */
-  filter: brightness(0.74) contrast(1.06) saturate(1.05);
+.scene-photo-tall .scene-img {
+  filter: brightness(0.92) contrast(1.05);
   /* 2D on purpose, with no will-change: a 3D layer inside the masked box stops it painting in Chromium. */
-  transform: translate(0, calc(var(--drift, 0) * 24px)) scale(1.08);
+  transform: translate(0, calc(var(--drift, 0) * 24px)) scale(1.06);
 }
-/* Around the short robot: bumper crimson, note orange and Orbit cobalt, reaching out unevenly. */
-.scene-splash-short {
-  top: calc(var(--win) * -0.3);
-  height: calc(var(--win) * 1.4);
+/* The stands, softly: dimmed to about 55% around the robot, which stays at full strength. */
+.scene-photo-tall .scene-shade {
+  background: radial-gradient(ellipse 16% 34% at 37% 52%, transparent 66%, rgb(2 4 22 / 0.45) 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 8%, #000 18%, #000 46%, transparent 60%);
+  mask-image: linear-gradient(to bottom, transparent 8%, #000 18%, #000 46%, transparent 60%);
+}
+/* Into the cards beside it: Orbit ultramarine, deep indigo and a little Reef violet. */
+.scene-splash-tall {
   background:
-    radial-gradient(30% 12% at 46% 66%, rgb(225 29 72 / 0.32), transparent 72%),
-    radial-gradient(22% 8% at 72% 74%, rgb(234 88 12 / 0.24), transparent 72%),
-    radial-gradient(26% 16% at 70% 36%, rgb(0 71 255 / 0.26), transparent 72%),
-    radial-gradient(14% 10% at 24% 84%, rgb(225 29 72 / 0.18), transparent 72%),
-    radial-gradient(12% 18% at 12% 30%, rgb(234 88 12 / 0.12), transparent 72%);
+    radial-gradient(24% 10% at 40% 46%, rgb(0 24 224 / 0.45), transparent 72%),
+    radial-gradient(18% 18% at 52% 64%, rgb(109 40 217 / 0.24), transparent 72%),
+    radial-gradient(22% 9% at 58% 36%, rgb(49 46 129 / 0.5), transparent 72%),
+    radial-gradient(14% 15% at 20% 32%, rgb(0 20 190 / 0.3), transparent 72%),
+    radial-gradient(26% 6% at 34% 86%, rgb(0 20 190 / 0.32), transparent 72%),
+    radial-gradient(12% 13% at 66% 80%, rgb(109 40 217 / 0.16), transparent 72%),
+    radial-gradient(10% 18% at 8% 70%, rgb(49 46 129 / 0.35), transparent 72%);
 }
 @media (min-width: 1024px) {
+  .scene-lane {
+    --photo-w: min(100vw, 160vh);
+    /* The robot's top (y 37%) just under the first row; the stands fade in behind that row. */
+    --photo-top: calc(24px - 0.37 * var(--photo-h));
+  }
   .scene-window {
     display: none;
   }
@@ -1125,58 +1154,29 @@ body:has(.home-scene) .cart-count {
     margin-left: auto;
     width: 57%;
   }
-  .scene-photo-short {
-    width: 62vw;
-    height: 60vw;
-    top: calc(78% - 44vw);
-  }
-  .scene-photo-short .scene-frame {
-    --core: radial-gradient(ellipse 40% 34% at 34% 64%, #000 52%, transparent 100%);
-    --lobe-a: radial-gradient(ellipse 34% 12% at 64% 72%, rgb(0 0 0 / 0.7), transparent 100%);
-    --lobe-b: radial-gradient(ellipse 26% 30% at 26% 34%, rgb(0 0 0 / 0.6), transparent 100%);
-    --lobe-c: radial-gradient(ellipse 18% 12% at 10% 82%, rgb(0 0 0 / 0.45), transparent 100%);
-  }
-  .scene-photo-short .scene-img {
-    object-position: 38% center;
-  }
-  .scene-splash-short {
-    top: calc(78% - 44vw);
-    height: 60vw;
-    background:
-      radial-gradient(18% 10% at 22% 64%, rgb(225 29 72 / 0.32), transparent 72%),
-      radial-gradient(22% 7% at 46% 72%, rgb(234 88 12 / 0.24), transparent 72%),
-      radial-gradient(24% 14% at 60% 38%, rgb(0 71 255 / 0.24), transparent 72%),
-      radial-gradient(16% 9% at 74% 58%, rgb(225 29 72 / 0.14), transparent 72%),
-      radial-gradient(12% 12% at 8% 30%, rgb(234 88 12 / 0.12), transparent 72%),
-      radial-gradient(14% 20% at 86% 22%, rgb(0 71 255 / 0.16), transparent 72%);
-  }
 }
 
 /*
- * The motto, precise rather than loud: Heebo at 700 in two lines, FRC and FTC in Inter, a small
- * tracked eyebrow above and one muted silver-blue line below. "בהזמנה אחת" in metallic white to
- * Orbit royal blue.
+ * The hero lockup, set like a technical sheet rather than a slide: a sharp ultramarine bar and a
+ * tracked overline, Heebo at 650 in two lines (FRC and FTC in Inter), "בהזמנה אחת" in metallic
+ * white to ultramarine, one muted line, and a low telemetry bar on a hairline.
  */
-.scene-eyebrow {
-  border: 1px solid rgb(96 165 250 / 0.25);
-  background: rgb(10 22 56 / 0.55);
-  color: #c7d6f5;
-  letter-spacing: 0.04em;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+.scene-overline {
+  color: rgb(199 210 254 / 0.8);
+  letter-spacing: 0.06em;
 }
-.scene-eyebrow-dot {
-  background: var(--orbit-electric);
-  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.25), 0 0 10px var(--orbit-electric);
+.scene-overline-bar {
+  background: linear-gradient(to left, var(--orbit-blue), var(--orbit-300));
+  box-shadow: 0 0 10px rgb(59 91 255 / 0.6);
 }
 .motto {
   font-family: var(--font-heebo), var(--font-sans);
-  font-weight: 700;
-  font-size: clamp(32px, 3.3vw, 54px);
+  font-weight: 650;
+  font-size: clamp(32px, 3.4vw, 52px);
   line-height: 1.12;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
   color: #ffffff;
-  filter: drop-shadow(0 2px 20px rgb(3 8 24 / 0.75));
+  filter: drop-shadow(0 2px 20px rgb(2 4 22 / 0.75));
 }
 .motto > span {
   text-wrap: balance;
@@ -1187,25 +1187,65 @@ body:has(.home-scene) .cart-count {
   letter-spacing: -0.02em;
 }
 .motto-accent {
-  background: linear-gradient(to left, #ffffff 0%, #bfdbfe 45%, #2b7fff 100%);
+  background: linear-gradient(to left, #ffffff 0%, #859bff 55%, #2b4cff 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 .motto-sub {
-  color: #a9b8d6;
+  color: #a8b2dc;
   text-wrap: balance;
 }
+.scene-telemetry {
+  border-top: 1px solid rgb(110 133 255 / 0.18);
+  color: #c3cbef;
+}
+.scene-telemetry-num {
+  font-family: var(--font-tech), var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #ffffff;
+}
+.scene-telemetry-sep {
+  background: rgb(110 133 255 / 0.3);
+}
+.scene-search-key {
+  border: 1px solid rgb(110 133 255 / 0.3);
+  background: rgb(4 9 36 / 0.6);
+  color: #dfe4ff;
+  transition:
+    border-color 200ms var(--ease-out),
+    background-color 200ms var(--ease-out);
+}
+.scene-search-key:hover {
+  border-color: rgb(110 133 255 / 0.6);
+  background: rgb(0 20 190 / 0.35);
+}
+.scene-search-key kbd {
+  font-family: var(--font-tech), var(--font-sans);
+  border: 1px solid rgb(110 133 255 / 0.35);
+  border-radius: 6px;
+  padding: 0 6px;
+  color: var(--orbit-100);
+}
+/* "מאיזה ספק קונים?" on an ultramarine hairline that runs across the first row. */
+.scene-rule {
+  background: linear-gradient(to left, rgb(59 91 255 / 0.6), rgb(59 91 255 / 0.06));
+}
 
-/* Dark glass over the photos: vendor boxes, headings, and the cards further down. */
+/*
+ * Ultramarine-tinted dark glass over the photos: vendor boxes and the cards further down. Heavy
+ * blur, so the arena floor and the paint splashes breathe through without competing, and a crisp
+ * specular line along the top edge.
+ */
 @utility glass-dark {
   position: relative;
   border-radius: 22px;
   border: 1px solid var(--glass-line);
   background: var(--glass-fill);
-  -webkit-backdrop-filter: blur(12px) saturate(1.2);
-  backdrop-filter: blur(12px) saturate(1.2);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 8px 32px rgb(2 8 23 / 0.45);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  backdrop-filter: blur(24px) saturate(1.3);
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.09), 0 10px 36px rgb(1 2 12 / 0.5);
   transition:
     border-color 300ms var(--ease-out),
     box-shadow 300ms var(--ease-out),
@@ -1214,21 +1254,21 @@ body:has(.home-scene) .cart-count {
   &:hover,
   &:focus-visible {
     border-color: var(--glass-line-hover);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 12px 40px rgb(2 8 23 / 0.55), 0 0 28px -8px var(--glass-glow);
+    box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.12), 0 14px 44px rgb(1 2 12 / 0.6), 0 0 32px -8px var(--glass-glow);
   }
 }
 /*
  * A vendor box in its own colour (vendorGlass in src/domain/vendors.ts sets --v-deep and
- * --v-light): a wash from the logo's corner, a border at 30% that rises to 70% on hover, a glow,
- * and its count and "לחנות" in the light tone.
+ * --v-light): a wash from the logo's corner and a faint ambient glow from below, a border at 30%
+ * that rises to 70% on hover, a glow, and its count and "לחנות" in the light tone.
  */
 .vendor-glass {
   --glass-line: color-mix(in srgb, var(--v-deep) 30%, transparent);
   --glass-line-hover: color-mix(in srgb, var(--v-deep) 70%, transparent);
   --glass-glow: color-mix(in srgb, var(--v-deep) 60%, transparent);
   background:
-    radial-gradient(90% 70% at 100% 0%, color-mix(in srgb, var(--v-deep) 22%, transparent), transparent 72%),
-    radial-gradient(60% 50% at 0% 100%, color-mix(in srgb, var(--v-deep) 6%, transparent), transparent 70%),
+    radial-gradient(90% 70% at 100% 0%, color-mix(in srgb, var(--v-deep) 20%, transparent), transparent 72%),
+    radial-gradient(120% 60% at 50% 120%, color-mix(in srgb, var(--v-deep) 9%, transparent), transparent 70%),
     var(--glass-fill);
 }
 .vendor-count {
@@ -1243,59 +1283,59 @@ body:has(.home-scene) .cart-count {
 .vendor-logo {
   filter: drop-shadow(0 2px 10px rgb(255 255 255 / 0.14));
 }
-/* WCP's logo is all brand blue: lifted so the gear reads on navy. */
+/* WCP's logo is all brand blue: lifted so the gear reads on the night canvas. */
 .vendor-logo[src$="/wcp.png"] {
-  filter: brightness(1.5) saturate(1.1) drop-shadow(0 2px 10px rgb(56 189 248 / 0.3));
+  filter: brightness(1.5) saturate(1.1) drop-shadow(0 2px 10px rgb(110 133 255 / 0.35));
 }
 /* An uploaded logo with no white-ink copy: black ink to white, colours turned back to their hue. */
 .vendor-logo-invert {
   filter: invert(1) hue-rotate(180deg) saturate(1.3) contrast(1.05) drop-shadow(0 2px 10px rgb(255 255 255 / 0.14));
 }
-.scene-pill {
-  border: 1px solid var(--glass-line);
-  background: var(--glass-fill);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgb(2 8 23 / 0.35);
+
+/*
+ * Product photos on the home page: soft frosted-pearl tiles instead of harsh white squares, the
+ * photos' white backgrounds multiplied into the tile so they sit inside the dark cards.
+ */
+.scene-thumb,
+.home-scene :is(.tile-fade, .card-photo) {
+  background: radial-gradient(circle at 50% 30%, rgb(241 245 249 / 0.9), rgb(226 232 240 / 0.85));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15), inset 0 2px 8px rgb(15 23 42 / 0.2);
 }
-/* The vendor boxes' part photos: clean white tiles. */
-.scene-thumb {
-  background: rgb(255 255 255 / 0.95);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.6);
+.home-scene :is(.tile-fade, .card-photo) {
+  --tw-ring-color: rgb(255 255 255 / 0.15);
+}
+.home-scene :is(.tile-fade, .card-photo) img {
+  mix-blend-mode: multiply;
 }
 
 .home-scene .card-surface {
   background: var(--glass-fill);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   box-shadow:
-    inset 0 0 0 1px var(--glass-line), var(--shadow-card), var(--tw-ring-offset-shadow, 0 0 #0000),
-    var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
+    inset 0 1px 0 0 rgb(255 255 255 / 0.09), inset 0 0 0 1px var(--glass-line), var(--shadow-card),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
 }
 .home-scene :is(.glow-card, .glow-box) {
   border-color: var(--glass-line);
   background: var(--glass-fill);
-  box-shadow: var(--shadow-card);
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.09), var(--shadow-card);
   transition: border-color 300ms var(--ease-out);
 }
 .home-scene :is(.glow-card:hover, .glow-card:focus-within, .glow-box:hover, .glow-box:focus-visible) {
   border-color: var(--glass-line-hover);
 }
 .home-scene .glow-box {
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
 }
 .home-scene .glow-outline {
-  background: rgb(15 23 42 / 0.6);
+  background: rgb(4 9 36 / 0.6);
   border-color: var(--glass-line);
   box-shadow: none;
 }
 .home-scene .card-shine::after {
   background: linear-gradient(100deg, transparent 0%, rgb(255 255 255 / 0.12) 50%, transparent 100%);
-}
-.home-scene .tile-fade {
-  background: rgb(255 255 255 / 0.95);
-  box-shadow: none;
 }
 .home-scene .btn-soft {
   background: rgb(255 255 255 / 0.08);

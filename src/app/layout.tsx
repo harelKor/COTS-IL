@@ -43,7 +43,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   // Light only (docs/REDESIGN.md, "Visual language"): the top of the page's ice-blue fade.
-  themeColor: "#EBF3FF",
+  themeColor: "#EEF1FF",
   colorScheme: "light",
 };
 

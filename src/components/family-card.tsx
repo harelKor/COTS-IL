@@ -327,9 +327,9 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     );
   }
 
-  // Every photo on the same padded white tile: supplier photos are shot on white.
+  // Every photo on the same padded white tile: supplier photos are shot on white (a pearl tile on the home page).
   const tile = (
-    <div ref={image} className="relative aspect-square w-full overflow-hidden rounded-xl bg-white p-3 ring-1 ring-line">
+    <div ref={image} className="card-photo relative aspect-square w-full overflow-hidden rounded-xl bg-white p-3 ring-1 ring-line">
       {photo_}
       {familyInCart > 0 && (
         <span className="absolute end-2 top-2 rounded-full bg-brand px-2 py-0.5 text-caption font-medium text-white tabular-nums">

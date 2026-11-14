@@ -71,7 +71,7 @@ describe("vendorGlass", () => {
   });
   it("falls back to the admin's accent, then Orbit blue", () => {
     expect(vendorGlass({ code: "acme", name: "Acme", accentColor: "#123456" })).toEqual({ "--v-deep": "#123456", "--v-light": "#123456" });
-    expect(vendorGlass({ code: "acme", name: "Acme", accentColor: null })["--v-deep"]).toBe("#0a58ff");
+    expect(vendorGlass({ code: "acme", name: "Acme", accentColor: null })["--v-deep"]).toBe("#0018e0");
   });
 });
 

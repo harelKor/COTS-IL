@@ -71,9 +71,9 @@ function saveRecent(q: string) {
 
 const noSubscribe = () => () => {};
 /** "⌘K" on a Mac, "Ctrl K" elsewhere (and while prerendering). */
-const shortcutLabel = () =>
+export const shortcutLabel = () =>
   /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl K";
-const serverShortcut = () => "Ctrl K";
+export const serverShortcut = () => "Ctrl K";
 
 /** A search row as a catalog card, so a part with options can be chosen and added from the panel. */
 function asCard(r: SearchResult): CardFamily {

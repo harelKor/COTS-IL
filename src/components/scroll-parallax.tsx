@@ -6,9 +6,9 @@ import { useEffect } from "react";
  * Light scroll parallax for the home photos (home-scene.tsx), one requestAnimationFrame per
  * scroll. It only writes two numbers on <html>, and globals.css turns them into GPU transforms
  * (on <html>, not on the photos: the lower photo streams in and may not be hydrated yet).
- * - --zoom, from the tall photo (data-parallax="zoom"): 0 → 1 as it scrolls away; the photo
+ * - --zoom, from the hero photo (data-parallax="zoom"): 0 → 1 as it scrolls away; the photo
  *   pushes in a little around the bumpers, so they never move toward the vendor cards.
- * - --drift, from the short photo (data-parallax="drift"): 1 → -1 as it crosses the window; the
+ * - --drift, from the lower photo (data-parallax="drift"): 1 → -1 as it crosses the window; the
  *   photo drifts slower than the page, like something further away.
  * Nothing at all under reduced motion.
  */

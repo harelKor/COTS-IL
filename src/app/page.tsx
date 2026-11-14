@@ -3,6 +3,7 @@ import { Suspense, ViewTransition } from "react";
 import { GroupBoxes } from "@/components/group-boxes";
 import { VendorBoxes } from "@/components/vendor-boxes";
 import { ScenePhoto } from "@/components/home-scene";
+import { SearchKeyButton } from "@/components/search-key-button";
 import { ScrollParallax } from "@/components/scroll-parallax";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
@@ -63,9 +64,38 @@ async function TeamNotice() {
 }
 
 /**
- * The way in: one box per vendor. The first row runs across the page in front of the tall robot's
- * lower half, visible on load; the rest sit in a 2-column grid on the right on a desktop, leaving the left
- * lane open for the short robot (on phones, a window between the two groups shows it).
+ * The hero's telemetry line, from the live catalog: how many vendors and products, the shared
+ * shipment, and a quiet way into search. The product count is rounded down to hundreds.
+ */
+async function Telemetry() {
+  const vendors = await getVendors();
+  const total = vendors.reduce((n, v) => n + v.count, 0);
+  const shown = total >= 1000 ? Math.floor(total / 100) * 100 : total;
+  const sep = <span aria-hidden className="scene-telemetry-sep h-4 w-px" />;
+  return (
+    <div className="scene-telemetry flex w-full flex-wrap items-center gap-x-4 gap-y-2 pt-3 text-caption">
+      <span>
+        <Ltr className="scene-telemetry-num">{vendors.length}</Ltr> ספקים
+      </span>
+      {sep}
+      <span>
+        <Ltr className="scene-telemetry-num">
+          {shown.toLocaleString("he-IL")}
+          {total > shown ? "+" : ""}
+        </Ltr>{" "}
+        מוצרים בקטלוג
+      </span>
+      {sep}
+      <span>משלוח מרוכז לישראל</span>
+      <SearchKeyButton className="ms-auto hidden sm:inline-flex" />
+    </div>
+  );
+}
+
+/**
+ * The way in: one box per vendor. The first row runs across the page just under the hero robot's
+ * bumpers, visible on load; the rest sit in a 2-column grid on the right on a desktop, leaving the left
+ * lane open for the Reefscape robot (on phones, a window between the two groups shows it).
  */
 async function Vendors() {
   const vendors = await getVendors();
@@ -73,14 +103,17 @@ async function Vendors() {
   const rest = vendors.slice(first);
   return (
     <section id="vendors" aria-labelledby="vendors-title" className="flex scroll-mt-20 flex-col gap-4 lg:gap-5">
-      <h2 id="vendors-title" className="scene-pill flex w-fit items-center gap-2 rounded-full px-4 py-1.5 text-section font-semibold">
-        <Cog size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
-        מאיזה ספק קונים?
-      </h2>
+      <div className="flex items-center gap-4">
+        <h2 id="vendors-title" className="flex shrink-0 items-center gap-2 text-section font-semibold">
+          <Cog size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
+          מאיזה ספק קונים?
+        </h2>
+        <span aria-hidden className="scene-rule h-px flex-1" />
+      </div>
       <VendorBoxes vendors={vendors.slice(0, first)} layout="row" eager={first} />
       {rest.length > 0 && (
         <div className="scene-lane relative">
-          <ScenePhoto kind="short" />
+          <ScenePhoto kind="tall" />
           <div aria-hidden className="scene-window" />
           <div className="scene-lane-cards">
             <VendorBoxes vendors={rest} layout="bento" />
@@ -203,8 +236,9 @@ export default function HomePage() {
   return (
     <ViewTransition enter="page-enter" exit="page-exit" default="none">
       {/*
-        One continuous competition photograph: a deep Orbit navy canvas from under the navbar to the
-        footer, the tall robot on the right at the top, the short one in the left lane lower down.
+        One continuous competition photograph: an Orbit ultramarine midnight canvas from under the
+        navbar to the footer, the Crescendo robot on the right at the top, the Reefscape one in the
+        left lane lower down, both mirrored to face in.
       */}
       <div className="home-scene relative isolate flex flex-col gap-8">
         <div aria-hidden className="scene-canvas pointer-events-none absolute -z-20" />
@@ -212,14 +246,14 @@ export default function HomePage() {
         <OrganizationJsonLd />
 
         {/*
-          A short hero, so the first vendor row shows on load: the motto toward the middle, the tall
-          robot behind it on the right, running down behind the first row.
+          A short hero, so the first vendor row shows on load: the motto in the physical-left half
+          of the grid, the Crescendo robot large on the right with its bumpers just above the first row.
         */}
         <section className="scene-hero relative flex flex-col">
-          <ScenePhoto kind="tall" />
+          <ScenePhoto kind="short" />
           <div className="scene-hero-lane flex flex-col gap-4">
-            <p className="scene-eyebrow flex w-fit items-center gap-2 rounded-full px-3 py-1 text-caption font-medium">
-              <span aria-hidden className="scene-eyebrow-dot size-1.5 rounded-full" />
+            <p className="scene-overline flex items-center gap-3 text-caption font-medium">
+              <span aria-hidden className="scene-overline-bar h-0.5 w-7" />
               פלטפורמת הרכש לקבוצות רובוטיקה בישראל
             </p>
             <h1 className="motto">
@@ -229,6 +263,9 @@ export default function HomePage() {
               <span className="motto-accent block">בהזמנה אחת</span>
             </h1>
             <p className="motto-sub text-body">כל החלקים הרשמיים, משלוח מרוכז ומק״טים מדויקים במקום אחד.</p>
+            <Suspense fallback={<div aria-hidden className="scene-telemetry min-h-14 w-full" />}>
+              <Telemetry />
+            </Suspense>
             <Suspense>
               <TeamNotice />
             </Suspense>

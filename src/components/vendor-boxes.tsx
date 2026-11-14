@@ -16,7 +16,7 @@ const COLS_LG = ["", "", "", "", "@lg:grid-cols-4"];
 const COLS_2XL = ["", "", "", "", "@2xl:grid-cols-4", "@2xl:grid-cols-5", "@2xl:grid-cols-6"];
 
 /**
- * The vendor's most wanted parts, side by side on white tiles, clipped inside the box: 3 in a
+ * The vendor's most wanted parts, side by side on pearl tiles, clipped inside the box: 3 in a
  * normal box, 4 in a half-row box, 6 across a full-row one. Each tile hops now and then, on its own beat.
  */
 function PhotoRow({ images, seed }: { images: string[]; seed: string }) {
@@ -50,10 +50,10 @@ function PhotoRow({ images, seed }: { images: string[]; seed: string }) {
 /**
  * The way into the site: one box per vendor in the `suppliers` table (a vendor added in the admin
  * appears by itself), with its logo in white ink straight on glass tinted in its own colour, its biggest categories, how many products and
- * a row of its most wanted parts on white tiles, in dark glass over the home photos. The whole box
+ * a row of its most wanted parts on soft pearl tiles, in dark glass over the home photos. The whole box
  * is one link to its store.
- * - "row": the first row, up to 3 across from 1024px, under the tall robot.
- * - "bento": the rest, two to a row from 640px (beside the short robot on a desktop).
+ * - "row": the first row, up to 3 across from 1024px, under the hero robot.
+ * - "bento": the rest, two to a row from 640px (beside the Reefscape robot on a desktop).
  * A lone last box spans both columns of a 2-column row (spansBoth), so no row has a gap.
  */
 export function VendorBoxes({ vendors, layout, eager = 0 }: { vendors: VendorSummary[]; layout: "row" | "bento"; eager?: number }) {
