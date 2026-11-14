@@ -12,6 +12,11 @@
 // sponsor plate) back along its own baseline, and writes public/robots/<name>-facing{.jpg,-<width>.…}
 // (home-scene.tsx would need those names).
 // Drop a sharper original in under the same name, adjust the patches to it, and run it again.
+//
+// The Crescendo photo's original is only 1,497 px wide but the hero shows it up to ~2,600 px, so
+// its copies come from public/orbit-1690-short-hd.jpg (3,000 px): the original enlarged 4x with
+// Real-ESRGAN x4plus (Qualcomm AI Hub's ONNX release, run locally in 128 px tiles with blended
+// overlaps), then brought down to 3,000 px. Nothing in the picture was added, moved or removed.
 import sharp from "sharp";
 import { mkdirSync } from "node:fs";
 
@@ -32,13 +37,12 @@ const PHOTOS = {
     ],
   },
   "orbit-1690-short": {
-    // The hero shows it up to ~2,600 px wide on a large or high-density screen, from a 1,497 px
-    // original: the wider copies are a careful Lanczos enlargement with light sharpening and a
-    // higher encode quality, rather than leaving the browser to stretch a compressed 1,500 px file.
+    // From the AI-enlarged master (see the top of this file), at a higher encode quality.
+    master: "public/orbit-1690-short-hd.jpg",
     widths: [800, 1500, 2200, 3000],
-    enlarge: true,
     quality: { avif: 68, webp: 88 },
     mirror: false,
+    // Patches are in the original's pixels (1,497 px wide); double them to mirror the 3,000 px master.
     patches: [
       // "1690" across the front bumper.
       { c: [729, 826], slope: 0, half: [68, 22], soft: 6 },
@@ -85,8 +89,8 @@ function unmirrorPatch(px, width, height, { c, slope, half, soft }) {
 }
 
 mkdirSync("public/robots", { recursive: true });
-for (const [name, { widths, mirror, patches }] of Object.entries(PHOTOS)) {
-  let source = sharp(`public/${name}.jpg`).rotate();
+for (const [name, { widths, mirror, patches, master }] of Object.entries(PHOTOS)) {
+  let source = sharp(master ?? `public/${name}.jpg`).rotate();
   let out = `public/robots/${name}`;
   if (mirror) {
     const { data, info } = await source.flop().removeAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -99,10 +103,7 @@ for (const [name, { widths, mirror, patches }] of Object.entries(PHOTOS)) {
   const { width: full } = await source.metadata();
   const q = PHOTOS[name].quality ?? { avif: 55, webp: 78 };
   for (const width of widths) {
-    const up = PHOTOS[name].enlarge && width > (full ?? width);
-    let img = source.clone().resize({ width: up ? width : Math.min(width, full ?? width), kernel: "lanczos3", withoutEnlargement: !up });
-    // Enlarged copies get back the edge crispness a resample softens, without halos.
-    if (up) img = img.sharpen({ sigma: 0.9, m1: 0.4, m2: 1.6, x1: 2, y2: 10, y3: 16 });
+    const img = source.clone().resize({ width: Math.min(width, full ?? width), kernel: "lanczos3", withoutEnlargement: true });
     await img.clone().avif({ quality: q.avif, effort: 6, chromaSubsampling: "4:4:4" }).toFile(`${out}-${width}.avif`);
     await img.clone().webp({ quality: q.webp, smartSubsample: true }).toFile(`${out}-${width}.webp`);
   }
