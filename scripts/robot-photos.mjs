@@ -4,13 +4,14 @@
 //
 // The originals sit in public/ as orbit-1690-tall.jpg (2025 Reefscape, the tall elevator robot,
 // 4:3) and orbit-1690-short.jpg (2024 Crescendo, red bumpers, 3:2). They're used whole: no
-// cutout, no blur. The page shows them mirrored, so both robots face in toward the middle; a
-// plain mirror would print "1690" backwards on the bumpers. So this mirrors each photo and then
-// flips every lettered patch (the bumper numbers, the Reefscape robot's sponsor plate) back
-// along its own baseline, so the text reads the right way while staying on the bumper's slope.
-// It writes public/robots/<name>-facing.jpg and smaller AVIF and WebP copies
-// (public/robots/<name>-facing-<width>.{avif,webp}); the page masks and tints them in CSS.
-// Drop a sharper original in under the same name, adjust PATCHES to it, and run it again.
+// cutout, no blur. Since Nov 14, 2026 the page shows both the way they were shot (the Crescendo
+// robot on the left, the Reefscape one on the right, each facing in), so this writes smaller AVIF
+// and WebP copies (public/robots/<name>-<width>.{avif,webp}); the page masks and tints them in CSS.
+// Set `mirror: true` on a photo to show it mirrored instead: a plain mirror would print "1690"
+// backwards, so it then also flips every lettered patch (the bumper numbers, the Reefscape robot's
+// sponsor plate) back along its own baseline, and writes public/robots/<name>-facing{.jpg,-<width>.…}
+// (home-scene.tsx would need those names).
+// Drop a sharper original in under the same name, adjust the patches to it, and run it again.
 import sharp from "sharp";
 import { mkdirSync } from "node:fs";
 
@@ -22,6 +23,7 @@ import { mkdirSync } from "node:fs";
 const PHOTOS = {
   "orbit-1690-tall": {
     widths: [960, 1600, 2000],
+    mirror: false,
     patches: [
       // The sponsor plate and the front bumper's "1690".
       { c: [1274, 1361], slope: 0, half: [182, 78], soft: 12 },
@@ -31,6 +33,7 @@ const PHOTOS = {
   },
   "orbit-1690-short": {
     widths: [800, 1500],
+    mirror: false,
     patches: [
       // "1690" across the front bumper.
       { c: [729, 826], slope: 0, half: [68, 22], soft: 6 },
@@ -77,15 +80,22 @@ function unmirrorPatch(px, width, height, { c, slope, half, soft }) {
 }
 
 mkdirSync("public/robots", { recursive: true });
-for (const [name, { widths, patches }] of Object.entries(PHOTOS)) {
-  const { data, info } = await sharp(`public/${name}.jpg`).rotate().flop().removeAlpha().raw().toBuffer({ resolveWithObject: true });
-  for (const p of patches) unmirrorPatch(data, info.width, info.height, p);
-  const raw = { raw: { width: info.width, height: info.height, channels: 3 } };
-  await sharp(data, raw).jpeg({ quality: 86, mozjpeg: true }).toFile(`public/robots/${name}-facing.jpg`);
-  for (const width of widths) {
-    const img = sharp(data, raw).resize({ width: Math.min(width, info.width), withoutEnlargement: true });
-    await img.clone().avif({ quality: 55, effort: 6 }).toFile(`public/robots/${name}-facing-${width}.avif`);
-    await img.clone().webp({ quality: 78 }).toFile(`public/robots/${name}-facing-${width}.webp`);
+for (const [name, { widths, mirror, patches }] of Object.entries(PHOTOS)) {
+  let source = sharp(`public/${name}.jpg`).rotate();
+  let out = `public/robots/${name}`;
+  if (mirror) {
+    const { data, info } = await source.flop().removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    for (const p of patches) unmirrorPatch(data, info.width, info.height, p);
+    const raw = { raw: { width: info.width, height: info.height, channels: 3 } };
+    out += "-facing";
+    await sharp(data, raw).jpeg({ quality: 86, mozjpeg: true }).toFile(`${out}.jpg`);
+    source = sharp(data, raw);
   }
-  console.log(`public/robots/${name}-facing{.jpg,-{${widths.join(",")}}.{avif,webp}} from ${info.width}x${info.height}`);
+  const { width: full } = await source.metadata();
+  for (const width of widths) {
+    const img = source.clone().resize({ width: Math.min(width, full ?? width), withoutEnlargement: true });
+    await img.clone().avif({ quality: 55, effort: 6 }).toFile(`${out}-${width}.avif`);
+    await img.clone().webp({ quality: 78 }).toFile(`${out}-${width}.webp`);
+  }
+  console.log(`${out}-{${widths.join(",")}}.{avif,webp}${mirror ? " (mirrored)" : ""}`);
 }

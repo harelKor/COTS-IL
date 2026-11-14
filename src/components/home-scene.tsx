@@ -1,14 +1,13 @@
 /**
- * Team 1690 Orbit's two competition photos behind the home page, whole and sharp: no cutout and
- * no blur, both mirrored so the robots face in toward the middle of the page (with their bumper
- * numbers flipped back, so "1690" still reads right; scripts/robot-photos.mjs). globals.css ("The
- * home page as one competition photograph") places, masks and colour-grades them so their edges
- * melt into the midnight canvas:
+ * Team 1690 Orbit's two competition photos behind the home page, whole and sharp: no cutout, no
+ * blur and no mirroring, so "1690", "FIRST" and the sponsor names read naturally. globals.css
+ * ("The home page as one competition photograph") places, masks and colour-grades them so their
+ * edges melt into the midnight canvas, laid out the way Hebrew reads (headline on the right):
  * - "short" (2024 Crescendo, public/orbit-1690-short.jpg, 3:2): the hero, large on the physical
- *   right with its shooter aiming in toward the motto; the mirrored CRESCENDO sign is off screen.
- * - "tall" (2025 Reefscape, public/orbit-1690-tall.jpg, 4:3): in the open physical-left lane beside
- *   the lower vendor cards on a desktop (the mirrored field cage off screen), in a window between
- *   the vendor groups on phones.
+ *   left with its shooter aiming in toward the headline; the CRESCENDO sign is off screen.
+ * - "tall" (2025 Reefscape, public/orbit-1690-tall.jpg, 4:3): in the open physical-right lane beside
+ *   the lower vendor cards on a desktop (the field cage off screen), in a window between the vendor
+ *   groups on phones.
  * Smaller copies come from `npm run robot-photos`. Decorative, hidden from assistive tech, and
  * absolutely placed, so nothing shifts as they load. ScrollParallax moves them a little.
  */
@@ -33,7 +32,7 @@ const srcSet = (
   name: string,
   widths: readonly number[],
   type: "avif" | "webp",
-) => widths.map((w) => `/robots/${name}-facing-${w}.${type} ${w}w`).join(", ");
+) => widths.map((w) => `/robots/${name}-${w}.${type} ${w}w`).join(", ");
 
 export function ScenePhoto({ kind }: { kind: keyof typeof PHOTOS }) {
   const p = PHOTOS[kind];
@@ -64,7 +63,7 @@ export function ScenePhoto({ kind }: { kind: keyof typeof PHOTOS }) {
               sizes={p.sizes}
             />
             <img
-              src={`/robots/${p.name}-facing.jpg`}
+              src={`/${p.name}.jpg`}
               alt=""
               width={p.width}
               height={p.height}

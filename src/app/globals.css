@@ -945,9 +945,9 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   left: calc(50% - 50vw);
   width: 100vw;
   background:
-    radial-gradient(60% 900px at 76% 0%, rgb(0 20 190 / 0.26), transparent 70%),
-    radial-gradient(50% 1100px at 18% 50%, rgb(0 20 190 / 0.14), transparent 70%),
-    radial-gradient(50% 900px at 80% 90%, rgb(49 46 129 / 0.14), transparent 70%),
+    radial-gradient(60% 900px at 24% 0%, rgb(0 20 190 / 0.26), transparent 70%),
+    radial-gradient(50% 1100px at 82% 50%, rgb(0 20 190 / 0.14), transparent 70%),
+    radial-gradient(50% 900px at 20% 90%, rgb(49 46 129 / 0.14), transparent 70%),
     linear-gradient(to bottom, var(--orbit-night) 0%, var(--orbit-midnight) 40%, var(--orbit-deep) 100%);
 }
 
@@ -972,16 +972,15 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 
 /*
  * The hero: short, so "מאיזה ספק קונים?" and the first vendor row start about half way down the
- * window. Its photo is the Crescendo robot (3:2), mirrored so the shooter aims up and in toward the
- * motto, large on the physical right with its bumpers just above the first row. The mirrored
- * CRESCENDO sign (the photo's right 22%) runs off the window's right edge.
- * The photo files are already mirrored (npm run robot-photos), so positions are as seen.
+ * window. The Hebrew headline on the physical right; the Crescendo robot (3:2, as shot) large on
+ * the physical left with its bumpers just above the first row, the shooter aiming up and in toward
+ * the headline. The CRESCENDO sign (the photo's left 22%) runs off the window's left edge.
  */
 .scene-hero {
   --photo-w: 250vw;
   --photo-h: calc(var(--photo-w) * 0.6667);
-  /* The photo's x' 72% on the window's right edge. */
-  --photo-x: calc(100vw - 0.72 * var(--photo-w));
+  /* The photo's x 28% on the window's left edge. */
+  --photo-x: calc(-0.28 * var(--photo-w));
   /* Phones: the robot (y 62-85%) at the top of the hero, behind the motto. */
   --photo-top: calc(-0.6 * var(--photo-h));
   min-height: calc(52svh - 176px);
@@ -990,7 +989,7 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 @media (min-width: 640px) {
   .scene-hero {
     --photo-w: 150vw;
-    --photo-x: calc(100vw - 0.74 * var(--photo-w));
+    --photo-x: calc(-0.26 * var(--photo-w));
     /* The bumpers' bottom (y 85%) just above the first row, under the vendors heading. */
     --photo-top: calc(100% + 64px - 0.85 * var(--photo-h));
   }
@@ -998,7 +997,7 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 @media (min-width: 1024px) {
   .scene-hero {
     --photo-w: min(132vw, 228vh);
-    --photo-x: calc(100vw - 0.78 * var(--photo-w));
+    --photo-x: calc(-0.22 * var(--photo-w));
   }
 }
 .scene-photo-short,
@@ -1010,11 +1009,11 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   left: var(--photo-x);
   width: var(--photo-w);
   --fade: linear-gradient(to bottom, transparent 30%, #000 54%, #000 86%, transparent 99%);
-  --core: radial-gradient(ellipse 20% 24% at 55% 74%, #000 58%, transparent 100%);
-  --lobe-wall: radial-gradient(ellipse 15% 13% at 64% 54%, rgb(0 0 0 / 0.55), transparent 100%);
-  --lobe-floor: radial-gradient(ellipse 24% 8% at 38% 87%, rgb(0 0 0 / 0.6), transparent 100%);
-  --lobe-in: radial-gradient(ellipse 13% 11% at 33% 67%, rgb(0 0 0 / 0.35), transparent 100%);
-  --lobe-edge: radial-gradient(ellipse 10% 20% at 72% 76%, rgb(0 0 0 / 0.65), transparent 100%);
+  --core: radial-gradient(ellipse 20% 24% at 45% 74%, #000 58%, transparent 100%);
+  --lobe-wall: radial-gradient(ellipse 15% 13% at 36% 54%, rgb(0 0 0 / 0.55), transparent 100%);
+  --lobe-floor: radial-gradient(ellipse 24% 8% at 62% 87%, rgb(0 0 0 / 0.6), transparent 100%);
+  --lobe-in: radial-gradient(ellipse 13% 11% at 67% 67%, rgb(0 0 0 / 0.35), transparent 100%);
+  --lobe-edge: radial-gradient(ellipse 10% 20% at 28% 76%, rgb(0 0 0 / 0.65), transparent 100%);
   -webkit-mask-image: var(--fade), var(--core), var(--lobe-wall), var(--lobe-floor), var(--lobe-in), var(--lobe-edge);
   -webkit-mask-composite: source-in, source-over, source-over, source-over, source-over;
   mask-image: var(--fade), var(--core), var(--lobe-wall), var(--lobe-floor), var(--lobe-in), var(--lobe-edge);
@@ -1022,7 +1021,7 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 }
 .scene-photo-short .scene-img {
   /* Scroll pushes in a touch around the robot's base (scroll-parallax.tsx). */
-  transform-origin: 55% 85%;
+  transform-origin: 45% 85%;
   transform: scale(calc(1 + 0.05 * var(--zoom, 0)));
   /* A bright venue: brought down to the night canvas. Never blurred. */
   filter: brightness(0.8) contrast(1.06) saturate(1.05);
@@ -1032,14 +1031,14 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   background: linear-gradient(to bottom, rgb(0 20 190 / 0.75) 0%, rgb(0 20 190 / 0.55) 56%, transparent 64%);
   mix-blend-mode: color;
 }
-/* A top-down midnight wash above the robot, and on a desktop a darker left side behind the motto. */
+/* A top-down midnight wash above the robot, and on a desktop a darker right side behind the headline. */
 .scene-photo-short .scene-shade {
   background: linear-gradient(to bottom, var(--orbit-night) 0%, rgb(2 4 22 / 0.78) 42%, rgb(2 4 22 / 0.3) 58%, transparent 66%);
 }
 @media (min-width: 1024px) {
   .scene-photo-short .scene-shade {
     background:
-      linear-gradient(to right, rgb(2 4 22 / 0.7) 0%, rgb(2 4 22 / 0.3) 30%, transparent 44%),
+      linear-gradient(to left, rgb(2 4 22 / 0.7) 0%, rgb(2 4 22 / 0.3) 30%, transparent 44%),
       linear-gradient(to bottom, var(--orbit-night) 0%, rgb(2 4 22 / 0.78) 42%, rgb(2 4 22 / 0.3) 58%, transparent 66%);
   }
 }
@@ -1053,7 +1052,7 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 /*
  * Paint splashing out of each photo into the open canvas beside it: uneven ellipses at different
  * sizes, softened and screened onto the midnight (behind the photos, never over them). In window
- * coordinates; the hero's reach left toward the motto in Orbit ultramarine with a little bumper crimson.
+ * coordinates; the hero's reach right toward the headline in Orbit ultramarine with a little bumper crimson.
  */
 .scene-splash {
   left: calc(50% - 50vw);
@@ -1063,16 +1062,16 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 }
 .scene-splash-short {
   background:
-    radial-gradient(30% 8% at 46% 82%, rgb(0 24 224 / 0.5), transparent 72%),
-    radial-gradient(22% 13% at 32% 68%, rgb(0 20 190 / 0.42), transparent 72%),
-    radial-gradient(15% 17% at 14% 76%, rgb(0 20 190 / 0.3), transparent 72%),
-    radial-gradient(26% 6% at 24% 91%, rgb(59 91 255 / 0.22), transparent 72%),
-    radial-gradient(12% 7% at 54% 86%, rgb(225 29 72 / 0.12), transparent 72%),
-    radial-gradient(9% 10% at 38% 60%, rgb(225 29 72 / 0.1), transparent 72%),
-    radial-gradient(16% 15% at 66% 62%, rgb(0 20 190 / 0.32), transparent 72%);
+    radial-gradient(30% 8% at 54% 82%, rgb(0 24 224 / 0.5), transparent 72%),
+    radial-gradient(22% 13% at 68% 68%, rgb(0 20 190 / 0.42), transparent 72%),
+    radial-gradient(15% 17% at 86% 76%, rgb(0 20 190 / 0.3), transparent 72%),
+    radial-gradient(26% 6% at 76% 91%, rgb(59 91 255 / 0.22), transparent 72%),
+    radial-gradient(12% 7% at 46% 86%, rgb(225 29 72 / 0.12), transparent 72%),
+    radial-gradient(9% 10% at 62% 60%, rgb(225 29 72 / 0.1), transparent 72%),
+    radial-gradient(16% 15% at 34% 62%, rgb(0 20 190 / 0.32), transparent 72%);
 }
 
-/* The motto: on phones from the right edge; on a desktop in the physical-left half of the grid, clear of the robot. */
+/* The motto: from the right edge, as Hebrew reads; on a desktop in the physical-right half of the grid, clear of the robot. */
 .scene-hero-lane {
   position: relative;
   align-items: flex-start;
@@ -1089,7 +1088,7 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 }
 @media (min-width: 1024px) {
   .scene-hero-lane {
-    margin-right: auto;
+    margin-left: auto;
     width: min(620px, 52%);
   }
   .scene-hero-lane::before {
@@ -1098,11 +1097,11 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 }
 
 /*
- * Below the first row: the Reefscape robot (4:3), mirrored so its black arm and white coral tube
- * reach up and in toward the cards beside the purple Reef. Phones: in a window between the vendor
- * groups. Desktop: the open physical-left lane (~43%) beside the 2×2 grid, down into "גלו עוד",
- * with the stands faded in above it. The mirrored field cage (the photo's left ~21%) runs off the
- * window's left edge.
+ * Below the first row: the Reefscape robot (4:3, as shot, so "FIRST" and "1690 WHISPER" read
+ * naturally), its black arm and white coral tube reaching up and in toward the cards beside the
+ * purple Reef. Phones: in a window between the vendor groups. Desktop: the open physical-right lane
+ * (~43%) beside the 2×2 grid, down into "גלו עוד", with the stands faded in above it. The field
+ * cage (the photo's right ~21%) runs off the window's right edge.
  */
 .scene-lane {
   --win: min(88vw, 360px);
@@ -1120,14 +1119,14 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   height: var(--photo-h);
 }
 .scene-photo-tall .scene-frame {
-  left: calc(-0.21 * var(--photo-w));
+  left: calc(100vw - 0.79 * var(--photo-w));
   width: var(--photo-w);
   --fade: linear-gradient(to bottom, transparent 18%, #000 32%, #000 93%, transparent 100%);
-  --core: radial-gradient(ellipse 20% 44% at 38% 64%, #000 66%, transparent 100%);
-  --lobe-reef: radial-gradient(ellipse 26% 26% at 64% 56%, rgb(0 0 0 / 0.85) 25%, transparent 100%);
-  --lobe-crowd: radial-gradient(ellipse 30% 14% at 42% 28%, rgb(0 0 0 / 0.4), transparent 100%);
+  --core: radial-gradient(ellipse 20% 44% at 62% 64%, #000 66%, transparent 100%);
+  --lobe-reef: radial-gradient(ellipse 26% 26% at 36% 56%, rgb(0 0 0 / 0.85) 25%, transparent 100%);
+  --lobe-crowd: radial-gradient(ellipse 30% 14% at 58% 28%, rgb(0 0 0 / 0.4), transparent 100%);
   --lobe-floor: radial-gradient(ellipse 34% 8% at 50% 88%, rgb(0 0 0 / 0.6), transparent 100%);
-  --lobe-far: radial-gradient(ellipse 12% 16% at 86% 40%, rgb(0 0 0 / 0.3), transparent 100%);
+  --lobe-far: radial-gradient(ellipse 12% 16% at 14% 40%, rgb(0 0 0 / 0.3), transparent 100%);
   -webkit-mask-image: var(--fade), var(--core), var(--lobe-reef), var(--lobe-crowd), var(--lobe-floor), var(--lobe-far);
   -webkit-mask-composite: source-in, source-over, source-over, source-over, source-over;
   mask-image: var(--fade), var(--core), var(--lobe-reef), var(--lobe-crowd), var(--lobe-floor), var(--lobe-far);
@@ -1140,20 +1139,20 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 }
 /* The stands, softly: dimmed to about 55% around the robot, which stays at full strength. */
 .scene-photo-tall .scene-shade {
-  background: radial-gradient(ellipse 16% 34% at 37% 52%, transparent 66%, rgb(2 4 22 / 0.45) 100%);
+  background: radial-gradient(ellipse 16% 34% at 63% 52%, transparent 66%, rgb(2 4 22 / 0.45) 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 8%, #000 18%, #000 46%, transparent 60%);
   mask-image: linear-gradient(to bottom, transparent 8%, #000 18%, #000 46%, transparent 60%);
 }
 /* Into the cards beside it: Orbit ultramarine, deep indigo and a little Reef violet. */
 .scene-splash-tall {
   background:
-    radial-gradient(24% 10% at 40% 46%, rgb(0 24 224 / 0.45), transparent 72%),
-    radial-gradient(18% 18% at 52% 64%, rgb(109 40 217 / 0.24), transparent 72%),
-    radial-gradient(22% 9% at 58% 36%, rgb(49 46 129 / 0.5), transparent 72%),
-    radial-gradient(14% 15% at 20% 32%, rgb(0 20 190 / 0.3), transparent 72%),
-    radial-gradient(26% 6% at 34% 86%, rgb(0 20 190 / 0.32), transparent 72%),
-    radial-gradient(12% 13% at 66% 80%, rgb(109 40 217 / 0.16), transparent 72%),
-    radial-gradient(10% 18% at 8% 70%, rgb(49 46 129 / 0.35), transparent 72%);
+    radial-gradient(24% 10% at 60% 46%, rgb(0 24 224 / 0.45), transparent 72%),
+    radial-gradient(18% 18% at 48% 64%, rgb(109 40 217 / 0.24), transparent 72%),
+    radial-gradient(22% 9% at 42% 36%, rgb(49 46 129 / 0.5), transparent 72%),
+    radial-gradient(14% 15% at 80% 32%, rgb(0 20 190 / 0.3), transparent 72%),
+    radial-gradient(26% 6% at 66% 86%, rgb(0 20 190 / 0.32), transparent 72%),
+    radial-gradient(12% 13% at 34% 80%, rgb(109 40 217 / 0.16), transparent 72%),
+    radial-gradient(10% 18% at 92% 70%, rgb(49 46 129 / 0.35), transparent 72%);
 }
 @media (min-width: 1024px) {
   .scene-lane {
@@ -1164,9 +1163,9 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   .scene-window {
     display: none;
   }
-  /* The remaining vendors on the right; the physical left ~43% stays open for the robot. */
+  /* The remaining vendors on the left, under AndyMark and WCP; the physical right ~43% stays open for the robot. */
   .scene-lane-cards {
-    margin-left: auto;
+    margin-right: auto;
     width: 57%;
   }
 }
