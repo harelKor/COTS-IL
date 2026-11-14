@@ -877,6 +877,27 @@ body:has(.home-scene) {
   background-color: var(--orbit-night);
   background-image: none;
 }
+/*
+ * From 1024px the home page runs wider than the site's 1200px column, 64px from each window edge
+ * (at most 1440px), so the vendor cards spread toward the edges; the header and footer follow.
+ */
+@media (min-width: 1024px) {
+  .home-scene {
+    --scene-w: min(calc(100vw - 128px), 1440px);
+    width: var(--scene-w);
+    margin-inline: calc((100% - var(--scene-w)) / 2);
+  }
+  body:has(.home-scene) :is(.site-header, .site-footer) > div {
+    max-width: calc(min(calc(100vw - 128px), 1440px) + 96px);
+  }
+}
+/* No page scrollbar on the home page: a white track down the night canvas. The page still scrolls. */
+html:has(.home-scene) {
+  scrollbar-width: none;
+}
+html:has(.home-scene)::-webkit-scrollbar {
+  display: none;
+}
 body:has(.home-scene) .site-header {
   background-color: rgb(2 4 22 / 0.62);
   border-bottom-color: var(--glass-line);
@@ -940,13 +961,6 @@ body:has(.home-scene) .cart-count {
   top: 0;
   bottom: 0;
 }
-/* Mirrored, so both robots face in toward the middle of the page. */
-.scene-frame picture {
-  position: absolute;
-  inset: 0;
-  display: block;
-  transform: scaleX(-1);
-}
 .scene-img {
   position: absolute;
   inset: 0;
@@ -960,7 +974,7 @@ body:has(.home-scene) .cart-count {
  * window. Its photo is the Crescendo robot (3:2), mirrored so the shooter aims up and in toward the
  * motto, large on the physical right with its bumpers just above the first row. The mirrored
  * CRESCENDO sign (the photo's right 22%) runs off the window's right edge.
- * Mask and overlay positions below are in mirrored photo coordinates (x' = 100% - x).
+ * The photo files are already mirrored (npm run robot-photos), so positions are as seen.
  */
 .scene-hero {
   --photo-w: 250vw;
@@ -1006,8 +1020,8 @@ body:has(.home-scene) .cart-count {
   mask-composite: intersect, add, add, add, add;
 }
 .scene-photo-short .scene-img {
-  /* Scroll pushes in a touch around the robot's base (scroll-parallax.tsx); unmirrored coordinates. */
-  transform-origin: 45% 85%;
+  /* Scroll pushes in a touch around the robot's base (scroll-parallax.tsx). */
+  transform-origin: 55% 85%;
   transform: scale(calc(1 + 0.05 * var(--zoom, 0)));
   /* A bright venue: brought down to the night canvas. Never blurred. */
   filter: brightness(0.8) contrast(1.06) saturate(1.05);
@@ -1087,7 +1101,7 @@ body:has(.home-scene) .cart-count {
  * reach up and in toward the cards beside the purple Reef. Phones: in a window between the vendor
  * groups. Desktop: the open physical-left lane (~43%) beside the 2×2 grid, down into "גלו עוד",
  * with the stands faded in above it. The mirrored field cage (the photo's left ~21%) runs off the
- * window's left edge. Mask positions are in mirrored photo coordinates.
+ * window's left edge.
  */
 .scene-lane {
   --win: min(88vw, 360px);

@@ -55,6 +55,21 @@ export function vendorRows(count: number): { first: number; rest: number } {
   return { first, rest: Math.max(0, count - first) };
 }
 
+/** The home page's first row, in order (the first sits on the right): goBILDA, WCP, AndyMark. */
+const FIRST_ROW = [/gobilda/i, /^wcp$|west coast/i, /andymark/i];
+
+/**
+ * The vendors in home-page order: goBILDA, WCP and AndyMark first, in that order, when they're
+ * there; everyone else after them in the order given (the catalog's, biggest first).
+ */
+export function homeVendorOrder<T extends { code: string; name: string }>(vendors: T[]): T[] {
+  const rank = (v: T) => {
+    const i = FIRST_ROW.findIndex((m) => m.test(v.code) || m.test(v.name));
+    return i === -1 ? FIRST_ROW.length : i;
+  };
+  return vendors.map((v, i) => ({ v, i })).sort((a, b) => rank(a.v) - rank(b.v) || a.i - b.i).map((x) => x.v);
+}
+
 /** Whether box i of a part with `count` boxes spans both columns of a 2-column row: a lone last box, so no row has a gap. */
 export function spansBoth(i: number, count: number): boolean {
   return count % 2 === 1 && i === count - 1;

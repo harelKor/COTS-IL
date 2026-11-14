@@ -20,7 +20,7 @@ import { typicalLeadTime } from "@/domain/lead-time";
 import { HowItWorksSteps } from "@/components/how-it-works-steps";
 import { BadgeCheck, Bot, Boxes, Cog, Coins, FileCheck2, Truck, Undo2 } from "lucide-react";
 import { catalogHref } from "@/lib/catalog-filters";
-import { vendorRows } from "@/domain/vendors";
+import { homeVendorOrder, vendorRows } from "@/domain/vendors";
 import { siteUrl } from "@/lib/site-url";
 
 /**
@@ -98,7 +98,7 @@ async function Telemetry() {
  * lane open for the Reefscape robot (on phones, a window between the two groups shows it).
  */
 async function Vendors() {
-  const vendors = await getVendors();
+  const vendors = homeVendorOrder(await getVendors());
   const { first } = vendorRows(vendors.length);
   const rest = vendors.slice(first);
   return (

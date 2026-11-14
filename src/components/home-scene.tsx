@@ -1,6 +1,7 @@
 /**
  * Team 1690 Orbit's two competition photos behind the home page, whole and sharp: no cutout and
- * no blur, both mirrored so the robots face in toward the middle of the page. globals.css ("The
+ * no blur, both mirrored so the robots face in toward the middle of the page (with their bumper
+ * numbers flipped back, so "1690" still reads right; scripts/robot-photos.mjs). globals.css ("The
  * home page as one competition photograph") places, masks and colour-grades them so their edges
  * melt into the midnight canvas:
  * - "short" (2024 Crescendo, public/orbit-1690-short.jpg, 3:2): the hero, large on the physical
@@ -32,7 +33,7 @@ const srcSet = (
   name: string,
   widths: readonly number[],
   type: "avif" | "webp",
-) => widths.map((w) => `/robots/${name}-${w}.${type} ${w}w`).join(", ");
+) => widths.map((w) => `/robots/${name}-facing-${w}.${type} ${w}w`).join(", ");
 
 export function ScenePhoto({ kind }: { kind: keyof typeof PHOTOS }) {
   const p = PHOTOS[kind];
@@ -63,7 +64,7 @@ export function ScenePhoto({ kind }: { kind: keyof typeof PHOTOS }) {
               sizes={p.sizes}
             />
             <img
-              src={`/${p.name}.jpg`}
+              src={`/robots/${p.name}-facing.jpg`}
               alt=""
               width={p.width}
               height={p.height}

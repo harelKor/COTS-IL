@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accentColor, accentStyle, darkLogo, isStoreFront, vendorBlurb, vendorGlass, vendorHref, vendorRows, spansBoth } from "./vendors";
+import { accentColor, accentStyle, darkLogo, homeVendorOrder, isStoreFront, vendorBlurb, vendorGlass, vendorHref, vendorRows, spansBoth } from "./vendors";
 
 describe("vendorHref", () => {
   it("puts the vendor in the path and drops ?supplier=", () => {
@@ -84,5 +84,16 @@ describe("darkLogo", () => {
   it("leaves uploads and missing logos alone", () => {
     expect(darkLogo("https://x.supabase.co/storage/v1/object/public/supplier-logos/acme.png")).toBeNull();
     expect(darkLogo(null)).toBeNull();
+  });
+});
+
+describe("homeVendorOrder", () => {
+  const v = (code: string, name = code) => ({ code, name });
+  it("puts goBILDA, WCP and AndyMark first, in that order, and keeps the rest as given", () => {
+    const order = homeVendorOrder([v("am", "AndyMark"), v("wcp"), v("gobilda", "goBILDA"), v("rev"), v("ctre")]);
+    expect(order.map((x) => x.code)).toEqual(["gobilda", "wcp", "am", "rev", "ctre"]);
+  });
+  it("leaves a list without them alone", () => {
+    expect(homeVendorOrder([v("rev"), v("ttb"), v("sds")]).map((x) => x.code)).toEqual(["rev", "ttb", "sds"]);
   });
 });
