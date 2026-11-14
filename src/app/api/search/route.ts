@@ -47,17 +47,20 @@ export type SearchResponse = {
 /**
  * Instant results for the search panel. Public, like the catalog. A trailing
  * "x4" is a quantity, unless the results show it's part of a name ("Kraken X60").
+ * `?vendor=<code>` keeps to one vendor's parts and links to its offer (a store's search box).
  */
 export async function GET(request: NextRequest) {
   const parsed = parseQuickQuery(normalizeSearch(request.nextUrl.searchParams.get("q") ?? ""));
+  const rawVendor = request.nextUrl.searchParams.get("vendor") ?? "";
+  const vendor = /^[a-z0-9-]{1,40}$/.test(rawVendor) ? rawVendor : "";
   if (parsed.q.length < 2) return cachedJson({ results: [], q: parsed.q, qty: 1, corrected: null, suggestions: [] } satisfies SearchResponse);
 
   // With a trailing "x4", the whole text (token included) is searched at the same time, so
   // finding out that "X60" was part of the name costs no second wait. Which one is used is
   // decided as before.
   const [first, withToken, rate] = await Promise.all([
-    quickSearch(parsed.q),
-    parsed.token ? quickSearch(parsed.text) : null,
+    quickSearch(parsed.q, vendor),
+    parsed.token ? quickSearch(parsed.text, vendor) : null,
     priceContext(),
   ]);
   let found = first;
@@ -75,7 +78,7 @@ export async function GET(request: NextRequest) {
     const high = exact ?? priceIls(r.maxListUsd, rate, 1);
     return {
       id: r.id,
-      href: familyHref(r.slug, r.matchedVariant?.sku ?? null),
+      href: familyHref(r.slug, r.matchedVariant?.sku ?? null, vendor || null),
       title: r.title,
       image: r.image,
       supplierName: r.supplierNames.join(", "),

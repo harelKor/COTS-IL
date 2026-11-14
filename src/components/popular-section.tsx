@@ -2,12 +2,12 @@
 
 import { ChevronDown, Flame } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
-import { SectionHeading } from "./section-heading";
 
 /**
- * "הכי מבוקשים": a heading on a hairline, with a glass "הסתר"/"הצג" pill that opens and closes the
- * cards under it (open at first). The cards grow and shrink in 300 ms (none under reduced motion)
- * and are clipped only while closed or moving, so their glow isn't cut off when open.
+ * "הכי מבוקשים": a heading on a hairline, open at first. The title itself (badge and text) and the
+ * glass "הסתר"/"הצג" pill both open and close the cards under it. The cards grow and shrink in
+ * 300 ms (none under reduced motion) and are clipped only while closed or moving, so their glow
+ * isn't cut off when open.
  */
 export function PopularSection({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(true);
@@ -21,32 +21,39 @@ export function PopularSection({ children }: { children: ReactNode }) {
     setClip(reduced ? !next : true);
     setOpen(next);
   };
+  const control = { "aria-expanded": open, "aria-controls": `${id}-panel`, onClick: toggle } as const;
 
   return (
     <section aria-labelledby={`${id}-h`} className="flex flex-col gap-4">
-      <SectionHeading
-        id={`${id}-h`}
-        icon={<Flame size={20} strokeWidth={2} className="popular-flame" />}
-        aside={
+      <div className="flex items-center gap-3">
+        <h2 id={`${id}-h`} className="min-w-0">
           <button
             type="button"
-            aria-expanded={open}
-            aria-controls={`${id}-panel`}
-            onClick={toggle}
-            className="glass-pill flex min-h-11 shrink-0 items-center gap-1.5 rounded-full ps-4 pe-3 text-caption font-medium"
+            {...control}
+            className="flex min-h-11 items-center gap-2.5 rounded-xl text-start text-section font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-brand lg:text-[24px]"
           >
-            {open ? "הסתר" : "הצג"}
-            <ChevronDown
-              size={20}
-              strokeWidth={1.75}
-              aria-hidden
-              className={`transition-transform duration-300 ease-out motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
-            />
+            <span aria-hidden className="section-badge flex size-9 shrink-0 items-center justify-center rounded-xl">
+              <Flame size={20} strokeWidth={2} className="popular-flame" />
+            </span>
+            הכי מבוקשים
           </button>
-        }
-      >
-        הכי מבוקשים
-      </SectionHeading>
+        </h2>
+        <span aria-hidden className="section-rule h-px min-w-6 flex-1" />
+        <button
+          type="button"
+          {...control}
+          tabIndex={-1}
+          className="glass-pill flex min-h-11 shrink-0 items-center gap-1.5 rounded-full ps-4 pe-3 text-caption font-medium"
+        >
+          {open ? "הסתר" : "הצג"}
+          <ChevronDown
+            size={20}
+            strokeWidth={1.75}
+            aria-hidden
+            className={`transition-transform duration-300 ease-out motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+      </div>
       <div
         id={`${id}-panel`}
         inert={!open}

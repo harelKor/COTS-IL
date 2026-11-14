@@ -1,6 +1,5 @@
-import { ChevronLeft, ExternalLink, LayoutGrid, Search } from "lucide-react";
+import { ChevronLeft, ExternalLink, LayoutGrid } from "lucide-react";
 import type { Metadata } from "next";
-import Form from "next/form";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
@@ -13,6 +12,7 @@ import { FamilyCard } from "@/components/family-card";
 import { Ltr } from "@/components/ltr";
 import { PriceNote } from "@/components/price-note";
 import { VendorMark } from "@/components/vendor-mark";
+import { StoreSearch } from "@/components/store-search";
 import { SectionHeading } from "@/components/section-heading";
 import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skeleton";
 import { aliveStyle } from "@/domain/alive";
@@ -80,30 +80,9 @@ function Breadcrumb({ store, here }: { store: Store; here?: React.ReactNode }) {
   );
 }
 
-/** Search inside this vendor only: a GET to the store, so it works before the page hydrates. */
-function StoreSearch({ store, q }: { store: Store; q: string }) {
-  return (
-    <Form action={vendorHref(store.code)} role="search" className="store-search relative w-full shrink-0 rounded-2xl lg:w-[460px] xl:w-[520px]">
-      <label htmlFor="store-q" className="sr-only">
-        חיפוש ב-{store.name}
-      </label>
-      <Search size={20} strokeWidth={1.75} aria-hidden className="pointer-events-none absolute inset-y-0 start-5 my-auto text-brand" />
-      <input
-        id="store-q"
-        name="q"
-        type="search"
-        defaultValue={q}
-        enterKeyHint="search"
-        placeholder={`חיפוש ב-${store.name}...`}
-        className="h-[52px] w-full rounded-2xl bg-transparent ps-13 pe-5 text-body outline-none"
-      />
-    </Form>
-  );
-}
-
 /** The vendor's most wanted parts, large, each with its one-tap "+", nudging for attention now and then. */
 async function Popular({ store }: { store: Store }) {
-  const cards = await getVendorPopular(store.code, 8);
+  const cards = await getVendorPopular(store.code, 4);
   if (cards.length === 0) return null;
   return (
     <PopularSection>
@@ -145,9 +124,9 @@ function StoreFront({ store }: { store: Store }) {
     <>
       <Breadcrumb store={store} />
       {/* The flagship header: the logo large on dark glass in the vendor's colours, the search console beside it. */}
-      <header className="store-flagship flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8 lg:p-8">
-        <div className="flex min-w-0 flex-col items-start gap-3">
-          <h1 className="flex min-h-14 items-center">
+      <header className="store-flagship relative z-20 flex flex-col gap-4 px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8 lg:px-7 lg:py-5">
+        <div className="flex min-w-0 flex-col items-start gap-2">
+          <h1 className="flex min-h-12 items-center">
             {store.logoUrl ? (
               <VendorMark name={store.name} logoUrl={store.logoUrl} size="hero" tone="dark" eager />
             ) : (
@@ -172,7 +151,7 @@ function StoreFront({ store }: { store: Store }) {
             </a>
           </div>
         </div>
-        <StoreSearch store={store} q="" />
+        <StoreSearch action={vendorHref(store.code)} vendor={store.code} vendorName={store.name} q="" />
       </header>
       <Suspense
         fallback={
@@ -231,11 +210,11 @@ function StoreResults({ store, filters }: { store: Store; filters: CatalogFilter
   return (
     <div className="flex flex-col gap-4 xl:-mx-10 2xl:-mx-24">
       <Breadcrumb store={store} here={here} />
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="relative z-20 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-title font-semibold">
           <Ltr>{store.name}</Ltr>: {here}
         </h1>
-        <StoreSearch store={store} q={filters.q} />
+        <StoreSearch key={filters.q} action={vendorHref(store.code)} vendor={store.code} vendorName={store.name} q={filters.q} />
       </div>
       <CategoryGroups vendor={store.code} categories={store.categories} category={filters.category} q={filters.q} />
       <Suspense

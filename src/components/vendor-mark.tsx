@@ -12,7 +12,7 @@ const LOGO_SIZE = {
   // The header of a home vendor box, straight on the dark glass (vendor-boxes.tsx).
   card: "h-12 max-w-[min(100%,230px)] sm:h-14",
   // A vendor store's flagship header (/v/<code>), the page's centrepiece.
-  hero: "h-14 max-w-[min(100%,340px)] sm:h-20",
+  hero: "h-12 max-w-[min(100%,320px)] sm:h-16",
 };
 
 /**

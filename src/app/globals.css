@@ -1479,6 +1479,12 @@ html::-webkit-scrollbar {
     inset 0 2px 8px rgb(0 0 0 / 0.35),
     0 0 0 3px rgb(var(--vendor-primary-rgb) / 0.25);
 }
+/* Its dropdown: solid midnight over whatever is below (a blur nested in the header's let the cards show through), with the vendor's hairline. */
+.store-search-menu {
+  border: 1px solid rgb(var(--vendor-primary-rgb) / 0.3);
+  background: linear-gradient(180deg, #0a1236, #070c26);
+  box-shadow: 0 24px 60px rgb(1 2 12 / 0.65), inset 0 1px 0 0 rgb(255 255 255 / 0.06);
+}
 .store-search input::placeholder {
   color: #94a3b8;
 }

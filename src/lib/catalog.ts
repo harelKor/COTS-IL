@@ -783,15 +783,15 @@ const FEW_HITS = 3;
  * (`matchedVariant`), in any family. With fewer than 3 hits, a typo-fixed search
  * ("krakn x60" → "kraken x60") is used when it finds more; `query` says what ran.
  */
-export async function quickSearch(q: string) {
+export async function quickSearch(q: string, supplier = "") {
   "use cache";
   catalogCache();
-  const [first, names] = await Promise.all([quickRows(q), supplierNames()]);
+  const [first, names] = await Promise.all([quickRows(q, supplier), supplierNames()]);
   let rows = first;
   let query = q;
   if (rows.length < FEW_HITS) {
     const fixed = await corrected(q);
-    const more = fixed ? await quickRows(fixed) : [];
+    const more = fixed ? await quickRows(fixed, supplier) : [];
     if (fixed && more.length > rows.length) {
       rows = more;
       query = fixed;
@@ -800,8 +800,9 @@ export async function quickSearch(q: string) {
   return { query, rows: rows.map((r) => ({ ...r, supplierNames: r.supplierCodes.map((c) => names.get(c) ?? c) })) };
 }
 
-async function quickRows(q: string) {
-  const filters: CatalogFilters = { q, category: "", supplier: "", program: "", availableOnly: false, sort: "relevance", page: 1, specs: {}, view: "grid" };
+/** `supplier`: only that vendor's families (a vendor store's search box). */
+async function quickRows(q: string, supplier = "") {
+  const filters: CatalogFilters = { q, category: "", supplier, program: "", availableOnly: false, sort: "relevance", page: 1, specs: {}, view: "grid" };
   const { where, order } = searchQuery(filters);
   const part = sql`coalesce(upper(${variants.supplierSku}), ${variants.id}::text)`;
   const fromFamily = sql`FROM ${variants} JOIN ${products} ON ${products.id} = ${variants.productId} WHERE ${orderable}`;
