@@ -46,7 +46,7 @@ export function RobotBackdrop() {
               alt=""
               decoding="async"
               fetchPriority="low"
-              style={{ objectPosition: p.focus }}
+              style={{ "--focus": p.focus } as React.CSSProperties}
               className={`robot-photo absolute inset-0 size-full object-cover ${i === active ? "opacity-100" : "opacity-0"}`}
             />
           </picture>

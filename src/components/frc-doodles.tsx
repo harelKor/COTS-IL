@@ -109,7 +109,8 @@ export function FrcDoodles() {
       <div className="doodle-wash absolute bottom-[-10%] start-[15%] size-[380px] rounded-full bg-amber-200/20 blur-3xl [animation-delay:-12s]" />
       {/* Orbit 1690: a hint of its LED purple and bumper blue. */}
       <div className="doodle-wash absolute top-[55%] start-[-8%] size-[360px] rounded-full bg-orbit-purple/10 blur-3xl [animation-delay:-3s]" />
-      <div className="doodle-wash absolute bottom-[5%] end-[5%] size-[320px] rounded-full bg-orbit-blue/10 blur-3xl [animation-delay:-9s]" />
+      <div className="doodle-wash absolute bottom-[5%] end-[5%] size-[340px] rounded-full bg-orbit-blue/16 blur-3xl [animation-delay:-9s]" />
+      <div className="doodle-wash absolute top-[18%] end-[-6%] size-[420px] rounded-full bg-orbit-blue/12 blur-3xl [animation-delay:-14s]" />
       {PARTS.map(({ icon: Icon, ...p }, i) => (
         <span
           key={`p${i}`}

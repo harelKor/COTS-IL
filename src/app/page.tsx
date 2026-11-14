@@ -195,7 +195,7 @@ export default function HomePage() {
         </Suspense>
 
         {/* The motto alone, centred in open space: the robot backdrop fades in around it on the right. */}
-        <section className="flex flex-col items-center py-12 text-center sm:py-24">
+        <section className="flex flex-col items-center justify-center py-12 text-center sm:min-h-[380px]">
           <h1 className="max-w-3xl text-hero-sm font-semibold sm:text-hero">
             ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים,{" "}
             <span className="text-brand-gradient">בהזמנה אחת</span>

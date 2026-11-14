@@ -868,16 +868,42 @@ dialog.sheet-side.sheet-wide {
   -webkit-mask-composite: source-in;
   mask-composite: intersect;
 }
+/*
+ * From 640px the whole robot fits on screen: the box starts under the header, is as tall as the
+ * hero (as tall as the window on wide screens) and a little wider than the photo, which sits whole against the
+ * right edge (contained, never cropped). The photo itself turns see-through away from the robot.
+ */
 @media (min-width: 640px) {
   .robot-backdrop {
-    width: min(46vw, 640px);
-    height: min(92vh, 900px);
-    opacity: 0.48;
-    -webkit-mask-image: linear-gradient(to left, #000 45%, transparent 100%), linear-gradient(to bottom, #000 55%, transparent 100%);
-    mask-image: linear-gradient(to left, #000 45%, transparent 100%), linear-gradient(to bottom, #000 55%, transparent 100%);
+    top: 52px;
+    height: 430px;
+    aspect-ratio: 1450 / 1660;
+    width: auto;
+    max-width: 52vw;
+    opacity: 0.38;
+    /* The photo's haze already melts away from the robot (see scripts/robot-photos.mjs): only the wash needs fading. */
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .robot-backdrop .robot-photo {
+    object-fit: contain;
+    object-position: 100% 50%;
+  }
+}
+/* Laptops: the robot stands whole in the open hero beside the motto, above the vendor boxes. */
+@media (min-width: 1024px) {
+  .robot-backdrop {
+    opacity: 0.5;
+  }
+}
+/* Wide screens have an empty margin beside the content: the robot grows to the window's height. */
+@media (min-width: 1700px) {
+  .robot-backdrop {
+    height: clamp(520px, calc(100dvh - 72px), 1000px);
   }
 }
 .robot-photo {
+  object-position: var(--focus, 50% 40%);
   filter: saturate(0.92) contrast(0.96);
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -886,10 +912,11 @@ dialog.sheet-side.sheet-wide {
   }
 }
 .robot-wash {
+  /* closest-side: every wave ends inside the box, so the box's edge never shows. */
   background:
-    radial-gradient(70% 45% at 55% 30%, color-mix(in srgb, var(--orbit-purple) 16%, transparent), transparent 70%),
-    radial-gradient(80% 55% at 60% 85%, color-mix(in srgb, var(--orbit-blue) 22%, transparent), transparent 70%),
-    linear-gradient(to left, color-mix(in srgb, var(--orbit-blue) 10%, transparent), transparent 70%);
+    radial-gradient(closest-side at 56% 30%, color-mix(in srgb, var(--orbit-purple) 18%, transparent), transparent),
+    radial-gradient(closest-side at 58% 62%, color-mix(in srgb, var(--orbit-blue) 34%, transparent), transparent),
+    radial-gradient(closest-side at 66% 85%, color-mix(in srgb, var(--orbit-blue) 26%, transparent), transparent);
   mix-blend-mode: soft-light;
 }
 
