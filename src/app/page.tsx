@@ -100,10 +100,10 @@ async function Vendors() {
   const { first } = vendorRows(vendors.length);
   const rest = vendors.slice(first);
   return (
-    <section id="vendors" aria-labelledby="vendors-title" className="mt-4 flex scroll-mt-20 flex-col gap-4 lg:mt-6 lg:gap-5">
+    <section id="vendors" aria-labelledby="vendors-title" className="mt-8 flex scroll-mt-20 flex-col gap-4 lg:mt-[72px] lg:gap-5">
       <div className="flex items-center gap-4">
-        <h2 id="vendors-title" className="flex shrink-0 items-center gap-2 text-section font-semibold">
-          <Cog size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
+        <h2 id="vendors-title" className="flex shrink-0 items-center gap-2.5 text-section font-semibold tracking-tight lg:text-[24px]">
+          <Cog strokeWidth={1.75} aria-hidden className="size-5 text-brand lg:size-6" />
           מאיזה ספק קונים?
         </h2>
         <span aria-hidden className="scene-rule h-px flex-1" />
@@ -249,7 +249,7 @@ export default function HomePage() {
         */}
         <section className="scene-hero relative flex flex-col">
           <ScenePhoto kind="short" />
-          <div className="scene-hero-lane flex flex-col gap-4">
+          <div className="scene-hero-lane flex flex-col gap-5 lg:gap-6">
             <h1 className="motto">
               <span className="block">
                 ציוד <Ltr className="motto-latin">FRC</Ltr> ו-<Ltr className="motto-latin">FTC</Ltr> מכל הספקים,
@@ -276,9 +276,12 @@ export default function HomePage() {
           <Vendors />
         </Suspense>
 
-        <Suspense>
-          <Discover />
-        </Suspense>
+        {/* Clear of the Reefscape robot's bumpers, which end level with the last vendor row. */}
+        <div className="mt-6 lg:mt-12">
+          <Suspense>
+            <Discover />
+          </Suspense>
+        </div>
 
         <ValueStrip />
 

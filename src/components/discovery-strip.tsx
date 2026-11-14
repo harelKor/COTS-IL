@@ -175,7 +175,7 @@ export function DiscoveryStrip({
       <div ref={wrap} className="relative">
         <ul
           ref={row}
-          className="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto scroll-smooth px-4 pt-2 pb-6 sm:-mx-2 sm:scroll-px-2 sm:px-2"
+          className="no-scrollbar scroll-fade-x -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto scroll-smooth px-4 pt-2 pb-6 sm:-mx-2 sm:scroll-px-6 sm:px-6"
         >
           {pages.flatMap(({ p, cards: list }) =>
             list.map((c, i) => (
@@ -185,7 +185,7 @@ export function DiscoveryStrip({
                 family={c}
                 morph={firstOf.get(c.id) === `${p}:${c.id}`}
                 glow
-                className="discover-card w-[220px] shrink-0 snap-start sm:w-[240px]"
+                className="discover-card min-h-[360px] w-[220px] shrink-0 snap-start pb-4 sm:w-[240px]"
                 style={{ "--d": `${Math.min(i, 8) * 70}ms`, ...aliveStyle(`${p}:${c.id}`) } as React.CSSProperties}
               />
             )),

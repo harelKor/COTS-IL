@@ -990,15 +990,16 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   .scene-hero {
     --photo-w: 150vw;
     --photo-x: calc(-0.26 * var(--photo-w));
-    /* The bumpers' bottom (y 85%) just above the vendors heading (the section's 16px top margin included). */
-    --photo-top: calc(100% + 52px - 0.85 * var(--photo-h));
+    /* The bumpers' bottom (y 85%) about 34px above the vendors heading's hairline (32px gap + 32px margin + half the heading). */
+    --photo-top: calc(100% + 46px - 0.85 * var(--photo-h));
   }
 }
 @media (min-width: 1024px) {
   .scene-hero {
     --photo-w: min(132vw, 228vh);
     --photo-x: calc(-0.22 * var(--photo-w));
-    --photo-top: calc(100% + 60px - 0.85 * var(--photo-h));
+    /* 32px gap + 72px margin + half the heading, less ~34px of air under the bumpers. */
+    --photo-top: calc(100% + 88px - 0.85 * var(--photo-h));
   }
 }
 .scene-photo-short,
@@ -1122,7 +1123,7 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 .scene-photo-tall .scene-frame {
   left: calc(100vw - 0.83 * var(--photo-w));
   width: var(--photo-w);
-  --fade: linear-gradient(to bottom, transparent 18%, #000 32%, #000 95%, transparent 100%);
+  --fade: linear-gradient(to bottom, transparent 18%, #000 32%, #000 98%, transparent 100%);
   /* The field cage, where it shows at the window's right edge, fades away. */
   --hfade: linear-gradient(to left, rgb(0 0 0 / 0.2) 17%, #000 27%);
   --core: radial-gradient(ellipse 20% 44% at 62% 64%, #000 66%, transparent 100%);
@@ -1164,8 +1165,11 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 @media (min-width: 1024px) {
   .scene-lane {
     --photo-w: min(112vw, 180vh);
-    /* The robot's top (y 37%) a little under the first row, its bumpers down by the "גלו עוד" cards; the stands fade in behind that row. */
-    --photo-top: calc(56px - 0.37 * var(--photo-h));
+    /*
+     * The bumpers' bottom level with the last vendor row's bottom edge: y 95.7% in the photo, 98.5%
+     * once the image's 6% scale is counted. The elevator's top tucks behind the first row.
+     */
+    --photo-top: calc(100% - 0.985 * var(--photo-h));
   }
   .scene-window {
     display: none;
