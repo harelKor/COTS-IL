@@ -176,7 +176,7 @@ Sessions in one wave touch different files, so they run at the same time. A wave
 | T11–T16 | 3 | not started | | |
 | T17 Catalog results bar, columns | 2 | not started | | after T6 |
 | T18 Header menus | 2 | not started | | after T6, T7 |
-| T19 Footer and info pages | 2 | not started | | before T8 |
+| T19 Footer and info pages | 2 | done | claude/t19-footer-info-ca3f12 (114ae06) | before T8 |
 
 ## Design review additions (Nov 14, 2026)
 
