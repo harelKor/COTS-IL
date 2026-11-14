@@ -100,7 +100,7 @@ async function Vendors() {
   const { first } = vendorRows(vendors.length);
   const rest = vendors.slice(first);
   return (
-    <section id="vendors" aria-labelledby="vendors-title" className="mt-10 flex scroll-mt-20 flex-col gap-4 lg:mt-[120px] lg:gap-5">
+    <section id="vendors" aria-labelledby="vendors-title" className="mt-10 flex scroll-mt-20 flex-col gap-4 lg:mt-[104px] lg:gap-5">
       <div className="flex items-center gap-4">
         <h2 id="vendors-title" className="flex shrink-0 items-center gap-2.5 text-section font-semibold tracking-tight lg:text-[24px]">
           <Cog strokeWidth={1.75} aria-hidden className="size-5 text-brand lg:size-6" />
@@ -249,14 +249,14 @@ export default function HomePage() {
         */}
         <section className="scene-hero relative flex flex-col">
           <ScenePhoto kind="short" />
-          <div className="scene-hero-lane flex flex-col gap-5 lg:gap-6">
+          <div className="scene-hero-lane flex flex-col gap-6 pt-2 lg:gap-8 lg:pt-6">
             <h1 className="motto">
               <span className="block">
                 ציוד <Ltr className="motto-latin">FRC</Ltr> ו-<Ltr className="motto-latin">FTC</Ltr> מכל הספקים,
               </span>
               <span className="motto-accent block">בהזמנה אחת</span>
             </h1>
-            <p className="motto-sub text-body">כל החלקים הרשמיים, משלוח מרוכז ומק״טים מדויקים במקום אחד.</p>
+            <p className="motto-sub -mt-2 text-body lg:-mt-3 lg:text-[19px]">כל החלקים הרשמיים, משלוח מרוכז ומק״טים מדויקים במקום אחד.</p>
             <Suspense fallback={<div aria-hidden className="scene-telemetry min-h-8 w-full" />}>
               <Telemetry />
             </Suspense>

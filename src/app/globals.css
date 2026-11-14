@@ -912,7 +912,8 @@ dialog.sheet-side.sheet-wide {
 
 /*
  * Rules for the home page only. Next keeps a page you left in the DOM, hidden with an inline
- * display:none (React Activity), so "the home page is showing" is a home scene WITHOUT that style;
+ * display:none (React Activity), so "the home page is showing" is a home scene with no such style on
+ * itself or any ancestor;
  * a plain :has(.home-scene) would leak these onto every page visited after it.
  * From 1024px the home page runs wider than the site's 1200px column, 32px from each window edge
  * (at most 1600px), so the vendor cards spread toward the edges; the header and footer follow.
@@ -923,15 +924,20 @@ dialog.sheet-side.sheet-wide {
     width: var(--scene-w);
     margin-inline: calc((100% - var(--scene-w)) / 2);
   }
-  body:has(.home-scene:not([style*="none"])) :is(.site-header, .site-footer) > div {
+  body:has(.home-scene:not([style*="none"], [style*="none"] *)) :is(.site-header, .site-footer) > div {
     max-width: calc(min(calc(100vw - 64px), 1600px) + 96px);
   }
 }
-/* No page scrollbar on the home page and the vendor stores (the others get a dark one from color-scheme). The page still scrolls. */
-html:has(:is(.home-scene, .store-scene):not([style*="none"])) {
+/*
+ * No page scrollbar anywhere (user decision, Nov 14, 2026): the page still scrolls by wheel, touch
+ * and keys. It also keeps 100vw (the full-width scene layers) equal to the window, so a classic
+ * Windows scrollbar can't make the page wider than the window and shift it sideways.
+ */
+html {
   scrollbar-width: none;
+  overflow-x: clip;
 }
-html:has(:is(.home-scene, .store-scene):not([style*="none"]))::-webkit-scrollbar {
+html::-webkit-scrollbar {
   display: none;
 }
 
@@ -1012,10 +1018,10 @@ html:has(:is(.home-scene, .store-scene):not([style*="none"]))::-webkit-scrollbar
   left: var(--photo-x);
   width: var(--photo-w);
   --fade: linear-gradient(to bottom, transparent 30%, #000 54%, #000 86%, transparent 99%);
-  --core: radial-gradient(ellipse 20% 24% at 45% 74%, #000 58%, transparent 100%);
+  --core: radial-gradient(ellipse 24% 28% at 45% 74%, #000 42%, rgb(0 0 0 / 0.55) 70%, transparent 100%);
   --lobe-wall: radial-gradient(ellipse 15% 13% at 36% 54%, rgb(0 0 0 / 0.55), transparent 100%);
   --lobe-floor: radial-gradient(ellipse 24% 8% at 62% 87%, rgb(0 0 0 / 0.6), transparent 100%);
-  --lobe-in: radial-gradient(ellipse 13% 11% at 67% 67%, rgb(0 0 0 / 0.35), transparent 100%);
+  --lobe-in: radial-gradient(ellipse 26% 20% at 62% 70%, rgb(0 0 0 / 0.22), transparent 100%);
   --lobe-edge: radial-gradient(ellipse 10% 20% at 28% 76%, rgb(0 0 0 / 0.65), transparent 100%);
   -webkit-mask-image: var(--fade), var(--core), var(--lobe-wall), var(--lobe-floor), var(--lobe-in), var(--lobe-edge);
   -webkit-mask-composite: source-in, source-over, source-over, source-over, source-over;
@@ -1092,7 +1098,8 @@ html:has(:is(.home-scene, .store-scene):not([style*="none"]))::-webkit-scrollbar
 @media (min-width: 1024px) {
   .scene-hero-lane {
     margin-left: auto;
-    width: min(620px, 52%);
+    /* Wide enough for the motto's two lines at its full size. */
+    width: min(780px, 58%);
   }
   .scene-hero-lane::before {
     inset: -20% -6%;
@@ -1208,11 +1215,11 @@ html:has(:is(.home-scene, .store-scene):not([style*="none"]))::-webkit-scrollbar
 .motto {
   font-family: var(--font-heebo), var(--font-sans);
   font-weight: 650;
-  font-size: clamp(32px, 3.4vw, 52px);
-  line-height: 1.12;
-  letter-spacing: -0.02em;
+  font-size: clamp(34px, 3.6vw, 56px);
+  line-height: 1.2;
+  letter-spacing: -0.012em;
   color: #ffffff;
-  filter: drop-shadow(0 2px 20px rgb(2 4 22 / 0.75));
+  filter: drop-shadow(0 2px 24px rgb(2 4 22 / 0.8));
 }
 .motto > span {
   text-wrap: balance;
@@ -1229,12 +1236,23 @@ html:has(:is(.home-scene, .store-scene):not([style*="none"]))::-webkit-scrollbar
   color: transparent;
 }
 .motto-sub {
-  color: #a8b2dc;
+  color: #b3bce0;
+  line-height: 1.6;
   text-wrap: balance;
 }
+/* Its hairline starts under the text's edge and fades out well before the photo. */
 .scene-telemetry {
-  border-top: 1px solid rgb(110 133 255 / 0.18);
+  position: relative;
   color: #c3cbef;
+}
+.scene-telemetry::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  inset-inline-start: 0;
+  width: min(100%, 320px);
+  height: 1px;
+  background: linear-gradient(to left, rgb(110 133 255 / 0.4), rgb(110 133 255 / 0.12) 60%, transparent);
 }
 .scene-telemetry-num {
   font-family: var(--font-tech), var(--font-sans);
