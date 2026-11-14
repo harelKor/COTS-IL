@@ -1113,8 +1113,13 @@ html:has(:is(.home-scene, .store-scene):not([style*="none"]))::-webkit-scrollbar
   /* The robot (y 37-92%) centred in the window. */
   --photo-top: calc(var(--win) / 2 - 0.645 * var(--photo-h));
 }
-.scene-window {
-  height: var(--win);
+/* Below a desktop the lower vendors are one column: no robot window between them (its photo, which is lazy, isn't fetched). */
+@media (max-width: 1023px) {
+  .scene-window,
+  .scene-photo-tall,
+  .scene-splash-tall {
+    display: none;
+  }
 }
 .scene-photo-tall,
 .scene-splash-tall {

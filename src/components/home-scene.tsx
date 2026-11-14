@@ -6,8 +6,7 @@
  * - "short" (2024 Crescendo, public/orbit-1690-short.jpg, 3:2): the hero, large on the physical
  *   left with its shooter aiming in toward the headline; the CRESCENDO sign is off screen.
  * - "tall" (2025 Reefscape, public/orbit-1690-tall.jpg, 4:3): in the open physical-right lane beside
- *   the lower vendor cards on a desktop (the field cage off screen), in a window between the vendor
- *   groups on phones.
+ *   the lower vendor cards on a desktop (the field cage off screen); not shown below 1024px.
  * Smaller copies come from `npm run robot-photos`. Decorative, hidden from assistive tech, and
  * absolutely placed, so nothing shifts as they load. ScrollParallax moves them a little.
  */
