@@ -194,21 +194,23 @@ export default function HomePage() {
           <TeamNotice />
         </Suspense>
 
-        {/* The vendors come first, right under the header: the search lives in the header. */}
-        <div className="flex flex-col gap-3">
-          <h1 className="text-section font-semibold sm:text-title">
-            ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים, <span className="text-brand-gradient">בהזמנה אחת</span>
+        {/* The motto alone, centred in open space: the robot backdrop fades in around it on the right. */}
+        <section className="flex flex-col items-center py-12 text-center sm:py-24">
+          <h1 className="max-w-3xl text-hero-sm font-semibold sm:text-hero">
+            ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים,{" "}
+            <span className="text-brand-gradient">בהזמנה אחת</span>
           </h1>
-          <Suspense
-            fallback={
-              <Loading>
-                <TileGridSkeleton count={4} />
-              </Loading>
-            }
-          >
-            <Vendors />
-          </Suspense>
-        </div>
+        </section>
+
+        <Suspense
+          fallback={
+            <Loading>
+              <TileGridSkeleton count={4} />
+            </Loading>
+          }
+        >
+          <Vendors />
+        </Suspense>
 
         <Suspense>
           <Discover />
