@@ -84,6 +84,16 @@ test("guest cart, sign in, send, admin quote, team approves", async ({ browser, 
   const orderUrl = page.url();
   expect(orderNumber).toBeTruthy();
 
+  // The home page shows the last order; its X hides it, and it stays hidden after a reload.
+  await page.goto("/");
+  const lastOrder = page.getByText(`ההזמנה האחרונה: מס׳ ${orderNumber}`);
+  await expect(lastOrder).toBeVisible();
+  await page.getByRole("button", { name: "הסתרה" }).click();
+  await expect(lastOrder).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "מאיזה ספק קונים?" })).toBeVisible();
+  await expect(lastOrder).toBeHidden();
+
   // 5. The admin approves the new team and sends the quote from "כל ההזמנות".
   const adminCtx = await browser.newContext({ baseURL: "http://localhost:3100", locale: "he-IL" });
   const admin = await adminCtx.newPage();

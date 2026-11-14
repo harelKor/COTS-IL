@@ -3,17 +3,17 @@ import { Suspense, ViewTransition } from "react";
 import { GroupBoxes } from "@/components/group-boxes";
 import { VendorBoxes } from "@/components/vendor-boxes";
 import { FrcDoodles } from "@/components/frc-doodles";
-import { HomeCommandBar } from "@/components/home-command-bar";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
 import { ReorderButton } from "@/components/reorder-button";
+import { LastOrderNotice } from "@/components/last-order-notice";
 import { formatIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { cartCount, listOrders } from "@/lib/orders";
 import { getDiscoveryPage, getFacets, getLastSync, getVendors } from "@/lib/catalog";
 import { DiscoveryStrip } from "@/components/discovery-strip";
 import { markupText } from "@/domain/pricing";
-import { getBusiness, getSettings, getSiteFacts } from "@/lib/settings";
+import { getBusiness, getSiteFacts } from "@/lib/settings";
 import { typicalLeadTime } from "@/domain/lead-time";
 import { HowItWorksSteps } from "@/components/how-it-works-steps";
 import { BadgeCheck, Bot, Boxes, Cog, Coins, FileCheck2, Truck, Undo2 } from "lucide-react";
@@ -46,7 +46,7 @@ async function TeamNotice() {
         </p>
       )}
       {last && (
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-card bg-surface p-4 shadow-lift">
+        <LastOrderNotice orderId={last.id}>
           <Link href={`/orders/${last.id}`} className="min-w-0 hover:text-brand">
             <span className="block font-medium">ההזמנה האחרונה: מס׳ {last.number}</span>
             <span className="block text-caption text-muted">
@@ -54,7 +54,7 @@ async function TeamNotice() {
             </span>
           </Link>
           <ReorderButton orderId={last.id} sendNow={inCart === 0} />
-        </section>
+        </LastOrderNotice>
       )}
     </div>
   );
@@ -164,26 +164,6 @@ async function WhyUs() {
   );
 }
 
-/** The admin's one-tap search examples (תוכן האתר). */
-async function Examples() {
-  const { content } = await getSettings();
-  if (content.searchExamples.length === 0) return null;
-  return (
-    <ul aria-label="דוגמאות לחיפוש" className="no-scrollbar flex w-full gap-2 overflow-x-auto sm:flex-wrap sm:justify-center">
-      {content.searchExamples.map((q) => (
-        <li key={q} className="shrink-0">
-          <Link
-            href={catalogHref({ q })}
-            className="flex h-11 items-center rounded-full border border-line bg-white/90 px-4 text-sm font-medium text-muted shadow-2xs transition-colors hover:border-brand/40 hover:bg-subtle hover:text-brand"
-          >
-            <Ltr>{q}</Ltr>
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 const SITE_URL = siteUrl();
 
 /** Only facts the business has supplied (פרטי העסק in the admin) appear, nothing is invented. */
@@ -212,34 +192,21 @@ export default function HomePage() {
           <TeamNotice />
         </Suspense>
 
-        <section className="flex flex-col items-center gap-5 py-6 text-center sm:py-10">
-          <p className="card-surface hidden rounded-full px-4 py-1.5 text-caption text-muted sm:block">
-            פורטל הרכש המרכזי לקבוצות <Ltr>FIRST</Ltr> בישראל, מחיר הספק בש״ח לפי שער בנק ישראל
-          </p>
-          <h1 className="max-w-3xl text-hero-sm font-semibold sm:text-hero">
-            ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים,{" "}
-            <span className="text-brand-gradient">
-              בהזמנה אחת
-            </span>
+        {/* The vendors come first, right under the header: the search lives in the header. */}
+        <div className="flex flex-col gap-3">
+          <h1 className="text-section font-semibold sm:text-title">
+            ציוד <Ltr>FRC</Ltr> ו-<Ltr>FTC</Ltr> מכל הספקים, <span className="text-brand-gradient">בהזמנה אחת</span>
           </h1>
-          <p className="hidden max-w-xl text-muted sm:block">בוחרים ספק, מוסיפים לסל, והספק הישראלי מזמין ומוסר לקבוצה. הרשמה רק כשמזמינים.</p>
-          <div className="flex w-full flex-col items-center gap-4 pt-2">
-            <HomeCommandBar />
-            <Suspense>
-              <Examples />
-            </Suspense>
-          </div>
-        </section>
-
-        <Suspense
-          fallback={
-            <Loading>
-              <TileGridSkeleton count={4} />
-            </Loading>
-          }
-        >
-          <Vendors />
-        </Suspense>
+          <Suspense
+            fallback={
+              <Loading>
+                <TileGridSkeleton count={4} />
+              </Loading>
+            }
+          >
+            <Vendors />
+          </Suspense>
+        </div>
 
         <Suspense>
           <Discover />

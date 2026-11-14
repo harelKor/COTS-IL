@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, LayoutGrid, List, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, LayoutGrid, List, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -23,8 +23,9 @@ import { Ltr } from "./ltr";
 import { rememberCatalogList } from "./back-to-list";
 import { ScrollRow } from "./scroll-row";
 import { ZeroResults } from "./zero-results";
+import { VendorFilter, type VendorOption } from "./vendor-filter";
 
-type Supplier = { code: string; name: string; count: number };
+type Supplier = VendorOption;
 
 type Props = {
   filters: CatalogFilters;
@@ -36,6 +37,8 @@ type Props = {
   categories: { slug: string; name: string }[];
   /** In a vendor's store (/v/<code>): links stay in the store and there is no supplier filter. */
   vendor?: string;
+  /** The category chips, under the vendor tiles (the vendor is the first and main filter). */
+  underVendors?: React.ReactNode;
 };
 
 const SORT_LABELS: Record<Sort, string> = {
@@ -112,41 +115,6 @@ function SortSelect({ value, onChange }: { value: Sort; onChange: (s: Sort) => v
   );
 }
 
-/** Suppliers as a list with their product counts; the chosen one is ticked, and a second tap clears it. */
-function SupplierList({ suppliers, value, onChange }: { suppliers: Supplier[]; value: string; onChange: (code: string) => void }) {
-  const row = (on: boolean) =>
-    `flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 text-start text-callout transition-colors ${
-      on ? "bg-subtle font-medium" : "hover:bg-subtle"
-    }`;
-  return (
-    <ul className="flex flex-col">
-      <li>
-        <button type="button" aria-pressed={!value} onClick={() => onChange("")} className={row(!value)}>
-          כל הספקים
-          {!value && <Check size={16} className="shrink-0 text-brand" aria-hidden />}
-        </button>
-      </li>
-      {suppliers.map((s) => (
-        <li key={s.code}>
-          <button
-            type="button"
-            aria-pressed={value === s.code}
-            onClick={() => onChange(value === s.code ? "" : s.code)}
-            className={row(value === s.code)}
-          >
-            <Ltr className="truncate">{s.name}</Ltr>
-            {value === s.code ? (
-              <Check size={16} className="shrink-0 text-brand" aria-hidden />
-            ) : (
-              <span className="shrink-0 text-caption text-muted tabular-nums">{s.count.toLocaleString("he-IL")}</span>
-            )}
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /**
  * A spec's values as chips with how many products a tap would show. A value that would
  * show nothing is dimmed and can't be tapped, unless it's already chosen (so it can be cleared).
@@ -196,7 +164,7 @@ const sidebarHeading = "mb-2 text-caption font-semibold text-muted";
  *
  * From 1024px the filters sit in a sticky sidebar; below it, in a chip bar and a sheet.
  */
-export function CatalogBrowser({ filters, total, cards: first, facets, suppliers, categories, vendor }: Props) {
+export function CatalogBrowser({ filters, total, cards: first, facets, suppliers, categories, vendor, underVendors }: Props) {
   const listHref = (f: Partial<CatalogFilters>) => (vendor ? vendorHref(vendor, f) : catalogHref(f));
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -281,7 +249,14 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
   ];
 
   return (
-    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[250px_1fr] lg:items-start lg:gap-8">
+    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[250px_1fr] lg:items-start lg:gap-x-8 lg:gap-y-4">
+      {/* The vendor is the main filter: big tiles above the side panel and the results. */}
+      {((!vendor && suppliers.length > 0) || underVendors) && (
+        <div className="flex flex-col gap-3 lg:col-span-2">
+          {!vendor && suppliers.length > 0 && <VendorFilter vendors={suppliers} value={filters.supplier} onChange={(supplier) => go({ ...filters, supplier })} />}
+          {underVendors}
+        </div>
+      )}
       <aside
         aria-label="סינון"
         className="card-surface no-scrollbar hidden max-h-[calc(100dvh-96px)] flex-col gap-5 overflow-y-auto p-4 lg:sticky lg:top-[72px] lg:flex"
@@ -297,12 +272,6 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
           <h2 className={sidebarHeading}>מיון</h2>
           <SortSelect value={filters.sort} onChange={(sort) => go({ ...filters, sort })} />
         </section>
-        {!vendor && (
-          <section>
-            <h2 className={sidebarHeading}>ספק</h2>
-            <SupplierList suppliers={suppliers} value={filters.supplier} onChange={(supplier) => go({ ...filters, supplier })} />
-          </section>
-        )}
         {facets.map((facet) => {
           const chosen = filters.specs[facet.key] ?? [];
           return (
@@ -353,7 +322,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
           <button
             type="button"
             onClick={() => more.current?.showModal()}
-            className={chip(!!(filters.supplier || filters.program || filters.availableOnly || filters.sort !== "relevance"))}
+            className={chip(!!(filters.program || filters.availableOnly || filters.sort !== "relevance"))}
           >
             <SlidersHorizontal size={16} strokeWidth={1.75} aria-hidden />
             סינונים נוספים
@@ -504,12 +473,6 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
               <h3 className="font-semibold">מיון</h3>
               <SortSelect value={filters.sort} onChange={(sort) => go({ ...filters, sort })} />
             </section>
-            {!vendor && (
-              <section className="flex flex-col gap-2">
-                <h3 className="font-semibold">ספק</h3>
-                <SupplierList suppliers={suppliers} value={filters.supplier} onChange={(supplier) => go({ ...filters, supplier })} />
-              </section>
-            )}
           </div>
           <div className="border-t border-line px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <button

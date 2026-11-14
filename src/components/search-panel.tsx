@@ -259,20 +259,18 @@ export function SearchPanel() {
       <button
         type="button"
         onClick={open}
-        aria-label="חיפוש מוצר או מק״ט"
-        className="flex size-11 items-center justify-center gap-2 rounded-full border border-line bg-white/90 shadow-2xs hover:bg-subtle text-muted transition-colors hover:text-foreground sm:h-11 sm:w-full sm:max-w-md sm:justify-start sm:px-4 sm:text-caption"
+        aria-label="חיפוש מוצר, מק״ט או ספק"
+        className="search-trigger group flex size-11 items-center justify-center gap-2.5 rounded-full text-muted sm:w-full sm:max-w-xl sm:justify-start sm:ps-1 sm:pe-4"
       >
-        <Search
-          size={16}
-          strokeWidth={1.75}
-          aria-hidden
-          className="max-sm:size-5"
-        />
-        <span className="hidden flex-1 truncate text-start sm:block">
-          חיפוש מוצר או מק״ט
+        {/* The site's main search: a cobalt circle on phones, a glowing pill from 640px. */}
+        <span aria-hidden className="btn-brand flex size-11 shrink-0 items-center justify-center rounded-full sm:size-9">
+          <Search size={20} strokeWidth={2} />
+        </span>
+        <span className="hidden flex-1 truncate text-start text-callout transition-colors group-hover:text-foreground sm:block">
+          חיפוש מוצר, מק״ט או ספק
         </span>
         <kbd
-          className="hidden font-sans text-caption text-muted sm:inline"
+          className="hidden shrink-0 rounded-md bg-subtle px-2 py-0.5 font-sans text-caption text-muted md:inline"
           dir="ltr"
         >
           {shortcut}

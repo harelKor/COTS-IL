@@ -42,12 +42,6 @@ async function CatalogTitle({ searchParams }: PageProps<"/catalog">) {
 export const maxDuration = 30;
 
 /** One tap per category, in a row that scrolls sideways on phones. */
-async function CategoryChips({ searchParams }: PageProps<"/catalog">) {
-  const filters = parseFilters(await searchParams);
-  const { categories } = await getFacets();
-  return <CategoryGroups categories={categories.map((c) => ({ slug: c.slug, name: c.name, group: c.group, count: c.count }))} category={filters.category} q={filters.q} />;
-}
-
 /** Pages of cards the server renders at most. */
 const MAX_SERVER_PAGES = 2;
 
@@ -74,8 +68,12 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
       total={total}
       cards={cards}
       facets={facets}
-      suppliers={shownSuppliers.map((s) => ({ code: s.code, name: s.name, count: s.count }))}
+      suppliers={shownSuppliers.map((s) => {
+        const look = allSuppliers.find((a) => a.code === s.code);
+        return { code: s.code, name: s.name, count: s.count, logoUrl: look?.logoUrl, accentColor: look?.accentColor, accentColor2: look?.accentColor2 };
+      })}
       categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
+      underVendors={<CategoryGroups categories={categories.map((c) => ({ slug: c.slug, name: c.name, group: c.group, count: c.count }))} category={filters.category} q={filters.q} />}
     />
   );
 }
@@ -96,9 +94,6 @@ export default function CatalogPage(props: PageProps<"/catalog">) {
     <div className="flex flex-col gap-4 xl:-mx-10 2xl:-mx-24">
       <Suspense fallback={<h1 className="text-title font-semibold">קטלוג</h1>}>
         <CatalogTitle {...props} />
-      </Suspense>
-      <Suspense fallback={<div className="skeleton h-11 w-full rounded-full" aria-hidden />}>
-        <CategoryChips {...props} />
       </Suspense>
       <Suspense
         fallback={
