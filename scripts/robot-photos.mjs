@@ -32,7 +32,12 @@ const PHOTOS = {
     ],
   },
   "orbit-1690-short": {
-    widths: [800, 1500],
+    // The hero shows it up to ~2,600 px wide on a large or high-density screen, from a 1,497 px
+    // original: the wider copies are a careful Lanczos enlargement with light sharpening and a
+    // higher encode quality, rather than leaving the browser to stretch a compressed 1,500 px file.
+    widths: [800, 1500, 2200, 3000],
+    enlarge: true,
+    quality: { avif: 68, webp: 88 },
     mirror: false,
     patches: [
       // "1690" across the front bumper.
@@ -92,10 +97,14 @@ for (const [name, { widths, mirror, patches }] of Object.entries(PHOTOS)) {
     source = sharp(data, raw);
   }
   const { width: full } = await source.metadata();
+  const q = PHOTOS[name].quality ?? { avif: 55, webp: 78 };
   for (const width of widths) {
-    const img = source.clone().resize({ width: Math.min(width, full ?? width), withoutEnlargement: true });
-    await img.clone().avif({ quality: 55, effort: 6 }).toFile(`${out}-${width}.avif`);
-    await img.clone().webp({ quality: 78 }).toFile(`${out}-${width}.webp`);
+    const up = PHOTOS[name].enlarge && width > (full ?? width);
+    let img = source.clone().resize({ width: up ? width : Math.min(width, full ?? width), kernel: "lanczos3", withoutEnlargement: !up });
+    // Enlarged copies get back the edge crispness a resample softens, without halos.
+    if (up) img = img.sharpen({ sigma: 0.9, m1: 0.4, m2: 1.6, x1: 2, y2: 10, y3: 16 });
+    await img.clone().avif({ quality: q.avif, effort: 6, chromaSubsampling: "4:4:4" }).toFile(`${out}-${width}.avif`);
+    await img.clone().webp({ quality: q.webp, smartSubsample: true }).toFile(`${out}-${width}.webp`);
   }
   console.log(`${out}-{${widths.join(",")}}.{avif,webp}${mirror ? " (mirrored)" : ""}`);
 }

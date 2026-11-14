@@ -14,7 +14,7 @@
 const PHOTOS = {
   short: {
     name: "orbit-1690-short",
-    widths: [800, 1500],
+    widths: [800, 1500, 2200, 3000],
     width: 1497,
     height: 998,
     sizes: "(min-width: 1024px) 132vw, 250vw",

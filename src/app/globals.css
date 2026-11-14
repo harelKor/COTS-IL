@@ -982,7 +982,7 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   /* The photo's x 28% on the window's left edge. */
   --photo-x: calc(-0.28 * var(--photo-w));
   /* Phones: the robot (y 62-85%) at the top of the hero, behind the motto. */
-  --photo-top: calc(-0.63 * var(--photo-h));
+  --photo-top: calc(-0.615 * var(--photo-h));
   min-height: calc(52svh - 176px);
   justify-content: center;
 }
@@ -990,14 +990,15 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
   .scene-hero {
     --photo-w: 150vw;
     --photo-x: calc(-0.26 * var(--photo-w));
-    /* The bumpers' bottom (y 85%) a little above the vendors heading. */
-    --photo-top: calc(100% + 16px - 0.85 * var(--photo-h));
+    /* The bumpers' bottom (y 85%) just above the vendors heading (the section's 16px top margin included). */
+    --photo-top: calc(100% + 52px - 0.85 * var(--photo-h));
   }
 }
 @media (min-width: 1024px) {
   .scene-hero {
     --photo-w: min(132vw, 228vh);
     --photo-x: calc(-0.22 * var(--photo-w));
+    --photo-top: calc(100% + 60px - 0.85 * var(--photo-h));
   }
 }
 .scene-photo-short,
@@ -1177,18 +1178,9 @@ body:has(:is(.home-scene, .store-scene)) .cart-count {
 }
 
 /*
- * The hero lockup, set like a technical sheet rather than a slide: a sharp ultramarine bar and a
- * tracked overline, Heebo at 650 in two lines (FRC and FTC in Inter), "בהזמנה אחת" in metallic
+ * The hero lockup, set like a technical sheet rather than a slide: Heebo at 650 in two lines (FRC and FTC in Inter), "בהזמנה אחת" in metallic
  * white to ultramarine, one muted line, and a low telemetry bar on a hairline.
  */
-.scene-overline {
-  color: rgb(199 210 254 / 0.8);
-  letter-spacing: 0.06em;
-}
-.scene-overline-bar {
-  background: linear-gradient(to left, var(--orbit-blue), var(--orbit-300));
-  box-shadow: 0 0 10px rgb(59 91 255 / 0.6);
-}
 .motto {
   font-family: var(--font-heebo), var(--font-sans);
   font-weight: 650;

@@ -100,7 +100,7 @@ async function Vendors() {
   const { first } = vendorRows(vendors.length);
   const rest = vendors.slice(first);
   return (
-    <section id="vendors" aria-labelledby="vendors-title" className="flex scroll-mt-20 flex-col gap-4 lg:gap-5">
+    <section id="vendors" aria-labelledby="vendors-title" className="mt-4 flex scroll-mt-20 flex-col gap-4 lg:mt-6 lg:gap-5">
       <div className="flex items-center gap-4">
         <h2 id="vendors-title" className="flex shrink-0 items-center gap-2 text-section font-semibold">
           <Cog size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
@@ -250,10 +250,6 @@ export default function HomePage() {
         <section className="scene-hero relative flex flex-col">
           <ScenePhoto kind="short" />
           <div className="scene-hero-lane flex flex-col gap-4">
-            <p className="scene-overline flex items-center gap-3 text-caption font-medium">
-              <span aria-hidden className="scene-overline-bar h-0.5 w-7" />
-              פלטפורמת הרכש לקבוצות רובוטיקה בישראל
-            </p>
             <h1 className="motto">
               <span className="block">
                 ציוד <Ltr className="motto-latin">FRC</Ltr> ו-<Ltr className="motto-latin">FTC</Ltr> מכל הספקים,
