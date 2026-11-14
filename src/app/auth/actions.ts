@@ -8,7 +8,7 @@ import { db, schema } from "@/db";
 import { isPersonName, isPhone, isTeamName, parseTeamNumber, PERSON_NAME_ERROR, TEAM_NAME_ERROR } from "@/domain/teams";
 import { getViewer } from "@/lib/auth";
 import { notifyJoinRequest, notifyLater, notifyTeamSignedUp } from "@/lib/notify";
-import { acceptInvitationsForUser } from "@/lib/invitations";
+import { acceptInvitationsForUser, BLOCKED_EMAIL_ERROR, isEmailBlocked } from "@/lib/invitations";
 import { siteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { formValues, loginSchema, safeNext, type FormState } from "@/lib/validation";
@@ -118,6 +118,7 @@ export async function setUpTeam(input: { program: string; number: string; name: 
   const viewer = await getViewer();
   if (!viewer) return { error: "צריך להתחבר קודם" };
   if (viewer.teams.length > 0) return { ok: true };
+  if (await isEmailBlocked(viewer.email)) return { error: BLOCKED_EMAIL_ERROR };
   const parsed = teamSetupSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "פרטי הקבוצה לא תקינים" };
   const { program, number, name, contactName, contactPhone } = parsed.data;
@@ -147,6 +148,7 @@ export async function requestToJoin(input: { program: string; number: string }):
   if (await isBot()) return { error: BOT_ERROR };
   const viewer = await getViewer();
   if (!viewer) return { error: "צריך להתחבר קודם" };
+  if (await isEmailBlocked(viewer.email)) return { error: BLOCKED_EMAIL_ERROR };
   const program = input.program === "FTC" ? "FTC" : "FRC";
   const number = parseTeamNumber(input.number);
   if (!number) return { error: "מספר קבוצה לא תקין" };

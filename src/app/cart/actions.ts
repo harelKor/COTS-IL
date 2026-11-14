@@ -12,7 +12,8 @@ import { priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam, orderingTeams, TEAM_COOKIE, type Viewer } from "@/lib/auth";
 import { notifyLater, notifyRequest } from "@/lib/notify";
 import { cookies } from "next/headers";
-import { priceContext } from "@/lib/settings";
+import { getBusiness, priceContext } from "@/lib/settings";
+import { teamCanSend } from "@/domain/team-admin";
 import { getCart, getCheckoutDefaults, toSheetLine, type CartLine } from "@/lib/orders";
 import { getSharedLines } from "@/lib/catalog";
 import type { CartSheetLine } from "@/components/cart-store";
@@ -37,6 +38,13 @@ async function requireOrderingTeam() {
 }
 
 type Team = NonNullable<ReturnType<typeof orderingTeam>>;
+
+/** M4: a new team waiting for approval sends only while the business setting allows it; it can still build its cart. */
+async function sendBlocked(team: Team): Promise<string | null> {
+  if (team.status !== "pending") return null;
+  const { pendingTeamsMaySend } = await getBusiness();
+  return teamCanSend(team.status, pendingTeamsMaySend) ? null : "הקבוצה עוד ממתינה לאישור. הסל נשמר, ואפשר לשלוח אותו מיד אחרי שהקבוצה תאושר.";
+}
 
 
 
@@ -201,6 +209,8 @@ export type SendState = {
  */
 export async function sendQuoteRequest(changes: Partial<Delivery> = {}, seen?: SharedLine[]): Promise<SendState> {
   const { viewer, team } = await requireOrderingTeam();
+  const blocked = await sendBlocked(team);
+  if (blocked) return { error: blocked };
   const parsed = deliverySchema.safeParse({ ...(await getCheckoutDefaults(team.id)), ...changes });
   if (!parsed.success) return { error: "צריך להשלים פרטי מסירה", fieldErrors: parsed.error.flatten().fieldErrors };
   const seenLines = z.array(z.object({ variantId: z.uuid(), qty: z.number().int() })).max(500).safeParse(seen ?? null);
@@ -388,6 +398,8 @@ export async function reorderAndSend(orderId: string): Promise<SendState & { ski
   if (!id.success) return { error: "ההזמנה לא נמצאה" };
   const [order] = await db.select().from(teamOrders).where(and(eq(teamOrders.id, id.data), eq(teamOrders.teamId, team.id)));
   if (!order) return { error: "ההזמנה לא נמצאה" };
+  const blocked = await sendBlocked(team);
+  if (blocked) return { error: blocked };
   if ((await getCart(team.id)).length > 0) return { error: "יש כבר פריטים בסל. פתחו את הסל ושלחו משם." };
   const items = await reorderItems(order.id);
   let added = 0;

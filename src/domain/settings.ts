@@ -59,6 +59,8 @@ export const businessSchema = z.object({
   quoteValidDays: z.number().int().min(1).max(365).nullable().default(null),
   /** e.g. "העברה בנקאית או הזמנת רכש של בית הספר, תוך 30 יום". */
   paymentTerms: text(300).default(null),
+  /** M4: whether a new team still waiting for approval may already send requests (read in saveBusiness, src/app/admin/settings/actions.ts). */
+  pendingTeamsMaySend: z.boolean().default(true),
 });
 export type Business = z.infer<typeof businessSchema>;
 

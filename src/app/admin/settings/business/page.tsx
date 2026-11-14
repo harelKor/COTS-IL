@@ -116,6 +116,19 @@ async function BusinessForm() {
           <TextArea name="returnPolicy" defaultValue={b.returnPolicy} />
         </Field>
       </Group>
+
+      <Card className="flex flex-col gap-3">
+        <h2 className="text-section font-semibold">קבוצות חדשות</h2>
+        <label className="flex min-h-11 items-start gap-3">
+          <input type="checkbox" name="pendingTeamsMaySend" defaultChecked={b.pendingTeamsMaySend} className="mt-1 size-5 accent-brand" />
+          <span className="flex flex-col gap-1">
+            <span className="text-callout font-medium">קבוצה שממתינה לאישור יכולה כבר לשלוח בקשה</span>
+            <span className="text-caption text-muted">
+              מסומן: הבקשה הראשונה נבדקת יחד עם הקבוצה. לא מסומן: הקבוצה בונה סל, ושולחת אותו אחרי שאישרתם אותה ב״קבוצות״.
+            </span>
+          </span>
+        </label>
+      </Card>
     </SettingsForm>
   );
 }

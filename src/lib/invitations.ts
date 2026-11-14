@@ -3,7 +3,15 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, eq, gt, inArray, isNull, or, isNotNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 
-const { auditLog, memberships, teamInvitations, teams } = schema;
+const { auditLog, blockedEmails, memberships, teamInvitations, teams } = schema;
+
+/** M4: an address the admin blocked can't register a team, ask to join one or accept an invitation. */
+export async function isEmailBlocked(email: string): Promise<boolean> {
+  const [row] = await db.select({ email: blockedEmails.email }).from(blockedEmails).where(eq(blockedEmails.email, email.trim().toLowerCase()));
+  return !!row;
+}
+
+export const BLOCKED_EMAIL_ERROR = "הכתובת הזאת לא יכולה להירשם לקבוצה. לשאלות פנו אלינו.";
 
 export const newInviteToken = () => randomBytes(32).toString("base64url");
 export const hashInviteToken = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -36,6 +44,7 @@ export async function findInvitation(token: string) {
  * the user owns the address: Supabase only signs in confirmed emails.
  */
 export async function acceptInvitationsForUser(userId: string, email: string) {
+  if (await isEmailBlocked(email)) return;
   await db.transaction(async (tx) => {
     const pending = await tx
       .select({ invitation: teamInvitations })

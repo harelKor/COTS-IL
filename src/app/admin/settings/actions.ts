@@ -42,7 +42,8 @@ export async function saveBusiness(_: SettingsResult | null, formData: FormData)
   const parsed = businessFromForm(formData, codes);
   if (!parsed.ok) return { ok: false, error: `לא תקין: ${parsed.fields.map((f) => FIELD_LABELS[f] ?? f).join(", ")}`, fields: parsed.fields };
   const before = await currentSettings();
-  await writeSettings(viewer.id, "update_business", before, { ...before, business: parsed.value });
+  const business = { ...parsed.value, pendingTeamsMaySend: formData.get("pendingTeamsMaySend") === "on" };
+  await writeSettings(viewer.id, "update_business", before, { ...before, business });
   revalidatePath("/", "layout");
   return { ok: true, message: "פרטי העסק נשמרו" };
 }

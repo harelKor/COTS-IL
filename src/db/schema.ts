@@ -115,7 +115,8 @@ export const suppliers = pgTable("suppliers", {
 /** Append-only record of every change made through the app (spec §10). */
 export const auditLog = pgTable("audit_log", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  actorId: uuid("actor_id").references(() => profiles.id),
+  /** Null once a test sign-in is deleted (M4); the delete's own row keeps its email. */
+  actorId: uuid("actor_id").references(() => profiles.id, { onDelete: "set null" }),
   entity: text("entity").notNull(),
   entityId: text("entity_id").notNull(),
   action: text("action").notNull(),
@@ -762,12 +763,23 @@ export const teamJoinRequests = pgTable(
       .references(() => profiles.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
-    decidedBy: uuid("decided_by").references(() => profiles.id),
+    decidedBy: uuid("decided_by").references(() => profiles.id, { onDelete: "set null" }),
     accepted: boolean("accepted"),
     createdAt,
   },
   (t) => [index("team_join_requests_team_id_idx").on(t.teamId), unique("team_join_requests_team_user_key").on(t.teamId, t.userId)],
 );
+
+/**
+ * Addresses the admin blocked (M4), e.g. someone who claimed another team's number: they
+ * can't register a team, ask to join one, accept an invitation or be added to a team.
+ */
+export const blockedEmails = pgTable("blocked_emails", {
+  email: text("email").primaryKey(),
+  reason: text("reason"),
+  blockedBy: uuid("blocked_by").references(() => profiles.id, { onDelete: "set null" }),
+  createdAt,
+});
 
 /**
  * "לא מצאתם? שלחו לנו קישור לחלק" (S5 task 8): one part a team couldn't find in the

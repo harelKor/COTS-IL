@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { TeamStep } from "@/components/cart-panel";
+import Link from "next/link";
 import { getViewer } from "@/lib/auth";
+import { getBusiness } from "@/lib/settings";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { TeamName } from "@/components/team-name";
 
@@ -23,7 +25,24 @@ async function PendingStatus() {
     );
   }
 
-  if (team.status === "rejected" || team.status === "suspended") {
+  if (team.status === "suspended") {
+    return (
+      <>
+        <p>
+          חשבון <TeamName team={team} /> מושהה, ואי אפשר לשלוח ממנו בקשות חדשות.
+        </p>
+        {team.rejectionReason && <p className="mt-2 text-muted">סיבה: {team.rejectionReason}</p>}
+        <p className="mt-2 text-muted">
+          ההזמנות הקודמות עדיין כאן:{" "}
+          <Link href="/orders" className="inline-flex min-h-11 items-center text-brand hover:underline">
+            ההזמנות שלנו
+          </Link>
+        </p>
+      </>
+    );
+  }
+
+  if (team.status === "rejected") {
     return (
       <>
         <p>
@@ -34,10 +53,13 @@ async function PendingStatus() {
     );
   }
 
+  const { pendingTeamsMaySend } = await getBusiness();
   return (
     <p>
-      <TeamName team={team} /> ממתינה לאישור הספק הישראלי. אפשר כבר
-      לבנות סל ולשלוח בקשה ראשונה: היא תיבדק יחד עם הקבוצה.
+      <TeamName team={team} /> ממתינה לאישור הספק הישראלי.{" "}
+      {pendingTeamsMaySend
+        ? "אפשר כבר לבנות סל ולשלוח בקשה ראשונה: היא תיבדק יחד עם הקבוצה."
+        : "אפשר כבר לבנות סל, ולשלוח אותו מיד אחרי שהקבוצה תאושר."}
     </p>
   );
 }

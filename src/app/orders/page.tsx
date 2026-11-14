@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { StageBadge } from "@/components/order-timeline";
 import { formatDateTime } from "@/components/orders";
 import { ReorderButton } from "@/components/reorder-button";
+import { Alert } from "@/components/form";
 import { formatIls } from "@/domain/pricing";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { getOrderStages, listOrders } from "@/lib/orders";
@@ -17,9 +18,11 @@ async function Orders() {
   const viewer = await getViewer();
   if (!viewer) redirect("/login?next=/orders");
   if (viewer.isAdmin && !orderingTeam(viewer)) redirect("/admin");
-  const team = orderingTeam(viewer);
+  // A suspended team can't order but still sees its orders (M4).
+  const team = orderingTeam(viewer) ?? viewer.teams.find((t) => t.status === "suspended");
   if (!team) redirect("/pending");
 
+  const suspended = team.status === "suspended";
   const orders = await listOrders(team.id);
   const stages = await getOrderStages(orders);
   if (orders.length === 0) {
@@ -51,12 +54,13 @@ async function Orders() {
           <StageBadge stage={stages.get(order.id)!} pickup={order.deliveryMethod === "pickup"} />
         </div>
       </Link>
-      <ReorderButton orderId={order.id} />
+      {!suspended && <ReorderButton orderId={order.id} />}
     </li>
   );
 
   return (
     <div className="flex flex-col gap-6">
+      {suspended && <Alert tone="info">חשבון הקבוצה מושהה: אפשר לראות את ההזמנות, אבל לא לשלוח בקשות חדשות.</Alert>}
       {waiting.length > 0 && (
         <section aria-labelledby="waiting" className="flex flex-col gap-3">
           <h2 id="waiting" className="text-section font-semibold">
