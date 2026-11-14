@@ -2,15 +2,24 @@ import ExcelJS from "exceljs";
 import { teamDisplay } from "@/domain/display";
 import type { NextRequest } from "next/server";
 import { LINE_LABELS, lineStatus } from "@/domain/order-status";
-import { profitSummary } from "@/domain/reports";
+import { profitSummary, purchaseCost } from "@/domain/reports";
 import { requireAdmin } from "@/lib/auth";
 import { getOrderLines } from "@/lib/order-status";
 import { getImportCosts, getPurchases, getSales, parsePeriod } from "@/lib/reports";
 
 type Cell = string | number | Date | null;
-type Sheet = { name: string; columns: { header: string; width: number }[]; rows: Cell[][] };
+type Sheet = {
+  name: string;
+  columns: { header: string; width: number }[];
+  rows: Cell[][];
+};
 
-const COST_LABELS = { customs: "מכס", freight: "הובלה", broker: "עמיל מכס", vat: "מע״מ יבוא" } as const;
+const COST_LABELS = {
+  customs: "מכס",
+  freight: "הובלה",
+  broker: "עמיל מכס",
+  vat: "מע״מ יבוא",
+} as const;
 
 async function buildSheet(type: string, params: Record<string, string>): Promise<Sheet | null> {
   const period = parsePeriod(params);
@@ -32,7 +41,11 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
       ],
       rows: rows.map((s) => [
         s.number,
-        teamDisplay({ name: s.teamName, program: s.teamProgram, number: s.teamNumber }),
+        teamDisplay({
+          name: s.teamName,
+          program: s.teamProgram,
+          number: s.teamNumber,
+        }),
         s.submittedAt,
         s.firstQuoteAt,
         s.approvedAt,
@@ -102,7 +115,11 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
         { header: "מצב", width: 22 },
       ],
       rows: rows.map((i) => [
-        teamDisplay({ name: i.teamName, program: i.teamProgram, number: i.teamNumber }),
+        teamDisplay({
+          name: i.teamName,
+          program: i.teamProgram,
+          number: i.teamNumber,
+        }),
         i.orderNumber,
         i.title,
         i.supplierSku,
@@ -118,11 +135,15 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
 
   if (type === "profit") {
     const rate = Number(params.rate);
-    if (!(rate > 0)) return null;
+    const overrideRate = Number.isFinite(rate) && rate > 0 ? rate : null;
     const [sales, costs] = await Promise.all([getSales(period), getImportCosts(period)]);
-    const revenueInclVat = sales.reduce((sum, s) => sum + s.subtotalIls + s.shippingIls, 0);
-    const purchaseUsd = sales.reduce((sum, s) => sum + s.purchaseUsd, 0);
-    const p = profitSummary({ revenueInclVat, purchaseUsd, usdIlsRate: rate, importCosts: costs });
+    const revenueIls = sales.reduce((sum, s) => sum + s.subtotalIls + s.shippingIls, 0);
+    const purchase = purchaseCost(sales, overrideRate);
+    const p = profitSummary({
+      revenueIls,
+      purchaseIls: purchase.ils,
+      importCosts: costs,
+    });
     return {
       name: "רווחיות",
       columns: [
@@ -130,10 +151,10 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
         { header: "סכום", width: 16 },
       ],
       rows: [
-        ["מכירות כולל מע״מ ₪", revenueInclVat],
-        ["הכנסה ללא מע״מ ₪", p.revenueExVat],
-        ["רכש $", purchaseUsd],
-        ["שער דולר", rate],
+        ["מכירות ₪", revenueIls],
+        ["רכש $", purchase.usd],
+        ["שער דולר", overrideRate ?? "שער בנק ישראל ביום כל הזמנת ספק"],
+        ["שער דולר ממוצע שהופעל", purchase.rate],
         ["רכש ₪", p.purchaseIls],
         ["עלויות יבוא (ללא מע״מ בר קיזוז) ₪", p.importCostIls],
         ["מע״מ בר קיזוז (לא נספר) ₪", p.reclaimableVatIls],
@@ -151,10 +172,12 @@ export async function GET(request: NextRequest) {
   const params = Object.fromEntries(request.nextUrl.searchParams);
   const type = params.type ?? "";
   const sheet = await buildSheet(type, params);
-  if (!sheet) return new Response("Unknown report or missing exchange rate", { status: 400 });
+  if (!sheet) return new Response("Unknown report", { status: 400 });
 
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet(sheet.name, { views: [{ rightToLeft: true }] });
+  const worksheet = workbook.addWorksheet(sheet.name, {
+    views: [{ rightToLeft: true }],
+  });
   worksheet.columns = sheet.columns;
   worksheet.getRow(1).font = { bold: true };
   sheet.rows.forEach((row) => worksheet.addRow(row));

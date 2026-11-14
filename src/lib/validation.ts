@@ -5,12 +5,22 @@ export const loginSchema = z.object({
   password: z.string().min(1, "יש להזין סיסמה"),
 });
 
-/** Only allow same-site relative redirects after sign-in. */
+const PROBE_ORIGIN = "https://same-origin.invalid";
+
+/**
+ * Only allow same-site relative redirects after sign-in. Browsers strip tabs and
+ * newlines from URLs and treat "\" like "/", so "/\t/evil.com" would become
+ * "//evil.com": reject control characters and backslashes, then resolve the path
+ * and require that it stays on our own origin.
+ */
 export function safeNext(next: unknown): string {
-  if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
+  if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//")) return "/";
+  if (/[\u0000-\u001f\u007f\\]/.test(next)) return "/";
+  try {
+    return new URL(next, PROBE_ORIGIN).origin === PROBE_ORIGIN ? next : "/";
+  } catch {
     return "/";
   }
-  return next;
 }
 
 /** Shape returned by form server actions to `useActionState`. */

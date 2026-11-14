@@ -6,17 +6,31 @@ import { Button, Field, Input } from "@/components/form";
 import { formatDateTime } from "@/components/orders";
 import { PrintButton } from "@/components/print-button";
 import { formatIls } from "@/domain/pricing";
-import { averageHours, profitSummary, VAT_RATE } from "@/domain/reports";
+import {
+  averageHours,
+  formatDuration,
+  medianHours,
+  periodPresets,
+  profitSummary,
+  purchaseCost,
+} from "@/domain/reports";
 import { requireAdmin } from "@/lib/auth";
 import { getImportCosts, getPurchases, getSales, parsePeriod } from "@/lib/reports";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 
 export const metadata: Metadata = { title: "דוחות" };
 
-const COST_LABELS = { customs: "מכס", freight: "הובלה", broker: "עמיל מכס", vat: "מע״מ יבוא" } as const;
+const COST_LABELS = {
+  customs: "מכס",
+  freight: "הובלה",
+  broker: "עמיל מכס",
+  vat: "מע״מ יבוא",
+} as const;
 
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-const hoursLabel = (hours: number | null) => (hours === null ? "—" : `${(hours / 24).toFixed(1)} ימים`);
+const usd = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
@@ -41,22 +55,65 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
   const params = await searchParams;
   const period = parsePeriod(params);
   const rate = Number(params.rate);
-  const usdIlsRate = Number.isFinite(rate) && rate > 0 ? rate : null;
+  const overrideRate = Number.isFinite(rate) && rate > 0 ? rate : null;
 
   const [sales, purchases, costs] = await Promise.all([getSales(period), getPurchases(period), getImportCosts(period)]);
 
-  const revenueInclVat = sales.reduce((sum, s) => sum + s.subtotalIls + s.shippingIls, 0);
-  const purchaseUsd = sales.reduce((sum, s) => sum + s.purchaseUsd, 0);
+  const revenueIls = sales.reduce((sum, s) => sum + s.subtotalIls + s.shippingIls, 0);
+  const purchase = purchaseCost(sales, overrideRate);
+  const quotePairs = sales.map((s) => ({
+    start: s.submittedAt,
+    end: s.firstQuoteAt,
+  }));
+  const approvePairs = sales.map((s) => ({
+    start: s.submittedAt,
+    end: s.approvedAt,
+  }));
+  const avg = averageHours;
   const unboughtUnits = sales.reduce((sum, s) => sum + Math.max(s.quotedUnits - s.boughtUnits, 0), 0);
-  const profit = usdIlsRate ? profitSummary({ revenueInclVat, purchaseUsd, usdIlsRate, importCosts: costs }) : null;
+  const profit = profitSummary({
+    revenueIls,
+    purchaseIls: purchase.ils,
+    importCosts: costs,
+  });
+  const presets = periodPresets(new Date());
+  const presetHref = (p: { from?: string; to?: string }) => {
+    const q = new URLSearchParams(
+      Object.entries({
+        from: p.from,
+        to: p.to,
+        rate: overrideRate?.toString(),
+      }).flatMap(([k, v]) => (v ? [[k, v]] : [])),
+    ).toString();
+    return q ? `/admin/reports?${q}` : "/admin/reports";
+  };
 
   const query = new URLSearchParams(
-    Object.entries({ from: period.from, to: period.to, rate: usdIlsRate?.toString() }).flatMap(([k, v]) => (v ? [[k, v]] : [])),
+    Object.entries({
+      from: period.from,
+      to: period.to,
+      rate: overrideRate?.toString(),
+    }).flatMap(([k, v]) => (v ? [[k, v]] : [])),
   ).toString();
   const suffix = query ? `&${query}` : "";
 
   return (
     <div className="flex flex-col gap-8">
+      <nav aria-label="טווחי תאריכים" className="flex flex-wrap gap-2 print:hidden">
+        {presets.map((p) => {
+          const active = (p.from ?? "") === (period.from ?? "") && (p.to ?? "") === (period.to ?? "");
+          return (
+            <Link
+              key={p.key}
+              href={presetHref(p)}
+              aria-current={active ? "true" : undefined}
+              className={`inline-flex min-h-11 items-center rounded-full border px-4 text-callout ${active ? "border-brand bg-subtle font-medium text-brand" : "border-line text-muted hover:bg-subtle"}`}
+            >
+              {p.label}
+            </Link>
+          );
+        })}
+      </nav>
       <Form action="/admin/reports" className="flex flex-wrap items-end gap-3 card-surface p-4 print:hidden">
         <Field label="מתאריך" name="from">
           <Input name="from" type="date" lang="he-IL" defaultValue={period.from} />
@@ -64,8 +121,12 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
         <Field label="עד תאריך" name="to">
           <Input name="to" type="date" lang="he-IL" defaultValue={period.to} />
         </Field>
-        <Field label="שער דולר לרווחיות" name="rate">
-          <Input name="rate" type="number" min={0} step="0.001" dir="ltr" defaultValue={usdIlsRate ?? undefined} />
+        <Field
+          label="שער דולר (לא חובה)"
+          name="rate"
+          hint="ריק: שער בנק ישראל ביום כל הזמנת ספק. אפשר להזין את השער האמיתי מהכרטיס."
+        >
+          <Input name="rate" type="number" min={0} step="0.001" dir="ltr" defaultValue={overrideRate ?? undefined} />
         </Field>
         <Button variant="secondary">הצגה</Button>
       </Form>
@@ -76,25 +137,26 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
           <ExportLink type="profit" query={suffix} />
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat label="מכירות כולל מע״מ" value={formatIls(revenueInclVat)} note={`${sales.length} הזמנות מאושרות`} />
-          <Stat label="רכש מהספקים" value={usd.format(purchaseUsd)} />
-          {profit ? (
-            <>
-              <Stat label={`הכנסה ללא מע״מ (${VAT_RATE * 100}%)`} value={formatIls(profit.revenueExVat)} />
-              <Stat
-                label="רווח"
-                value={formatIls(profit.profit)}
-                note={profit.marginPct === null ? undefined : `${profit.marginPct.toFixed(1)}% מההכנסה`}
-              />
-              <Stat label="רכש בשקלים" value={formatIls(profit.purchaseIls)} note={`לפי שער ${usdIlsRate}`} />
-              <Stat label="עלויות יבוא" value={formatIls(profit.importCostIls)} />
-              <Stat label="מע״מ בר קיזוז" value={formatIls(profit.reclaimableVatIls)} note="לא נספר כעלות" />
-            </>
-          ) : (
-            <p className="rounded-lg border border-dashed border-line p-4 text-sm text-muted sm:col-span-2">
-              כדי לחשב רווח צריך למלא שער דולר למעלה.
-            </p>
-          )}
+          <Stat label="מכירות" value={formatIls(revenueIls)} note={`${sales.length} הזמנות מאושרות`} />
+          <Stat label="רכש מהספקים" value={usd.format(purchase.usd)} />
+          <Stat
+            label="רכש בשקלים"
+            value={formatIls(profit.purchaseIls)}
+            note={
+              purchase.source === "override"
+                ? `לפי שער ידני ${purchase.rate}`
+                : purchase.rate
+                  ? `לפי שער בנק ישראל ביום ההזמנה, ממוצע ${purchase.rate.toFixed(3)}`
+                  : "לפי שער בנק ישראל ביום ההזמנה"
+            }
+          />
+          <Stat
+            label="רווח"
+            value={formatIls(profit.profit)}
+            note={profit.marginPct === null ? undefined : `${profit.marginPct.toFixed(1)}% מהמכירות`}
+          />
+          <Stat label="עלויות יבוא" value={formatIls(profit.importCostIls)} />
+          <Stat label="מע״מ בר קיזוז" value={formatIls(profit.reclaimableVatIls)} note="לא נספר כעלות" />
         </div>
         {unboughtUnits > 0 && (
           <p className="text-sm text-warning">
@@ -102,8 +164,8 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
           </p>
         )}
         <p className="text-caption text-muted">
-          הכנסות ורכש לפי הזמנות שנשלחו בתקופה. עלויות יבוא לפי תאריך הרישום שלהן, ולכן בתקופה קצרה הן עשויות לא להתאים בדיוק
-          להזמנות.
+          הכנסות ורכש לפי הזמנות שנשלחו בתקופה. עלויות יבוא לפי תאריך הרישום שלהן, ולכן בתקופה קצרה הן עשויות לא להתאים
+          בדיוק להזמנות.
         </p>
       </section>
 
@@ -114,12 +176,14 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Stat
-            label="זמן ממוצע מבקשה להצעה"
-            value={hoursLabel(averageHours(sales.map((s) => ({ start: s.submittedAt, end: s.firstQuoteAt }))))}
+            label="זמן מבקשה להצעה"
+            value={`ממוצע ${formatDuration(avg(quotePairs))}`}
+            note={`חציון ${formatDuration(medianHours(quotePairs))}`}
           />
           <Stat
-            label="זמן ממוצע מבקשה לאישור"
-            value={hoursLabel(averageHours(sales.map((s) => ({ start: s.submittedAt, end: s.approvedAt }))))}
+            label="זמן מבקשה לאישור"
+            value={`ממוצע ${formatDuration(avg(approvePairs))}`}
+            note={`חציון ${formatDuration(medianHours(approvePairs))}`}
           />
         </div>
         {sales.length > 0 && (
@@ -243,7 +307,7 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
         <Link href="/admin/shortages" className="text-sm text-brand hover:underline">
           לדוח החוסרים
         </Link>
-        ,{" "}<ExportLink type="shortages" query={suffix} />
+        , <ExportLink type="shortages" query={suffix} />
       </p>
     </div>
   );
@@ -261,7 +325,13 @@ export default function ReportsPage(props: PageProps<"/admin/reports">) {
           <PrintButton />
         </div>
       </div>
-      <Suspense fallback={<Loading><PageSkeleton /></Loading>}>
+      <Suspense
+        fallback={
+          <Loading>
+            <PageSkeleton />
+          </Loading>
+        }
+      >
         <Reports {...props} />
       </Suspense>
     </div>

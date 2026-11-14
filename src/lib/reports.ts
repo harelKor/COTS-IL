@@ -1,9 +1,10 @@
 import "server-only";
-import { and, asc, desc, eq, gte, lte, type SQL, sql } from "drizzle-orm";
+import { and, type AnyColumn, asc, desc, eq, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 
 const {
+  exchangeRates,
   importCosts,
   poAllocations,
   poLines,
@@ -31,11 +32,14 @@ export function parsePeriod(params: Record<string, string | string[] | undefined
   return { from: read("from"), to: read("to") };
 }
 
-/** Whole Israeli days. Summer time is an hour off at the very edges, which doesn't matter for these reports. */
-function inPeriod(column: Parameters<typeof gte>[0], { from, to }: ReportPeriod): (SQL | undefined)[] {
+/**
+ * Whole Israeli days: from midnight on `from` up to, but not including, midnight after `to`,
+ * in Asia/Jerusalem, so summer time doesn't move the edges.
+ */
+function inPeriod(column: AnyColumn, { from, to }: ReportPeriod): (SQL | undefined)[] {
   return [
-    from ? gte(column, new Date(`${from}T00:00:00+02:00`)) : undefined,
-    to ? lte(column, new Date(`${to}T23:59:59+02:00`)) : undefined,
+    from ? sql`${column} >= (${from}::date)::timestamp AT TIME ZONE 'Asia/Jerusalem'` : undefined,
+    to ? sql`${column} < ((${to}::date + 1)::timestamp AT TIME ZONE 'Asia/Jerusalem')` : undefined,
   ];
 }
 
@@ -49,11 +53,12 @@ export async function getSales(period: ReportPeriod) {
       teamNumber: teams.number,
       teamName: teams.name,
       submittedAt: teamOrders.submittedAt,
-      firstQuoteAt: sql<Date | null>`(SELECT min(q.sent_at) FROM ${quotes} q WHERE q.order_id = ${teamOrders.id})`.mapWith((v) =>
-        v ? new Date(v) : null,
-      ),
-      approvedAt: sql<Date | null>`(SELECT max(a.at) FROM ${quoteApprovals} a WHERE a.quote_id = ${quotes.id})`.mapWith((v) =>
-        v ? new Date(v) : null,
+      firstQuoteAt:
+        sql<Date | null>`(SELECT min(q.sent_at) FROM ${quotes} q WHERE q.order_id = ${teamOrders.id})`.mapWith((v) =>
+          v ? new Date(v) : null,
+        ),
+      approvedAt: sql<Date | null>`(SELECT max(a.at) FROM ${quoteApprovals} a WHERE a.quote_id = ${quotes.id})`.mapWith(
+        (v) => (v ? new Date(v) : null),
       ),
       subtotalIls: sql<number>`(SELECT coalesce(sum(l.qty * l.unit_price_ils), 0)::int FROM ${quoteLines} l WHERE l.quote_id = ${quotes.id})`,
       shippingIls: quotes.shippingIls,
@@ -67,6 +72,22 @@ export async function getSales(period: ReportPeriod) {
       )`,
       purchaseUsd: sql<number>`(
         SELECT coalesce(sum(a.qty * pl.unit_cost_usd), 0)::float FROM ${poAllocations} a
+        JOIN ${poLines} pl ON pl.id = a.po_line_id
+        JOIN ${supplierPos} p ON p.id = pl.po_id
+        JOIN ${teamOrderItems} i ON i.id = a.order_item_id
+        WHERE i.order_id = ${teamOrders.id} AND p.status = 'ordered'
+      )`,
+      /**
+       * The same purchases in shekels, each supplier order at the Bank of Israel rate of the day it
+       * was placed (the latest rate on or before that day, or the oldest one we have).
+       */
+      purchaseIlsAtBoi: sql<number>`(
+        SELECT coalesce(sum(a.qty * pl.unit_cost_usd * coalesce(
+          (SELECT r.rate FROM ${exchangeRates} r WHERE r.currency = 'USD'
+             AND r.rate_date <= (coalesce(p.ordered_at, now()) AT TIME ZONE 'Asia/Jerusalem')::date
+             ORDER BY r.rate_date DESC LIMIT 1),
+          (SELECT r.rate FROM ${exchangeRates} r WHERE r.currency = 'USD' ORDER BY r.rate_date ASC LIMIT 1)
+        )), 0)::float FROM ${poAllocations} a
         JOIN ${poLines} pl ON pl.id = a.po_line_id
         JOIN ${supplierPos} p ON p.id = pl.po_id
         JOIN ${teamOrderItems} i ON i.id = a.order_item_id
@@ -143,13 +164,19 @@ export async function getSyncStatus() {
     .orderBy(suppliers.id, desc(syncJobs.startedAt));
 
   const successes = await db
-    .select({ supplierId: syncJobs.supplierId, at: sql<string>`max(${syncJobs.finishedAt})` })
+    .select({
+      supplierId: syncJobs.supplierId,
+      at: sql<string>`max(${syncJobs.finishedAt})`,
+    })
     .from(syncJobs)
     .where(eq(syncJobs.status, "succeeded"))
     .groupBy(syncJobs.supplierId);
   const lastSuccess = new Map(successes.map((s) => [s.supplierId, new Date(s.at)]));
 
   return rows
-    .map((row) => ({ ...row, lastSuccessAt: lastSuccess.get(row.supplierId) ?? null }))
+    .map((row) => ({
+      ...row,
+      lastSuccessAt: lastSuccess.get(row.supplierId) ?? null,
+    }))
     .sort((a, b) => a.supplierName.localeCompare(b.supplierName));
 }
