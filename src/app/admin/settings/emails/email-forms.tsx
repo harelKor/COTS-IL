@@ -132,6 +132,7 @@ function TemplateEditor({ row, canSend }: { row: TemplateRow; canSend: boolean }
             <span className="text-muted">נושא: </span>
             {preview.subject}
           </p>
+          {/* theme-independent: the email's own white page, as the inbox shows it. */}
           <iframe title={`תצוגה מקדימה: ${row.label}`} srcDoc={preview.html} sandbox="" className="h-[520px] w-full rounded-2xl border border-line bg-white" />
         </div>
       )}

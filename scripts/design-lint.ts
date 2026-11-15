@@ -4,6 +4,9 @@
  *   - buttons, links and fields under 44px (`h-8`/`h-9`/`h-10`, `size-*`, `min-h-*` of the same)
  *   - `font-bold` (headlines are 600: `font-semibold`)
  *   - hex colours in TSX (use tokens from globals.css)
+ *   - white or black, and raw rgb()/hsl() colours, in TSX (LM1, two themes): only where they read
+ *     the same in both, i.e. white text on a deep fill in the same class string (bg-brand, bg-success…),
+ *     or with a "theme-independent" comment on the line or the one before it
  *   - ₪ amounts that bypass `formatIls`
  * Run: npm run design-lint
  */
@@ -31,6 +34,30 @@ const lineOf = (source: string, index: number) => source.slice(0, index).split("
 const INTERACTIVE = /<(button|a|Link|input|select|textarea|summary)\b(?:=>|[^>])*>/g;
 const SMALL_TARGET = /(?<![\w:-])(?:h|size|min-h)-(?:7|8|9|10)(?![\w.-])/;
 
+/** White or black in a class: `text-white`, `hover:bg-white/10`, `backdrop:bg-black/90`, `ring-white`… */
+const BLACK_WHITE = /(?<![\w-])(?:[a-z-]+:)*(?:text|bg|ring|border|outline|fill|stroke|from|via|to|divide|decoration|shadow)-(?:white|black)(?:\/\d+)?(?![\w-])/g;
+/** The deep fills that carry white text in both themes. */
+const DEEP_FILL = /(?<![\w-])(?:bg-(?:brand|brand-strong|success|danger|warning|slate)|btn-brand)(?![\w-])/;
+const RAW_COLOUR = /(?<![\w-])(?:rgba?|hsla?|oklch|oklab|lab|lch)\(/g;
+
+/** The string literal (class list) around an index: from the quote before it to the one after it. */
+const STOPS = "\"'`\n";
+function stringAround(source: string, index: number): string {
+  let start = index;
+  while (start > 0 && !STOPS.includes(source[start - 1])) start--;
+  let end = index;
+  while (end < source.length && !STOPS.includes(source[end])) end++;
+  return source.slice(start, end);
+}
+
+/** A "theme-independent" note on the line or the line before it. */
+function markedThemeIndependent(source: string, index: number): boolean {
+  const lineStart = source.lastIndexOf("\n", index - 1);
+  const prevStart = source.lastIndexOf("\n", lineStart - 1);
+  const lineEnd = source.indexOf("\n", index);
+  return source.slice(prevStart + 1, lineEnd === -1 ? undefined : lineEnd).includes("theme-independent");
+}
+
 function lintSource(file: string, source: string): Problem[] {
   const problems: Problem[] = [];
   const add = (index: number, rule: string, text: string) => problems.push({ file, line: lineOf(source, index), rule, text: text.trim().slice(0, 120) });
@@ -49,6 +76,16 @@ function lintSource(file: string, source: string): Problem[] {
     for (const m of source.matchAll(/(?<![\w&{/])#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![\w-])/g)) add(m.index, "hex colour in TSX (use a token)", m[0]);
   }
   for (const m of source.matchAll(/₪\s*\{|\}\s*₪|currency:\s*["']ILS["']/g)) add(m.index, "₪ amount bypasses formatIls", m[0]);
+  if (!HEX_ALLOWED.has(file)) {
+    for (const m of source.matchAll(BLACK_WHITE)) {
+      if (DEEP_FILL.test(stringAround(source, m.index)) || markedThemeIndependent(source, m.index)) continue;
+      add(m.index, "white/black in TSX (use a token, or white on a deep fill, or mark it theme-independent)", m[0]);
+    }
+    for (const m of source.matchAll(RAW_COLOUR)) {
+      if (markedThemeIndependent(source, m.index)) continue;
+      add(m.index, "raw colour in TSX (use a token from globals.css)", m[0]);
+    }
+  }
   return problems;
 }
 

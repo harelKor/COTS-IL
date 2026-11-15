@@ -259,7 +259,7 @@ export default function HomePage() {
         navbar to the footer, the Crescendo robot on the right at the top, the Reefscape one in the
         left lane lower down, both mirrored to face in.
       */}
-      <div className="home-scene relative isolate flex flex-col gap-8">
+      <div className="home-scene dark-island relative isolate flex flex-col gap-8">
         <div aria-hidden className="scene-canvas pointer-events-none absolute -z-20" />
         <ScrollParallax />
         <OrganizationJsonLd />

@@ -29,6 +29,9 @@ describe("blendedTheme", () => {
     expect(t.style["--vendor-primary"]).toBe("#ef4444");
     expect(t.style["--pa-rgb"]).toBe("239 68 68");
     expect(t.style["--pb-rgb"]).toBe(t.style["--pa-rgb"]);
+    // Each text tint as a pair, the night canvas's and daylight's (LM1).
+    expect(t.style["--pa-text-dark"]).toBe("#fca5a5");
+    expect(t.style["--pa-text-light"]).toBe("#b91c1c");
   });
 
   it("two vendors: both colours, first then second, and none of the site tokens re-pointed", () => {

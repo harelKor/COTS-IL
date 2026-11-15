@@ -70,7 +70,7 @@ function VendorTiles({ vendors }: { vendors: Nav["vendors"] }) {
         {vendors.map((v) => (
           <li key={v.code}>
             <Link href={vendorHref(v.code)} className="flex min-h-16 flex-col items-start justify-center gap-1.5 rounded-xl px-3 py-2.5 hover:bg-subtle">
-              {v.logoUrl ? <VendorMark name={v.name} logoUrl={v.logoUrl} size="menu" tone="dark" /> : <Ltr className="text-body font-semibold">{v.name}</Ltr>}
+              {v.logoUrl ? <VendorMark name={v.name} logoUrl={v.logoUrl} size="menu" /> : <Ltr className="text-body font-semibold">{v.name}</Ltr>}
               {/* The name too: some logos are only a mark (WCP's gear, TTB's robot). */}
               <span className="text-caption text-muted">
                 {v.logoUrl && (

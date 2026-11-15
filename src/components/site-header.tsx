@@ -18,6 +18,7 @@ import { Ltr } from "./ltr";
 import { SearchPanel } from "./search-panel";
 import { SignInLink } from "./sign-in-link";
 import { SignOutButton } from "./sign-out-button";
+import { ThemeMenuRow, ThemeToggle } from "./theme-toggle";
 
 /**
  * Everything in the header that depends on who is signed in: the account menu (below 1024px also
@@ -63,6 +64,7 @@ async function Account() {
             <SignInLink className={`${menuLink} font-semibold text-brand`} />
           </div>
           <MenuNavSections nav={nav} />
+          <ThemeMenuRow className="border-t border-line" />
           <div className="flex flex-col pt-1 empty:hidden">
             <InstallAppButton variant="menu" />
           </div>
@@ -150,7 +152,8 @@ async function Account() {
         </nav>
         <div className="border-t border-line lg:hidden" />
         <MenuNavSections nav={nav} />
-        <div className="flex flex-col border-t border-line pt-1 lg:border-t-0">
+        <ThemeMenuRow className="border-t border-line" />
+        <div className="flex flex-col border-t border-line pt-1">
           <InstallAppButton variant="menu" />
           <SignOutButton className={`${menuLink} w-full text-start text-danger`} />
         </div>
@@ -204,6 +207,7 @@ export function SiteHeader() {
         <Suspense fallback={null}>
           <OrdersLink />
         </Suspense>
+        <ThemeToggle className="hidden lg:flex" />
         <CartButton />
         <div className="flex min-w-11 shrink-0 items-center justify-end gap-2">
           <Suspense fallback={<span className="skeleton m-1 size-9 rounded-full" aria-hidden />}>

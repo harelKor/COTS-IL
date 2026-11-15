@@ -274,7 +274,7 @@ async function VendorStore({ params, searchParams }: Props) {
   // The price note comes with the store, not under its skeleton, so nothing below jumps when it streams in.
   // The whole store wears the vendor's palette (vendorTheme): every token, card and wash on the page reads it.
   return (
-    <div style={vendorTheme(store) as React.CSSProperties} className="vendor-theme relative flex flex-col gap-6">
+    <div style={vendorTheme(store) as React.CSSProperties} className="vendor-theme dark-island relative flex flex-col gap-6">
       <div aria-hidden className="store-canvas pointer-events-none absolute -z-10" />
       <Suspense fallback={<StoreBodySkeleton />}>
         <StoreBody store={store} searchParams={searchParams} />

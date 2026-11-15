@@ -60,7 +60,7 @@ export function CartButton() {
         </span>
       )}
       {count > 0 && (
-        <span className="cart-count absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-caption font-semibold text-white tabular-nums ring-2 ring-white">
+        <span className="cart-count absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-caption font-semibold text-white tabular-nums ring-2 ring-background">
           {count > 99 ? "99+" : count}
         </span>
       )}

@@ -12,6 +12,8 @@ import { SiteHeader } from "@/components/site-header";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { SiteFactsProvider } from "@/components/site-facts-provider";
 import { Toaster } from "@/components/toast";
+import { ThemeWelcome } from "@/components/theme-welcome";
+import { THEME_COLOR, THEME_SCRIPT } from "@/domain/theme";
 import "./globals.css";
 import { getSettings } from "@/lib/settings";
 import { siteUrl } from "@/lib/site-url";
@@ -50,9 +52,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  // Light only (docs/REDESIGN.md, "Visual language"): the top of the page's ice-blue fade.
-  themeColor: "#020416",
-  colorScheme: "light",
+  // The browser's chrome in each theme's canvas (theme-store.ts keeps it in step with a choice).
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: THEME_COLOR.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLOR.dark },
+  ],
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -60,7 +65,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   preconnect("https://cdn.shopify.com");
   preconnect("https://cdn11.bigcommerce.com");
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} ${inter.variable} h-full antialiased`}>
+    // The theme script sets data-theme on <html> before React hydrates it (hence suppressHydrationWarning).
+    <html lang="he" dir="rtl" suppressHydrationWarning className={`${heebo.variable} ${inter.variable} h-full antialiased`}>
+      <head>
+        {/* The saved light/dark choice, before the first paint (src/domain/theme.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col font-sans">
         {/* Before hydration, so the browser's install prompt isn't missed (src/components/install-app.tsx). */}
         <script dangerouslySetInnerHTML={{ __html: CAPTURE_INSTALL_PROMPT }} />
@@ -81,6 +91,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </Suspense>
         </SiteFactsProvider>
         <Toaster />
+        <ThemeWelcome />
         {/* Real-user Core Web Vitals on Vercel. Reads the route, so it waits in Suspense. */}
         <Suspense>
           <SpeedInsights />

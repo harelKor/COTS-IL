@@ -126,6 +126,17 @@ Three sessions, one after another. They start **after the work running now** (PP
 
 | Task | Status | Commit |
 |---|---|---|
-| LM1 Foundation and everyday pages | Not started (after PP4, CF3, CF4) | |
+| LM1 Foundation and everyday pages | Done (Nov 15, 2026) | see "LM1 notes" |
 | LM2 Daylight vendor stores | Not started | |
 | LM3 Home in daylight | Not started | |
+
+### LM1 notes (for LM2 and LM3)
+
+- **How the themes switch:** every token is `light-dark(light, dark)` in the `@supports (color: light-dark(#000, #fff))` block of `globals.css`; `:root` has `color-scheme: light dark` and `data-theme` sets `color-scheme` alone. The plain `:root` block above it stays the dark site (and is what a browser without `light-dark()` gets: dark, no switch, no welcome note). `src/app/theme-tokens.test.ts` fails if a dark half drifts from that block, if a token lacks a light value, or if a text pair drops under AA.
+- **Islands:** `.dark-island` (`color-scheme: dark` plus `color: var(--foreground)`) is on the home scene (`src/app/page.tsx`) and the store wrapper (`src/app/v/[vendor]/page.tsx`), so both keep the night look in light mode. LM3 and LM2 remove the class from their page and theme what's inside. Inside an island every token, popover and flyout resolves dark; the header and footer around it are light.
+- **Left raw on purpose (island-only rules):** the home scene section (`.scene-*`, `.motto*`, `.glass-dark`, `.vendor-glass`, `.vendor-count`, `.vendor-go`, `.vendor-logo*`) and the store section (`.store-canvas`, `.store-flagship`, `.store-blurb`, `.store-search*`). Give them tokens (or light-dark pairs in the `@supports` block) when their daylight versions land. White highlights (`inset 0 1px 0 0 rgb(255 255 255 / …)`), `.btn-brand`, `.btn-plus` glows, `.card-shine` and masks read the same in both themes.
+- **Vendor colours:** `vendorPalette` has `ink` (AA on pearl and white; `inkFor` darkens an admin accent); `vendorTheme` emits `--vendor-text-dark`/`--vendor-text-light` and CSS picks one into `--vendor-text-accent` (`[style*="--vendor-text-dark"]`); `blendedTheme` emits `--pa-text-dark/-light`, `--pb-text-dark/-light`; `vendorGlass` has `--v-ink` for the home boxes' daylight text. In light, `.vendor-theme` darkens `--brand-strong` and starts `--gradient-brand-text` from ink.
+- **Logos:** `VendorMark` defaults to `tone="auto"` (both logos in the page, `.only-light`/`.only-dark` hide one); the store and home boxes still pass `tone="dark"`. `ThemedLogo` is the bare pair (doc tiles, the catalog vendor strip).
+- **Variable pitfall:** a token on `:root` that reads `var(--vendor-…)` or `var(--accent)` is frozen to the root's value; declare such things on the element that has the vendor's inline style (as `.glow-box` does).
+- **Known, not changed (dark kept as it was):** white on the dark `--success-fill` (#16A34A) is 3.3:1, under AA for small text (`approve-links.tsx`, timeline dots); the light fill passes. The hot row's "+" glow is Orbit blue on every vendor (`.glow-card .btn-plus`).
+- **Checked:** every LM1 page at 375 and 1280 in both themes, interactive states (welcome note, flyout, vendors menu, search, cart sheet, phone menu and filter sheet, jump bar, hot row) in light; dark compared with the pre-LM1 screenshots pixel by pixel (only the header's new switch differs).

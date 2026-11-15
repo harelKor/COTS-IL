@@ -359,7 +359,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     >
       <div className="flex max-h-[inherit] flex-col">
         <div className="flex items-center gap-3 border-b border-line px-4 py-3">
-          <div className="card-photo size-16 shrink-0 overflow-hidden rounded-xl bg-white p-1 ring-1 ring-line">{photo_}</div>
+          <div className="card-photo size-16 shrink-0 overflow-hidden rounded-xl p-1 ring-1 ring-line">{photo_}</div>
           <div className="flex min-w-0 flex-1 flex-col">
             <Ltr className="line-clamp-2 text-start text-callout font-medium">{family.title}</Ltr>
             <span className="text-callout font-semibold">{price}</span>
@@ -399,7 +399,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       <li className="flex flex-col gap-2 border-b border-line py-3 last:border-b-0">
         <div className="flex items-center gap-3">
           <Link href={href} {...pagePrefetch} className="shrink-0">
-            <div ref={image} className="card-photo size-16 overflow-hidden rounded-xl bg-white p-1 ring-1 ring-line">
+            <div ref={image} className="card-photo size-16 overflow-hidden rounded-xl p-1 ring-1 ring-line">
               {photo_}
             </div>
           </Link>
@@ -448,7 +448,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
 
   // Every photo on the same padded white tile: supplier photos are shot on white (a pearl tile on the home page).
   const tile = (
-    <div ref={image} className={`card-photo relative w-full overflow-hidden rounded-xl bg-white ring-1 ring-line ${compact ? "aspect-[16/9] p-2" : "aspect-square p-3"}`}>
+    <div ref={image} className={`card-photo relative w-full overflow-hidden rounded-xl ring-1 ring-line ${compact ? "aspect-[16/9] p-2" : "aspect-square p-3"}`}>
       {photo_}
       {familyInCart > 0 && (
         <span className="absolute end-2 top-2 rounded-full bg-brand px-2 py-0.5 text-caption font-medium text-white tabular-nums">

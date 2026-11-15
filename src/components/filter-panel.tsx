@@ -86,6 +86,7 @@ function AvailableSwitch({ on, count, onChange }: { on: boolean; count?: number;
       </span>
       <span className={`relative h-[26px] w-[44px] shrink-0 rounded-full transition-colors duration-200 ${on ? "bg-success" : "bg-line"}`} aria-hidden>
         <span
+          // theme-independent: the switch's white knob, on green or on the hairline grey.
           className={`absolute top-[3px] size-5 rounded-full bg-white shadow-sm transition-[inset-inline-start] duration-200 ease-spring ${
             on ? "start-[21px]" : "start-[3px]"
           }`}
@@ -120,6 +121,7 @@ function ProgramControl({
             }`}
           >
             {p ? <Ltr>{p}</Ltr> : "הכל"}
+            {/* theme-independent: the count on the chosen pill's brand fill. */}
             {count !== undefined && <span className={`font-normal tabular-nums ${value === p ? "text-white/75" : ""}`}>({n(count)})</span>}
           </button>
         );
@@ -200,6 +202,7 @@ function FacetChips({ facet, chosen, onToggle, large }: { facet: SpecFacet; chos
             }`}
           >
             <Ltr>{v.value}</Ltr>
+            {/* theme-independent: the count on the chosen chip's brand fill. */}
             <span className={`text-callout tabular-nums ${on ? "text-white/75" : "text-muted"}`}>({n(v.count)})</span>
           </button>
         );

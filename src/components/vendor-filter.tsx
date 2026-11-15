@@ -2,8 +2,9 @@
 
 import { Check, ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { darkLogo, vendorPalette, vendorTheme } from "@/domain/vendors";
+import { vendorPalette, vendorTheme } from "@/domain/vendors";
 import { Ltr } from "./ltr";
+import { ThemedLogo } from "./vendor-mark";
 
 export type VendorOption = { code: string; name: string; count: number; logoUrl?: string | null; accentColor?: string | null; accentColor2?: string | null };
 
@@ -104,7 +105,7 @@ export function VendorFilter({ vendors, value, onToggle, onClear }: { vendors: V
         </button>
         {vendors.map((v) => {
           const on = value.includes(v.code);
-          const logo = v.logoUrl ? (darkLogo(v.logoUrl) ?? v.logoUrl) : null;
+          const logo = v.logoUrl;
           return (
             <button
               key={v.code}
@@ -117,14 +118,8 @@ export function VendorFilter({ vendors, value, onToggle, onClear }: { vendors: V
             >
               {on && tick}
               {logo && (
-                // The vendor's own logo, the same one as on the home boxes; the name below says who it is.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logo}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  className={`h-7 w-auto max-w-[120px] object-contain vendor-logo ${darkLogo(v.logoUrl ?? null) ? "" : "vendor-logo-invert"}`}
-                />
+                // The vendor's own logo in the theme's ink; the name below says who it is.
+                <ThemedLogo src={logo} loading="eager" className="h-7 w-auto max-w-[120px] object-contain" />
               )}
               <span className="flex max-w-full items-baseline gap-1.5 text-caption leading-tight whitespace-nowrap">
                 <Ltr className={`font-semibold ${logo ? "" : "text-brand-gradient text-callout"}`}>{v.name}</Ltr>

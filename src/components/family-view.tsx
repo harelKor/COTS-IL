@@ -420,7 +420,7 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
               // Each logo over a soft glow of its own vendor's colour; between two, a hairline from one colour to the other.
               <li key={code} style={{ "--logo-rgb": themeOf(code, name)["--vendor-primary-rgb"] } as React.CSSProperties} className={`pdp-logo ${i > 0 ? "pdp-logo-next ms-4 ps-4" : ""}`}>
                 <Link href={vendorHref(code)} aria-label={`החנות של ${name}`} className="flex min-h-11 items-center rounded-xl transition-opacity duration-200 hover:opacity-80">
-                  <VendorMark name={name} logoUrl={logos[code] ?? null} size={vendors.length > 1 ? "productPair" : "product"} tone="dark" eager />
+                  <VendorMark name={name} logoUrl={logos[code] ?? null} size={vendors.length > 1 ? "productPair" : "product"} eager />
                 </Link>
               </li>
             ))}
@@ -530,7 +530,9 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
                         }`}
                       >
                         <Ltr className={why ? "line-through decoration-1" : undefined}>{label}</Ltr>
+                        {/* theme-independent: the chosen chip's brand fill carries white text. */}
                         {sub && <span className={`text-caption ${chip.selected ? "text-white/75" : "text-muted"}`}>{sub}</span>}
+                        {/* theme-independent: as above. */}
                         {tag && <span className={`text-caption ${chip.selected ? "text-white/75" : "text-muted"}`}>{tag}</span>}
                         {why && <span className="sr-only">, {why}</span>}
                       </button>

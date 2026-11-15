@@ -12,6 +12,11 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   use: { baseURL: `http://localhost:${PORT}`, ...devices["Pixel 7"], locale: "he-IL", trace: "retain-on-failure" },
+  // Once per theme (LM1): the device setting decides it, since no choice is saved.
+  projects: [
+    { name: "dark", use: { colorScheme: "dark" } },
+    { name: "light", use: { colorScheme: "light" } },
+  ],
   webServer: {
     command: `npx next dev -p ${PORT}`,
     url: `http://localhost:${PORT}`,

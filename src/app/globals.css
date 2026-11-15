@@ -1,11 +1,17 @@
 @import "tailwindcss";
 
 /*
- * Design tokens: one dark system for the whole site (user decision, Nov 14, 2026), anchored on
- * Orbit 1690 ultramarine (#0014BE) over a deep midnight. Three text tiers (bright white, silver
- * slate, muted slate), surfaces in quiet layers of dark navy glass with ultramarine hairlines, and
- * product photos on soft pearl wells (tile-fade, .card-photo), never whole white cards. The home
- * page and the vendor stores add their scenes on top (end of this file); print stays black on white.
+ * Design tokens: two themes (user decision, Nov 15, 2026; docs/LIGHT-MODE-PLAN.md), both anchored
+ * on Orbit 1690 ultramarine (#0014BE).
+ *   - Dark, "ultramarine midnight" (Nov 14): this :root block, exactly as it was. Three text tiers,
+ *     surfaces in quiet layers of dark navy glass with ultramarine hairlines.
+ *   - Light, "pearl & ultramarine": the @supports block below gives every token light-dark(light, dark).
+ * Product photos sit on soft pearl wells (tile-fade, .card-photo) in both. The theme lives only on
+ * <html>: `color-scheme` follows the device, and data-theme="light|dark" (set before paint by the
+ * script in layout.tsx from the visitor's saved choice) overrides it. Never derive it from page
+ * content. A browser without light-dark() keeps this block: the dark site, with no switch.
+ * Every colour in a rule comes from a token, except white highlights and shadows that read the
+ * same in both themes. Print stays black on white.
  */
 :root {
   --background: #020416;
@@ -64,7 +70,208 @@
   --vendor-secondary: #3b5bff;
   --vendor-text-accent: #a3b3ff;
   --vendor-on-primary: #ffffff;
+  /* Surfaces of the shared components (LM1): what used to be raw colours in their rules. */
+  --page-glow: radial-gradient(110% 560px at 50% 0%, rgb(0 20 190 / 0.2) 0%, rgb(0 20 190 / 0.06) 50%, transparent 100%);
+  --header-fill: rgb(2 4 22 / 0.62);
+  --footer-fill: rgb(2 4 22 / 0.72);
+  --chip-fill: rgb(7 13 51 / 0.72);
+  --chip-fill-hover: rgb(0 20 190 / 0.45);
+  --chip-line: rgb(110 133 255 / 0.28);
+  --chip-line-hover: rgb(110 133 255 / 0.6);
+  --chip-ink: #ffffff;
+  --search-fill: #050b2e;
+  --scrim: rgb(1 2 12 / 0.6);
+  --card-fill: rgb(7 13 34 / 0.88);
+  --card-shadow-color: rgb(0 0 0 / 0.45);
+  --box-fill: rgb(9 15 40 / 0.85);
+  --group-fill: rgb(7 13 34 / 0.85);
+  --box-shadow-color: rgb(0 0 0 / 0.4);
+  --outline-fill: rgb(7 13 34 / 0.7);
+  --tile-panel: linear-gradient(180deg, rgb(14 23 62 / 0.9) 0%, rgb(9 15 42 / 0.9) 100%);
+  --panel-gradient: linear-gradient(180deg, rgb(14 23 62 / 0.85) 0%, rgb(9 15 42 / 0.85) 100%);
+  --bar-fill: rgb(7 13 34 / 0.82);
+  --flyout-fill: rgb(4 8 30 / 0.95);
+  --flyout-shadow-color: rgb(1 2 12 / 0.8);
+  --soft-fill: rgb(255 255 255 / 0.08);
+  --soft-fill-hover: rgb(255 255 255 / 0.14);
+  --pill-fill: rgb(255 255 255 / 0.05);
+  --pill-fill-hover: rgb(255 255 255 / 0.09);
+  --pill-line: rgb(255 255 255 / 0.1);
+  --pill-ink: #cbd5e1;
+  --pill-ink-hover: #ffffff;
+  --arrow-fill: rgb(11 19 43 / 0.95);
+  --arrow-ink: #ffffff;
+  --arrow-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.45), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+  --rule-mid: rgb(255 255 255 / 0.1);
+  --tag-fill: rgb(255 255 255 / 0.07);
+  --tag-ink: #c7cfea;
+  --prose: #dde3f7;
+  --callout-ring: rgb(251 191 36 / 0.32);
+  /* Pearl photo wells: the home thumbs and tile-fade, and the product cards' own. */
+  --well: radial-gradient(circle at 50% 30%, rgb(241 245 249 / 0.9), rgb(226 232 240 / 0.85));
+  --well-edge: inset 0 0 0 1px rgb(255 255 255 / 0.15), inset 0 2px 8px rgb(15 23 42 / 0.2);
+  --well-ring: rgb(255 255 255 / 0.15);
+  --well-card: linear-gradient(to bottom, rgb(241 245 249 / 0.95), rgb(226 232 240 / 0.88));
+  --well-ring-card: rgb(255 255 255 / 0.2);
+  /* The fire of "הכי מבוקשים" and the product page's hot row. */
+  --fire-ink: #fb923c;
+  --fire-ring: rgb(251 146 60 / 0.38);
+  --fire-flame: rgb(249 115 22 / 0.3);
+  --fire-core: #fde68a;
+  --fire-ember: #fdba74;
+  --fire-heat: radial-gradient(ellipse at 50% 40%, rgb(249 115 22 / 0.8), rgb(239 68 68 / 0.3) 55%, transparent 75%);
+  --fire-zone-wash: radial-gradient(ellipse 75% 70% at 50% 115%, rgb(249 115 22 / 0.22), rgb(239 68 68 / 0.08) 45%, transparent 70%);
+  --fire-zone-shadow: inset 0 0 0 1px rgb(251 146 60 / 0.26), 0 18px 50px -28px rgb(249 115 22 / 0.55);
+  --fire-line: linear-gradient(90deg, transparent, #fb923c 30%, #fde68a 50%, #fb923c 70%, transparent);
   color-scheme: dark;
+}
+
+/* A vendor's text tint from vendorTheme (its light-theme twin is in the block below). */
+[style*="--vendor-text-dark"] {
+  --vendor-text-accent: var(--vendor-text-dark);
+}
+
+/*
+ * The two themes. Each token is light-dark(light, dark); the dark half is always the value in the
+ * :root block above (src/app/theme-tokens.test.ts checks it, and the contrast of the text pairs).
+ * color-scheme picks the half: the device's setting, unless <html data-theme> holds a choice.
+ */
+@supports (color: light-dark(#000, #fff)) {
+  :root {
+    color-scheme: light dark;
+    --background: light-dark(#f6f7ff, #020416);
+    --surface: light-dark(#ffffff, #0b1336);
+    --subtle: light-dark(#eef1ff, rgb(110 133 255 / 0.08));
+    --subtle-hover: light-dark(#e0e6ff, rgb(110 133 255 / 0.15));
+    --foreground: light-dark(#0b1528, #f1f4ff);
+    --muted: light-dark(#52658a, #a3aed6);
+    --line: light-dark(#dce2fa, rgb(110 133 255 / 0.18));
+    --brand: light-dark(#0014be, #8094ff);
+    --brand-strong: light-dark(#000c8a, #b4c0ff);
+    --brand-soft: light-dark(#e0e5ff, rgb(59 91 255 / 0.16));
+    --brand-fill: light-dark(#0014be, #0018e0);
+    --brand-fill-strong: light-dark(#000c8a, #0014be);
+    --danger: light-dark(#d70015, #f87171);
+    --success: light-dark(#177a33, #4ade80);
+    --warning: light-dark(#995a00, #fbbf24);
+    --danger-fill: light-dark(#d70015, #dc2626);
+    --success-fill: light-dark(#177a33, #16a34a);
+    --warning-fill: light-dark(#995a00, #b45309);
+    --violet: light-dark(#6d28d9, #a78bfa);
+    --teal: light-dark(#0f766e, #2dd4bf);
+    --indigo: light-dark(#4338ca, #818cf8);
+    --slate: light-dark(#52658a, #94a3b8);
+    --glass: light-dark(rgb(255 255 255 / 0.86), rgb(4 8 30 / 0.86));
+    --glass-fill: light-dark(#ffffff, rgb(7 13 34 / 0.78));
+    --glass-line: light-dark(#dce2fa, rgb(110 133 255 / 0.2));
+    --glass-line-hover: light-dark(rgb(0 20 190 / 0.35), rgb(110 133 255 / 0.5));
+    --glass-glow: light-dark(rgb(0 20 190 / 0.18), rgb(0 24 224 / 0.5));
+    --tile: light-dark(#eef1f8, #e6eaf3);
+    --gradient-brand-text: linear-gradient(to left, light-dark(#000c8a, #ffffff), light-dark(#0018e0, #c8d1ff) 50%, light-dark(#3b5bff, #6e85ff));
+    --gradient-tile-card: linear-gradient(180deg, light-dark(#eaedff, rgb(110 133 255 / 0.12)) 0%, light-dark(#f6f7ff, rgb(110 133 255 / 0.04)) 60%, transparent 100%);
+    --sky: light-dark(#6e85ff, #a3b3ff);
+    --sky-soft: light-dark(#e6eaff, rgb(110 133 255 / 0.14));
+    --gradient-glow-box:
+      linear-gradient(20deg, light-dark(rgb(0 24 224 / 0.08), rgb(0 24 224 / 0.14)) 0%, light-dark(rgb(0 24 224 / 0.02), rgb(0 24 224 / 0.04)) 45%, transparent 75%),
+      light-dark(#ffffff, rgb(9 15 40 / 0.85));
+    --shadow-lift: 0 14px 34px -8px light-dark(rgb(0 20 190 / 0.14), rgb(1 2 12 / 0.6)), 0 4px 12px -2px light-dark(rgb(11 21 40 / 0.05), rgb(1 2 12 / 0.3));
+    --shadow-card: 0 8px 28px light-dark(rgb(30 45 120 / 0.08), rgb(1 2 12 / 0.4));
+    --vendor-text-accent: light-dark(#0014be, #a3b3ff);
+    --page-glow: radial-gradient(110% 560px at 50% 0%, light-dark(#dfe4ff, rgb(0 20 190 / 0.2)) 0%, light-dark(#eef1ff, rgb(0 20 190 / 0.06)) 50%, transparent 100%);
+    --header-fill: light-dark(rgb(255 255 255 / 0.72), rgb(2 4 22 / 0.62));
+    --footer-fill: light-dark(rgb(255 255 255 / 0.78), rgb(2 4 22 / 0.72));
+    --chip-fill: light-dark(#ffffff, rgb(7 13 51 / 0.72));
+    --chip-fill-hover: light-dark(#eef1ff, rgb(0 20 190 / 0.45));
+    --chip-line: light-dark(#d3daf7, rgb(110 133 255 / 0.28));
+    --chip-line-hover: light-dark(rgb(0 20 190 / 0.4), rgb(110 133 255 / 0.6));
+    --chip-ink: light-dark(#0b1528, #ffffff);
+    --search-fill: light-dark(#ffffff, #050b2e);
+    --scrim: light-dark(rgb(11 21 40 / 0.4), rgb(1 2 12 / 0.6));
+    --card-fill: light-dark(#ffffff, rgb(7 13 34 / 0.88));
+    --card-shadow-color: light-dark(rgb(30 45 120 / 0.09), rgb(0 0 0 / 0.45));
+    --box-fill: light-dark(#ffffff, rgb(9 15 40 / 0.85));
+    --group-fill: light-dark(#ffffff, rgb(7 13 34 / 0.85));
+    --box-shadow-color: light-dark(rgb(30 45 120 / 0.09), rgb(0 0 0 / 0.4));
+    --outline-fill: light-dark(rgb(255 255 255 / 0.92), rgb(7 13 34 / 0.7));
+    --tile-panel: linear-gradient(180deg, light-dark(#ffffff, rgb(14 23 62 / 0.9)) 0%, light-dark(#f7f8ff, rgb(9 15 42 / 0.9)) 100%);
+    --panel-gradient: linear-gradient(180deg, light-dark(#ffffff, rgb(14 23 62 / 0.85)) 0%, light-dark(#fbfcff, rgb(9 15 42 / 0.85)) 100%);
+    --bar-fill: light-dark(rgb(255 255 255 / 0.86), rgb(7 13 34 / 0.82));
+    --flyout-fill: light-dark(rgb(255 255 255 / 0.97), rgb(4 8 30 / 0.95));
+    --flyout-shadow-color: light-dark(rgb(30 45 120 / 0.18), rgb(1 2 12 / 0.8));
+    --soft-fill: light-dark(#ffffff, rgb(255 255 255 / 0.08));
+    --soft-fill-hover: light-dark(#eef1ff, rgb(255 255 255 / 0.14));
+    --pill-fill: light-dark(#ffffff, rgb(255 255 255 / 0.05));
+    --pill-fill-hover: light-dark(#eef1ff, rgb(255 255 255 / 0.09));
+    --pill-line: light-dark(#dce2fa, rgb(255 255 255 / 0.1));
+    --pill-ink: light-dark(#3a4a6b, #cbd5e1);
+    --pill-ink-hover: light-dark(#0b1528, #ffffff);
+    --arrow-fill: light-dark(rgb(255 255 255 / 0.95), rgb(11 19 43 / 0.95));
+    --arrow-ink: light-dark(#0b1528, #ffffff);
+    --arrow-shadow: 0 20px 25px -5px light-dark(rgb(30 45 120 / 0.14), rgb(0 0 0 / 0.45)), 0 8px 10px -6px light-dark(rgb(30 45 120 / 0.1), rgb(0 0 0 / 0.4));
+    --rule-mid: light-dark(rgb(11 21 40 / 0.1), rgb(255 255 255 / 0.1));
+    --tag-fill: light-dark(#eef1ff, rgb(255 255 255 / 0.07));
+    --tag-ink: light-dark(#3a4a6b, #c7cfea);
+    --prose: light-dark(#1f2a44, #dde3f7);
+    --callout-ring: light-dark(rgb(180 83 9 / 0.35), rgb(251 191 36 / 0.32));
+    --well: radial-gradient(circle at 50% 30%, light-dark(#f7f8fb, rgb(241 245 249 / 0.9)), light-dark(#e8ecf3, rgb(226 232 240 / 0.85)));
+    --well-edge: inset 0 0 0 1px light-dark(#dce2fa, rgb(255 255 255 / 0.15)), inset 0 2px 8px light-dark(rgb(15 23 42 / 0.05), rgb(15 23 42 / 0.2));
+    --well-ring: light-dark(#dce2fa, rgb(255 255 255 / 0.15));
+    --well-card: linear-gradient(to bottom, light-dark(#f7f8fb, rgb(241 245 249 / 0.95)), light-dark(#eaeef5, rgb(226 232 240 / 0.88)));
+    --well-ring-card: light-dark(#dce2fa, rgb(255 255 255 / 0.2));
+    --fire-ink: light-dark(#c2410c, #fb923c);
+    --fire-ring: light-dark(rgb(234 88 12 / 0.4), rgb(251 146 60 / 0.38));
+    --fire-flame: light-dark(rgb(234 88 12 / 0.42), rgb(249 115 22 / 0.3));
+    --fire-core: light-dark(#f59e0b, #fde68a);
+    --fire-ember: light-dark(#f97316, #fdba74);
+    --fire-heat: radial-gradient(ellipse at 50% 40%, light-dark(rgb(249 115 22 / 0.42), rgb(249 115 22 / 0.8)), light-dark(rgb(239 68 68 / 0.14), rgb(239 68 68 / 0.3)) 55%, transparent 75%);
+    --fire-zone-wash: radial-gradient(ellipse 75% 70% at 50% 115%, light-dark(rgb(249 115 22 / 0.16), rgb(249 115 22 / 0.22)), light-dark(rgb(239 68 68 / 0.05), rgb(239 68 68 / 0.08)) 45%, transparent 70%);
+    --fire-zone-shadow: inset 0 0 0 1px light-dark(rgb(234 88 12 / 0.3), rgb(251 146 60 / 0.26)), 0 18px 50px -28px light-dark(rgb(249 115 22 / 0.4), rgb(249 115 22 / 0.55));
+    --fire-line: linear-gradient(90deg, transparent, light-dark(#ea580c, #fb923c) 30%, light-dark(#f59e0b, #fde68a) 50%, light-dark(#ea580c, #fb923c) 70%, transparent);
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+  }
+  /*
+   * The home scene and the vendor stores keep the night look in both themes until their daylight
+   * versions (LM2, LM3): every token resolves dark inside them. `color` is set again so the text
+   * colour isn't the light theme's, inherited as a finished colour from <body>.
+   */
+  .dark-island {
+    color-scheme: dark;
+    color: var(--foreground);
+  }
+  /* A vendor's text tint and the product page's pair, each as light-dark (vendorTheme, blendedTheme). */
+  [style*="--vendor-text-dark"] {
+    --vendor-text-accent: light-dark(var(--vendor-text-light), var(--vendor-text-dark));
+  }
+  /* Content for one theme only (VendorMark's two logos, the switch's icons): hidden in the other. */
+  :root[data-theme="dark"] .only-light,
+  .dark-island .only-light {
+    display: none !important;
+  }
+  :root[data-theme="light"] .only-dark:not(.dark-island *) {
+    display: none !important;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .only-light {
+      display: none !important;
+    }
+  }
+  @media not (prefers-color-scheme: dark) {
+    :root:not([data-theme="dark"]) .only-dark:not(.dark-island *) {
+      display: none !important;
+    }
+  }
+}
+/* Without light-dark(): the dark site only, so no light content and no switch. */
+@supports not (color: light-dark(#000, #fff)) {
+  .only-light,
+  .theme-switch {
+    display: none !important;
+  }
 }
 
 /* Printed quotes are always black on white, whatever the screen's theme. */
@@ -148,7 +355,7 @@ body {
   /* Full-bleed home layers are 100vw wide: clip the scrollbar's sliver (clip keeps sticky working). */
   overflow-x: clip;
   background-color: var(--background);
-  background-image: radial-gradient(110% 560px at 50% 0%, rgb(0 20 190 / 0.2) 0%, rgb(0 20 190 / 0.06) 50%, transparent 100%);
+  background-image: var(--page-glow);
   background-repeat: no-repeat;
   color: var(--foreground);
   font-size: 1.0625rem;
@@ -185,7 +392,7 @@ h3 {
  * Tailwind's ring and shadow slots come after them, so shadow-lift or hover:shadow-lift adds to the card instead of replacing it.
  */
 @utility card-surface {
-  background: linear-gradient(180deg, rgb(14 23 62 / 0.92) 0%, rgb(9 15 42 / 0.92) 100%);
+  background: var(--glass-fill);
   border-radius: var(--radius-card);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.06), inset 0 0 0 1px var(--line), var(--shadow-card),
@@ -219,8 +426,8 @@ h3 {
 
 /* Product photo wells: soft pearl, so photos shot on white stay clear without a stark white box. */
 @utility tile-fade {
-  background: radial-gradient(circle at 50% 30%, rgb(241 245 249 / 0.95), rgb(222 228 238 / 0.9));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18), inset 0 2px 8px rgb(15 23 42 / 0.18);
+  background: var(--well);
+  box-shadow: var(--well-edge);
 }
 
 /* Gradient wordmark text (logo, hero highlight). */
@@ -238,13 +445,13 @@ h3 {
 
 /* Secondary action: a quiet glass pill with an ultramarine hairline. */
 @utility btn-soft {
-  background: rgb(255 255 255 / 0.06);
+  background: var(--soft-fill);
   color: var(--foreground);
   box-shadow: inset 0 0 0 1px var(--line);
   transition: background-color 150ms ease;
 
   &:hover {
-    background: rgb(255 255 255 / 0.11);
+    background: var(--soft-fill-hover);
   }
 }
 
@@ -364,7 +571,7 @@ dialog.sheet {
 }
 
 dialog.sheet::backdrop {
-  background: rgb(1 2 12 / 0.6);
+  background: var(--scrim);
   backdrop-filter: blur(2px);
   opacity: 0;
   transition:
@@ -698,9 +905,9 @@ header.sticky {
  */
 .fire-badge {
   isolation: isolate;
-  color: #fb923c;
+  color: var(--fire-ink);
   background: radial-gradient(circle at 50% 75%, rgb(251 146 60 / 0.24), rgb(239 68 68 / 0.1) 70%);
-  box-shadow: inset 0 0 0 1px rgb(251 146 60 / 0.38);
+  box-shadow: inset 0 0 0 1px var(--fire-ring);
 }
 .fire-badge::before {
   content: "";
@@ -713,7 +920,7 @@ header.sticky {
   pointer-events: none;
 }
 .fire-outer {
-  fill: rgb(249 115 22 / 0.3);
+  fill: var(--fire-flame);
   transform-origin: 50% 88%;
 }
 .fire-core {
@@ -721,7 +928,7 @@ header.sticky {
   inset-block-end: 8px;
   inset-inline-start: 50%;
   margin-inline-start: -5px;
-  fill: #fde68a;
+  fill: var(--fire-core);
   transform-origin: 50% 90%;
 }
 .fire-ember {
@@ -732,7 +939,7 @@ header.sticky {
   height: 3px;
   margin-inline-start: -1.5px;
   border-radius: 9999px;
-  background: #fdba74;
+  background: var(--fire-ember);
   box-shadow: 0 0 4px rgb(251 146 60 / 0.9);
   opacity: 0;
   pointer-events: none;
@@ -744,7 +951,7 @@ header.sticky {
   inset-block-end: -20px;
   height: 26px;
   border-radius: 9999px;
-  background: radial-gradient(ellipse at 50% 40%, rgb(249 115 22 / 0.8), rgb(239 68 68 / 0.3) 55%, transparent 75%);
+  background: var(--fire-heat);
   filter: blur(10px);
   opacity: 0.6;
   pointer-events: none;
@@ -846,12 +1053,10 @@ header.sticky {
 .hot-zone {
   isolation: isolate;
   background:
-    radial-gradient(ellipse 75% 70% at 50% 115%, rgb(249 115 22 / 0.22), rgb(239 68 68 / 0.08) 45%, transparent 70%),
+    var(--fire-zone-wash),
     radial-gradient(ellipse 50% 40% at 85% -10%, rgb(251 146 60 / 0.1), transparent 70%),
     var(--surface);
-  box-shadow:
-    inset 0 0 0 1px rgb(251 146 60 / 0.26),
-    0 18px 50px -28px rgb(249 115 22 / 0.55);
+  box-shadow: var(--fire-zone-shadow);
 }
 .hot-zone::before {
   content: "";
@@ -859,7 +1064,7 @@ header.sticky {
   inset-inline: 8%;
   inset-block-start: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #fb923c 30%, #fde68a 50%, #fb923c 70%, transparent);
+  background: var(--fire-line);
   opacity: 0.7;
   pointer-events: none;
 }
@@ -931,7 +1136,7 @@ dialog.sheet-side.sheet-wide {
 .glow-box {
   --gradient-glow-box:
     linear-gradient(20deg, color-mix(in srgb, var(--accent) 16%, transparent) 0%, color-mix(in srgb, var(--accent) 4%, transparent) 45%, transparent 75%),
-    linear-gradient(rgb(9 15 40 / 0.85), rgb(9 15 40 / 0.85));
+    linear-gradient(var(--box-fill), var(--box-fill));
 }
 
 /*
@@ -971,7 +1176,7 @@ dialog.sheet-side.sheet-wide {
   position: relative;
   border: 1px solid transparent;
   background:
-    linear-gradient(rgb(9 15 40 / 0.85), rgb(9 15 40 / 0.85)) padding-box,
+    linear-gradient(var(--box-fill), var(--box-fill)) padding-box,
     var(--gradient-outline) border-box;
   box-shadow: var(--glow);
 
@@ -995,7 +1200,7 @@ dialog.sheet-side.sheet-wide {
 .glow-card {
   border: 1.5px solid transparent;
   background:
-    linear-gradient(rgb(9 15 40 / 0.85), rgb(9 15 40 / 0.85)) padding-box,
+    linear-gradient(var(--box-fill), var(--box-fill)) padding-box,
     var(--gradient-outline) border-box;
   box-shadow: var(--glow);
 }
@@ -1065,7 +1270,7 @@ dialog.sheet-side.sheet-wide {
     height: 44px;
     border: 1.5px solid transparent;
     background:
-      linear-gradient(#050b2e, #050b2e) padding-box,
+      linear-gradient(var(--search-fill), var(--search-fill)) padding-box,
       linear-gradient(90deg, rgb(59 91 255 / 0.6), rgb(110 133 255 / 0.75), rgb(0 20 190 / 0.7)) border-box;
     box-shadow: 0 6px 20px -8px color-mix(in srgb, var(--brand) 45%, transparent), 0 0 0 0 color-mix(in srgb, var(--brand) 0%, transparent);
   }
@@ -1112,27 +1317,27 @@ dialog.sheet-side.sheet-wide {
  * button and team badge in dark ultramarine glass with a white icon.
  */
 .site-header {
-  background-color: rgb(2 4 22 / 0.62);
+  background-color: var(--header-fill);
   border-bottom-color: var(--glass-line);
 }
 .site-footer {
-  background-color: rgb(2 4 22 / 0.72);
+  background-color: var(--footer-fill);
   border-top-color: var(--glass-line);
 }
 :is(.cart-button, .account-chip) {
-  border-color: rgb(110 133 255 / 0.28);
-  background-color: rgb(7 13 51 / 0.72);
-  color: #ffffff;
+  border-color: var(--chip-line);
+  background-color: var(--chip-fill);
+  color: var(--chip-ink);
   box-shadow: none;
 }
 .cart-button:hover,
 .account-chip:hover,
 .account-chip[aria-expanded="true"] {
-  border-color: rgb(110 133 255 / 0.6);
-  background-color: rgb(0 20 190 / 0.45);
+  border-color: var(--chip-line-hover);
+  background-color: var(--chip-fill-hover);
 }
 .cart-button svg {
-  stroke: #ffffff;
+  stroke: var(--chip-ink);
   opacity: 1;
 }
 .cart-count {
@@ -1583,11 +1788,11 @@ html::-webkit-scrollbar {
  */
 .scene-thumb,
 :is(.tile-fade, .card-photo) {
-  background: radial-gradient(circle at 50% 30%, rgb(241 245 249 / 0.9), rgb(226 232 240 / 0.85));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.15), inset 0 2px 8px rgb(15 23 42 / 0.2);
+  background: var(--well);
+  box-shadow: var(--well-edge);
 }
 :is(.tile-fade, .card-photo) {
-  --tw-ring-color: rgb(255 255 255 / 0.15);
+  --tw-ring-color: var(--well-ring);
 }
 :is(.tile-fade, .card-photo) img {
   mix-blend-mode: multiply;
@@ -1614,7 +1819,7 @@ html::-webkit-scrollbar {
   border-color: var(--glass-line-hover);
 }
 .glow-outline {
-  background: rgb(4 9 36 / 0.6);
+  background: var(--outline-fill);
   border-color: var(--glass-line);
   box-shadow: none;
 }
@@ -1622,12 +1827,12 @@ html::-webkit-scrollbar {
   background: linear-gradient(100deg, transparent 0%, rgb(255 255 255 / 0.12) 50%, transparent 100%);
 }
 .btn-soft {
-  background: rgb(255 255 255 / 0.08);
+  background: var(--soft-fill);
   color: var(--foreground);
   box-shadow: inset 0 0 0 1px var(--glass-line);
 }
 .btn-soft:hover {
-  background: rgb(255 255 255 / 0.14);
+  background: var(--soft-fill-hover);
 }
 
 /* ---------- Vendor stores (/v/<code>): the night canvas in the vendor's own colours ---------- */
@@ -1647,11 +1852,17 @@ html::-webkit-scrollbar {
   --line: rgb(var(--vendor-primary-rgb) / 0.22);
   --subtle: rgb(var(--vendor-primary-rgb) / 0.08);
   --subtle-hover: rgb(var(--vendor-primary-rgb) / 0.16);
-  --glass-fill: rgb(7 13 34 / 0.78);
   --glass-line: rgb(var(--vendor-primary-rgb) / 0.25);
   --glass-line-hover: rgb(var(--vendor-primary-rgb) / 0.65);
   --glass-glow: rgb(var(--vendor-primary-rgb) / 0.45);
   --gradient-brand-text: linear-gradient(to left, #ffffff, var(--vendor-text-accent));
+}
+/* In daylight the strong tint darkens instead of whitening, and the gradient starts from ink. */
+@supports (color: light-dark(#000, #fff)) {
+  .vendor-theme {
+    --brand-strong: color-mix(in srgb, var(--vendor-text-accent) 60%, light-dark(#000000, #ffffff));
+    --gradient-brand-text: linear-gradient(to left, light-dark(#0b1528, #ffffff), var(--vendor-text-accent));
+  }
 }
 /* Fills in the vendor's colour, with text that reads on it (dark on amber or lime, white on red or blue). */
 .vendor-theme .bg-brand,
@@ -1740,13 +1951,13 @@ html::-webkit-scrollbar {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 30%, transparent);
 }
 .section-rule {
-  background: linear-gradient(to left, rgb(var(--vendor-primary-rgb, 0 20 190) / 0.35), rgb(255 255 255 / 0.1) 45%, transparent);
+  background: linear-gradient(to left, rgb(var(--vendor-primary-rgb, 0 20 190) / 0.35), var(--rule-mid) 45%, transparent);
 }
 /* Quiet glass pills: collapse "הכי מבוקשים", the vendor's own site. */
 .glass-pill {
-  border: 1px solid rgb(255 255 255 / 0.1);
-  background: rgb(255 255 255 / 0.05);
-  color: #cbd5e1;
+  border: 1px solid var(--pill-line);
+  background: var(--pill-fill);
+  color: var(--pill-ink);
   transition:
     color 200ms var(--ease-out),
     background-color 200ms var(--ease-out),
@@ -1754,8 +1965,8 @@ html::-webkit-scrollbar {
 }
 .glass-pill:hover {
   border-color: rgb(var(--vendor-primary-rgb, 0 20 190) / 0.5);
-  background: rgb(255 255 255 / 0.09);
-  color: #ffffff;
+  background: var(--pill-fill-hover);
+  color: var(--pill-ink-hover);
 }
 /* Counts in the vendor's tint. */
 .count-pill {
@@ -1772,8 +1983,8 @@ html::-webkit-scrollbar {
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.25);
   background:
     linear-gradient(20deg, rgb(var(--vendor-primary-rgb) / 0.16) 0%, rgb(var(--vendor-primary-rgb) / 0.04) 45%, transparent 75%),
-    rgb(7 13 34 / 0.85);
-  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.08), 0 8px 30px rgb(0 0 0 / 0.4);
+    var(--group-fill);
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.08), 0 8px 30px var(--box-shadow-color);
   --glow-strong: 0 16px 44px -14px rgb(var(--vendor-primary-rgb) / 0.6);
   transition:
     border-color 250ms var(--ease-out),
@@ -1784,7 +1995,7 @@ html::-webkit-scrollbar {
 }
 .glow-outline {
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.22);
-  background: rgb(7 13 34 / 0.7);
+  background: var(--outline-fill);
   --glow-strong: 0 10px 30px -12px rgb(var(--vendor-primary-rgb) / 0.55);
 }
 .glow-outline:hover {
@@ -1797,9 +2008,9 @@ html::-webkit-scrollbar {
  */
 :is(.card-surface, .glow-card) {
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.22);
-  background: rgb(7 13 34 / 0.88);
+  background: var(--card-fill);
   box-shadow:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.07), 0 8px 30px rgb(0 0 0 / 0.45), var(--tw-ring-offset-shadow, 0 0 #0000),
+    inset 0 1px 0 0 rgb(255 255 255 / 0.07), 0 8px 30px var(--card-shadow-color), var(--tw-ring-offset-shadow, 0 0 #0000),
     var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow, 0 0 #0000);
   --glow-strong: 0 18px 40px -14px rgb(var(--vendor-primary-rgb) / 0.55);
   transition:
@@ -1813,11 +2024,11 @@ li.family-card:is(:hover, :focus-within) {
   border-color: rgb(var(--vendor-primary-rgb) / 0.6);
   background:
     radial-gradient(90% 50% at 50% 115%, rgb(var(--vendor-primary-rgb) / 0.22), transparent 70%),
-    rgb(7 13 34 / 0.88);
+    var(--card-fill);
 }
 .card-photo {
-  background: linear-gradient(to bottom, rgb(241 245 249 / 0.95), rgb(226 232 240 / 0.88));
-  --tw-ring-color: rgb(255 255 255 / 0.2);
+  background: var(--well-card);
+  --tw-ring-color: var(--well-ring-card);
 }
 .card-price {
   color: var(--vendor-text-accent);
@@ -1836,9 +2047,9 @@ li.family-card:is(:hover, :focus-within) {
 /* "גלו עוד"'s arrows: dark glass that fills with the vendor's colour on hover. */
 .strip-arrow {
   border: 1px solid rgb(var(--vendor-primary-rgb, 0 24 224) / 0.4);
-  background: rgb(11 19 43 / 0.95);
-  color: #ffffff;
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.45), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+  background: var(--arrow-fill);
+  color: var(--arrow-ink);
+  box-shadow: var(--arrow-shadow);
   transition:
     background-color 200ms var(--ease-out),
     color 200ms var(--ease-out);
@@ -1899,12 +2110,12 @@ li.family-card:is(:hover, :focus-within) {
   scrollbar-color: rgb(var(--vendor-primary-rgb) / 0.5) transparent;
   border-radius: 20px;
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.45);
-  background: rgb(4 8 30 / 0.95);
+  background: var(--flyout-fill);
   -webkit-backdrop-filter: blur(28px) saturate(1.4);
   backdrop-filter: blur(28px) saturate(1.4);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.07),
-    0 30px 70px -12px rgb(1 2 12 / 0.8),
+    0 30px 70px -12px var(--flyout-shadow-color),
     0 12px 40px -18px rgb(var(--vendor-primary-rgb) / 0.55);
   padding: 8px;
 }
@@ -1938,7 +2149,7 @@ li.family-card:is(:hover, :focus-within) {
 /* The category bar: one strip of dark glass, the groups as tabs with an underline in the page's accent. */
 .category-bar {
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.22);
-  background: rgb(7 13 34 / 0.82);
+  background: var(--bar-fill);
   box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.05);
   /* It sticks under the header (CF3): the list scrolls under it blurred, like under the header. */
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
@@ -1999,7 +2210,7 @@ li.family-card:is(:hover, :focus-within) {
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.38);
   background:
     linear-gradient(180deg, transparent 35%, rgb(var(--vendor-primary-rgb) / 0.26) 100%),
-    linear-gradient(180deg, rgb(14 23 62 / 0.9) 0%, rgb(9 15 42 / 0.9) 100%);
+    var(--tile-panel);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.06),
     0 8px 24px -14px rgb(var(--vendor-primary-rgb) / 0.7);
@@ -2009,7 +2220,7 @@ li.family-card:is(:hover, :focus-within) {
   border-color: rgb(var(--vendor-primary-rgb) / 0.75);
   background:
     linear-gradient(180deg, transparent 25%, rgb(var(--vendor-primary-rgb) / 0.36) 100%),
-    linear-gradient(180deg, rgb(14 23 62 / 0.9) 0%, rgb(9 15 42 / 0.9) 100%);
+    var(--tile-panel);
 }
 /* The category you're in (the same tiles stay on its page): lit in the page's colour, like the bar's chosen tab. */
 .drill-tile[aria-current="page"] {
@@ -2060,7 +2271,7 @@ li.family-card:is(:hover, :focus-within) {
 /* The filters' side panel beside the grid (only as tall as its filters), and its chips. */
 .filter-panel {
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.2);
-  background: linear-gradient(180deg, rgb(14 23 62 / 0.85) 0%, rgb(9 15 42 / 0.85) 100%);
+  background: var(--panel-gradient);
   box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.05), var(--shadow-card);
 }
 .tool-chip {
@@ -2138,9 +2349,15 @@ dialog.sheet-full {
 .pdp {
   --pa-rgb: var(--vendor-primary-rgb);
   --pb-rgb: var(--vendor-primary-rgb);
-  --pa-text: var(--vendor-text-accent);
-  --pb-text: var(--vendor-text-accent);
+  --pa-text: var(--pa-text-dark, var(--vendor-text-accent));
+  --pb-text: var(--pb-text-dark, var(--vendor-text-accent));
   --pmix-text: color-mix(in srgb, var(--pa-text) 50%, var(--pb-text));
+}
+@supports (color: light-dark(#000, #fff)) {
+  .pdp {
+    --pa-text: light-dark(var(--pa-text-light, var(--vendor-text-accent)), var(--pa-text-dark, var(--vendor-text-accent)));
+    --pb-text: light-dark(var(--pb-text-light, var(--vendor-text-accent)), var(--pb-text-dark, var(--vendor-text-accent)));
+  }
 }
 .pdp [data-jump] {
   scroll-margin-top: 128px;
@@ -2208,8 +2425,8 @@ dialog.sheet-full {
   box-shadow: inset 0 0 0 1px rgb(var(--vendor-primary-rgb) / 0.35);
 }
 .doc-tag {
-  background: rgb(255 255 255 / 0.07);
-  color: #c7cfea;
+  background: var(--tag-fill);
+  color: var(--tag-ink);
 }
 .doc-tile:hover .doc-arrow {
   color: var(--vendor-text-accent);
@@ -2237,7 +2454,7 @@ dialog.sheet-full {
 /* Prose flows as blocks, so a long run can split into two short columns (CSS columns skip flex boxes). */
 .pdp-prose {
   display: block;
-  color: #dde3f7;
+  color: var(--prose);
 }
 .pdp-prose > * + * {
   margin-top: 0.75rem;
@@ -2249,7 +2466,7 @@ dialog.sheet-full {
 }
 .pdp-callout {
   background: rgb(251 191 36 / 0.08);
-  box-shadow: inset 0 0 0 1px rgb(251 191 36 / 0.32);
+  box-shadow: inset 0 0 0 1px var(--callout-ring);
 }
 .pdp-feature {
   background: linear-gradient(135deg, rgb(var(--pa-rgb) / 0.1), rgb(var(--pb-rgb) / 0.05));
@@ -2304,4 +2521,23 @@ dialog.sheet-full {
   color: var(--foreground);
   background: linear-gradient(135deg, rgb(var(--pa-rgb) / 0.26), rgb(var(--pb-rgb) / 0.2));
   box-shadow: inset 0 0 0 1px rgb(var(--pa-rgb) / 0.45);
+}
+
+/* ---------- Two themes (LM1): the welcome note ---------- */
+
+/* It fades in and drops 6px, and leaves the same way; transform and opacity only, none under reduced motion (the global rule). */
+.theme-welcome {
+  transition:
+    opacity 250ms var(--ease-out),
+    transform 250ms var(--ease-out);
+}
+@starting-style {
+  .theme-welcome {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+.theme-welcome[data-leaving] {
+  opacity: 0;
+  transform: translateY(-6px);
 }

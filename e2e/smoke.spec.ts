@@ -28,7 +28,52 @@ async function openCart(page: Page) {
   await expect(page.getByRole("dialog")).toBeVisible();
 }
 
+/** Errors the page logs or throws; a failed third-party resource (a supplier photo) doesn't count. */
+function watchErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`${page.url()}: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(`${page.url()}: ${m.text()}`);
+  });
+  return errors;
+}
+
+test("the theme follows the device, the welcome note says so, and a choice sticks", async ({ page }, info) => {
+  const errors = watchErrors(page);
+  const device = info.project.name as "light" | "dark";
+  const other = device === "dark" ? "light" : "dark";
+  const words = { light: "האתר במצב בהיר", dark: "האתר במצב כהה" };
+  await page.goto("/catalog");
+  const html = page.locator("html");
+  await expect(html).not.toHaveAttribute("data-theme");
+  // Once per session, under the header, saying which theme the site is in.
+  const note = page.getByRole("status").filter({ hasText: words[device] });
+  await expect(note).toBeVisible();
+  const header = await page.locator("header.site-header").boundingBox();
+  expect((await note.boundingBox())!.y).toBeGreaterThanOrEqual(header!.y + header!.height);
+  // Its button switches the theme, and the choice is remembered on reload.
+  await note.getByRole("button", { name: other === "dark" ? "למצב כהה" : "למצב בהיר" }).click();
+  await expect(html).toHaveAttribute("data-theme", other);
+  await expect(note).toBeHidden();
+  const canvas = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const chosen = await canvas();
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", other);
+  expect(await canvas()).toBe(chosen);
+  // Not again in this session.
+  await expect(page.getByRole("status").filter({ hasText: /האתר במצב/ })).toHaveCount(0);
+  // "לפי המכשיר" in the menu clears the choice.
+  await page.getByRole("button", { name: "תפריט" }).click();
+  await page.getByRole("button", { name: "לפי המכשיר" }).click();
+  await expect(html).not.toHaveAttribute("data-theme");
+  expect(await canvas()).not.toBe(chosen);
+  expect(errors).toEqual([]);
+});
+
 test("guest cart, sign in, send, admin quote, team approves", async ({ browser, page }) => {
+  // The welcome note has its own test; here it would only sit over the page for 8 seconds.
+  await page.addInitScript(() => sessionStorage.setItem("cots-theme-welcome", "1"));
+  const errors = watchErrors(page);
   const stamp = Date.now();
   const email = `e2e${stamp}@beniadam.test`;
   const teamNumber = String(10000 + (stamp % 80000));
@@ -50,7 +95,7 @@ test("guest cart, sign in, send, admin quote, team approves", async ({ browser, 
   expect(await single.count(), "a single-part card in the vendor's store (run npm run sync)").toBeGreaterThan(0);
   const vendorName = (await page.locator('nav[aria-label="ניווט"] bdi').first().innerText()).trim();
   await single.first().click();
-  await expect(page.getByRole("button", { name: /^הסל, 1/ }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /^הסל, (1|פריט אחד)/ }).first()).toBeVisible();
 
   // 2. Signs in with the email code in the cart sheet.
   await openCart(page);
@@ -131,4 +176,5 @@ test("guest cart, sign in, send, admin quote, team approves", async ({ browser, 
   await expect(admin.getByText("אושרה", { exact: false }).first()).toBeVisible();
   await adminCtx.close();
   await guestCtx.close();
+  expect(errors).toEqual([]);
 });

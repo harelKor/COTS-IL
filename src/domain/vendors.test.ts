@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accentColor, accentStyle, darkLogo, homeVendorOrder, isStoreFront, vendorBlurb, vendorGlass, vendorHref, vendorNameList, vendorPalette, vendorTheme, vendorRows, spansBoth } from "./vendors";
+import { accentColor, accentStyle, contrastRatio, darkLogo, inkFor, PEARL, homeVendorOrder, isStoreFront, vendorBlurb, vendorGlass, vendorHref, vendorNameList, vendorPalette, vendorTheme, vendorRows, spansBoth } from "./vendors";
 
 describe("vendorNameList", () => {
   it("joins names as a Hebrew list", () => {
@@ -80,7 +80,7 @@ describe("spansBoth", () => {
 
 describe("vendorPalette", () => {
   it("gives the known vendors their own palette, by code or by name", () => {
-    expect(vendorPalette({ code: "am", name: "AndyMark" })).toEqual({ primary: "#ef4444", secondary: "#dc2626", text: "#fca5a5", onPrimary: "#ffffff" });
+    expect(vendorPalette({ code: "am", name: "AndyMark" })).toEqual({ primary: "#ef4444", secondary: "#dc2626", text: "#fca5a5", ink: "#b91c1c", onPrimary: "#ffffff" });
     expect(vendorPalette({ code: "swerve", name: "Swerve Drive Specialties" }).text).toBe("#e2e8f0");
     expect(vendorPalette({ code: "ttb", name: "The Thrifty Bot" }).primary).toBe("#10b981");
   });
@@ -94,6 +94,7 @@ describe("vendorPalette", () => {
       primary: "#000000",
       secondary: "#123456",
       text: "#737373",
+      ink: "#000000",
       onPrimary: "#ffffff",
     });
     expect(vendorPalette({ code: "acme", name: "Acme", accentColor: null }).primary).toBe("#0018e0");
@@ -106,15 +107,42 @@ describe("vendorTheme", () => {
       "--vendor-primary": "#f97316",
       "--vendor-primary-rgb": "249 115 22",
       "--vendor-secondary": "#ea580c",
-      "--vendor-text-accent": "#fdba74",
+      "--vendor-text-dark": "#fdba74",
+      "--vendor-text-light": "#b93d0a",
       "--vendor-on-primary": "#020416",
     });
   });
 });
 
+describe("the light theme's vendor ink (LM1)", () => {
+  const vendors = ["andymark", "ctre", "gobilda", "wcp", "rev", "sds", "ttb"];
+  it("every known vendor's ink reads on pearl and on white cards (AA)", () => {
+    for (const code of vendors) {
+      const { ink } = vendorPalette({ code, name: code });
+      expect(contrastRatio(ink, PEARL), code).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(ink, "#ffffff"), code).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+  it("an unknown brand's ink is its own colour, darkened just enough", () => {
+    for (const accent of ["#7c3aed", "#facc15", "#22d3ee", "#ff00ff", "#0018e0"]) {
+      const { ink, primary } = vendorPalette({ code: "acme", name: "Acme", accentColor: accent });
+      expect(primary).toBe(accent);
+      expect(contrastRatio(ink, PEARL), accent).toBeGreaterThanOrEqual(4.5);
+    }
+    // Already dark enough: kept as it is.
+    expect(inkFor("#0018e0")).toBe("#0018e0");
+  });
+  it("a bright brand gets a darker shade of itself, not grey", () => {
+    const ink = inkFor("#facc15");
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(ink.slice(i, i + 2), 16));
+    expect(r).toBeGreaterThan(b);
+    expect(g).toBeGreaterThan(b);
+  });
+});
+
 describe("vendorGlass", () => {
   it("is the palette's primary and text tint", () => {
-    expect(vendorGlass({ code: "gobilda", name: "goBILDA" })).toEqual({ "--v-deep": "#f59e0b", "--v-light": "#fde047" });
+    expect(vendorGlass({ code: "gobilda", name: "goBILDA" })).toEqual({ "--v-deep": "#f59e0b", "--v-light": "#fde047", "--v-ink": "#92400e" });
   });
 });
 

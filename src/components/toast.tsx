@@ -93,7 +93,10 @@ function ToastItem({ toast }: { toast: Toast }) {
             toast.action!.run();
             dismiss(toast.id);
           }}
-          className="h-11 shrink-0 rounded-full px-4 font-semibold text-white underline underline-offset-4 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
+          className={`h-11 shrink-0 rounded-full px-4 font-semibold underline underline-offset-4 focus-visible:outline-2 ${
+            // theme-independent: white on the error toast's red fill.
+            toast.tone === "error" ? "text-white hover:bg-white/10 focus-visible:outline-white" : "text-foreground hover:bg-subtle focus-visible:outline-brand"
+          }`}
         >
           {toast.action.label}
         </button>

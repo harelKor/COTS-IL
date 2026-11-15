@@ -22,36 +22,64 @@ const LOGO_SIZE = {
 };
 
 /**
- * `tone="dark"` (the home page and the vendor stores): the logo's white-ink copy from public/vendors/on-dark, or for an
- * upload without one, a CSS filter that turns its ink white (globals.css, `.vendor-logo-invert`).
+ * A vendor's logo for both themes (LM1): its own colours in the light theme, its white-ink copy from
+ * public/vendors/on-dark (or, for an upload without one, a CSS filter that turns its ink white,
+ * `.vendor-logo-invert`) in the dark theme. Both are in the page and the theme hides one in CSS
+ * (`.only-light`/`.only-dark` in globals.css), so no script decides and nothing flashes.
+ */
+export function ThemedLogo({ src, className = "", loading = "lazy" }: { src: string; className?: string; loading?: "lazy" | "eager" }) {
+  const onDark = darkLogo(src);
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" aria-hidden loading={loading} referrerPolicy="no-referrer" className={`only-light ${className}`} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={onDark ?? src} alt="" aria-hidden loading={loading} referrerPolicy="no-referrer" className={`only-dark vendor-logo ${onDark ? "" : "vendor-logo-invert"} ${className}`} />
+    </>
+  );
+}
+
+/**
+ * `tone="auto"` (the default): the logo follows the theme (ThemedLogo). `tone="dark"`: the white-ink
+ * copy always, for the home page and the vendor stores, which keep the night look in both themes
+ * until their daylight versions (docs/LIGHT-MODE-PLAN.md, LM2 and LM3).
  */
 export function VendorMark({
   name,
   logoUrl,
   size = "md",
   eager = false,
-  tone = "light",
+  tone = "auto",
 }: {
   name: string;
   logoUrl: string | null;
   size?: keyof typeof LOGO_SIZE;
   eager?: boolean;
-  tone?: "light" | "dark";
+  tone?: "auto" | "dark";
 }) {
   if (!logoUrl) {
     return <Ltr className="text-brand-gradient text-[24px] leading-tight font-semibold tracking-tight sm:text-[28px]">{name}</Ltr>;
   }
-  const onDark = tone === "dark" ? darkLogo(logoUrl) : null;
-  const tint = tone === "dark" ? (onDark ? "vendor-logo" : "vendor-logo vendor-logo-invert") : "";
+  const loading = eager ? "eager" : "lazy";
+  const fit = `w-auto object-contain object-start ${LOGO_SIZE[size]}`;
+  if (tone === "auto") {
+    // The name for screen readers once; the two pictures are decoration.
+    return (
+      <span role="img" aria-label={name} className="inline-flex">
+        <ThemedLogo src={logoUrl} loading={loading} className={fit} />
+      </span>
+    );
+  }
+  const onDark = darkLogo(logoUrl);
   return (
     // The vendor's own header logo (a copy in public/vendors, or the admin's upload).
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={onDark ?? logoUrl}
       alt={name}
-      loading={eager ? "eager" : "lazy"}
+      loading={loading}
       referrerPolicy="no-referrer"
-      className={`w-auto object-contain object-start ${LOGO_SIZE[size]} ${tint}`}
+      className={`${fit} vendor-logo ${onDark ? "" : "vendor-logo-invert"}`}
     />
   );
 }

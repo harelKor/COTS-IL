@@ -2,8 +2,9 @@
 
 import { ArrowUpLeft, BookOpen, Box, FileText, Gauge, PencilRuler, Store, Table2 } from "lucide-react";
 import type { DocTile, DocType } from "@/domain/doc-links";
-import { darkLogo, vendorTheme } from "@/domain/vendors";
+import { vendorTheme } from "@/domain/vendors";
 import { Ltr } from "./ltr";
+import { ThemedLogo } from "./vendor-mark";
 import { SectionHeading } from "./section-heading";
 import { useChoice } from "./spec-table";
 
@@ -62,9 +63,10 @@ export function DocTiles({ familyId, tiles, vendors }: { familyId: string; tiles
                   דף המוצר אצל <Ltr>{v.name}</Ltr>
                 </span>
                 {v.logoUrl ? (
-                  // The vendor's white-ink logo, small, as the tile's source line.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={darkLogo(v.logoUrl) ?? v.logoUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className={`h-5 w-auto max-w-[110px] object-contain object-start ${darkLogo(v.logoUrl) ? "vendor-logo" : "vendor-logo vendor-logo-invert"}`} />
+                  // The vendor's logo (in the theme's ink), small, as the tile's source line.
+                  <span className="flex">
+                    <ThemedLogo src={v.logoUrl} className="h-5 w-auto max-w-[110px] object-contain object-start" />
+                  </span>
                 ) : (
                   <span className="text-caption text-muted">האתר של הספק</span>
                 )}

@@ -102,6 +102,7 @@ export function ProductGallery({ title, photos, shown, onShow, transitionName, m
         onKeyDown={onKey}
         // The dialog fills the screen; a click outside the photo's panel lands on it and closes.
         onClick={(e) => e.target === e.currentTarget && zoom.current?.close()}
+        // theme-independent: a photo viewer over a black scrim in both themes.
         className="photo-lightbox m-0 size-full max-h-none max-w-none place-items-center bg-transparent p-0 open:grid backdrop:bg-black/90 md:p-6"
       >
         <div className="photo-lightbox-panel relative flex size-full flex-col md:size-[min(92vw,calc(100dvh-3rem))] md:rounded-card">
@@ -120,6 +121,7 @@ export function ProductGallery({ title, photos, shown, onShow, transitionName, m
             type="button"
             onClick={() => zoom.current?.close()}
             aria-label="סגירה"
+            // theme-independent: white on the dark glass over the photo.
             className="absolute end-3 top-3 flex size-11 items-center justify-center rounded-full bg-black/70 text-white shadow-md hover:bg-black/85"
           >
             <X size={20} aria-hidden />
@@ -131,6 +133,7 @@ export function ProductGallery({ title, photos, shown, onShow, transitionName, m
                 type="button"
                 onClick={() => step(-1)}
                 aria-label="התמונה הקודמת"
+                // theme-independent: white on the dark glass over the photo.
                 className="absolute start-3 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/70 text-white shadow-md hover:bg-black/85"
               >
                 <ChevronRight size={22} aria-hidden />
@@ -139,10 +142,12 @@ export function ProductGallery({ title, photos, shown, onShow, transitionName, m
                 type="button"
                 onClick={() => step(1)}
                 aria-label="התמונה הבאה"
+                // theme-independent: white on the dark glass over the photo.
                 className="absolute end-3 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/70 text-white shadow-md hover:bg-black/85"
               >
                 <ChevronLeft size={22} aria-hidden />
               </button>
+              {/* theme-independent: white on the dark glass over the photo. */}
               <p aria-live="polite" className="absolute inset-x-0 bottom-3 mx-auto w-fit rounded-full bg-black/70 px-3 py-1 text-caption text-white tabular-nums">
                 <span className="sr-only">תמונה </span>
                 <Ltr>{position}</Ltr>

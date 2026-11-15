@@ -54,6 +54,7 @@ export function OrderTimeline({ stage, stoppedAt, dates, pickup = false }: { sta
       )}
       <div aria-current="step" className="flex items-start gap-3">
         <span className={`flex size-8 shrink-0 items-center justify-center rounded-full ${DOT[tone]}`}>
+          {/* theme-independent: a white dot on the stage's deep fill. */}
           {stage === "delivered" ? <Check size={18} aria-hidden /> : <span className="size-2.5 rounded-full bg-white" aria-hidden />}
         </span>
         <span className="flex flex-col">
