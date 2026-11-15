@@ -143,7 +143,7 @@ Three sessions, one after the other (they share `family-view.tsx` and `page.tsx`
 
 ### PP4. The lower half of the product page (Nov 15, 2026, from the user's feedback)
 
-**The user's requests:** the vendor's colours across every product page, both vendors' colours when there are two (item 8). And the lower section should be "more attractive, easier to read, bolder, feel more embedded into the page rather than pasted text, organised better for less blank space in odd spaces". They chose:
+**The user's requests:** the vendor's colours across every product page, both vendors' colours when there are two (item 7). And the lower section should be "more attractive, easier to read, bolder, feel more embedded into the page rather than pasted text, organised better for less blank space in odd spaces". They chose:
 - one page of sections with a sticky jump bar (not tabs);
 - the specs and quick document tiles moved up under the buy box.
 
@@ -196,14 +196,14 @@ Three sessions, one after the other (they share `family-view.tsx` and `page.tsx`
    - a real section with the heading and its first 6 rows showing;
    - "הצגת כל N" opens the rest in place, no lone collapsed bar;
    - "הצגה כטבלה" in the options area (PP2) scrolls to it and opens it.
-8. **The vendor's colours across the whole page (the user asked for it):**
+7. **The vendor's colours across the whole page (the user asked for it):**
    - **Today:** a part sold by one vendor wears that vendor's palette (`vendorTheme` in `page.tsx`); a part two vendors sell gets none.
    - **One vendor:** the colours go further, used with restraint so text stays readable (AA) and the hot row keeps its fire:
      - a soft glow of the vendor's colour behind the top of the page (like the stores' scene);
      - the section headings' hairlines and icons, the jump bar's active mark, the spec table's header row and the doc tiles' icons in the vendor's colours.
    - **Two or more vendors:** both palettes. The glow behind the page blends from one vendor's colour on the right to the other's on the left. Shared accents (hairlines, the jump bar's mark, headings) run as a gradient between them. Each vendor's own things (its logo's divider side, its supplier card in the buy box, its doc tile) take that vendor's colour.
    - **Where it lives:** a `vendorThemes`/`blendedTheme` helper beside `vendorTheme` in `src/domain/vendors.ts`, with tests. It sets `--vendor-*` variables, plus a second set for the other vendor.
-7. **Embedded feel:**
+8. **Embedded feel:**
    - sections sit on the page with the vendor-tinted hairline and glow the cards already use, and the same radius;
    - English text never runs the full page width.
 
