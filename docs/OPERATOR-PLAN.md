@@ -161,7 +161,7 @@ M1 can start now (its files don't overlap the audit tasks). After it:
 |---|---|---|
 | M0 Handing over the accounts | the owner | open |
 | M1 Health and alerts | — | done (Nov 14): needs `CRON_SECRET` in Vercel; cards and the search price path left to T6 (see M1 below) |
-| M2 Order corrections | T4 | not started |
+| M2 Order corrections | T4 | done (Nov 15): migration `20261114192750` applied; open: no team email for an admin cancel (needs an event and template), surplus units can't yet be given to another team's order |
 | M3 Payment tracking | M2 | not started |
 | M4 Team management | T9 | not started |
 | M5 History, export, season close | T4, M2 | not started |
