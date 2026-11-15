@@ -194,7 +194,21 @@ Four sessions, one after another (CF2–CF4 share `catalog-browser.tsx`; CF2 nee
 
 | Task | Status | Commit |
 |---|---|---|
-| CF1 Clean spec values | Not started | |
+| CF1 Clean spec values | Done (Nov 15, 2026). Production updates after the nightly sync (02:00 UTC); no manual regroup | `0c2f918` |
 | CF2 The filter panel | Not started | |
 | CF3 Navigation and stability | Not started | |
 | CF4 Cards and list view | Not started | |
+
+### CF1 notes (for CF2–CF4)
+
+- **What runs where.** `src/domain/specs/`: `normalize.ts` (one normalizer per key), `spec-aliases.ts` (the reviewed table; a new supplier's spelling is a row there plus a fixture row in `spec-aliases.test.ts`), `extract.ts` (title, option-text and description reading), `variant-specs.ts` (what regroup stores per variant), `units.ts` (sizes in one form, `sortValue` for sorting across units). `parseFilters` runs URL values through `normalizeFilterValue`.
+- **Value forms.** Bore `1/2" Hex`, `3/8" Hex`, `1/2" Rounded Hex`, `8mm Round`, `8mm Keyed`, `6mm D`, `8mm REX`, `SplineXS`, `Falcon Spline`, `15T Spline`; a size alone is Round, except `1/2"` and `3/8"`, which stay as the size (often hex in FRC, never guessed). Teeth and CD `12T`. `20 DP`; metric gears get a separate key `module` (`MOD 0.8`, label מודול). Pitch `#25 Chain`, `GT2 3mm`, `HTD 5mm`. Sizes `1/2"`, `1-1/8"`, `0.192"`, `8mm`, `1 ft`.
+- **Motor key.** The new motor filter is `motor-fit` ("התאמה למנוע"), not `motor`: AndyMark already has an option named "Motor", whose label (מנוע) also builds labels like "סוג מנוע". Bores that name a motor (`Falcon`, `Kraken`) give both the spline bore and the motor.
+- **`spec_values.source`** (migration `20261115151000`, applied): `option`, `title` or `description`.
+- **Facets.** No 60-value cap, `MAX_FACETS` 8, values sorted by `sortValue` (sizes in mm). `motor-fit` usually falls under the 15% relevance share in Gears, so it doesn't show there yet.
+- **Coverage, local DB** (`npm run facet-coverage`; local Gears has 139 families, production 167), before → after:
+  - Gears: DP 37 (27%) → 47 (34%); DP or module 37 (27%) → 92 (66%); teeth 84 → 89 with 91 → 66 distinct values (no duplicates, 4T–200T); bore 40 (29%, 35 spellings) → 58 (42%, 21 values); material 82 → 86.
+  - Bearings: bore 18 → 24; ID 60 (58 values) → 60 (47); OD 59 (65) → 59 (57); width 17 (23) → 17 (16).
+  - Belts and chain: pitch 131 → 137; teeth 125 (197 values) → 139 (132); bore 41 (26) → 64 (21); material 65 → 74.
+  - Shafts: bore 29 (36) → 54 (29); length 73 (197 values) → 73 (132); material 80 → 86.
+- **Not met: DP ≥ 90% in Gears.** The 47 local Gears families left with no DP or module state none anywhere in their supplier data: WCP Swerve X/X2 spare gears, goBILDA and REV servo gear sets, swerve and hardware kits, AndyMark Sport gears. Not guessed. CF2's "ידוע ל-N מתוך M" line is the honest answer for them.
