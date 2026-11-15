@@ -11,7 +11,7 @@ import { useSiteFacts } from "./site-facts";
 
 export type BarCategory = { slug: string; name: string; group: string; count: number; images: string[] };
 
-const tab = "bar-tab flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl ps-3 text-callout font-medium whitespace-nowrap";
+const tab = "bar-tab flex min-h-12 shrink-0 items-center gap-2 rounded-xl ps-4 text-callout font-medium whitespace-nowrap lg:min-h-14 lg:text-body";
 
 /**
  * The upper category bar of /catalog and a store's results (WCP style): "הכל" and the admin's
@@ -62,9 +62,9 @@ export function CategoryBar({
   return (
     <div className="flex flex-col gap-2">
       <nav aria-label="קטגוריות" className="category-bar rounded-2xl">
-        <ul ref={row} className="no-scrollbar scroll-fade-x flex items-center gap-0.5 overflow-x-auto px-1.5 py-1 lg:justify-between">
+        <ul ref={row} className="no-scrollbar scroll-fade-x flex items-center gap-1 overflow-x-auto px-2 py-1.5 lg:justify-between lg:px-3">
           <li className="bar-item shrink-0">
-            <Link href={href({ q })} aria-current={all ? "page" : undefined} className={`${tab} pe-3`}>
+            <Link href={href({ q })} aria-current={all ? "page" : undefined} className={`${tab} pe-4`}>
               הכל
             </Link>
           </li>
@@ -94,7 +94,7 @@ export function CategoryBar({
                     <span className="hidden text-caption text-muted tabular-nums xl:inline">{g.count.toLocaleString("he-IL")}</span>
                   </>
                 }
-                toggleClassName="-ms-1 flex min-h-11 w-9 shrink-0 items-center justify-center rounded-xl text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand"
+                toggleClassName="-ms-1 flex min-h-12 w-9 shrink-0 lg:min-h-14 items-center justify-center rounded-xl text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand"
               />
             </li>
           ))}

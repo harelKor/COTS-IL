@@ -122,62 +122,65 @@ function siteName(url: string) {
 
 function StoreFront({ store }: { store: Store }) {
   const blurb = vendorBlurb(store.categories.filter((c) => c.slug !== "other"));
+  // The banner, then every category, then the most wanted, then "גלו עוד", with room between them.
   return (
-    <>
-      {/* Pulled up toward the header, so the flagship and the most wanted sit higher. */}
-      <Breadcrumb store={store} className="-mt-6 -mb-3" />
-      {/* The flagship header: the logo large on dark glass in the vendor's colours, the search console beside it. */}
-      {/* From 1024px a two-column grid: the logo and blurb on the right; the search on the left with the count and the vendor's site under it. A short banner. */}
-      <header className="store-flagship relative z-20 grid grid-cols-1 gap-3 px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-x-8 lg:gap-y-2">
-        <div className="flex min-w-0 flex-col items-start gap-1.5 lg:row-span-2">
-          <h1 className="flex min-h-12 items-center">
-            {store.logoUrl ? (
-              <VendorMark name={store.name} logoUrl={store.logoUrl} size="hero" tone="dark" eager />
-            ) : (
-              <Ltr className="text-brand-gradient text-title font-semibold">{store.name}</Ltr>
-            )}
-          </h1>
-          {blurb && <p className="store-blurb text-callout">{blurb}</p>}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 lg:col-start-2 lg:row-start-2">
-          <span className="count-pill rounded-full px-3 py-1 text-caption font-semibold tabular-nums">
-            {store.count.toLocaleString("he-IL")} מוצרים
-          </span>
-          {/* The vendor's own site (suppliers.base_url), in a new tab. */}
-          <a
-            href={store.baseUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`לאתר ${store.name} (נפתח בכרטיסייה חדשה)`}
-            className="glass-pill flex min-h-11 items-center gap-2 rounded-full px-4 text-caption font-medium"
-          >
-            <ExternalLink size={20} strokeWidth={1.75} aria-hidden />
-            <Ltr>{siteName(store.baseUrl)}</Ltr>
-          </a>
-        </div>
-        <div className="lg:col-start-2 lg:row-start-1">
-          <StoreSearch action={vendorHref(store.code)} vendor={store.code} vendorName={store.name} q="" />
-        </div>
-      </header>
-      <Suspense
-        fallback={
-          <Loading>
-            <CardGridSkeleton count={8} />
-          </Loading>
-        }
-      >
-        <Popular store={store} />
-      </Suspense>
+    <div className="flex flex-col gap-12 lg:gap-16">
+      <div className="flex flex-col gap-3">
+        {/* Pulled up toward the header, so the banner sits higher. */}
+        <Breadcrumb store={store} className="-mt-6" />
+        {/* The flagship header: the logo large on dark glass in the vendor's colours, the search console beside it. */}
+        {/* From 1024px a two-column grid: the logo and blurb on the right; the search on the left with the count and the vendor's site under it. A short banner. */}
+        <header className="store-flagship relative z-20 grid grid-cols-1 gap-3 px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-x-8 lg:gap-y-2">
+          <div className="flex min-w-0 flex-col items-start gap-1.5 lg:row-span-2">
+            <h1 className="flex min-h-12 items-center">
+              {store.logoUrl ? (
+                <VendorMark name={store.name} logoUrl={store.logoUrl} size="hero" tone="dark" eager />
+              ) : (
+                <Ltr className="text-brand-gradient text-title font-semibold">{store.name}</Ltr>
+              )}
+            </h1>
+            {blurb && <p className="store-blurb text-callout">{blurb}</p>}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 lg:col-start-2 lg:row-start-2">
+            <span className="count-pill rounded-full px-3 py-1 text-caption font-semibold tabular-nums">
+              {store.count.toLocaleString("he-IL")} מוצרים
+            </span>
+            {/* The vendor's own site (suppliers.base_url), in a new tab. */}
+            <a
+              href={store.baseUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`לאתר ${store.name} (נפתח בכרטיסייה חדשה)`}
+              className="glass-pill flex min-h-11 items-center gap-2 rounded-full px-4 text-caption font-medium"
+            >
+              <ExternalLink size={20} strokeWidth={1.75} aria-hidden />
+              <Ltr>{siteName(store.baseUrl)}</Ltr>
+            </a>
+          </div>
+          <div className="lg:col-start-2 lg:row-start-1">
+            <StoreSearch action={vendorHref(store.code)} vendor={store.code} vendorName={store.name} q="" />
+          </div>
+        </header>
+      </div>
       <section aria-labelledby="all" className="flex flex-col gap-4">
         <SectionHeading id="all" icon={<LayoutGrid size={20} strokeWidth={1.75} />}>
           כל המוצרים של <Ltr>{store.name}</Ltr>
         </SectionHeading>
         <StoreGroupCards vendor={store.code} categories={store.categories} />
       </section>
+      <Suspense
+        fallback={
+          <Loading>
+            <CardGridSkeleton count={4} />
+          </Loading>
+        }
+      >
+        <Popular store={store} />
+      </Suspense>
       <Suspense>
         <Discover store={store} />
       </Suspense>
-    </>
+    </div>
   );
 }
 

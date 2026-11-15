@@ -3,7 +3,7 @@
 import { ChevronDown, LayoutGrid, List, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { CatalogPage } from "@/app/api/catalog/route";
 import { optionLabel } from "@/domain/families/sort";
 import type { CardFamily, SpecFacet } from "@/lib/catalog";
@@ -21,7 +21,6 @@ import { vendorHref } from "@/domain/vendors";
 import { FamilyCard } from "./family-card";
 import { Ltr } from "./ltr";
 import { rememberCatalogList } from "./back-to-list";
-import { placeUnder } from "./anchored-popover";
 import { ZeroResults } from "./zero-results";
 import { VendorFilter, type VendorOption } from "./vendor-filter";
 
@@ -55,17 +54,10 @@ const chip = (on: boolean) =>
     on ? "bg-brand text-white" : "bg-surface text-foreground shadow-[inset_0_0_0_1px_var(--line)] hover:bg-subtle"
   }`;
 
-/** "רק מה שזמין אצל הספק" as a pill with a switch in it; the whole pill is the tap target. */
+/** "רק מה שזמין אצל הספק": an on/off switch; the whole row is the tap target. */
 function AvailableSwitch({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      onClick={() => onChange(!on)}
-      data-on={on || undefined}
-      className="tool-chip flex min-h-11 shrink-0 items-center gap-2.5 rounded-full ps-4 pe-2 text-caption font-medium"
-    >
+    <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)} className="flex min-h-11 w-full items-center justify-between gap-3 text-start text-callout">
       רק מה שזמין אצל הספק
       <span className={`relative h-[26px] w-[44px] shrink-0 rounded-full transition-colors duration-200 ${on ? "bg-success" : "bg-line"}`} aria-hidden>
         <span
@@ -78,17 +70,17 @@ function AvailableSwitch({ on, onChange }: { on: boolean; onChange: (on: boolean
   );
 }
 
-/** הכל / FRC / FTC as one segmented pill. */
+/** הכל / FRC / FTC as one segmented pill, as wide as the panel. */
 function ProgramControl({ value, onChange }: { value: CatalogFilters["program"]; onChange: (p: CatalogFilters["program"]) => void }) {
   return (
-    <div className="tool-chip flex shrink-0 rounded-full p-0.5" role="group" aria-label="תוכנית">
+    <div className="tool-chip grid grid-cols-3 rounded-full p-0.5" role="group" aria-label="תוכנית">
       {PROGRAMS.map((p) => (
         <button
           key={p || "all"}
           type="button"
           aria-pressed={value === p}
           onClick={() => onChange(p)}
-          className={`h-11 min-w-14 rounded-full px-3 text-caption font-medium transition-colors ${
+          className={`h-11 rounded-full text-caption font-medium transition-colors ${
             value === p ? "bg-brand text-white shadow-sm" : "text-muted hover:text-foreground"
           }`}
         >
@@ -153,61 +145,51 @@ function FacetValues({ facet, chosen, onToggle, large = false }: { facet: SpecFa
   );
 }
 
+const sideHeading = "text-caption font-semibold text-muted";
+
 const moreButton =
   "flex h-11 items-center rounded-full border border-line bg-surface px-6 text-callout font-medium text-foreground shadow-card hover:border-brand/40 hover:text-brand disabled:opacity-60";
 
 /**
- * A toolbar chip that drops an anchored panel (the flyout's glass, placed by placeUnder): one
- * option's values, or the options that didn't fit. A popover, so Escape and a tap outside close it.
+ * The filters: the program, stock, then each option (פסיעה, שיניים, …) as a section that folds.
+ * The same content in the side panel (from 1024px, compact) and in the phone's bottom sheet (`large` chips).
  */
-function ToolMenu({ label, on, count, total, children, icon }: { label: string; on: boolean; count: number; total: number; children: React.ReactNode; icon?: React.ReactNode }) {
-  const id = useId();
-  const chip = useRef<HTMLButtonElement>(null);
-  const panel = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const el = panel.current;
-    if (!el) return;
-    const place = (e: Event) => {
-      if ((e as ToggleEvent).newState === "open" && chip.current) placeUnder(chip.current, el, 380);
-    };
-    const toggle = (e: Event) => setOpen((e as ToggleEvent).newState === "open");
-    el.addEventListener("beforetoggle", place);
-    el.addEventListener("toggle", toggle);
-    return () => {
-      el.removeEventListener("beforetoggle", place);
-      el.removeEventListener("toggle", toggle);
-    };
-  }, []);
+function FilterFields({
+  filters,
+  facets,
+  go,
+  large = false,
+}: {
+  filters: CatalogFilters;
+  facets: SpecFacet[];
+  go: (next: CatalogFilters) => void;
+  large?: boolean;
+}) {
   return (
     <>
-      <button
-        ref={chip}
-        type="button"
-        popoverTarget={id}
-        aria-expanded={open}
-        data-on={on || undefined}
-        className="tool-chip flex min-h-11 shrink-0 items-center gap-1.5 rounded-full ps-4 pe-3 text-caption font-medium"
-      >
-        {icon}
-        {label}
-        {count > 0 && <span className="rounded-full bg-brand px-1.5 text-caption text-white tabular-nums">{count}</span>}
-        <ChevronDown size={16} aria-hidden className={`text-muted transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
-      </button>
-      <div ref={panel} id={id} popover="auto" role="group" aria-label={label} className="flyout">
-        <div className="flyout-panel flex flex-col gap-4 p-4">
-          {children}
-          <button type="button" popoverTarget={id} popoverTargetAction="hide" className="flex h-11 w-full shrink-0 items-center justify-center rounded-full btn-brand font-semibold">
-            הצגת {total.toLocaleString("he-IL")} מוצרים
-          </button>
-        </div>
-      </div>
+      <section className="flex flex-col gap-2">
+        <h3 className={sideHeading}>תוכנית</h3>
+        <ProgramControl value={filters.program} onChange={(program) => go({ ...filters, program })} />
+      </section>
+      <AvailableSwitch on={filters.availableOnly} onChange={(on) => go({ ...filters, availableOnly: on })} />
+      {facets.map((facet) => {
+        const chosen = filters.specs[facet.key] ?? [];
+        return (
+          <details key={facet.key} open className="group border-t border-line pt-2">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 text-callout font-semibold [&::-webkit-details-marker]:hidden">
+              <span>
+                {optionLabel(facet.key)}
+                {chosen.length > 0 && <span className="ms-1.5 text-caption font-normal text-brand tabular-nums">{chosen.length}</span>}
+              </span>
+              <ChevronDown size={16} aria-hidden className="text-muted transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" />
+            </summary>
+            <FacetValues facet={facet} chosen={chosen} onToggle={(value) => go(toggleSpec(filters, facet.key, value))} large={large} />
+          </details>
+        );
+      })}
     </>
   );
 }
-
-/** Option menus shown as their own chips; past one more than this, the rest share "סינונים נוספים". */
-const SHOWN_FACETS = 3;
 
 /**
  * The catalog's filters and results. Every change applies at once (no "apply"
@@ -215,7 +197,8 @@ const SHOWN_FACETS = 3;
  * new tab. More results load with a button, and the URL keeps how many pages are
  * loaded, so "back" comes back to the same place.
  *
- * No sidebar: the filters are one toolbar over the full-width grid, the options as dropdown chips.
+ * From 1024px the filters sit in a compact sticky side panel beside the grid; on a phone, in a
+ * bottom sheet that the "סינון" button opens. The count, sort and view are one line above the grid.
  */
 export function CatalogBrowser({ filters, total, cards: first, facets, suppliers, categories, vendor, underVendors }: Props) {
   const listHref = (f: Partial<CatalogFilters>) => (vendor ? vendorHref(vendor, f) : catalogHref(f));
@@ -225,6 +208,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const top = useRef<HTMLDivElement>(null);
+  const sheet = useRef<HTMLDialogElement>(null);
 
   // A new filter starts the list again. The component stays mounted, so the filters sheet,
   // a facet popover and the sidebar's scroll stay as they were; switching view keeps the list.
@@ -281,6 +265,9 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
     }
   }
 
+  /** Filters on in the panel (program, stock, option values), for the phone's "סינון" button. */
+  const filterCount = (filters.program ? 1 : 0) + (filters.availableOnly ? 1 : 0) + Object.values(filters.specs).reduce((n, v) => n + v.length, 0);
+
   const active: { label: React.ReactNode; clear: CatalogFilters }[] = [
     ...(filters.q ? [{ label: <>חיפוש: <Ltr>{filters.q}</Ltr></>, clear: { ...filters, q: "" } }] : []),
     ...Object.entries(filters.specs).flatMap(([key, values]) =>
@@ -301,71 +288,60 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
   ];
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* The vendor is the main filter: big tiles first, then the category bar, then one toolbar over a full-width grid. */}
+    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[248px_minmax(0,1fr)] lg:items-start lg:gap-x-6 lg:gap-y-4">
+      {/* The vendor is the main filter: big tiles first, then the category bar; the side panel and the grid under them. */}
       {((!vendor && suppliers.length > 0) || underVendors) && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 lg:col-span-2">
           {!vendor && suppliers.length > 0 && <VendorFilter vendors={suppliers} value={filters.supplier} onChange={(supplier) => go({ ...filters, supplier })} />}
           {underVendors}
         </div>
       )}
 
+      {/* Compact: only as tall as its filters, and it scrolls inside itself past the window's height. */}
+      <aside aria-label="סינון" className="filter-panel no-scrollbar hidden max-h-[calc(100dvh-96px)] flex-col gap-3 overflow-y-auto rounded-2xl p-3 lg:sticky lg:top-[72px] lg:flex">
+        <FilterFields filters={filters} facets={facets} go={go} />
+      </aside>
+
       <div ref={top} className={`flex min-w-0 scroll-mt-[72px] flex-col gap-3 transition-opacity duration-200 ${pending ? "opacity-60" : ""}`} aria-busy={pending}>
-        {/* One toolbar: the program, stock and option filters at the start; the count, sort and view at the end. Wraps on a phone. */}
-        <div role="toolbar" aria-label="סינון ותצוגה" className="toolbar flex flex-wrap items-center gap-2 rounded-2xl p-2">
-          <ProgramControl value={filters.program} onChange={(program) => go({ ...filters, program })} />
-          <AvailableSwitch on={filters.availableOnly} onChange={(on) => go({ ...filters, availableOnly: on })} />
-          {(facets.length > SHOWN_FACETS + 1 ? facets.slice(0, SHOWN_FACETS) : facets).map((facet) => {
-            const chosen = filters.specs[facet.key] ?? [];
-            return (
-              <ToolMenu key={facet.key} label={optionLabel(facet.key)} on={chosen.length > 0} count={chosen.length} total={total}>
-                <FacetValues facet={facet} chosen={chosen} onToggle={(value) => go(toggleSpec(filters, facet.key, value))} large />
-              </ToolMenu>
-            );
-          })}
-          {facets.length > SHOWN_FACETS + 1 && (
-            <ToolMenu
-              label="סינונים נוספים"
-              icon={<SlidersHorizontal size={16} strokeWidth={1.75} aria-hidden />}
-              on={facets.slice(SHOWN_FACETS).some((f) => (filters.specs[f.key]?.length ?? 0) > 0)}
-              count={facets.slice(SHOWN_FACETS).reduce((n, f) => n + (filters.specs[f.key]?.length ?? 0), 0)}
-              total={total}
-            >
-              {facets.slice(SHOWN_FACETS).map((facet) => (
-                <section key={facet.key} className="flex flex-col gap-2">
-                  <h3 className="text-callout font-semibold">{optionLabel(facet.key)}</h3>
-                  <FacetValues facet={facet} chosen={filters.specs[facet.key] ?? []} onToggle={(value) => go(toggleSpec(filters, facet.key, value))} large />
-                </section>
-              ))}
-            </ToolMenu>
-          )}
-          <div className="ms-auto flex items-center gap-2">
-            <p className="min-w-0 truncate px-1 text-callout font-medium tabular-nums" aria-live="polite">
-              {total.toLocaleString("he-IL")} <span className="font-normal text-muted">מוצרים</span>
-            </p>
-            <SortSelect value={filters.sort} onChange={(sort) => go({ ...filters, sort })} />
-            <div className="tool-chip flex shrink-0 rounded-full p-0.5" role="group" aria-label="תצוגה">
-              {(
-                [
-                  ["grid", LayoutGrid, "כרטיסים"],
-                  ["list", List, "רשימה"],
-                ] as const
-              ).map(([view, Icon, label]) => (
-                <button
-                  key={view}
-                  type="button"
-                  aria-pressed={filters.view === view}
-                  aria-label={label}
-                  title={label}
-                  onClick={() => startTransition(() => router.replace(listHref({ ...filters, view, page: pages }), { scroll: false }))}
-                  className={`flex size-11 items-center justify-center rounded-full ${
-                    filters.view === view ? "bg-surface text-foreground shadow-sm" : "text-muted hover:text-foreground"
-                  }`}
-                >
-                  <Icon size={18} strokeWidth={1.75} aria-hidden />
-                </button>
-              ))}
-            </div>
+        {/* One line above the grid: how many, the sort and the view. On a phone the count has its own line and the "סינון" button leads. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => sheet.current?.showModal()}
+            className="tool-chip order-1 me-auto flex min-h-11 shrink-0 items-center gap-1.5 rounded-full ps-3 pe-4 text-caption font-medium sm:order-none sm:me-0 lg:hidden"
+          >
+            <SlidersHorizontal size={16} strokeWidth={1.75} aria-hidden />
+            סינון
+            {filterCount > 0 && <span className="rounded-full bg-brand px-1.5 text-caption text-white tabular-nums">{filterCount}</span>}
+          </button>
+          <p className="w-full min-w-0 truncate px-1 text-callout font-medium tabular-nums sm:me-auto sm:w-auto" aria-live="polite">
+            {total.toLocaleString("he-IL")} <span className="font-normal text-muted">מוצרים</span>
+          </p>
+          <div className="order-2 flex items-center gap-2 sm:order-none">
+          <SortSelect value={filters.sort} onChange={(sort) => go({ ...filters, sort })} />
+          <div className="tool-chip flex shrink-0 rounded-full p-0.5" role="group" aria-label="תצוגה">
+            {(
+              [
+                ["grid", LayoutGrid, "כרטיסים"],
+                ["list", List, "רשימה"],
+              ] as const
+            ).map(([view, Icon, label]) => (
+              <button
+                key={view}
+                type="button"
+                aria-pressed={filters.view === view}
+                aria-label={label}
+                title={label}
+                onClick={() => startTransition(() => router.replace(listHref({ ...filters, view, page: pages }), { scroll: false }))}
+                className={`flex h-11 w-11 items-center justify-center gap-1.5 rounded-full text-caption sm:w-auto sm:px-3 ${
+                  filters.view === view ? "bg-surface text-foreground shadow-sm" : "text-muted hover:text-foreground"
+                }`}
+              >
+                <Icon size={18} strokeWidth={1.75} aria-hidden />
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
+          </div>
           </div>
         </div>
 
@@ -437,7 +413,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
             ))}
           </ul>
         ) : (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-3 xl:grid-cols-5">
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:gap-3 xl:grid-cols-4">
             {cards.map((c, i) => (
               <FamilyCard key={c.id} family={c} preset={{ ...preset, ...c.skuPreset }} eager={i < EAGER_CARDS} />
             ))}
@@ -463,6 +439,29 @@ export function CatalogBrowser({ filters, total, cards: first, facets, suppliers
         )}
       </div>
 
+      <dialog ref={sheet} aria-label="סינון" className="sheet sheet-bottom" onClick={(e) => e.target === sheet.current && sheet.current?.close()}>
+        <div className="flex max-h-[inherit] flex-col">
+          <div className="flex items-center justify-between border-b border-line px-5 py-2">
+            <h2 className="text-section font-semibold">סינון</h2>
+            <button
+              type="button"
+              onClick={() => sheet.current?.close()}
+              aria-label="סגירה"
+              className="-me-3 flex size-11 items-center justify-center rounded-full text-muted hover:text-foreground"
+            >
+              <X size={20} strokeWidth={1.75} aria-hidden />
+            </button>
+          </div>
+          <div className="flex flex-col gap-4 overflow-y-auto px-5 py-4">
+            <FilterFields filters={filters} facets={facets} go={go} large />
+          </div>
+          <div className="border-t border-line px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <button type="button" onClick={() => sheet.current?.close()} className="flex h-11 w-full items-center justify-center rounded-full btn-brand font-semibold">
+              הצגת {total.toLocaleString("he-IL")} מוצרים
+            </button>
+          </div>
+        </div>
+      </dialog>
     </div>
   );
 }
