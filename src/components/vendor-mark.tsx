@@ -14,7 +14,9 @@ const LOGO_SIZE = {
   // A vendor store's flagship header (/v/<code>), the page's centrepiece.
   hero: "h-12 max-w-[min(100%,320px)] sm:h-16",
   // Above a product's name on its page (family-view.tsx), in place of "נמכר אצל".
-  product: "h-10 max-w-[min(100%,200px)] sm:h-12",
+  product: "h-12 max-w-[min(100%,220px)] sm:h-16",
+  // The same, when two or more vendors share the row.
+  productPair: "h-11 max-w-[min(100%,170px)] sm:h-13",
   // The header's "ספקים" menu (site-header.tsx).
   menu: "h-7 max-w-[min(100%,140px)]",
 };

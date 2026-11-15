@@ -404,32 +404,47 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
     // options; from md the photos take the first column (sticky under the header) beside both.
     <div className="grid gap-5 md:grid-cols-2 md:grid-rows-[auto_1fr] md:gap-x-8">
       <div className="min-w-0 md:col-start-2 md:row-start-1">
-        {/* The vendor's own logo, large, where "נמכר אצל" was: a link to its store. */}
-        <ul aria-label="נמכר אצל" className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          {vendors.map(([code, name]) => (
-            <li key={code}>
-              <Link href={vendorHref(code)} aria-label={`החנות של ${name}`} className="flex min-h-11 items-center rounded-xl transition-opacity duration-200 hover:opacity-80">
-                <VendorMark name={name} logoUrl={logos[code] ?? null} size="product" tone="dark" eager />
-              </Link>
-            </li>
-          ))}
-        </ul>
-        <h1 className="mt-3 text-title font-semibold text-balance">
-          <Ltr>{family.title}</Ltr>
-        </h1>
-        {chosen?.sku && (
-          <p className="mt-1 flex items-center text-caption text-muted">
-            מק״ט <Ltr className="ms-1.5 font-mono text-foreground">{chosen.sku}</Ltr>
-            <button
-              type="button"
-              onClick={() => navigator.clipboard?.writeText(chosen.sku!).then(() => showToast("המק״ט הועתק"))}
-              aria-label={`העתקת המק״ט ${chosen.sku}`}
-              className="-my-2 ms-0.5 inline-flex size-11 items-center justify-center rounded-full text-muted hover:bg-subtle hover:text-foreground"
-            >
-              <Copy size={14} strokeWidth={1.75} aria-hidden />
-            </button>
-          </p>
-        )}
+        {/*
+          One row: the vendors' own logos on the right (links to their stores, a hairline between
+          two vendors), the name and the SKU on the left. On phones the name drops under the logos.
+        */}
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <ul aria-label="נמכר אצל" className="flex shrink-0 items-center">
+            {vendors.map(([code, name], i) => (
+              <li key={code} className={i > 0 ? "ms-4 border-s border-line ps-4" : ""}>
+                <Link href={vendorHref(code)} aria-label={`החנות של ${name}`} className="flex min-h-11 items-center rounded-xl transition-opacity duration-200 hover:opacity-80">
+                  <VendorMark name={name} logoUrl={logos[code] ?? null} size={vendors.length > 1 ? "productPair" : "product"} tone="dark" eager />
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className="flex min-w-0 flex-1 basis-52 flex-col items-start gap-2.5 sm:items-end">
+            <h1 className="text-title font-semibold text-balance sm:text-end">
+              <Ltr>{family.title}</Ltr>
+            </h1>
+            {/* Always there, so nothing moves when the choice settles: the SKU, or what it waits for. */}
+            {(!chosen || chosen.sku) && (
+              <div className="flex h-12 items-center gap-3 rounded-xl border border-line bg-subtle ps-4 pe-0.5">
+                <span className="text-caption text-muted">מק״ט</span>
+                {chosen?.sku ? (
+                  <>
+                    <Ltr className="font-mono text-section font-semibold tracking-wide text-foreground">{chosen.sku}</Ltr>
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard?.writeText(chosen.sku!).then(() => showToast("המק״ט הועתק"))}
+                      aria-label={`העתקת המק״ט ${chosen.sku}`}
+                      className="flex size-11 items-center justify-center rounded-lg text-muted transition-colors duration-200 hover:bg-subtle hover:text-foreground"
+                    >
+                      <Copy size={18} strokeWidth={1.75} aria-hidden />
+                    </button>
+                  </>
+                ) : (
+                  <span className="pe-3.5 text-callout text-muted">יופיע אחרי הבחירה</span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="flex min-w-0 flex-col gap-2 md:sticky md:top-[68px] md:col-start-1 md:row-span-2 md:row-start-1 md:self-start">
