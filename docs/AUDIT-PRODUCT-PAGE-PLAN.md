@@ -148,6 +148,6 @@ Three sessions, one after the other (they share `family-view.tsx` and `page.tsx`
 
 | Task | Status | Commit |
 |---|---|---|
-| PP1 Gallery and lightbox | Not started | |
+| PP1 Gallery and lightbox | Done (Nov 15, 2026). The timing belt shows 2 thumbnails until a CTRE belt is chosen (its photo adds a third): the 6 were 2 photos repeated | `1b642d4` |
 | PP2 Choosing and buying | Not started | |
 | PP3 Supplier data | Not started | |
