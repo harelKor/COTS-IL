@@ -140,6 +140,73 @@ Three sessions, one after the other (they share `family-view.tsx` and `page.tsx`
 - Stealth shows Material, Weight, Width and Hole Pattern, and sits under גלגלים ורולרים after the sync;
 - the Kraken user guide is reachable without scrolling past the buy box.
 
+
+### PP4. The lower half of the product page (Nov 15, 2026, from the user's feedback)
+
+**The user's request:** the lower section should be "more attractive, easier to read, bolder, feel more embedded into the page rather than pasted text, organised better for less blank space in odd spaces". They chose:
+- one page of sections with a sticky jump bar (not tabs);
+- the specs and quick document tiles moved up under the buy box.
+
+**What's wrong today:** seen on SDS MK5n, Kraken X60 and the timing belt, at 1920 px.
+- **Blank space:**
+  - the info column ends right after the buy box while the sticky gallery runs on, leaving an empty area at the bottom left;
+  - the spec card (3 rows) sits beside a 6-row docs card, leaving another empty area under it;
+  - 8 thumbnails make a row of 6 and a lone pair.
+- **Docs read like a raw list:**
+  - "מדריך נלווה" and "מדריך למשתמש" appear twice each;
+  - the subtitle is a hostname (`docs.google.com`, `drive.google.com`) or a file name;
+  - the vendor link repeats as plain text.
+- **The description is pasted English:**
+  - 1,600 px lines;
+  - "Please click here for the lead-time" left in;
+  - an "IMPORTANT:" paragraph looks like any other;
+  - a bold-lead bullet list that could be a feature grid;
+  - "קראו עוד" as a bare link.
+- **"כל האפשרויות (12)"** is a lone collapsed bar between sections.
+- **Headings:** every section has a plain heading with no shared rhythm.
+
+**Do:**
+1. **Layout (the user's choice):**
+   - the one spec table and a row of document tiles move into the info column, under the buy box, beside the sticky gallery;
+   - on phones they follow the buy box;
+   - the lower full-width area keeps סקירה, כל האפשרויות and the hot row;
+   - thumbnails form an even grid (4 per row when there are more than 6, or one sideways row), never a lone pair.
+2. **Jump bar (the user's choice):**
+   - a slim glass bar under the header that appears once the buy box has scrolled away: מפרט, תיעוד, סקירה, כל האפשרויות (N), and the hot row's title;
+   - only the sections the page has; the one in view is marked (IntersectionObserver);
+   - 44 px targets, `scroll-mt` on the sections, smooth scrolling (none under reduced motion);
+   - on phones it scrolls sideways and sits above the buy bar's top edge, not on it.
+3. **One heading style:** every lower section uses `SectionHeading` (`src/components/section-heading.tsx`: icon + bold title + hairline, as in the stores), with one spacing rhythm between sections.
+4. **Document tiles:**
+   - a grid of tiles, each with an icon by type (CAD, guide, drawing, datasheet, ratio chart, product page) and a bold Hebrew label;
+   - under the label, a small source tag ("PDF", "Google Drive", "Onshape") instead of the hostname;
+   - two of one type get their file or document name when it's meaningful, otherwise "מדריך למשתמש 1/2";
+   - the vendor's product page is the first tile, with the vendor's logo;
+   - the buy box's quick row (CAD, מדריך) stays.
+5. **סקירה (the description):**
+   - drop the lead-time and "click here" lines, and links back to the supplier's shop (`src/lib/description.ts`);
+   - "IMPORTANT:" and "Note:" paragraphs become an amber callout;
+   - bullet lists whose items start with a bold phrase become a two-column feature grid: check icon, bold title, the rest as text;
+   - prose at body size, `leading-relaxed`, lines no wider than about 72 characters;
+   - a small "מהספק, באנגלית" tag beside the heading instead of "(אנגלית)" in it;
+   - "קראו עוד" becomes a fade over the last lines with a centred button.
+
+   All at render time, with fixtures and tests (SDS MK5n, AndyMark Stealth, EVO Shifter).
+6. **כל האפשרויות:**
+   - a real section with the heading and its first 6 rows showing;
+   - "הצגת כל N" opens the rest in place, no lone collapsed bar;
+   - "הצגה כטבלה" in the options area (PP2) scrolls to it and opens it.
+7. **Embedded feel:**
+   - sections sit on the page with the vendor-tinted hairline and glow the cards already use, and the same radius;
+   - English text never runs the full page width.
+
+**Done when:**
+- at 1280 and 1440 px, neither column leaves more than about 120 px empty beside the other, on SDS MK5n, Kraken X60, the timing belt, Stealth wheels and EVO Shifter;
+- the jump bar reaches every section and marks the one in view;
+- no doc tile shows a bare hostname, and no two tiles share one label;
+- no "click here" or lead-time line is left in a description;
+- it works at 375 px with no sideways page scroll.
+
 ### Not taken
 - **P2-5 (search modal row without "+").** Outside the product page. It goes to T11 if still seen.
 - **P2-6 (lead time under stock).** Already there: the "arrival" line from `leadTimes` shows when the admin set lead times (M4).
@@ -151,3 +218,4 @@ Three sessions, one after the other (they share `family-view.tsx` and `page.tsx`
 | PP1 Gallery and lightbox | Done (Nov 15, 2026). The timing belt shows 2 thumbnails until a CTRE belt is chosen (its photo adds a third): the 6 were 2 photos repeated | `1b642d4` |
 | PP2 Choosing and buying | Done (Nov 15, 2026). A group becomes a searchable list at more than 8 values, or labels over 12 letters in a group of more than 3 (EVO's three output shafts stay chips). The phone buy bar shows whenever the buy box is off screen, above or below it. On the timing belt the Add button sits about 830 px down at 1280×800, on EVO about 790 px | `323f517` |
 | PP3 Supplier data | Done (Nov 15, 2026). Title-first for every Shopify product moved 202 of 4,627 on the local DB, many wrongly (wire strippers to electronics, Kraken wrist bands to motors), so the title wins only over a mechanisms filing and only for a kind it names (`categorizeShopify`): 30 moves, 23 to wheels (Stealth and Sushi, Compliant, HiGrip, flex wheels, rollers) and 7 to structure (tubing, SRPP sheets). Production moves at the next daily sync. Stealth's diameter shows "4 אפשרויות", not a range: "1 inch" isn't read as a size. A guide that doesn't name the part (REV's NEO pinion guide on EVO) reads "מדריך נלווה" and stays out of the buy box. The buy box's vendor link waits for the choice when each size has its own page (WCP belts) | `e6db692` |
+| PP4 The lower half | Not started | |
