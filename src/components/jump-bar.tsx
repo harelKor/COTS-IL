@@ -95,7 +95,7 @@ export function JumpBar() {
     <nav
       ref={bar}
       aria-label="חלקי העמוד"
-      data-shown={shown || undefined}
+      data-shown={(shown && sections.length > 1) || undefined}
       aria-hidden={!shown || undefined}
       inert={!shown}
       className={`jump-bar fixed inset-x-0 top-[52px] z-20 border-b backdrop-blur-xl transition-[translate,opacity] duration-300 ease-out motion-reduce:transition-none print:hidden ${

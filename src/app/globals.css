@@ -2285,6 +2285,16 @@ dialog.sheet-full {
 }
 
 /* The jump bar: glass under the header, a hairline in both colours, the section in view lit in them. */
+/*
+ * The product photos stick 16px under the header (family-view.tsx, md:top-[68px]), and move down
+ * under the jump bar only while it shows, so there's never an empty band above them. Scoped to the
+ * page's own <article>: Next keeps visited pages hidden in the DOM, so never body:has().
+ */
+@media (min-width: 768px) {
+  article:has(.jump-bar[data-shown]) .product-gallery-col {
+    top: 120px;
+  }
+}
 .jump-bar {
   background: var(--glass);
   border-bottom-color: transparent;

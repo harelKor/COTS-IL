@@ -454,7 +454,7 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-col gap-2 md:sticky md:top-[120px] md:col-start-1 md:row-span-2 md:row-start-1 md:self-start">
+      <div className="product-gallery-col flex min-w-0 flex-col gap-2 md:sticky md:top-[68px] md:col-start-1 md:row-span-2 md:row-start-1 md:self-start">
         <ProductGallery title={family.title} photos={gallery} shown={shown} onShow={setPhoto} transitionName={productImageTransition(family.id)} mainRef={mainImage} />
       </div>
 
