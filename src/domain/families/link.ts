@@ -28,3 +28,26 @@ export function variantParam(variant: Linkable, variants: Linkable[]): string {
   const shared = variants.some((x) => x.id !== variant.id && norm(x.sku) === sku.toLowerCase());
   return shared ? variant.id : sku;
 }
+
+/** Query names the page uses itself, never an option's. */
+const RESERVED = new Set(["v", "vendor"]);
+
+/**
+ * A choice still being made, in the query (`?width=15mm`), so a link or a reload keeps it.
+ * Only the family's own keys, in its order; the settled part uses `?v=` instead.
+ */
+export function choiceQuery(choices: Record<string, string>, keys: string[]): string {
+  const params = new URLSearchParams();
+  for (const k of keys) if (!RESERVED.has(k) && choices[k] !== undefined) params.set(k, choices[k]);
+  return params.toString();
+}
+
+/** The choices a query holds, for the family's keys only. */
+export function choicesFrom(params: URLSearchParams, keys: string[]): Record<string, string> {
+  const choices: Record<string, string> = {};
+  for (const k of keys) {
+    const value = params.get(k);
+    if (!RESERVED.has(k) && value !== null) choices[k] = value;
+  }
+  return choices;
+}

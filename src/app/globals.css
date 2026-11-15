@@ -531,13 +531,13 @@ dialog.sheet-search[open] {
   }
 }
 
-/* On phones, a family page's buy bar sits at the bottom, so the cart pill and toasts move above it. */
+/* On phones, a family page's buy bar sits at the bottom once its buy box is off screen, so the cart pill and toasts make way. */
 @media (max-width: 767px) {
-  body:has([data-buy-bar]) [data-cart-pill] {
+  body:has([data-buy-bar][data-shown]) [data-cart-pill] {
     display: none;
   }
 
-  body:has([data-buy-bar]) [data-toasts] {
+  body:has([data-buy-bar][data-shown]) [data-toasts] {
     bottom: calc(12.5rem + env(safe-area-inset-bottom));
   }
 

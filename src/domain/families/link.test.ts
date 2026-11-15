@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findLinked, variantParam } from "./link";
+import { choiceQuery, choicesFrom, findLinked, variantParam } from "./link";
 
 // The Kraken X60: WCP makes it, and CTRE sells it under WCP's SKU.
 const wcp = { id: "556dd598-131e-4d27-88c5-e09398a078f0", sku: "WCP-0940", supplierCode: "wcp" };
@@ -43,5 +43,20 @@ describe("variantParam", () => {
 
   it("round-trips: what it writes, findLinked opens", () => {
     for (const v of family) expect(findLinked(family, variantParam(v, family))).toBe(v);
+  });
+});
+
+describe("choiceQuery and choicesFrom", () => {
+  const keys = ["teeth", "width", "v"];
+  it("writes the family's choices in its order, and reads them back", () => {
+    const q = choiceQuery({ width: "15mm", teeth: "100t", other: "x" }, keys);
+    expect(q).toBe("teeth=100t&width=15mm");
+    expect(choicesFrom(new URLSearchParams(q), keys)).toEqual({ teeth: "100t", width: "15mm" });
+  });
+
+  it("keeps values with spaces and slashes, and never takes v or vendor as an option", () => {
+    const q = choiceQuery({ bore: "1/2 in Hex", v: "am-1" }, ["bore", "v"]);
+    expect(choicesFrom(new URLSearchParams(q), ["bore", "v"])).toEqual({ bore: "1/2 in Hex" });
+    expect(choicesFrom(new URLSearchParams("v=am-1&vendor=wcp&teeth=30t"), keys)).toEqual({ teeth: "30t" });
   });
 });

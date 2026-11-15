@@ -27,6 +27,26 @@ const fits = (v: Pickable, choices: Record<string, string>) => Object.entries(ch
 const signature = (v: Pickable, keys: string[]) => keys.map((k) => valueOf(v, k)).join("\u0000");
 
 export function pick<V extends Pickable>(variants: V[], keys: string[], choices: Record<string, string>): Picked<V> {
+  const { selected, candidates, chosen } = settle(variants, keys, choices);
+
+  const chips: Record<string, ChipState[]> = {};
+  for (const k of keys) {
+    const others = Object.fromEntries(Object.entries(selected).filter(([key]) => key !== k));
+    const values = [...new Set(variants.map((v) => valueOf(v, k)))].sort((a, b) =>
+      a === NONE ? -1 : b === NONE ? 1 : compareOptionValues(a, b),
+    );
+    chips[k] = values.map((value) => ({
+      value,
+      selected: selected[k] === value,
+      enabled: variants.some((v) => valueOf(v, k) === value && fits(v, others)),
+    }));
+  }
+
+  return { selected, chips, candidates, chosen };
+}
+
+/** What a set of choices comes to, without the chips: the choices (filled in), what fits them, and the part once settled. */
+export function settle<V extends Pickable>(variants: V[], keys: string[], choices: Record<string, string>): Omit<Picked<V>, "chips"> {
   // Ignore choices that no longer match anything, e.g. a filter value this family doesn't have.
   const selected: Record<string, string> = {};
   for (const k of keys) {
@@ -51,21 +71,23 @@ export function pick<V extends Pickable>(variants: V[], keys: string[], choices:
 
   const candidates = variants.filter((v) => fits(v, selected));
   const settled = candidates.length > 0 && new Set(candidates.map((v) => signature(v, keys))).size === 1;
+  return { selected, candidates, chosen: settled ? candidates[0] : null };
+}
 
-  const chips: Record<string, ChipState[]> = {};
-  for (const k of keys) {
-    const others = Object.fromEntries(Object.entries(selected).filter(([key]) => key !== k));
-    const values = [...new Set(variants.map((v) => valueOf(v, k)))].sort((a, b) =>
-      a === NONE ? -1 : b === NONE ? 1 : compareOptionValues(a, b),
-    );
-    chips[k] = values.map((value) => ({
-      value,
-      selected: selected[k] === value,
-      enabled: variants.some((v) => valueOf(v, k) === value && fits(v, others)),
-    }));
-  }
+/**
+ * The choices after a tap on `value` of `key`: picked, or on its own when it clashes with the
+ * others (those are cleared). Unlike `choose`, a tap on the value already picked keeps it.
+ */
+export function withChoice(variants: Pickable[], selected: Record<string, string>, key: string, value: string) {
+  const next = { ...selected, [key]: value };
+  return variants.some((v) => fits(v, next)) ? next : { [key]: value };
+}
 
-  return { selected, chips, candidates, chosen: settled ? candidates[0] : null };
+/** The other choices a value doesn't go with ("לא זמין עם 1 inch"): each one it clashes with alone, else all of them. */
+export function clashesWith(variants: Pickable[], selected: Record<string, string>, key: string, value: string): string[] {
+  const others = Object.keys(selected).filter((k) => k !== key);
+  const alone = others.filter((k) => !variants.some((v) => valueOf(v, key) === value && valueOf(v, k) === selected[k]));
+  return alone.length > 0 ? alone : others;
 }
 
 /** Choosing a chip: picks it, or clears it when it's already picked. A choice that clashes clears the others. */
@@ -75,9 +97,7 @@ export function choose(variants: Pickable[], keys: string[], selected: Record<st
     delete next[key];
     return next;
   }
-  const next = { ...selected, [key]: value };
-  if (variants.some((v) => fits(v, next))) return next;
-  return { [key]: value };
+  return withChoice(variants, selected, key, value);
 }
 
 /**

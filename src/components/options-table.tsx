@@ -80,7 +80,7 @@ export function OptionsTable({ slug, children }: { slug: string; children: React
   }
 
   return (
-    <details className="group rounded-card bg-surface" onToggle={(e) => e.currentTarget.open && load()} onPointerEnter={load}>
+    <details data-options-table className="group scroll-mt-20 rounded-card bg-surface" onToggle={(e) => e.currentTarget.open && load()} onPointerEnter={load}>
       {children}
       {html === null ? (
         <div className="flex flex-col gap-2 border-t border-line p-4" aria-busy>

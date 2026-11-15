@@ -249,6 +249,9 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
   // A part sold by one vendor wears that vendor's colours (accents, borders, its fills), like its store.
   const vendors = [...new Map(result.variants.map((v) => [v.supplierCode, { code: v.supplierCode, name: v.supplierName }])).values()];
   const theme = vendors.length === 1 ? (vendorTheme(vendors[0]) as React.CSSProperties) : undefined;
+  // The table of every option, unless the variants differ only by vendor (the Kraken's two offers: the supplier cards show them).
+  const optionSets = new Set(result.variants.map((v) => JSON.stringify(Object.entries(v.familyOptions).sort())));
+  const showTable = result.variants.length > 1 && optionSets.size > 1;
 
   return (
     <article style={theme} className={`flex flex-col gap-10 ${theme ? "vendor-theme" : ""}`}>
@@ -288,6 +291,7 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
         family={{ id: family.id, slug: family.slug, title: family.title, images: photos, optionKeys: family.optionKeys }}
         variants={viewVariants}
         rateDate={rateDate}
+        tableRows={showTable && result.variants.length > 12 ? result.variants.length : undefined}
       />
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -347,7 +351,7 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
         </section>
       )}
 
-      {result.variants.length > 1 && (
+      {showTable && (
         <OptionsTable slug={family.slug}>
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 py-3 font-semibold">
             כל האפשרויות ({result.variants.length.toLocaleString("he-IL")})
