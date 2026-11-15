@@ -63,7 +63,7 @@ export function VendorFilter({ vendors, value, onToggle, onClear }: { vendors: V
 
   const none = value.length === 0;
   const tile = (on: boolean, empty = false) =>
-    `glow-box relative flex h-[76px] min-w-[128px] shrink-0 flex-col items-center justify-center gap-1.5 px-3 py-2 transition-[translate,opacity] duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none lg:flex-auto ${
+    `glow-box relative flex h-[76px] min-w-[120px] shrink-0 flex-col items-center justify-center gap-1.5 px-3 py-2 transition-[translate,opacity] duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none lg:flex-auto ${
       on ? "vendor-tile-on" : empty ? "opacity-45" : !none ? "opacity-75 hover:opacity-100" : ""
     }`;
   const tick = (
@@ -95,7 +95,7 @@ export function VendorFilter({ vendors, value, onToggle, onClear }: { vendors: V
         aria-label="סינון לפי ספק"
         data-start={edges.start || undefined}
         data-end={edges.end || undefined}
-        className="vendor-row no-scrollbar flex gap-2.5 overflow-x-auto px-6 pt-3 pb-5 md:px-12 lg:px-3"
+        className="vendor-row no-scrollbar flex gap-2 overflow-x-auto px-6 pt-3 pb-5 md:px-12 lg:px-3"
       >
         <button type="button" aria-pressed={none} onClick={onClear} className={`${tile(none)} lg:max-w-[152px]`}>
           {none && tick}
