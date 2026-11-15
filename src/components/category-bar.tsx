@@ -12,7 +12,7 @@ import { showToast } from "./toast";
 
 export type BarCategory = { slug: string; name: string; group: string; count: number; images: string[] };
 
-const tab = "bar-tab flex min-h-12 shrink-0 items-center gap-2 rounded-xl ps-4 text-body font-medium whitespace-nowrap lg:min-h-14 2xl:text-section";
+const tab = "bar-tab flex min-h-14 shrink-0 items-center gap-2 rounded-xl ps-4 text-body font-medium whitespace-nowrap lg:min-h-16";
 
 /**
  * Where a catalog link goes and what it says on the way (CF3): the scope's URL with the filters that
@@ -69,7 +69,7 @@ export function CategoryBar({
   const top = link({});
   return (
     <nav aria-label="קטגוריות" className="category-bar rounded-2xl">
-      <ul ref={row} className="no-scrollbar scroll-fade-x flex items-center gap-1 overflow-x-auto px-2 py-1 lg:justify-between lg:px-3">
+      <ul ref={row} className="no-scrollbar scroll-fade-x flex items-center gap-1 overflow-x-auto px-2 py-1.5 lg:justify-between lg:px-3">
         <li className="bar-item shrink-0">
           <CatalogLink href={top.href} before={top.before} aria-current={all ? "page" : undefined} className={`${tab} pe-4`}>
             הכל
@@ -107,7 +107,7 @@ export function CategoryBar({
                     <span className="text-caption text-muted tabular-nums">{g.count.toLocaleString("he-IL")}</span>
                   </>
                 }
-                toggleClassName="-ms-1 flex min-h-12 w-9 shrink-0 lg:min-h-14 items-center justify-center rounded-xl text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand"
+                toggleClassName="-ms-1 flex min-h-14 w-9 shrink-0 lg:min-h-16 items-center justify-center rounded-xl text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand"
               />
             </li>
           );

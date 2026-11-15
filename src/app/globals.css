@@ -1990,14 +1990,34 @@ li.family-card:is(:hover, :focus-within) {
   }
 }
 
-/* A group page's subcategory tiles (CF3, P1-8): dark glass around a pearl photo well. */
+/*
+ * A group page's subcategory tiles (CF3, P1-8): dark glass around a pearl photo well, fading into
+ * the page's colour at the bottom (a vendor's own in its store, Orbit ultramarine on /catalog), so
+ * the row stands apart from the product cards under it.
+ */
 .drill-tile {
-  border: 1px solid rgb(var(--vendor-primary-rgb) / 0.2);
-  background: linear-gradient(180deg, rgb(14 23 62 / 0.85) 0%, rgb(9 15 42 / 0.85) 100%);
-  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.05);
+  border: 1px solid rgb(var(--vendor-primary-rgb) / 0.38);
+  background:
+    linear-gradient(180deg, transparent 35%, rgb(var(--vendor-primary-rgb) / 0.26) 100%),
+    linear-gradient(180deg, rgb(14 23 62 / 0.9) 0%, rgb(9 15 42 / 0.9) 100%);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+    0 8px 24px -14px rgb(var(--vendor-primary-rgb) / 0.7);
 }
-.drill-tile:is(:hover, :focus-visible) {
-  border-color: rgb(var(--vendor-primary-rgb) / 0.6);
+.drill-tile:is(:hover, :focus-visible),
+.drill-tile[aria-current="page"] {
+  border-color: rgb(var(--vendor-primary-rgb) / 0.75);
+  background:
+    linear-gradient(180deg, transparent 25%, rgb(var(--vendor-primary-rgb) / 0.36) 100%),
+    linear-gradient(180deg, rgb(14 23 62 / 0.9) 0%, rgb(9 15 42 / 0.9) 100%);
+}
+/* The category you're in (the same tiles stay on its page): lit in the page's colour, like the bar's chosen tab. */
+.drill-tile[aria-current="page"] {
+  border-color: var(--vendor-primary);
+  box-shadow:
+    0 0 0 1px var(--vendor-primary),
+    0 0 22px -4px rgb(var(--vendor-primary-rgb) / 0.8),
+    inset 0 1px 0 0 rgb(255 255 255 / 0.1);
 }
 .bar-tab {
   position: relative;
