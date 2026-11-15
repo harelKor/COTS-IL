@@ -1785,7 +1785,7 @@ html::-webkit-scrollbar {
   .scene-canvas {
     background:
       radial-gradient(60% 900px at 24% 0%, light-dark(rgb(0 20 190 / 0.1), rgb(0 20 190 / 0.26)), transparent 70%),
-      radial-gradient(50% 1100px at 82% 50%, light-dark(rgb(0 20 190 / 0.06), rgb(0 20 190 / 0.14)), transparent 70%),
+      radial-gradient(50% 1100px at 82% 50%, light-dark(rgb(0 20 190 / 0.1), rgb(0 20 190 / 0.14)), transparent 70%),
       radial-gradient(50% 900px at 20% 90%, light-dark(rgb(67 56 202 / 0.06), rgb(49 46 129 / 0.14)), transparent 70%),
       linear-gradient(to bottom, light-dark(#eaf0ff, var(--orbit-night)) 0%, light-dark(#f1f4ff, var(--orbit-midnight)) 40%, light-dark(#f6f7ff, var(--orbit-deep)) 100%);
   }
@@ -1804,10 +1804,13 @@ html::-webkit-scrollbar {
       radial-gradient(24% 10% at 60% 46%, light-dark(rgb(0 24 224 / 0.18), rgb(0 24 224 / 0.45)), transparent 72%),
       radial-gradient(18% 18% at 48% 64%, light-dark(rgb(109 40 217 / 0.12), rgb(109 40 217 / 0.24)), transparent 72%),
       radial-gradient(22% 9% at 42% 36%, light-dark(rgb(67 56 202 / 0.14), rgb(49 46 129 / 0.5)), transparent 72%),
-      radial-gradient(14% 15% at 80% 32%, light-dark(rgb(0 20 190 / 0.12), rgb(0 20 190 / 0.3)), transparent 72%),
+      radial-gradient(14% 15% at 80% 32%, light-dark(rgb(0 20 190 / 0.2), rgb(0 20 190 / 0.3)), transparent 72%),
       radial-gradient(26% 6% at 66% 86%, light-dark(rgb(0 20 190 / 0.13), rgb(0 20 190 / 0.32)), transparent 72%),
       radial-gradient(12% 13% at 34% 80%, light-dark(rgb(109 40 217 / 0.08), rgb(109 40 217 / 0.16)), transparent 72%),
-      radial-gradient(10% 18% at 92% 70%, light-dark(rgb(67 56 202 / 0.12), rgb(49 46 129 / 0.35)), transparent 72%);
+      radial-gradient(10% 18% at 92% 70%, light-dark(rgb(67 56 202 / 0.24), rgb(49 46 129 / 0.35)), transparent 72%),
+      /* By day only: an ultramarine haze where the photo fades out at the window's right edge, so it isn't a white glare. */
+      radial-gradient(16% 34% at 100% 32%, light-dark(rgb(0 20 190 / 0.2), transparent), transparent 72%),
+      radial-gradient(16% 34% at 100% 72%, light-dark(rgb(67 56 202 / 0.2), transparent), transparent 72%);
   }
   .scene-hero-lane::before {
     background: radial-gradient(

@@ -64,12 +64,14 @@ const ICE = [238 / 255, 242 / 255, 255 / 255]; // the day sky behind the photos 
 
 /**
  * The day version of a look: the same mask and shade shapes (so the same crop and soft edges), a
- * brighter grade, the tint and the ultramarine soft-light lighter, and the shade an ice-white wash.
+ * brighter grade, the tint and the ultramarine soft-light lighter, and the shade an ice-white wash
+ * (`shade` scales it: the Reefscape stands keep most of their colour, so the lane isn't a white glare).
  */
-const daylight = (look, { brightness, contrast, saturate, tint = 0.85, grade = 0.1 }) => ({
+const daylight = (look, { brightness, contrast, saturate, tint = 0.85, grade = 0.1, shade = 1 }) => ({
   ...look,
   filter: { brightness, contrast, saturate },
   tint: look.tint && ((y) => tint * look.tint(y)),
+  shade: (x, y) => shade * look.shade(x, y),
   shadeTo: ICE,
   grade,
 });
@@ -135,7 +137,7 @@ const LOOKS = {
   night: NIGHT_LOOKS,
   day: {
     "orbit-1690-short": (desktop) => daylight(NIGHT_LOOKS["orbit-1690-short"](desktop), { brightness: 1.04, contrast: 1.02, saturate: 1.02 }),
-    "orbit-1690-tall": () => daylight(NIGHT_LOOKS["orbit-1690-tall"](), { brightness: 1.04, contrast: 1.03, saturate: 1 }),
+    "orbit-1690-tall": () => daylight(NIGHT_LOOKS["orbit-1690-tall"](), { brightness: 0.97, contrast: 1.04, saturate: 1.02, grade: 0.16, shade: 0.3 }),
   },
 };
 
