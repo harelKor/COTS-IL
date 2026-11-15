@@ -8,6 +8,7 @@ describe("parseFilters", () => {
     ).toEqual({
       q: "gear",
       category: "gears",
+      group: "",
       supplier: "wcp",
       program: "FRC",
       availableOnly: true,
@@ -44,6 +45,16 @@ describe("parseFilters", () => {
   it("reads the list view", () => {
     expect(parseFilters({ view: "list" }).view).toBe("list");
     expect(parseFilters({ view: "table" }).view).toBe("grid");
+  });
+});
+
+describe("group filter", () => {
+  it("reads and writes the group, with or without a category", () => {
+    expect(parseFilters({ group: "motion" }).group).toBe("motion");
+    expect(parseFilters({ group: "bad group!" }).group).toBe("");
+    expect(catalogHref({ group: "motion" })).toBe("/catalog?group=motion");
+    expect(catalogHref({ group: "motion", category: "gears" })).toBe("/catalog?category=gears&group=motion");
+    expect(catalogHref({})).toBe("/catalog");
   });
 });
 

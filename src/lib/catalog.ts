@@ -8,9 +8,10 @@ import { facetCountPlans, isRelevantFacet } from "@/domain/facets";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
 import { interleave, pageCount, pickDiscovery, rankPopular, wrappedPage, type FamilySignals } from "@/domain/popular";
+import { groupOf } from "@/domain/category-groups";
 import { allStale, isStale, someStale } from "@/domain/stale-price";
 import { getStaleSupplierCodes } from "./health";
-import { priceContext } from "./settings";
+import { getSettings, priceContext } from "./settings";
 import type { PriceContext } from "@/domain/pricing";
 import { correctQuery, englishQuery, likePatterns, likePrefix, looksLikeSku, normalizeSku, searchTerms } from "@/domain/search-query";
 import { prefixPhrase } from "@/domain/search-rank";
@@ -109,9 +110,28 @@ function textMatch(q: string) {
   return { where: sku ? sql`(${words} OR ${sku})` : words, inTitle, prefix, exact, sku, english };
 }
 
+/** The filters with a group resolved to its categories (resolvedKey). */
+type ResolvedFilters = CatalogFilters & { groupSlugs?: string[] };
+
+/** A group's category slugs (a category with no valid group is in the last one, see groupOf); undefined for no or an unknown group. */
+async function groupSlugs(group: string): Promise<string[] | undefined> {
+  if (!group) return undefined;
+  const [{ categories: cats }, { content }] = await Promise.all([getFacets(), getSettings()]);
+  const groups = content.categoryGroups;
+  if (!groups.some((g) => g.id === group)) return undefined;
+  return cats.filter((c) => groupOf(c.group, groups) === group).map((c) => c.slug).sort();
+}
+
+/** The filters as a cache key, with the group resolved to its categories (so a group edit makes a new key). */
+async function resolvedKey(filters: CatalogFilters, keep?: { sort?: boolean; supplier?: boolean }): Promise<ResolvedFilters> {
+  const key = cacheKey(filters, keep);
+  return key.group ? { ...key, groupSlugs: await groupSlugs(key.group) } : key;
+}
+
 /** `withSpecs: false` leaves out the spec filters, for counting the values each spec could take. */
-function searchQuery(filters: CatalogFilters, { withSpecs = true } = {}) {
+function searchQuery(filters: ResolvedFilters, { withSpecs = true } = {}) {
   const conditions: (SQL | undefined)[] = [visible];
+  if (filters.groupSlugs) conditions.push(filters.groupSlugs.length > 0 ? inArray(categories.slug, filters.groupSlugs) : sql`false`);
   const text = textMatch(filters.q);
   if (text) conditions.push(text.where);
   if (filters.category) conditions.push(eq(categories.slug, filters.category));
@@ -382,6 +402,7 @@ function cacheKey(filters: CatalogFilters, keep: { sort?: boolean; supplier?: bo
   return {
     q: filters.q,
     category: filters.category,
+    group: filters.group,
     supplier: keep.supplier === false ? "" : filters.supplier,
     program: filters.program,
     availableOnly: filters.availableOnly,
@@ -399,30 +420,30 @@ function isBrowse(filters: CatalogFilters) {
 
 /** A slice of the catalog as cards, from `offset`, with the number of families that match. */
 export async function searchCards(filters: CatalogFilters, offset: number, limit: number) {
-  const key = cacheKey(filters, { sort: true });
+  const key = await resolvedKey(filters, { sort: true });
   return isBrowse(key) ? browseCards(key, offset, limit) : searchCardsLocal(key, offset, limit);
 }
 
-async function browseCards(filters: CatalogFilters, offset: number, limit: number) {
+async function browseCards(filters: ResolvedFilters, offset: number, limit: number) {
   "use cache";
   catalogCache();
   return browseCardsShared(filters, offset, limit);
 }
 
 /** The shared (remote) entry behind browseCards's in-memory one. */
-async function browseCardsShared(filters: CatalogFilters, offset: number, limit: number) {
+async function browseCardsShared(filters: ResolvedFilters, offset: number, limit: number) {
   "use cache: remote";
   catalogCache();
   return findCards(filters, offset, limit);
 }
 
-async function searchCardsLocal(filters: CatalogFilters, offset: number, limit: number) {
+async function searchCardsLocal(filters: ResolvedFilters, offset: number, limit: number) {
   "use cache";
   catalogCache();
   return findCards(filters, offset, limit);
 }
 
-async function findCards(filters: CatalogFilters, offset: number, limit: number) {
+async function findCards(filters: ResolvedFilters, offset: number, limit: number) {
   const { where, order } = searchQuery(filters);
 
   // The match count rides along on each row (count(*) OVER () is taken before LIMIT).
@@ -487,10 +508,10 @@ const MAX_FACETS = 6;
  * each value's count is under the other chosen filters (see facetCountPlans).
  */
 export async function getSpecFacets(filters: CatalogFilters): Promise<SpecFacet[]> {
-  return specFacets(cacheKey(filters));
+  return specFacets(await resolvedKey(filters));
 }
 
-async function specFacets(filters: CatalogFilters): Promise<SpecFacet[]> {
+async function specFacets(filters: ResolvedFilters): Promise<SpecFacet[]> {
   "use cache";
   catalogCache();
   if (!filters.category && !filters.q) return [];
@@ -582,10 +603,10 @@ async function specFacets(filters: CatalogFilters): Promise<SpecFacet[]> {
  * many products each has there. The chosen supplier stays even when it has none.
  */
 export async function getSupplierCounts(filters: CatalogFilters) {
-  return supplierCounts(cacheKey(filters, { supplier: false }));
+  return supplierCounts(await resolvedKey(filters, { supplier: false }));
 }
 
-async function supplierCounts(filters: CatalogFilters) {
+async function supplierCounts(filters: ResolvedFilters) {
   "use cache";
   catalogCache();
   const { where } = searchQuery(filters);
@@ -606,7 +627,8 @@ async function supplierCounts(filters: CatalogFilters) {
  * category chips' numbers (audit C-07); a category missing here has none.
  */
 export async function getCategoryCounts(filters: CatalogFilters): Promise<Record<string, number>> {
-  const key = cacheKey({ ...filters, category: "" });
+  // Not the category or the group: every category stays pickable, and each group chip keeps its own count.
+  const key = cacheKey({ ...filters, category: "", group: "" });
   return isBrowse(key) ? categoryCountsBrowse(key) : categoryCountsLocal(key);
 }
 
@@ -894,7 +916,7 @@ export async function quickSearch(q: string, supplier = "") {
 
 /** `supplier`: only that vendor's families (a vendor store's search box). */
 async function quickRows(q: string, supplier = "") {
-  const filters: CatalogFilters = { q, category: "", supplier, program: "", availableOnly: false, sort: "relevance", page: 1, specs: {}, view: "grid" };
+  const filters: CatalogFilters = { q, category: "", group: "", supplier, program: "", availableOnly: false, sort: "relevance", page: 1, specs: {}, view: "grid" };
   const { where, order } = searchQuery(filters);
   const part = sql`coalesce(upper(${variants.supplierSku}), ${variants.id}::text)`;
   const fromFamily = sql`FROM ${variants} JOIN ${products} ON ${products.id} = ${variants.productId} WHERE ${orderable}`;

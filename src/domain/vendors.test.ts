@@ -28,6 +28,7 @@ describe("isStoreFront", () => {
     expect(isStoreFront({ q: "", category: "" })).toBe(true);
     expect(isStoreFront({ q: "kraken", category: "" })).toBe(false);
     expect(isStoreFront({ q: "", category: "motors" })).toBe(false);
+    expect(isStoreFront({ q: "", category: "", group: "motion" })).toBe(false);
   });
 });
 

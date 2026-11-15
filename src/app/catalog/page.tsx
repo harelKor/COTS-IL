@@ -24,7 +24,7 @@ async function catalogTitle(filters: ReturnType<typeof parseFilters>) {
  */
 export async function generateMetadata({ searchParams }: PageProps<"/catalog">): Promise<Metadata> {
   const filters = parseFilters(await searchParams);
-  const variation = !!(filters.q || hasFilters(filters) || filters.sort !== "relevance" || filters.view !== "grid" || filters.page > 1);
+  const variation = !!(filters.q || filters.group || hasFilters(filters) || filters.sort !== "relevance" || filters.view !== "grid" || filters.page > 1);
   const [title, { suppliers }] = await Promise.all([catalogTitle(filters), getFacets()]);
   return {
     title,
@@ -76,7 +76,7 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
         return { code: s.code, name: s.name, count: s.count, logoUrl: look?.logoUrl, accentColor: look?.accentColor, accentColor2: look?.accentColor2 };
       })}
       categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
-      underVendors={<CategoryGroups categories={categories.map((c) => ({ slug: c.slug, name: c.name, group: c.group, count: inView[c.slug] ?? 0 }))} category={filters.category} q={filters.q} />}
+      underVendors={<CategoryGroups categories={categories.map((c) => ({ slug: c.slug, name: c.name, group: c.group, count: inView[c.slug] ?? 0 }))} category={filters.category} group={filters.group} q={filters.q} />}
     />
   );
 }

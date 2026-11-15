@@ -14,6 +14,8 @@ export type SpecFilters = Record<string, string[]>;
 export type CatalogFilters = {
   q: string;
   category: string;
+  /** A category group's id (content.categoryGroups): every category in the group. A category narrows it further. */
+  group: string;
   supplier: string;
   program: "FRC" | "FTC" | "";
   availableOnly: boolean;
@@ -29,6 +31,7 @@ type RawParams = Record<string, string | string[] | undefined>;
 /** Spec filters live in the URL as s.<key>=<value>, repeated for each value. */
 export const SPEC_PREFIX = "s.";
 const SPEC_KEY = /^[a-z0-9-]{1,40}$/;
+const GROUP_ID = /^[a-z0-9_-]{1,40}$/;
 
 function single(value: string | string[] | undefined): string {
   return (Array.isArray(value) ? value[0] : value)?.trim() ?? "";
@@ -55,6 +58,7 @@ export function parseFilters(params: RawParams): CatalogFilters {
   return {
     q: single(params.q).slice(0, 100),
     category: single(params.category),
+    group: GROUP_ID.test(single(params.group)) ? single(params.group) : "",
     supplier: single(params.supplier),
     program: program === "FRC" || program === "FTC" ? program : "",
     availableOnly: single(params.available) === "1",
@@ -70,6 +74,7 @@ export function catalogQuery(filters: Partial<CatalogFilters>): string {
   const params = new URLSearchParams();
   if (filters.q) params.set("q", filters.q);
   if (filters.category) params.set("category", filters.category);
+  if (filters.group) params.set("group", filters.group);
   if (filters.supplier) params.set("supplier", filters.supplier);
   if (filters.program) params.set("program", filters.program);
   if (filters.availableOnly) params.set("available", "1");

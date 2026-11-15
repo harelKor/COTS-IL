@@ -38,7 +38,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     title,
     description: `${store.name} בשקלים לקבוצות FRC ו-FTC: ${vendorBlurb(store.categories.filter((c) => c.slug !== "other")) ?? "חלקים לרובוט"}, עם הצעת מחיר מהספק הישראלי.`,
     alternates: { canonical: vendorHref(store.code, { category: filters.category }) },
-    ...(filters.q || hasFilters(filters) || filters.page > 1 ? { robots: { index: false, follow: true } } : {}),
+    ...(filters.q || filters.group || hasFilters(filters) || filters.page > 1 ? { robots: { index: false, follow: true } } : {}),
   };
 }
 
@@ -197,7 +197,7 @@ async function Results({ store, filters }: { store: Store; filters: CatalogFilte
       suppliers={[{ code: store.code, name: store.name, count: total }]}
       categories={store.categories.map((c) => ({ slug: c.slug, name: c.name }))}
       underVendors={
-        <CategoryGroups vendor={store.code} categories={store.categories.map((c) => ({ ...c, count: inView[c.slug] ?? 0 }))} category={filters.category} q={filters.q} />
+        <CategoryGroups vendor={store.code} categories={store.categories.map((c) => ({ ...c, count: inView[c.slug] ?? 0 }))} category={filters.category} group={filters.group} q={filters.q} />
       }
     />
   );

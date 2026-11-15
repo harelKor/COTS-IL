@@ -51,8 +51,8 @@ export function vendorHref(code: string, filters: Partial<CatalogFilters> = {}):
 }
 
 /** Whether a store URL shows results (a category or a search) or the store's front page. */
-export function isStoreFront(filters: Pick<CatalogFilters, "q" | "category">): boolean {
-  return !filters.q && !filters.category;
+export function isStoreFront(filters: Pick<CatalogFilters, "q" | "category"> & { group?: string }): boolean {
+  return !filters.q && !filters.category && !filters.group;
 }
 
 /**
