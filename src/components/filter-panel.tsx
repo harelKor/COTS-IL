@@ -9,9 +9,9 @@ import {
   hasRange,
   isFacetOpen,
   previewValues,
-  PREVIEW_ROWS,
   RANGE_KEYS,
   rangeLabel,
+  rangeUnitFor,
   readBound,
   showsCoverage,
   type NumRange,
@@ -115,7 +115,7 @@ function ProgramControl({
             type="button"
             aria-pressed={value === p}
             onClick={() => onChange(p)}
-            className={`flex h-11 items-center justify-center gap-1 rounded-full px-3 text-caption font-medium transition-colors ${
+            className={`flex h-11 items-center justify-center gap-1 rounded-full px-2.5 text-callout font-medium transition-colors ${
               value === p ? "bg-brand text-white shadow-sm" : "text-muted hover:text-foreground"
             }`}
           >
@@ -144,13 +144,13 @@ function FacetSection({
 }) {
   const id = useId();
   return (
-    <section className="border-t border-line pt-1">
+    <section className="border-t border-line pt-2">
       <button
         type="button"
         aria-expanded={open}
         aria-controls={id}
         onClick={onToggle}
-        className="flex min-h-11 w-full items-center justify-between gap-2 text-start text-callout font-semibold"
+        className="flex min-h-11 w-full items-center justify-between gap-2 text-start text-body font-semibold"
       >
         <span className="flex min-w-0 items-center gap-2">
           {title}
@@ -161,10 +161,10 @@ function FacetSection({
             </span>
           )}
         </span>
-        <ChevronDown size={16} aria-hidden className={`shrink-0 text-muted transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={18} aria-hidden className={`shrink-0 text-muted transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div id={id} className="flex flex-col gap-2 pt-1 pb-2">
+        <div id={id} className="flex flex-col gap-2 pt-1 pb-3">
           {children}
         </div>
       )}
@@ -178,7 +178,7 @@ function FacetSection({
  */
 function FacetChips({ facet, chosen, onToggle, large }: { facet: SpecFacet; chosen: string[]; onToggle: (value: string) => void; large: boolean }) {
   return (
-    <div className={`flex flex-wrap ${large ? "gap-2" : "gap-1.5"}`}>
+    <div className="flex flex-wrap gap-2">
       {facet.values.map((v) => {
         const on = chosen.includes(v.value);
         const empty = v.count === 0 && !on;
@@ -189,7 +189,7 @@ function FacetChips({ facet, chosen, onToggle, large }: { facet: SpecFacet; chos
             aria-pressed={on}
             disabled={empty}
             onClick={() => onToggle(v.value)}
-            className={`flex min-h-11 items-center gap-1.5 rounded-full px-3 transition-colors ${large ? "text-callout" : "text-caption"} ${
+            className={`flex min-h-11 items-center gap-1.5 rounded-full px-3.5 text-body transition-colors ${
               on
                 ? "bg-brand text-white"
                 : empty
@@ -200,7 +200,7 @@ function FacetChips({ facet, chosen, onToggle, large }: { facet: SpecFacet; chos
             }`}
           >
             <Ltr>{v.value}</Ltr>
-            <span className={`text-caption tabular-nums ${on ? "text-white/75" : "text-muted"}`}>({n(v.count)})</span>
+            <span className={`text-callout tabular-nums ${on ? "text-white/75" : "text-muted"}`}>({n(v.count)})</span>
           </button>
         );
       })}
@@ -209,96 +209,99 @@ function FacetChips({ facet, chosen, onToggle, large }: { facet: SpecFacet; chos
 }
 
 /**
- * A long facet as a checkbox list, one value per row with its count at the end: its most common
- * values (and every chosen one) until "הצגת כל N", which adds a search box and the rest. No
- * scroll box: the panel only grows.
+ * A long facet as a checkbox list: a search box on top, then its most common values (and every
+ * chosen one) with each count right after its value, then "הצגת כל N". Typing searches every value.
+ * No scroll box: the panel only grows.
  */
-function FacetList({
-  facet,
-  chosen,
-  onToggle,
-  rows,
-}: {
-  facet: SpecFacet;
-  chosen: string[];
-  onToggle: (value: string) => void;
-  rows: number;
-}) {
+function FacetList({ facet, chosen, onToggle }: { facet: SpecFacet; chosen: string[]; onToggle: (value: string) => void }) {
   const [all, setAll] = useState(false);
   const [query, setQuery] = useState("");
   const title = optionLabel(facet.key);
-  const shown = all ? matchList(facet.values, query, (v) => v.value) : previewValues(facet.values, chosen, rows);
+  const searching = query.trim().length > 0;
+  const shown = searching ? matchList(facet.values, query, (v) => v.value) : all ? facet.values : previewValues(facet.values, chosen);
   return (
     <>
-      {all && <SearchField type="search" value={query} onChange={(e) => setQuery(e.target.value)} onClear={() => setQuery("")} placeholder={`חיפוש ב${title}`} aria-label={`חיפוש ב${title}`} />}
+      <SearchField
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onClear={() => setQuery("")}
+        placeholder={`חיפוש ${n(facet.values.length)} ערכים…`}
+        aria-label={`חיפוש ב${title}`}
+      />
       <ul className="flex flex-col">
         {shown.map((v) => {
           const on = chosen.includes(v.value);
           const empty = v.count === 0 && !on;
           return (
             <li key={v.value}>
-              <label className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-2 text-callout hover:bg-subtle ${empty ? "cursor-default opacity-50" : ""}`}>
-                <input type="checkbox" checked={on} disabled={empty} onChange={() => onToggle(v.value)} className="size-[18px] shrink-0 accent-brand" />
-                <Ltr className="min-w-0 flex-1 truncate text-start">{v.value}</Ltr>
-                <span className="shrink-0 text-caption text-muted tabular-nums">({n(v.count)})</span>
+              <label className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-2 text-body hover:bg-subtle ${empty ? "cursor-default opacity-50" : ""}`}>
+                <input type="checkbox" checked={on} disabled={empty} onChange={() => onToggle(v.value)} className="size-5 shrink-0 accent-brand" />
+                <span className="min-w-0 flex-1 truncate">
+                  <Ltr>{v.value}</Ltr>
+                  <span className="ms-1.5 text-callout text-muted tabular-nums">({n(v.count)})</span>
+                </span>
               </label>
             </li>
           );
         })}
         {shown.length === 0 && (
-          <li className="px-2 py-2 text-caption text-muted">
-            אין התאמה ל-<Ltr>{query}</Ltr>
+          <li className="px-2 py-2 text-callout text-muted">
+            אין ערך שמתאים ל-<Ltr>{query}</Ltr>
           </li>
         )}
       </ul>
-      <div className="flex items-center justify-between gap-2">
+      {!searching && (
         <button
           type="button"
-          onClick={() => {
-            setAll(!all);
-            setQuery("");
-          }}
+          onClick={() => setAll(!all)}
           aria-expanded={all}
-          className="flex min-h-11 items-center px-2 text-caption font-medium text-brand hover:underline"
+          className="flex min-h-11 items-center self-start px-2 text-callout font-medium text-brand hover:underline"
         >
-          {all ? "הצגת פחות" : `הצגת כל ${n(facet.values.length)}`}
+          {all ? "הצגת פחות" : `הצגת כל ${n(facet.values.length)} הערכים`}
         </button>
-        <Coverage facet={facet} />
-      </div>
+      )}
     </>
   );
 }
 
-/** "ידוע ל-45 מתוך 167": under ~90%, how many products in view have the spec at all (P0-2). */
-function Coverage({ facet }: { facet: SpecFacet }) {
+/** Under ~90%: "60 מתוך 192 המוצרים מציינים קוטר פנימי", so a missing part isn't a surprise (P0-2). */
+function Coverage({ facet, title }: { facet: SpecFacet; title: string }) {
   if (!showsCoverage(facet.reach, facet.total)) return null;
   return (
-    <p className="px-1 text-caption text-muted tabular-nums">
-      ידוע ל-{n(facet.reach)} מתוך {n(facet.total)}
+    <p className="px-1 text-caption text-muted">
+      רק {n(facet.reach)} מתוך {n(facet.total)} המוצרים מציינים {title}.
     </p>
   );
 }
 
+const UNIT_NAMES: Record<RangeUnit, string> = { in: "אינץ׳", mm: "מ״מ" };
+
 /**
- * From–to fields, applied on Enter or when focus leaves them (no "apply" step). Sizes have a unit
- * toggle (in / mm); an empty pair clears the range.
+ * "או הקלידו טווח": from–to fields under a one-line heading, applied on Enter or when focus leaves
+ * them. Sizes pick their unit (אינץ׳ / מ״מ) beside the fields; an empty pair clears the range.
  */
 function RangeFields({
   label,
+  heading = "הקלידו טווח",
   value,
   units,
+  defaultUnit,
   placeholders = ["מ-", "עד"],
   onApply,
 }: {
   label: string;
+  heading?: string;
   value: NumRange | null;
   units?: RangeUnit[] | null;
+  defaultUnit?: RangeUnit;
   placeholders?: [string, string];
   onApply: (range: NumRange | null) => void;
 }) {
   const [min, setMin] = useState(value?.min?.toString() ?? "");
   const [max, setMax] = useState(value?.max?.toString() ?? "");
-  const [unit, setUnit] = useState<RangeUnit | undefined>(value?.unit ?? units?.[0]);
+  const [unit, setUnit] = useState<RangeUnit | undefined>(value?.unit ?? defaultUnit ?? units?.[0]);
+  const headingId = useId();
 
   const apply = (nextUnit = unit) => {
     const from = readBound(min);
@@ -308,12 +311,12 @@ function RangeFields({
     if (!same) onApply(next);
   };
 
-  const field = "h-11 w-full min-w-0 rounded-xl bg-subtle/70 px-3 text-callout tabular-nums outline-none placeholder:text-muted focus:ring-2 focus:ring-brand/60";
+  const field = "h-11 w-full min-w-0 rounded-xl bg-subtle/70 px-3 text-body tabular-nums outline-none placeholder:text-callout placeholder:text-muted focus:ring-2 focus:ring-brand/60";
   return (
     <form
       role="group"
-      aria-label={label}
-      className="flex items-center gap-2"
+      aria-labelledby={headingId}
+      className="flex flex-col gap-1"
       onSubmit={(e) => {
         e.preventDefault();
         apply();
@@ -322,32 +325,39 @@ function RangeFields({
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) apply();
       }}
     >
-      <input inputMode="decimal" dir="ltr" value={min} onChange={(e) => setMin(e.target.value)} placeholder={placeholders[0]} aria-label={`${label}: מ-`} className={field} />
-      <span aria-hidden className="text-muted">
-        –
+      <span id={headingId} className="px-1 text-callout text-muted">
+        {heading}
+        <span className="sr-only"> ({label})</span>
       </span>
-      <input inputMode="decimal" dir="ltr" value={max} onChange={(e) => setMax(e.target.value)} placeholder={placeholders[1]} aria-label={`${label}: עד`} className={field} />
-      {units && (
-        <div className="tool-chip flex shrink-0 rounded-full p-0.5" role="group" aria-label="יחידה">
-          {units.map((u) => (
-            <button
-              key={u}
-              type="button"
-              aria-pressed={unit === u}
-              onClick={() => {
-                setUnit(u);
-                apply(u);
-              }}
-              className={`flex h-11 min-w-11 items-center justify-center rounded-full px-2 text-caption ${unit === u ? "bg-surface text-foreground shadow-sm" : "text-muted"}`}
-            >
-              <Ltr>{u === "in" ? '"' : "mm"}</Ltr>
-            </button>
-          ))}
-        </div>
-      )}
-      <button type="submit" className="sr-only">
-        החלה
-      </button>
+      <div className="flex items-center gap-2">
+        <input inputMode="decimal" dir="ltr" value={min} onChange={(e) => setMin(e.target.value)} placeholder={placeholders[0]} aria-label={`${label}: מ-`} className={field} />
+        <span aria-hidden className="text-muted">
+          –
+        </span>
+        <input inputMode="decimal" dir="ltr" value={max} onChange={(e) => setMax(e.target.value)} placeholder={placeholders[1]} aria-label={`${label}: עד`} className={field} />
+        {units && (
+          <select
+            value={unit}
+            aria-label="יחידת מידה"
+            onChange={(e) => {
+              const u = e.target.value as RangeUnit;
+              setUnit(u);
+              apply(u);
+            }}
+            className="tool-chip h-11 shrink-0 rounded-xl px-2 text-callout outline-none focus:ring-2 focus:ring-brand/60"
+          >
+            {units.map((u) => (
+              <option key={u} value={u}>
+                {UNIT_NAMES[u]}
+              </option>
+            ))}
+          </select>
+        )}
+        {/* Enter applies the range (leaving the fields does too). */}
+        <button type="submit" className="sr-only">
+          הצגה
+        </button>
+      </div>
     </form>
   );
 }
@@ -430,44 +440,46 @@ export function FilterFields({ filters, facets, counts, go, large = false }: Fil
   return (
     <>
       <section className="flex flex-col gap-2">
-        <h3 className="text-caption font-semibold text-muted">תוכנית</h3>
+        <h3 className="text-callout font-semibold text-muted">תוכנית</h3>
         <ProgramControl value={filters.program} counts={counts} onChange={(program) => go({ ...filters, program, page: 1 })} />
       </section>
       <AvailableSwitch on={filters.availableOnly} count={counts?.available} onChange={(on) => go({ ...filters, availableOnly: on, page: 1 })} />
       {facets.map((facet) => {
         const chosen = filters.specs[facet.key] ?? [];
         const range = filters.ranges[facet.key] ?? null;
-        const ranged = hasRange(facet.key);
+        const list = facetLayout(facet.values.length) === "list";
+        // A typed range where a list is long enough to need one (or one is already set).
+        const ranged = hasRange(facet.key) && (list || range !== null);
         const title = optionLabel(facet.key);
         return (
           <FacetSection key={facet.key} title={title} selected={chosen.length + (range ? 1 : 0)} {...section(facet.key)}>
+            {list ? (
+              <FacetList facet={facet} chosen={chosen} onToggle={(value) => go(toggleSpec(filters, facet.key, value))} />
+            ) : (
+              <FacetChips facet={facet} chosen={chosen} onToggle={(value) => go(toggleSpec(filters, facet.key, value))} large={large} />
+            )}
             {ranged && (
               <RangeFields
                 key={range ? formatRange(range) : "none"}
                 label={title}
+                heading={list || chosen.length > 0 ? "או הקלידו טווח:" : "הקלידו טווח:"}
                 value={range}
                 units={RANGE_KEYS[facet.key]}
+                defaultUnit={rangeUnitFor(facet.values)}
                 onApply={(next) => go(setRange(filters, facet.key, next))}
               />
             )}
             {range && (
-              <p className="flex items-center gap-1 px-1 text-caption text-muted">
+              <p className="flex items-center gap-1 ps-1 text-callout">
                 <span>
                   מוצגים: <Ltr>{rangeLabel(facet.key, range)}</Ltr>
                 </span>
-                <button type="button" onClick={() => go(setRange(filters, facet.key, null))} aria-label={`הסרת הטווח של ${title}`} className="flex size-11 items-center justify-center rounded-full hover:text-foreground">
-                  <X size={14} aria-hidden />
+                <button type="button" onClick={() => go(setRange(filters, facet.key, null))} aria-label={`הסרת הטווח של ${title}`} className="flex size-11 items-center justify-center rounded-full text-muted hover:text-foreground">
+                  <X size={16} aria-hidden />
                 </button>
               </p>
             )}
-            {facetLayout(facet.values.length) === "chips" ? (
-              <>
-                <FacetChips facet={facet} chosen={chosen} onToggle={(value) => go(toggleSpec(filters, facet.key, value))} large={large} />
-                <Coverage facet={facet} />
-              </>
-            ) : (
-              <FacetList facet={facet} chosen={chosen} onToggle={(value) => go(toggleSpec(filters, facet.key, value))} rows={ranged ? PREVIEW_ROWS - 1 : PREVIEW_ROWS} />
-            )}
+            <Coverage facet={facet} title={title} />
           </FacetSection>
         );
       })}
@@ -475,6 +487,7 @@ export function FilterFields({ filters, facets, counts, go, large = false }: Fil
         <RangeFields
           key={filters.price ? `${filters.price.min}-${filters.price.max}` : "none"}
           label="מחיר"
+          heading="בשקלים, מ- עד:"
           value={filters.price}
           placeholders={[
             counts?.minIls != null ? `מ-${formatIls(counts.minIls)}` : "מ-",
@@ -482,7 +495,7 @@ export function FilterFields({ filters, facets, counts, go, large = false }: Fil
           ]}
           onApply={(price) => go({ ...filters, price: price ? { min: price.min === null ? null : Math.round(price.min), max: price.max === null ? null : Math.round(price.max) } : null, page: 1 })}
         />
-        <p className="px-1 text-caption text-muted">המחיר הנמוך של כל מוצר</p>
+        <p className="px-1 text-caption text-muted">לפי המחיר הנמוך של כל מוצר (במוצר עם כמה מידות, הזולה שבהן).</p>
       </FacetSection>
     </>
   );

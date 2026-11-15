@@ -13,6 +13,7 @@ import {
   previewValues,
   rangeInSortUnits,
   rangeLabel,
+  rangeUnitFor,
   readBound,
   showsCoverage,
 } from "./facets";
@@ -75,6 +76,18 @@ describe("the filter panel (CF2)", () => {
     expect(parseRange("teeth", "9999999-1")).toBeNull();
     expect(formatRange({ min: 2, max: null, unit: "in" })).toBe("2-in");
     expect(parseRange("length", formatRange({ min: 2, max: null, unit: "in" }))).toEqual({ min: 2, max: null, unit: "in" });
+  });
+
+  it("gives every size facet a range, but not the bore (its values mix shapes)", () => {
+    expect(parseRange("id", "6-10mm")).toEqual({ min: 6, max: 10, unit: "mm" });
+    expect(parseRange("width", "0.25-0.5")).toEqual({ min: 0.25, max: 0.5, unit: "in" });
+    expect(parseRange("bore", "8-12mm")).toBeNull();
+  });
+
+  it("starts a range in the unit most of the facet's values use", () => {
+    expect(rangeUnitFor([{ value: "6mm", count: 8 }, { value: "8mm", count: 11 }, { value: '1/2"', count: 9 }])).toBe("mm");
+    expect(rangeUnitFor([{ value: "6mm", count: 3 }, { value: '5/8"', count: 7 }, { value: '1-1/8"', count: 7 }])).toBe("in");
+    expect(rangeUnitFor([{ value: "12T", count: 3 }])).toBe("in");
   });
 
   it("compares ranges in the units the values sort by", () => {
