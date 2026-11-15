@@ -1,53 +1,60 @@
 "use client";
 
-import { ChevronLeft, X } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { groupCategories, groupOf } from "@/domain/category-groups";
+import { groupCategories } from "@/domain/category-groups";
+import { droppedText, moveTo, scopeGroup, type Scope } from "@/domain/catalog-nav";
 import { catalogHref, type CatalogFilters } from "@/lib/catalog-filters";
 import { vendorHref } from "@/domain/vendors";
 import { CategoryFlyout } from "./category-flyout";
+import { CatalogLink, interceptClick, useCatalogNav } from "./catalog-nav";
 import { useSiteFacts } from "./site-facts";
+import { showToast } from "./toast";
 
 export type BarCategory = { slug: string; name: string; group: string; count: number; images: string[] };
 
-const tab = "bar-tab flex min-h-14 shrink-0 items-center gap-2 rounded-xl ps-4 text-body font-medium whitespace-nowrap lg:min-h-16 2xl:text-section";
+const tab = "bar-tab flex min-h-14 shrink-0 items-center gap-2 rounded-xl ps-4 text-body font-medium whitespace-nowrap lg:min-h-16";
+
+/**
+ * Where a catalog link goes and what it says on the way (CF3): the scope's URL with the filters that
+ * still apply (moveTo), and a toast when the spec filters of the scope being left are dropped.
+ */
+export function useScopeLink(filters: CatalogFilters, categories: { slug: string; name: string; group: string }[], vendor?: string) {
+  const { categoryGroups } = useSiteFacts();
+  const here = categories.find((c) => c.slug === filters.category)?.name ?? scopeGroup(filters, categories, categoryGroups)?.name ?? null;
+  return (to: Partial<Scope>) => {
+    const { filters: next, dropped } = moveTo(filters, to);
+    const href = vendor ? vendorHref(vendor, next) : catalogHref(next);
+    return { href, before: dropped ? () => showToast(droppedText(here)) : undefined };
+  };
+}
 
 /**
  * The upper category bar of /catalog and a store's results (WCP style): "הכל" and the admin's
- * groups in one strip. A click on a group filters the list to it (`?group=`); resting on it drops
- * the group's flyout (CategoryFlyout) with its categories, each one click from its parts. Under the
- * bar, a chosen category shows as one chip, "group › category", whose × steps back to the group.
- * The counts are the current list's (the search and filters); a category with nothing in it is
- * left out unless it's the chosen one, so it can be seen and left. On a phone the strip scrolls sideways.
+ * groups in one strip. A click on a group goes to it (`?group=`); resting on it drops the group's
+ * flyout (CategoryFlyout) with its categories, each one click from its parts.
+ *
+ * It never changes shape (CF3, P1-9): every group and category is always there, with how many
+ * products the current list holds in it (the search, vendors, program, stock and price; not the spec
+ * filters, which belong to a category). One with nothing in it is greyed, never hidden. Going to
+ * another category drops the spec filters, with a toast that says so. On a phone the strip scrolls sideways.
  */
 export function CategoryBar({
   categories,
-  category,
-  group = "",
-  q,
+  filters,
   vendor,
 }: {
+  /** Every category (of the store, in a store), with its count in the current list. */
   categories: BarCategory[];
-  /** The chosen category's slug, or "". */
-  category: string;
-  /** The chosen group's id, or "". */
-  group?: string;
-  q: string;
+  filters: CatalogFilters;
   /** In a vendor's store: the links stay in the store. */
   vendor?: string;
 }) {
-  const href = (f: Partial<CatalogFilters>) => (vendor ? vendorHref(vendor, f) : catalogHref(f));
   const { categoryGroups } = useSiteFacts();
-  const groups = groupCategories(
-    categories.filter((c) => c.count > 0 || c.slug === category),
-    categoryGroups,
-  );
-  // The URL's group, or the chosen category's own group (an old link with only a category).
-  const current = categories.find((c) => c.slug === category);
-  const open = (groups.some((g) => g.id === group) ? group : "") || (current ? groupOf(current.group, categoryGroups) : null);
-  const openGroup = groups.find((g) => g.id === open);
-  const all = !category && !open;
+  const nav = useCatalogNav();
+  const link = useScopeLink(filters, categories, vendor);
+  const groups = groupCategories(categories, categoryGroups);
+  const open = scopeGroup(filters, categories, categoryGroups)?.id ?? null;
+  const all = !filters.category && !open;
   const row = useRef<HTMLUListElement>(null);
   // On a phone the chosen group is in view: the bar (not the page) scrolls to it.
   useEffect(() => {
@@ -57,23 +64,26 @@ export function CategoryBar({
     const a = on.getBoundingClientRect();
     const b = el.getBoundingClientRect();
     if (a.left < b.left + 24 || a.right > b.right - 24) el.scrollLeft += a.left + a.width / 2 - (b.left + b.width / 2);
-  }, [open, category]);
+  }, [open, filters.category]);
 
+  const top = link({});
   return (
-    <div className="flex flex-col gap-2">
-      <nav aria-label="קטגוריות" className="category-bar rounded-2xl">
-        <ul ref={row} className="no-scrollbar scroll-fade-x flex items-center gap-1 overflow-x-auto px-2 py-1.5 lg:justify-between lg:px-3">
-          <li className="bar-item shrink-0">
-            <Link href={href({ q })} aria-current={all ? "page" : undefined} className={`${tab} pe-4`}>
-              הכל
-            </Link>
-          </li>
-          {groups.map((g) => (
+    <nav aria-label="קטגוריות" className="category-bar rounded-2xl">
+      <ul ref={row} className="no-scrollbar scroll-fade-x flex items-center gap-1 overflow-x-auto px-2 py-1.5 lg:justify-between lg:px-3">
+        <li className="bar-item shrink-0">
+          <CatalogLink href={top.href} before={top.before} aria-current={all ? "page" : undefined} className={`${tab} pe-4`}>
+            הכל
+          </CatalogLink>
+        </li>
+        {groups.map((g) => {
+          const whole = link({ group: g.id });
+          const empty = g.count === 0;
+          return (
             <li key={g.id} className="bar-item shrink-0">
               <CategoryFlyout
                 id={`bar-${g.id}`}
                 className="flex items-center"
-                href={href({ q, group: g.id })}
+                href={whole.href}
                 label={g.name}
                 allLabel={<>הכל ב{g.name}</>}
                 allCount={g.count}
@@ -82,44 +92,27 @@ export function CategoryBar({
                   name: c.name,
                   count: c.count,
                   image: c.images[0],
-                  href: href({ q, group: g.id, category: c.slug }),
-                  current: c.slug === category,
+                  href: link({ group: g.id, category: c.slug }).href,
+                  current: c.slug === filters.category,
                 }))}
-                triggerProps={open === g.id ? { "aria-current": category ? "true" : "page" } : undefined}
-                triggerClassName={`${tab} pe-1`}
+                onNavigate={(e, href) => {
+                  const item = g.items.find((c) => link({ group: g.id, category: c.slug }).href === href);
+                  interceptClick(e, nav, href, item ? link({ group: g.id, category: item.slug }).before : whole.before);
+                }}
+                triggerProps={open === g.id ? { "aria-current": filters.category ? "true" : "page" } : undefined}
+                triggerClassName={`${tab} pe-1 ${empty && open !== g.id ? "opacity-55" : ""}`}
                 trigger={
                   <>
                     {g.name}
-                    {/* The count only on a wide window, so the bar fits one line; the flyout always has it. */}
-                    <span className="hidden text-caption text-muted tabular-nums 2xl:inline">{g.count.toLocaleString("he-IL")}</span>
+                    <span className="text-caption text-muted tabular-nums">{g.count.toLocaleString("he-IL")}</span>
                   </>
                 }
                 toggleClassName="-ms-1 flex min-h-14 w-9 shrink-0 lg:min-h-16 items-center justify-center rounded-xl text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand"
               />
             </li>
-          ))}
-        </ul>
-      </nav>
-      {openGroup && current && (
-        <div className="flex flex-wrap items-center gap-2 text-caption">
-          <span className="bar-chip flex min-h-11 items-center gap-1 rounded-full ps-1 pe-1">
-            <Link href={href({ q, group: openGroup.id })} className="flex min-h-11 items-center rounded-full px-3 text-muted hover:text-foreground">
-              {openGroup.name}
-            </Link>
-            <ChevronLeft size={14} aria-hidden className="text-muted" />
-            <span aria-current="page" className="px-2 font-semibold">
-              {current.name}
-            </span>
-            <Link
-              href={href({ q, group: openGroup.id })}
-              aria-label={`הסרת ${current.name}, חזרה ל${openGroup.name}`}
-              className="flex size-11 items-center justify-center rounded-full text-muted hover:text-foreground"
-            >
-              <X size={16} strokeWidth={2} aria-hidden />
-            </Link>
-          </span>
-        </div>
-      )}
-    </div>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }

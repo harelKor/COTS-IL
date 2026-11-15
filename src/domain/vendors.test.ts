@@ -18,7 +18,7 @@ describe("vendorNameList", () => {
 describe("vendorHref", () => {
   it("puts the vendor in the path and drops ?supplier=", () => {
     expect(vendorHref("wcp")).toBe("/v/wcp");
-    expect(vendorHref("wcp", { supplier: "ctre", category: "gears" })).toBe("/v/wcp?category=gears");
+    expect(vendorHref("wcp", { suppliers: ["ctre"], category: "gears" })).toBe("/v/wcp?category=gears");
     expect(vendorHref("ttb", { q: "swerve", page: 2 })).toBe("/v/ttb?q=swerve&page=2");
   });
 });

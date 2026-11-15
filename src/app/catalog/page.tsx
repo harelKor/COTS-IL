@@ -3,11 +3,11 @@ import { markupText } from "@/domain/pricing";
 import { getSettings, getSiteFacts } from "@/lib/settings";
 import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
-import { CategoryBar } from "@/components/category-bar";
 import { CardGridSkeleton, Loading } from "@/components/skeleton";
+import { crumbTrail } from "@/domain/catalog-nav";
 import { getCategoryCounts, getControlCounts, getFacets, getSpecFacets, getSupplierCounts, resolveSearch, searchCards } from "@/lib/catalog";
-import { Ltr } from "@/components/ltr";
-import { vendorNameList } from "@/domain/vendors";
+import { homeVendorOrder, vendorNameList } from "@/domain/vendors";
+import { siteUrl } from "@/lib/site-url";
 import { catalogHref, hasFilters, PAGE_SIZE, parseFilters } from "@/lib/catalog-filters";
 
 /** The page's name: the category, or the search. */
@@ -37,59 +37,71 @@ export async function generateMetadata({ searchParams }: PageProps<"/catalog">):
   };
 }
 
-async function CatalogTitle({ searchParams }: PageProps<"/catalog">) {
-  const filters = parseFilters(await searchParams);
-  return <h1 className="text-title font-semibold">{filters.q ? <>חיפוש: <Ltr>{filters.q}</Ltr></> : await catalogTitle(filters)}</h1>;
-}
-
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
 export const maxDuration = 30;
 
 /** Pages of cards the server renders at most. */
 const MAX_SERVER_PAGES = 2;
 
+/** The breadcrumb as schema.org BreadcrumbList, the same trail the page shows (CatalogHeading). */
+function breadcrumbJsonLd(trail: ReturnType<typeof crumbTrail>) {
+  const site = siteUrl();
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: trail.map((c, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: c.name,
+      item: `${site}${catalogHref({ group: c.to.category ? "" : c.to.group, category: c.to.category })}`,
+    })),
+  };
+}
+
 async function Results({ searchParams }: PageProps<"/catalog">) {
   const filters = parseFilters(await searchParams);
   // A typo ("beraing") searches the closest catalog word instead; the box keeps what was typed.
   const query = await resolveSearch(filters.q);
   const searched = { ...filters, q: query };
-  const [{ cards, total }, facets, suppliers, { suppliers: allSuppliers, categories }, inView, counts] = await Promise.all([
+  const [{ cards, total }, facets, supplierCounts, { suppliers: allSuppliers, categories }, inView, counts, { content }] = await Promise.all([
     // Up to the page in the URL, so "back" from a family page lands near where it was, but
     // never more than two pages on the server: scrolling loads the rest from /api/catalog.
     searchCards(searched, 0, Math.min(filters.page, MAX_SERVER_PAGES) * PAGE_SIZE),
     getSpecFacets(searched),
     getSupplierCounts(searched),
     getFacets(),
-    // The chips count what this search and these filters hold, not the whole catalog.
-    getCategoryCounts(searched),
+    // The bar's, tiles' and pills' numbers: this search, the vendors, program, stock and price, in any
+    // category. Not the spec filters: they belong to a category, and leaving it drops them (CF3).
+    getCategoryCounts({ ...searched, specs: {}, ranges: {} }),
     // FRC, FTC, in stock and the ₪ range, each under the other filters (CF2).
     getControlCounts(searched),
+    getSettings(),
   ]);
-  // A chosen supplier with nothing here still shows, so it can be cleared.
-  const chosen = allSuppliers.find((s) => s.code === filters.supplier);
-  const shownSuppliers = chosen && !suppliers.some((s) => s.code === chosen.code) ? [...suppliers, { ...chosen, count: 0 }] : suppliers;
+  // Every vendor, always in the home page's order (CF3): the strip never reorders or drops one.
+  const inStrip = new Map(supplierCounts.map((s) => [s.code, s.count]));
+  const trail = crumbTrail(filters, categories.map((c) => ({ ...c, group: c.group ?? "" })), content.categoryGroups);
 
   return (
-    <CatalogBrowser
-      filters={filters}
-      total={total}
-      cards={cards}
-      facets={facets}
-      counts={counts}
-      suppliers={shownSuppliers.map((s) => {
-        const look = allSuppliers.find((a) => a.code === s.code);
-        return { code: s.code, name: s.name, count: s.count, logoUrl: look?.logoUrl, accentColor: look?.accentColor, accentColor2: look?.accentColor2 };
-      })}
-      categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
-      underVendors={
-        <CategoryBar
-          categories={categories.map((c) => ({ slug: c.slug, name: c.name, group: c.group, images: c.images, count: inView[c.slug] ?? 0 }))}
-          category={filters.category}
-          group={filters.group}
-          q={filters.q}
-        />
-      }
-    />
+    <>
+      {/* The trail as data for search engines; the page shows it as the breadcrumb. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(trail)).replace(/</g, "\\u003c") }} />
+      <CatalogBrowser
+        filters={filters}
+        total={total}
+        cards={cards}
+        facets={facets}
+        counts={counts}
+        suppliers={homeVendorOrder(allSuppliers).map((s) => ({
+          code: s.code,
+          name: s.name,
+          count: inStrip.get(s.code) ?? 0,
+          logoUrl: s.logoUrl,
+          accentColor: s.accentColor,
+          accentColor2: s.accentColor2,
+        }))}
+        categories={categories.map((c) => ({ slug: c.slug, name: c.name, group: c.group ?? "", images: c.images, count: inView[c.slug] ?? 0 }))}
+      />
+    </>
   );
 }
 
@@ -107,15 +119,15 @@ export default function CatalogPage(props: PageProps<"/catalog">) {
   return (
     // As wide as the header's content, never closer to the window's edge: the grid is full width now.
     <div className="flex flex-col gap-4">
-      <Suspense fallback={<h1 className="text-title font-semibold">קטלוג</h1>}>
-        <CatalogTitle {...props} />
-      </Suspense>
       <Suspense
         fallback={
           <ViewTransition exit="page-exit" default="none">
             <Loading>
-              <div className="flex flex-col gap-5">
-                <div className="skeleton h-11 w-2/3 rounded-full" />
+              {/* About the strip, the bar and the title, so nothing jumps when the results stream in. */}
+              <div className="flex flex-col gap-3">
+                <div className="skeleton h-16 w-full rounded-2xl" />
+                <div className="skeleton h-14 w-full rounded-2xl" />
+                <div className="skeleton h-10 w-1/3 rounded-full" />
                 <CardGridSkeleton count={12} />
               </div>
             </Loading>

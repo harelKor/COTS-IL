@@ -45,7 +45,7 @@ export function vendorNameList(names: readonly string[]): string {
 
 /** A vendor's store URL with the usual catalog filters; the vendor is the path, never `?supplier=`. */
 export function vendorHref(code: string, filters: Partial<CatalogFilters> = {}): string {
-  const query = catalogQuery({ ...filters, supplier: "" });
+  const query = catalogQuery({ ...filters, suppliers: [] });
   const path = `/v/${encodeURIComponent(code)}`;
   return query ? `${path}?${query}` : path;
 }

@@ -166,7 +166,8 @@ function searchQuery(filters: ResolvedFilters, { withSpecs = true } = {}) {
   const text = textMatch(filters.q);
   if (text) conditions.push(text.where);
   if (filters.category) conditions.push(eq(categories.slug, filters.category));
-  if (filters.supplier) conditions.push(sql`${filters.supplier} = ANY(${families.supplierCodes})`);
+  // Any of the chosen vendors (OR between them, CF3).
+  if (filters.suppliers.length > 0) conditions.push(sql`${families.supplierCodes} && ARRAY[${sql.join(filters.suppliers.map((c) => sql`${c}`), sql`, `)}]::text[]`);
   if (filters.program) conditions.push(sql`${filters.program}::program = ANY(${families.programs})`);
   if (filters.availableOnly) conditions.push(eq(families.available, true));
   // The family's lowest ₪ price (min_list_usd already has the multiplier), within the half shekel of rounding.
@@ -305,7 +306,7 @@ type CardRow = {
  * come with no price ("המחיר ייבדק בהצעה", M1): `stale` is read inside the cached readers, so
  * the catalog tag expires it with everything else.
  */
-async function variantsOf(familyIds: string[], rate: PriceContext, supplierCode?: string) {
+async function variantsOf(familyIds: string[], rate: PriceContext, supplierCodes?: string[]) {
   if (familyIds.length === 0) return [];
   const stale = await getStaleSupplierCodes();
   const rows = await db
@@ -330,7 +331,7 @@ async function variantsOf(familyIds: string[], rate: PriceContext, supplierCode?
     .where(
       and(
         inArray(variants.familyId, familyIds),
-        supplierCode ? eq(suppliers.code, supplierCode) : undefined,
+        supplierCodes && supplierCodes.length > 0 ? inArray(suppliers.code, supplierCodes) : undefined,
         eq(products.status, "published"),
         isNull(products.missingSince),
         isNull(variants.missingSince),
@@ -354,14 +355,16 @@ export async function getCardVariants(familyId: string): Promise<CardVariant[]> 
 
 /**
  * What family cards need, keeping the rows' order. Only single-part families carry their variant.
- * With a vendor, everything on the card (price range, stock, options, the part to add) is that
- * vendor's offer only: a family sold by WCP and CTRE shows WCP's price in the WCP store.
+ * With vendors chosen, everything on the card (price range, stock, options, the part to add) is
+ * their offer only: a family sold by WCP and CTRE shows WCP's price in the WCP store, and with
+ * WCP and AndyMark chosen on /catalog, those two's (CF3).
  */
-async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFamily[]> {
+async function toCards(rows: CardRow[], supplierCodes?: string[]): Promise<CardFamily[]> {
   if (rows.length === 0) return [];
   const [rate, stale] = await Promise.all([priceContext(), getStaleSupplierCodes()]);
   const ids = rows.map((r) => r.id);
   // The range over the suppliers that aren't stale, for a card that has both kinds.
+  const only = supplierCodes && supplierCodes.length > 0 ? supplierCodes : undefined;
   const fresh = stale.length > 0 ? sql`${suppliers.code} NOT IN (${sql.join(stale.map((c) => sql`${c}`), sql`, `)})` : sql`true`;
   // A fixed ₪ price (S16c) ÷ the rate, so × the rate gives it back (listUsd in src/domain/part-editor.ts).
   const list = sql`CASE WHEN ${variants.fixedIls} > 0 THEN ${variants.fixedIls} / ${rate.rate} ELSE ${variants.priceUsd} * coalesce(${variants.markup}, 1) END`;
@@ -384,7 +387,7 @@ async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFami
     .where(
       and(
         inArray(variants.familyId, ids),
-        supplierCode ? eq(suppliers.code, supplierCode) : undefined,
+        only ? inArray(suppliers.code, only) : undefined,
         eq(products.status, "published"),
         isNull(products.missingSince),
         isNull(variants.missingSince),
@@ -395,36 +398,38 @@ async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFami
   const [names, shape] = await Promise.all([supplierNames(), shapeQuery]);
   const byFamily = new Map(shape.map((r) => [r.familyId!, r]));
   const single = ids.filter((id) => byFamily.get(id)?.sets === 1);
-  const only = new Map<string, CardVariant>();
-  for (const { familyId, variant } of await variantsOf(single, rate, supplierCode)) if (!only.has(familyId)) only.set(familyId, variant);
-  const vendor = supplierCode ? { code: supplierCode, name: names.get(supplierCode) ?? supplierCode } : undefined;
+  const onlyVariant = new Map<string, CardVariant>();
+  for (const { familyId, variant } of await variantsOf(single, rate, only)) if (!onlyVariant.has(familyId)) onlyVariant.set(familyId, variant);
+  // One vendor (a store, or one chosen on /catalog): the card is that vendor's (`vendor` on the card).
+  const vendor = only?.length === 1 ? { code: only[0], name: names.get(only[0]) ?? only[0] } : undefined;
 
   return rows.map((r) => {
     const s = byFamily.get(r.id);
     // Every supplier on the card stale: no price at all; some: the range of the others.
-    const codes = vendor ? [vendor.code] : r.supplierCodes;
+    const codes = only ? r.supplierCodes.filter((c) => only.includes(c)) : r.supplierCodes;
     const none = allStale(codes, stale);
-    const mixed = !vendor && someStale(codes, stale);
-    const minUsd = none ? null : vendor ? s?.minList : mixed ? s?.freshMin : r.minListUsd;
-    const maxUsd = none ? null : vendor ? s?.maxList : mixed ? s?.freshMax : r.maxListUsd;
+    const mixed = someStale(codes, stale);
+    // The chosen vendors' own range from their variants; with none chosen, the family's stored one.
+    const minUsd = none ? null : mixed ? s?.freshMin : only ? s?.minList : r.minListUsd;
+    const maxUsd = none ? null : mixed ? s?.freshMax : only ? s?.maxList : r.maxListUsd;
     return {
       id: r.id,
       slug: r.slug,
       title: r.title,
       image: r.images[0] ?? null,
-      supplierNames: vendor ? [vendor.name] : r.supplierCodes.map((c) => names.get(c) ?? c),
+      supplierNames: codes.map((c) => names.get(c) ?? c),
       supplierCodes: codes,
       minPriceIls: priceIls(minUsd, rate, 1),
       maxPriceIls: priceIls(maxUsd, rate, 1),
-      available: vendor ? (s?.available ?? null) : r.available,
-      shipsLater: vendor ? (s?.shipsLater ?? false) : r.shipsLater,
+      available: only ? (s?.available ?? null) : r.available,
+      shipsLater: only ? (s?.shipsLater ?? false) : r.shipsLater,
       checkedAt: r.lastSeenAt.toISOString(),
       variantCount: r.variantCount,
       optionKeys: r.optionKeys,
       orderable: (s?.sets ?? 0) > 0,
       optionSets: s?.sets ?? 0,
       availableOptionSets: s?.availableSets ?? 0,
-      onlyVariant: only.get(r.id) ?? null,
+      onlyVariant: onlyVariant.get(r.id) ?? null,
       ...(vendor ? { vendor } : {}),
     };
   });
@@ -441,7 +446,7 @@ function cacheKey(filters: CatalogFilters, keep: { sort?: boolean; supplier?: bo
     q: filters.q,
     category: filters.category,
     group: filters.group,
-    supplier: keep.supplier === false ? "" : filters.supplier,
+    suppliers: keep.supplier === false ? [] : [...filters.suppliers].sort(),
     program: filters.program,
     availableOnly: filters.availableOnly,
     sort: keep.sort ? filters.sort : "relevance",
@@ -501,7 +506,7 @@ async function findCards(filters: ResolvedFilters, offset: number, limit: number
     (offset > 0
       ? (await db.select({ total: sql<number>`count(*)::int` }).from(families).leftJoin(categories, eq(categories.id, families.categoryId)).where(where))[0].total
       : 0);
-  const cards = await toCards(found, filters.supplier || undefined);
+  const cards = await toCards(found, filters.suppliers.length > 0 ? filters.suppliers : undefined);
   if (looksLikeSku(filters.q) && cards.length > 0) {
     const matched = await db
       .select({ familyId: variants.familyId, options: variants.familyOptions })
@@ -1031,7 +1036,7 @@ export async function quickSearch(q: string, supplier = "") {
 
 /** `supplier`: only that vendor's families (a vendor store's search box). */
 async function quickRows(q: string, supplier = "") {
-  const filters: CatalogFilters = { q, category: "", group: "", supplier, program: "", availableOnly: false, sort: "relevance", page: 1, specs: {}, ranges: {}, price: null, view: "grid" };
+  const filters: CatalogFilters = { q, category: "", group: "", suppliers: supplier ? [supplier] : [], program: "", availableOnly: false, sort: "relevance", page: 1, specs: {}, ranges: {}, price: null, view: "grid" };
   const { where, order } = searchQuery(filters);
   const part = sql`coalesce(upper(${variants.supplierSku}), ${variants.id}::text)`;
   const fromFamily = sql`FROM ${variants} JOIN ${products} ON ${products.id} = ${variants.productId} WHERE ${orderable}`;
@@ -1293,7 +1298,7 @@ export async function getDiscoveryPage(vendor: string, page: number): Promise<{ 
   const slice = wrappedPage(pool, page, DISCOVER_PAGE);
   const codes = [...new Set(slice.map((x) => x.code))];
   const cards = (
-    await Promise.all(codes.map(async (code) => toCards(await cardRows(slice.filter((x) => x.code === code).map((x) => x.id)), code)))
+    await Promise.all(codes.map(async (code) => toCards(await cardRows(slice.filter((x) => x.code === code).map((x) => x.id)), [code])))
   ).flat();
   const at = (c: CardFamily) => slice.findIndex((x) => x.id === c.id && x.code === c.vendor?.code);
   return { cards: cards.sort((x, y) => at(x) - at(y)), pages: pageCount(pool.length, DISCOVER_PAGE) };
@@ -1313,7 +1318,7 @@ export async function getVendorPopular(code: string, limit = POPULAR_COUNT): Pro
 async function vendorPopularShared(code: string, limit: number): Promise<CardFamily[]> {
   "use cache: remote";
   catalogCache();
-  return toCards(await vendorPopularRows(code, limit), code);
+  return toCards(await vendorPopularRows(code, limit), [code]);
 }
 
 export type VendorSummary = {

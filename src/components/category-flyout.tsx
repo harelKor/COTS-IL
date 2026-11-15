@@ -8,6 +8,9 @@ import { fitToRoom, placeUnder } from "./anchored-popover";
 
 export type FlyoutItem = { slug: string; name: string; count: number; image?: string | null; href: string; current?: boolean };
 
+/** A click on one of the flyout's links (or the bar's trigger link): the catalog browser may take it over (catalog-nav.tsx). */
+export type FlyoutNavigate = (e: React.MouseEvent, href: string) => void;
+
 /** Hover intent: how long the pointer rests before a closed flyout opens, and how long it may be away before it closes. */
 const OPEN_MS = 70;
 const CLOSE_MS = 160;
@@ -50,6 +53,7 @@ export function CategoryFlyout({
   toggleClassName = "",
   className = "",
   width = 560,
+  onNavigate,
 }: {
   id: string;
   mode?: "link" | "button";
@@ -68,6 +72,7 @@ export function CategoryFlyout({
   toggleClassName?: string;
   className?: string;
   width?: number;
+  onNavigate?: FlyoutNavigate;
 }) {
   const anchor = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -193,7 +198,10 @@ export function CategoryFlyout({
                 e.preventDefault();
                 pinned.current = true;
                 show(true);
-              } else hide();
+              } else {
+                hide();
+                onNavigate?.(e, href);
+              }
             }}
             className={triggerClassName}
           >
@@ -225,7 +233,7 @@ export function CategoryFlyout({
         }}
       >
         <div className="flyout-panel">
-          <Link href={href} className="flyout-row flyout-all">
+          <Link href={href} onClick={(e) => onNavigate?.(e, href)} className="flyout-row flyout-all">
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="flyout-title text-body font-semibold">{allLabel}</span>
               <span className="text-caption text-muted tabular-nums">{allCount.toLocaleString("he-IL")} מוצרים</span>
@@ -235,7 +243,7 @@ export function CategoryFlyout({
           <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
             {items.map((c) => (
               <li key={c.slug}>
-                <Link href={c.href} aria-current={c.current ? "page" : undefined} className="flyout-row">
+                <Link href={c.href} onClick={(e) => onNavigate?.(e, c.href)} aria-current={c.current ? "page" : undefined} className={`flyout-row ${c.count === 0 && !c.current ? "opacity-55" : ""}`}>
                   <span className="tile-fade flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl p-1.5">
                     {c.image && (
                       // Hot-linked from the supplier's CDN, like every catalog photo. Fetched with the page at low
