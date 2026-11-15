@@ -93,7 +93,7 @@ async function Popular({ store }: { store: Store }) {
             family={c}
             eager={i < 4}
             glow
-            className="alive"
+            className="alive hot-card"
             // Out of step on purpose: each card has its own delay and rhythm.
             style={aliveStyle(c.id) as React.CSSProperties}
           />

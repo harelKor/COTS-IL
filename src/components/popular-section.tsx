@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, Flame } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 /**
  * "הכי מבוקשים": a heading on a hairline, open at first. The title itself (badge and text) and the
@@ -13,6 +13,16 @@ export function PopularSection({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(true);
   const [clip, setClip] = useState(false);
   const id = useId();
+  const box = useRef<HTMLElement>(null);
+
+  // The flame and the cards' heat glow pause while the section is off screen (data-offscreen, globals.css).
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const seen = new IntersectionObserver(([entry]) => el.toggleAttribute("data-offscreen", !entry.isIntersecting));
+    seen.observe(el);
+    return () => seen.disconnect();
+  }, []);
 
   const toggle = () => {
     const next = !open;
@@ -24,7 +34,7 @@ export function PopularSection({ children }: { children: ReactNode }) {
   const control = { "aria-expanded": open, "aria-controls": `${id}-panel`, onClick: toggle } as const;
 
   return (
-    <section aria-labelledby={`${id}-h`} className="flex flex-col gap-4">
+    <section ref={box} aria-labelledby={`${id}-h`} className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
         <h2 id={`${id}-h`} className="min-w-0">
           <button
@@ -32,8 +42,11 @@ export function PopularSection({ children }: { children: ReactNode }) {
             {...control}
             className="flex min-h-11 items-center gap-2.5 rounded-xl text-start text-section font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-brand lg:text-[24px]"
           >
-            <span aria-hidden className="section-badge flex size-9 shrink-0 items-center justify-center rounded-xl">
-              <Flame size={20} strokeWidth={2} className="popular-flame" />
+            <span aria-hidden className="fire-badge relative flex size-9 shrink-0 items-center justify-center rounded-xl">
+              <Flame size={20} strokeWidth={2} className="fire-outer" />
+              <Flame size={10} strokeWidth={0} className="fire-core" />
+              <span className="fire-ember" />
+              <span className="fire-ember fire-ember-2" />
             </span>
             הכי מבוקשים
           </button>
