@@ -78,7 +78,7 @@ export function measure(value: string): { num: number | null; unit: string | nul
   if (mm) return { num: Number(mm[1]), unit: "mm" };
   const inch = value.match(new RegExp(`^${INCH}`, "i"));
   if (inch) return { num: inches(inch[0]), unit: "in" };
-  const teeth = value.match(/^(\d+)t$/);
+  const teeth = value.match(/^(\d+)t$/i);
   if (teeth) return { num: Number(teeth[1]), unit: "t" };
   return { num: null, unit: null };
 }

@@ -155,6 +155,7 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
       value: s.value,
       num: s.num === null ? null : String(s.num),
       unit: s.unit,
+      source: s.source,
     })),
   );
   for (const batch of chunks(specRows, 1000)) await tx.insert(schema.specValues).values(batch);

@@ -1,3 +1,5 @@
+import { normalizeFilterValue } from "@/domain/specs/normalize";
+
 export const PAGE_SIZE = 24;
 /** How many pages a single URL can ask for at once, so ?page=999 can't load the whole catalog. */
 export const MAX_PAGES = 20;
@@ -52,8 +54,12 @@ export function parseFilters(params: RawParams): CatalogFilters {
   for (const [name, value] of Object.entries(params)) {
     if (!name.startsWith(SPEC_PREFIX)) continue;
     const key = name.slice(SPEC_PREFIX.length);
-    const values = all(value);
-    if (SPEC_KEY.test(key) && values.length > 0) specs[key] = values;
+    if (!SPEC_KEY.test(key)) continue;
+    // In their stored form, so an old link (?s.bore=1/2 in. Hex) still finds the 1/2" Hex parts (CF1).
+    for (const raw of all(value)) {
+      const { key: k, value: v } = normalizeFilterValue(key, raw);
+      if (SPEC_KEY.test(k) && !(specs[k] ??= []).includes(v)) specs[k].push(v);
+    }
   }
   return {
     q: single(params.q).slice(0, 100),

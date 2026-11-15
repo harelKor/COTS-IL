@@ -68,6 +68,8 @@ export const OPTION_LABELS: Record<string, string> = {
   "color finish": "צבע וגימור",
   // Motors and electrical
   motor: "מנוע",
+  // The motor a part fits (RS775, Falcon 500): its own filter since CF1, apart from "motor", an option.
+  "motor fit": "התאמה למנוע",
   motors: "מס׳ מנועים",
   "motor count": "מס׳ מנועים",
   voltage: "מתח",

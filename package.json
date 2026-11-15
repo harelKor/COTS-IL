@@ -16,6 +16,7 @@
     "seed": "tsx scripts/seed.ts",
     "sync": "tsx scripts/sync.ts",
     "regroup": "tsx scripts/regroup.ts",
+    "facet-coverage": "tsx scripts/facet-coverage.ts",
     "admin": "tsx scripts/admin.ts",
     "job-report": "tsx scripts/job-report.ts",
     "icons": "node scripts/app-icons.mjs",

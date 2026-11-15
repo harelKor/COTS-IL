@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import { tallyFamilies, type CatalogCounts } from "@/domain/catalog-counts";
 import { ACCESSORY_TITLE_PATTERN, HARDWARE_CATEGORIES, MAIN_ITEM_MIN_USD } from "@/domain/catalog-rank";
 import { facetCountPlans, isRelevantFacet } from "@/domain/facets";
+import { sortValue } from "@/domain/specs/units";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
 import { interleave, pageCount, pickDiscovery, rankPopular, wrappedPage, type FamilySignals } from "@/domain/popular";
@@ -498,8 +499,8 @@ export async function resolveSearch(q: string): Promise<string> {
 export type SpecFacet = { key: string; values: { value: string; count: number }[] };
 
 /** Keys shown first, in this order, when a list has them. */
-const FACET_ORDER = ["dp", "pitch", "teeth", "bore", "width", "id", "od", "length", "cd", "material"];
-const MAX_FACETS = 6;
+const FACET_ORDER = ["dp", "module", "pitch", "teeth", "bore", "motor-fit", "width", "id", "od", "length", "cd", "material"];
+const MAX_FACETS = 8;
 
 /**
  * The spec filters worth offering for the current list: keys whose values
@@ -526,6 +527,7 @@ async function specFacets(filters: ResolvedFilters): Promise<SpecFacet[]> {
         key: sv.key,
         value: sv.value,
         num: sql<string | null>`min(${sv.num})`,
+        unit: sql<string | null>`min(${sv.unit})`,
         count: sql<number>`count(DISTINCT ${sv.familyId})::int`,
       })
       .from(sv)
@@ -575,7 +577,8 @@ async function specFacets(filters: ResolvedFilters): Promise<SpecFacet[]> {
 
   const byKey = new Map<string, { value: string; count: number; num: number | null }[]>();
   for (const r of rows) {
-    const value = { value: r.value, count: counts.get(id(r.key, r.value)) ?? 0, num: r.num === null ? null : Number(r.num) };
+    // Sorted as numbers across units (1/8" before 4mm before 1/2"), CF1.
+    const value = { value: r.value, count: counts.get(id(r.key, r.value)) ?? 0, num: sortValue(r.num === null ? null : Number(r.num), r.unit) };
     byKey.set(r.key, [...(byKey.get(r.key) ?? []), value]);
   }
   const reach = new Map(keyRows.map((r) => [r.key, r.families]));
@@ -593,7 +596,7 @@ async function specFacets(filters: ResolvedFilters): Promise<SpecFacet[]> {
         .sort((a, b) =>
           a.num !== null && b.num !== null && a.num !== b.num ? a.num - b.num : a.value.localeCompare(b.value, "en", { numeric: true }),
         )
-        .slice(0, 60)
+        // Every value, however many: CF2 shows long facets as a searchable list.
         .map(({ value, count }) => ({ value, count })),
     }));
 }

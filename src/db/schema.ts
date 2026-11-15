@@ -312,6 +312,8 @@ export const specValues = pgTable(
     value: text("value").notNull(),
     num: numeric("num", { precision: 12, scale: 4 }),
     unit: text("unit"),
+    /** Where the value came from (CF1): "option", "title" or "description". */
+    source: text("source"),
   },
   (t) => [index("spec_values_family_id_idx").on(t.familyId), index("spec_values_key_value_idx").on(t.key, t.value)],
 );

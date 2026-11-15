@@ -88,11 +88,19 @@ describe("catalogHref", () => {
   });
 
   it("writes spec filters in a stable order and round-trips them", () => {
-    const href = catalogHref({ category: "gears", specs: { teeth: ["36t"], bore: ['1/2" Hex', "8mm SplineXS"] }, view: "list" });
-    expect(href).toBe("/catalog?category=gears&s.bore=1%2F2%22+Hex&s.bore=8mm+SplineXS&s.teeth=36t&view=list");
+    const href = catalogHref({ category: "gears", specs: { teeth: ["36T"], bore: ['1/2" Hex', "SplineXS"] }, view: "list" });
+    expect(href).toBe("/catalog?category=gears&s.bore=1%2F2%22+Hex&s.bore=SplineXS&s.teeth=36T&view=list");
     const params = new URLSearchParams(href.split("?")[1]);
     const raw: Record<string, string | string[]> = {};
     for (const key of new Set(params.keys())) raw[key] = params.getAll(key);
-    expect(parseFilters(raw).specs).toEqual({ bore: ['1/2" Hex', "8mm SplineXS"], teeth: ["36t"] });
+    expect(parseFilters(raw).specs).toEqual({ bore: ['1/2" Hex', "SplineXS"], teeth: ["36T"] });
+  });
+
+  it("reads an old link's spellings as the stored values (CF1)", () => {
+    expect(parseFilters({ "s.bore": ["1/2 in. Hex", '0.5" Hex', "RS775"], "s.teeth": "36t" }).specs).toEqual({
+      bore: ['1/2" Hex'],
+      "motor-fit": ["RS775"],
+      teeth: ["36T"],
+    });
   });
 });

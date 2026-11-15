@@ -1,4 +1,5 @@
-import { familyKey, measure, OPTION_KEYS, parseTitle, splitOptionTitle, type ListedOption, type ParsedTitle, type Spec } from "./parse";
+import { variantSpecs, type SourcedSpec } from "../specs/variant-specs";
+import { familyKey, OPTION_KEYS, parseTitle, splitOptionTitle, type ListedOption, type ParsedTitle } from "./parse";
 
 /**
  * Groups the catalog into product families (docs/REDESIGN.md, "Data model changes"):
@@ -56,7 +57,7 @@ export type FamilyDraft = {
   /** Option names that differ between the family's variants, in display order. */
   optionKeys: string[];
   variantOptions: Record<string, Record<string, string>>;
-  specs: (Spec & { variantId: string })[];
+  specs: (SourcedSpec & { variantId: string })[];
 };
 
 /** "name-only": the same name at two suppliers with nothing else in common, so they stay apart. */
@@ -383,8 +384,13 @@ export function groupFamilies(input: GroupProduct[]): { families: FamilyDraft[];
     const parse = parsed.get(p.id);
     return parse ? { ...parse.options } : Object.fromEntries(optionList(p, v).map((o) => [optionKey(o.name), o.value]));
   };
-  const ownSpecs = (p: GroupProduct, v: GroupVariant) =>
-    parsed.get(p.id)?.specs ?? optionList(p, v).map((o) => ({ key: optionKey(o.name), value: o.value, ...measure(o.value) }));
+  // The filter specs in their one form (src/domain/specs), filled from the title where the options say nothing.
+  const ownSpecs = (p: GroupProduct, v: GroupVariant): SourcedSpec[] =>
+    variantSpecs(
+      parsed.get(p.id)?.specs.map((s) => ({ key: s.key, value: s.value, source: "title" as const })) ??
+        optionList(p, v).map((o) => ({ key: optionKey(o.name), value: o.value, source: "option" as const })),
+      p,
+    );
 
   const components = new Map<string, GroupVariant[]>();
   for (const p of products) {
