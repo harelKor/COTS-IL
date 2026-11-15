@@ -1,8 +1,10 @@
 "use client";
 
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { matchList } from "@/domain/list-search";
 import { Ltr } from "./ltr";
+import { fieldClass, SearchField } from "./search-field";
 
 export type ComboOption = {
   value: string;
@@ -23,8 +25,6 @@ const subscribe = (on: () => void) => {
   return () => q.removeEventListener("change", on);
 };
 const isWide = () => window.matchMedia(wide).matches;
-
-const fold = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
 /**
  * A large option group (the belt's 54 teeth, the gearbox's 18 ratios) as one searchable field:
@@ -58,8 +58,7 @@ export function OptionCombobox({
 
   const selected = options.find((o) => o.selected);
   const selectedText = selected ? `${selected.label}${selected.sub ? ` (${selected.sub})` : ""}` : "";
-  const q = fold(query);
-  const shown = q ? options.filter((o) => fold(`${o.label} ${o.sub ?? ""} ${o.value}`).includes(q)) : options;
+  const shown = matchList(options, query, (o) => `${o.label} ${o.sub ?? ""} ${o.value}`);
 
   function show() {
     setQuery("");
@@ -105,29 +104,33 @@ export function OptionCombobox({
     }
   }
 
-  const field = "flex min-h-12 w-full items-center gap-2 rounded-xl bg-subtle/70 ps-4 pe-3 text-callout transition-colors duration-150 hover:bg-subtle";
+  const field = `${fieldClass} min-h-12 ps-4 pe-3`;
+
+  const inputProps = (inSheet: boolean) => ({
+    ref: inSheet ? undefined : (fieldRef as React.Ref<HTMLInputElement>),
+    role: "combobox",
+    "aria-labelledby": labelledBy,
+    "aria-expanded": open,
+    "aria-controls": listId,
+    "aria-autocomplete": "list" as const,
+    "aria-activedescendant": open && shown[active] ? optionId(active) : undefined,
+    value: open ? query : selectedText,
+    placeholder: open ? selectedText || "חיפוש" : "בחרו או הקלידו לחיפוש",
+    onClick: () => !open && show(),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      setQuery(e.target.value);
+      setActive(0);
+      if (!open) show();
+    },
+    onKeyDown,
+    onBlur: () => desktop && hide(),
+  });
 
   const input = (inSheet: boolean) => (
     <input
-      ref={inSheet ? undefined : (fieldRef as React.Ref<HTMLInputElement>)}
-      role="combobox"
-      aria-labelledby={labelledBy}
-      aria-expanded={open}
-      aria-controls={listId}
-      aria-autocomplete="list"
-      aria-activedescendant={open && shown[active] ? optionId(active) : undefined}
+      {...inputProps(inSheet)}
       autoComplete="off"
       spellCheck={false}
-      value={open ? query : selectedText}
-      placeholder={open ? selectedText || "חיפוש" : "בחרו או הקלידו לחיפוש"}
-      onClick={() => !open && show()}
-      onChange={(e) => {
-        setQuery(e.target.value);
-        setActive(0);
-        if (!open) show();
-      }}
-      onKeyDown={onKeyDown}
-      onBlur={() => desktop && hide()}
       className="min-w-0 flex-1 bg-transparent py-2 outline-none placeholder:text-muted"
     />
   );
@@ -177,7 +180,7 @@ export function OptionCombobox({
   if (desktop) {
     return (
       <div className="relative">
-        <div className={`${field} focus-within:ring-2 focus-within:ring-brand/60`}>
+        <div className={field}>
           {input(false)}
           <ChevronDown size={18} aria-hidden className={`shrink-0 text-muted transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
         </div>
@@ -227,10 +230,7 @@ export function OptionCombobox({
             </button>
           </div>
           <div className="px-4 pt-3">
-            <div className={`${field} focus-within:ring-2 focus-within:ring-brand/60`}>
-              <Search size={18} aria-hidden className="shrink-0 text-muted" />
-              {open && input(true)}
-            </div>
+            {open && <SearchField {...inputProps(true)} className="min-h-12" />}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">{open && list}</div>
         </div>

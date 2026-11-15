@@ -5,7 +5,7 @@ import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
 import { CategoryBar } from "@/components/category-bar";
 import { CardGridSkeleton, Loading } from "@/components/skeleton";
-import { getCategoryCounts, getFacets, getSpecFacets, getSupplierCounts, resolveSearch, searchCards } from "@/lib/catalog";
+import { getCategoryCounts, getControlCounts, getFacets, getSpecFacets, getSupplierCounts, resolveSearch, searchCards } from "@/lib/catalog";
 import { Ltr } from "@/components/ltr";
 import { vendorNameList } from "@/domain/vendors";
 import { catalogHref, hasFilters, PAGE_SIZE, parseFilters } from "@/lib/catalog-filters";
@@ -53,7 +53,7 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
   // A typo ("beraing") searches the closest catalog word instead; the box keeps what was typed.
   const query = await resolveSearch(filters.q);
   const searched = { ...filters, q: query };
-  const [{ cards, total }, facets, suppliers, { suppliers: allSuppliers, categories }, inView] = await Promise.all([
+  const [{ cards, total }, facets, suppliers, { suppliers: allSuppliers, categories }, inView, counts] = await Promise.all([
     // Up to the page in the URL, so "back" from a family page lands near where it was, but
     // never more than two pages on the server: scrolling loads the rest from /api/catalog.
     searchCards(searched, 0, Math.min(filters.page, MAX_SERVER_PAGES) * PAGE_SIZE),
@@ -62,6 +62,8 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
     getFacets(),
     // The chips count what this search and these filters hold, not the whole catalog.
     getCategoryCounts(searched),
+    // FRC, FTC, in stock and the ₪ range, each under the other filters (CF2).
+    getControlCounts(searched),
   ]);
   // A chosen supplier with nothing here still shows, so it can be cleared.
   const chosen = allSuppliers.find((s) => s.code === filters.supplier);
@@ -73,6 +75,7 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
       total={total}
       cards={cards}
       facets={facets}
+      counts={counts}
       suppliers={shownSuppliers.map((s) => {
         const look = allSuppliers.find((a) => a.code === s.code);
         return { code: s.code, name: s.name, count: s.count, logoUrl: look?.logoUrl, accentColor: look?.accentColor, accentColor2: look?.accentColor2 };

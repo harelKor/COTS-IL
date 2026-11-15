@@ -1962,3 +1962,10 @@ li.family-card:is(:hover, :focus-within) {
     opacity: 0;
   }
 }
+
+/* The catalog's filters on a phone (CF2): the whole screen, the result count at the foot. */
+dialog.sheet-full {
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+}

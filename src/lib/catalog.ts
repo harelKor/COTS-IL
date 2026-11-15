@@ -4,7 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { db, schema } from "@/db";
 import { tallyFamilies, type CatalogCounts } from "@/domain/catalog-counts";
 import { ACCESSORY_TITLE_PATTERN, HARDWARE_CATEGORIES, MAIN_ITEM_MIN_USD } from "@/domain/catalog-rank";
-import { facetCountPlans, isRelevantFacet } from "@/domain/facets";
+import { facetCountPlans, isRelevantFacet, orderFacetValues, rangeInSortUnits, type NumRange } from "@/domain/facets";
 import { sortValue } from "@/domain/specs/units";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
@@ -47,23 +47,49 @@ function catalogCache() {
   cacheTag("catalog");
 }
 
-/**
- * Variants that have, for every spec filter, one of its values: one part that is both
- * 1/2" Hex and 24 teeth, not a family with a 1/2" Hex 20T and a 3/8" Hex 24T. Null with no filters.
- */
-function specVariants(specs: Record<string, string[]>): SQL | null {
+/** A spec filter: values (any of them) or a from–to range (CF2). */
+type SpecPick = string[] | NumRange;
+
+/** The spec values and ranges as one set of filters, a key each. */
+function specPicks(filters: Pick<CatalogFilters, "specs" | "ranges">): Record<string, SpecPick> {
+  return { ...filters.specs, ...filters.ranges };
+}
+
+/** A spec value's size in the units ranges compare in (sortValue in src/domain/specs/units.ts: mm, teeth as is). */
+function sortNum() {
   const sv = schema.specValues;
-  const entries = Object.entries(specs).filter(([, values]) => values.length > 0);
+  return sql`(CASE ${sv.unit} WHEN 'in' THEN ${sv.num} * 25.4 WHEN 'ft' THEN ${sv.num} * 304.8 ELSE ${sv.num} END)`;
+}
+
+/** Small slack, so 1/2" (12.7mm) is inside a range that ends at 12.7. */
+const RANGE_SLACK = 0.001;
+
+function pickCondition(key: string, pick: SpecPick): SQL {
+  const sv = schema.specValues;
+  if (Array.isArray(pick)) return sql`(${sv.key} = ${key} AND ${sv.value} IN (${sql.join(pick.map((v) => sql`${v}`), sql`, `)}))`;
+  const { min, max } = rangeInSortUnits(pick);
+  const from = min === null ? sql`` : sql` AND ${sortNum()} >= ${min - RANGE_SLACK}`;
+  const to = max === null ? sql`` : sql` AND ${sortNum()} <= ${max + RANGE_SLACK}`;
+  return sql`(${sv.key} = ${key} AND ${sv.num} IS NOT NULL${from}${to})`;
+}
+
+/**
+ * Variants that have, for every spec filter, one of its values (or a value in its range): one part
+ * that is both 1/2" Hex and 24 teeth, not a family with a 1/2" Hex 20T and a 3/8" Hex 24T. Null with no filters.
+ */
+function specVariants(specs: Record<string, SpecPick>): SQL | null {
+  const sv = schema.specValues;
+  const entries = Object.entries(specs).filter(([, pick]) => !Array.isArray(pick) || pick.length > 0);
   if (entries.length === 0) return null;
   const any = sql.join(
-    entries.map(([key, values]) => sql`(${sv.key} = ${key} AND ${sv.value} IN (${sql.join(values.map((v) => sql`${v}`), sql`, `)}))`),
+    entries.map(([key, pick]) => pickCondition(key, pick)),
     sql` OR `,
   );
   return sql`SELECT ${sv.variantId} FROM ${sv} WHERE ${any} GROUP BY ${sv.variantId} HAVING count(DISTINCT ${sv.key}) = ${entries.length}`;
 }
 
 /** Families with a listed variant that passes every spec filter. */
-function hasSpecs(specs: Record<string, string[]>) {
+function hasSpecs(specs: Record<string, SpecPick>) {
   const ids = specVariants(specs);
   return ids && sql`EXISTS (SELECT 1 FROM ${variants} WHERE ${variants.familyId} = ${families.id} AND ${variants.missingSince} IS NULL AND ${variants.id} IN (${ids}))`;
 }
@@ -111,8 +137,8 @@ function textMatch(q: string) {
   return { where: sku ? sql`(${words} OR ${sku})` : words, inTitle, prefix, exact, sku, english };
 }
 
-/** The filters with a group resolved to its categories (resolvedKey). */
-type ResolvedFilters = CatalogFilters & { groupSlugs?: string[] };
+/** The filters with a group resolved to its categories, and with a price filter the rate it's read at (resolvedKey). */
+type ResolvedFilters = CatalogFilters & { groupSlugs?: string[]; rate?: number };
 
 /** A group's category slugs (a category with no valid group is in the last one, see groupOf); undefined for no or an unknown group. */
 async function groupSlugs(group: string): Promise<string[] | undefined> {
@@ -126,7 +152,11 @@ async function groupSlugs(group: string): Promise<string[] | undefined> {
 /** The filters as a cache key, with the group resolved to its categories (so a group edit makes a new key). */
 async function resolvedKey(filters: CatalogFilters, keep?: { sort?: boolean; supplier?: boolean }): Promise<ResolvedFilters> {
   const key = cacheKey(filters, keep);
-  return key.group ? { ...key, groupSlugs: await groupSlugs(key.group) } : key;
+  const [slugs, rate] = await Promise.all([
+    key.group ? groupSlugs(key.group) : undefined,
+    key.price ? priceContext().then((c) => c.rate) : undefined,
+  ]);
+  return { ...key, ...(key.group ? { groupSlugs: slugs } : {}), ...(rate !== undefined ? { rate } : {}) };
 }
 
 /** `withSpecs: false` leaves out the spec filters, for counting the values each spec could take. */
@@ -139,7 +169,13 @@ function searchQuery(filters: ResolvedFilters, { withSpecs = true } = {}) {
   if (filters.supplier) conditions.push(sql`${filters.supplier} = ANY(${families.supplierCodes})`);
   if (filters.program) conditions.push(sql`${filters.program}::program = ANY(${families.programs})`);
   if (filters.availableOnly) conditions.push(eq(families.available, true));
-  if (withSpecs) conditions.push(hasSpecs(filters.specs) ?? undefined);
+  // The family's lowest ₪ price (min_list_usd already has the multiplier), within the half shekel of rounding.
+  if (filters.price && filters.rate) {
+    const ils = sql`(${families.minListUsd} * ${filters.rate})`;
+    if (filters.price.min !== null) conditions.push(sql`${ils} >= ${filters.price.min - 0.5}`);
+    if (filters.price.max !== null) conditions.push(sql`${ils} < ${filters.price.max + 0.5}`);
+  }
+  if (withSpecs) conditions.push(hasSpecs(specPicks(filters)) ?? undefined);
   const where = and(...conditions);
 
   const order: SQL[] = [];
@@ -400,6 +436,7 @@ async function toCards(rows: CardRow[], supplierCode?: string): Promise<CardFami
  */
 function cacheKey(filters: CatalogFilters, keep: { sort?: boolean; supplier?: boolean } = {}): CatalogFilters {
   const specs = Object.fromEntries(Object.keys(filters.specs).sort().map((k) => [k, [...filters.specs[k]].sort()]));
+  const ranges = Object.fromEntries(Object.keys(filters.ranges).sort().map((k) => [k, filters.ranges[k]]));
   return {
     q: filters.q,
     category: filters.category,
@@ -410,13 +447,15 @@ function cacheKey(filters: CatalogFilters, keep: { sort?: boolean; supplier?: bo
     sort: keep.sort ? filters.sort : "relevance",
     page: 1,
     specs,
+    ranges,
+    price: filters.price,
     view: "grid",
   };
 }
 
 /** Plain browsing (a category, a vendor, a sort; no search or spec filter): few keys, every visitor's. */
 function isBrowse(filters: CatalogFilters) {
-  return !filters.q.trim() && Object.keys(filters.specs).length === 0;
+  return !filters.q.trim() && Object.keys(filters.specs).length === 0 && Object.keys(filters.ranges).length === 0 && !filters.price;
 }
 
 /** A slice of the catalog as cards, from `offset`, with the number of families that match. */
@@ -495,8 +534,11 @@ export async function resolveSearch(q: string): Promise<string> {
   return fixed && (await count(fixed)) > strict ? fixed : q;
 }
 
-/** Sizes and specs to filter by, with how many families a tap on each value would show (0: none). */
-export type SpecFacet = { key: string; values: { value: string; count: number }[] };
+/**
+ * Sizes and specs to filter by, with how many families a tap on each value would show (0: none),
+ * in the order they're shown (orderFacetValues). `reach` of the `total` products in view have the spec at all.
+ */
+export type SpecFacet = { key: string; values: { value: string; count: number }[]; reach: number; total: number };
 
 /** Keys shown first, in this order, when a list has them. */
 const FACET_ORDER = ["dp", "module", "pitch", "teeth", "bore", "motor-fit", "width", "id", "od", "length", "cd", "material"];
@@ -553,9 +595,10 @@ async function specFacets(filters: ResolvedFilters): Promise<SpecFacet[]> {
   // With spec filters chosen, count again: each key under the other keys' filters.
   const counts = new Map<string, number>();
   const id = (key: string, value: string) => `${key}\u0000${value}`;
-  if (Object.keys(filters.specs).length > 0) {
+  const picks = specPicks(filters);
+  if (Object.keys(picks).length > 0) {
     const counted = await Promise.all(
-      facetCountPlans(filters.specs).map((plan) => {
+      facetCountPlans(picks).map((plan) => {
         const ids = specVariants(plan.specs);
         const keys =
           "only" in plan.keys
@@ -582,7 +625,7 @@ async function specFacets(filters: ResolvedFilters): Promise<SpecFacet[]> {
     byKey.set(r.key, [...(byKey.get(r.key) ?? []), value]);
   }
   const reach = new Map(keyRows.map((r) => [r.key, r.families]));
-  const selected = Object.keys(filters.specs);
+  const selected = Object.keys(picks);
 
   const rank = (key: string) => (FACET_ORDER.includes(key) ? FACET_ORDER.indexOf(key) : 99);
   return [...byKey]
@@ -590,15 +633,67 @@ async function specFacets(filters: ResolvedFilters): Promise<SpecFacet[]> {
     .map(([key, values]) => ({ key, values, reach: reach.get(key) ?? 0 }))
     .sort((a, b) => rank(a.key) - rank(b.key) || b.reach - a.reach)
     .slice(0, MAX_FACETS)
-    .map(({ key, values }) => ({
+    .map(({ key, values, reach: known }) => ({
       key,
-      values: values
-        .sort((a, b) =>
-          a.num !== null && b.num !== null && a.num !== b.num ? a.num - b.num : a.value.localeCompare(b.value, "en", { numeric: true }),
-        )
-        // Every value, however many: CF2 shows long facets as a searchable list.
-        .map(({ value, count }) => ({ value, count })),
+      // Every value, however many (a long facet is a searchable list): by size when they're sizes, else the most common first.
+      values: orderFacetValues(values).map(({ value, count }) => ({ value, count })),
+      reach: known,
+      total,
     }));
+}
+
+/** How many products a tap on FRC, FTC or "רק מה שזמין" would show, and the ₪ prices in view (for the price fields). */
+export type ControlCounts = { frc: number; ftc: number; available: number; minIls: number | null; maxIls: number | null };
+
+/**
+ * The panel's other counts (P1-7): each control counted under every other filter but its own,
+ * like the spec values, so a tap shows what it says.
+ */
+export async function getControlCounts(filters: CatalogFilters): Promise<ControlCounts> {
+  const key = await resolvedKey(filters);
+  return isBrowse(key) ? controlCountsBrowse(key) : controlCountsLocal(key);
+}
+
+async function controlCountsBrowse(filters: ResolvedFilters) {
+  "use cache";
+  catalogCache();
+  return controlCountsShared(filters);
+}
+
+/** The shared (remote) entry behind controlCountsBrowse's in-memory one. */
+async function controlCountsShared(filters: ResolvedFilters) {
+  "use cache: remote";
+  catalogCache();
+  return findControlCounts(filters);
+}
+
+async function controlCountsLocal(filters: ResolvedFilters) {
+  "use cache";
+  catalogCache();
+  return findControlCounts(filters);
+}
+
+async function findControlCounts(filters: ResolvedFilters): Promise<ControlCounts> {
+  const count = (where: SQL | undefined, filter: SQL) =>
+    db
+      .select({ n: sql<number>`(count(*) FILTER (WHERE ${filter}))::int` })
+      .from(families)
+      .leftJoin(categories, eq(categories.id, families.categoryId))
+      .where(where)
+      .then((r) => r[0]?.n ?? 0);
+  const programs = searchQuery({ ...filters, program: "" }).where;
+  const [frc, ftc, available, [range], ctx] = await Promise.all([
+    count(programs, sql`'FRC'::program = ANY(${families.programs})`),
+    count(programs, sql`'FTC'::program = ANY(${families.programs})`),
+    count(searchQuery({ ...filters, availableOnly: false }).where, sql`${families.available} IS TRUE`),
+    db
+      .select({ min: sql<string | null>`min(${families.minListUsd})`, max: sql<string | null>`max(${families.minListUsd})` })
+      .from(families)
+      .leftJoin(categories, eq(categories.id, families.categoryId))
+      .where(searchQuery({ ...filters, price: null }).where),
+    priceContext(),
+  ]);
+  return { frc, ftc, available, minIls: priceIls(range?.min, ctx, 1), maxIls: priceIls(range?.max, ctx, 1) };
 }
 
 /**
@@ -919,7 +1014,7 @@ export async function quickSearch(q: string, supplier = "") {
 
 /** `supplier`: only that vendor's families (a vendor store's search box). */
 async function quickRows(q: string, supplier = "") {
-  const filters: CatalogFilters = { q, category: "", group: "", supplier, program: "", availableOnly: false, sort: "relevance", page: 1, specs: {}, view: "grid" };
+  const filters: CatalogFilters = { q, category: "", group: "", supplier, program: "", availableOnly: false, sort: "relevance", page: 1, specs: {}, ranges: {}, price: null, view: "grid" };
   const { where, order } = searchQuery(filters);
   const part = sql`coalesce(upper(${variants.supplierSku}), ${variants.id}::text)`;
   const fromFamily = sql`FROM ${variants} JOIN ${products} ON ${products.id} = ${variants.productId} WHERE ${orderable}`;

@@ -1,3 +1,4 @@
+import { formatPrice, formatRange, parsePrice, parseRange, type NumRange, type PriceRange } from "@/domain/facets";
 import { normalizeFilterValue } from "@/domain/specs/normalize";
 
 export const PAGE_SIZE = 24;
@@ -25,6 +26,10 @@ export type CatalogFilters = {
   /** With infinite scroll, the number of pages loaded so far. */
   page: number;
   specs: SpecFilters;
+  /** From–to ranges on teeth, length and OD (`?s.teeth=20-40`); a key has a range or values, not both. */
+  ranges: Record<string, NumRange>;
+  /** Whole shekels on the family's lowest price (`?price=50-200`). */
+  price: PriceRange | null;
   view: View;
 };
 
@@ -51,16 +56,25 @@ export function parseFilters(params: RawParams): CatalogFilters {
   const view = single(params.view) as View;
   const page = Number(single(params.page));
   const specs: SpecFilters = {};
+  const ranges: Record<string, NumRange> = {};
   for (const [name, value] of Object.entries(params)) {
     if (!name.startsWith(SPEC_PREFIX)) continue;
     const key = name.slice(SPEC_PREFIX.length);
     if (!SPEC_KEY.test(key)) continue;
-    // In their stored form, so an old link (?s.bore=1/2 in. Hex) still finds the 1/2" Hex parts (CF1).
     for (const raw of all(value)) {
+      // A from–to range (teeth, length, OD) instead of values.
+      const range = parseRange(key, raw);
+      if (range) {
+        ranges[key] = range;
+        continue;
+      }
+      // In their stored form, so an old link (?s.bore=1/2 in. Hex) still finds the 1/2" Hex parts (CF1).
       const { key: k, value: v } = normalizeFilterValue(key, raw);
       if (SPEC_KEY.test(k) && !(specs[k] ??= []).includes(v)) specs[k].push(v);
     }
   }
+  // A range wins over values on the same key (the panel never writes both).
+  for (const key of Object.keys(ranges)) delete specs[key];
   return {
     q: single(params.q).slice(0, 100),
     category: single(params.category),
@@ -71,6 +85,8 @@ export function parseFilters(params: RawParams): CatalogFilters {
     sort: SORTS.includes(sort) ? sort : "relevance",
     page: Number.isInteger(page) && page > 0 ? Math.min(page, MAX_PAGES) : 1,
     specs: Object.fromEntries(Object.entries(specs).slice(0, 6)),
+    ranges: Object.fromEntries(Object.entries(ranges).slice(0, 3)),
+    price: parsePrice(single(params.price)),
     view: VIEWS.includes(view) ? view : "grid",
   };
 }
@@ -84,9 +100,12 @@ export function catalogQuery(filters: Partial<CatalogFilters>): string {
   if (filters.supplier) params.set("supplier", filters.supplier);
   if (filters.program) params.set("program", filters.program);
   if (filters.availableOnly) params.set("available", "1");
-  for (const key of Object.keys(filters.specs ?? {}).sort()) {
-    for (const value of filters.specs![key]) params.append(`${SPEC_PREFIX}${key}`, value);
+  const ranges = filters.ranges ?? {};
+  for (const key of [...new Set([...Object.keys(filters.specs ?? {}), ...Object.keys(ranges)])].sort()) {
+    if (ranges[key]) params.append(`${SPEC_PREFIX}${key}`, formatRange(ranges[key]));
+    else for (const value of filters.specs![key]) params.append(`${SPEC_PREFIX}${key}`, value);
   }
+  if (filters.price) params.set("price", formatPrice(filters.price));
   if (filters.sort && filters.sort !== "relevance") params.set("sort", filters.sort);
   if (filters.view && filters.view !== "grid") params.set("view", filters.view);
   if (filters.page && filters.page > 1) params.set("page", String(filters.page));
@@ -98,18 +117,51 @@ export function catalogHref(filters: Partial<CatalogFilters>): string {
   return query ? `/catalog?${query}` : "/catalog";
 }
 
-/** Adds or removes one value of a spec filter. Changing filters always starts again from page 1. */
+function without<T>(record: Record<string, T>, key: string): Record<string, T> {
+  return Object.fromEntries(Object.entries(record).filter(([k]) => k !== key));
+}
+
+/** Adds or removes one value of a spec filter (dropping that key's range). Changing filters always starts again from page 1. */
 export function toggleSpec(filters: CatalogFilters, key: string, value: string): CatalogFilters {
   const current = filters.specs[key] ?? [];
   const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
   const specs = { ...filters.specs };
   if (next.length > 0) specs[key] = next;
   else delete specs[key];
-  return { ...filters, specs, page: 1 };
+  return { ...filters, specs, ranges: without(filters.ranges, key), page: 1 };
+}
+
+/** Sets or clears a spec's from–to range (dropping the values chosen on that key). */
+export function setRange(filters: CatalogFilters, key: string, range: NumRange | null): CatalogFilters {
+  const ranges = without(filters.ranges, key);
+  return { ...filters, specs: without(filters.specs, key), ranges: range ? { ...ranges, [key]: range } : ranges, page: 1 };
 }
 
 /** True when anything narrows the list, so "Clear" has something to clear. */
 export function hasFilters(filters: CatalogFilters): boolean {
-  return !!(filters.supplier || filters.program || filters.availableOnly || Object.keys(filters.specs).length > 0);
+  return !!(
+    filters.supplier ||
+    filters.program ||
+    filters.availableOnly ||
+    filters.price ||
+    Object.keys(filters.specs).length > 0 ||
+    Object.keys(filters.ranges).length > 0
+  );
+}
+
+/** The filters on in the panel (program, stock, price, each spec value and range), for the phone's "סינון (3)". */
+export function panelFilterCount(filters: CatalogFilters): number {
+  return (
+    (filters.program ? 1 : 0) +
+    (filters.availableOnly ? 1 : 0) +
+    (filters.price ? 1 : 0) +
+    Object.values(filters.specs).reduce((n, v) => n + v.length, 0) +
+    Object.keys(filters.ranges).length
+  );
+}
+
+/** Everything the panel's "נקה הכל" clears; the category, group, search and supplier stay. */
+export function clearPanel(filters: CatalogFilters): CatalogFilters {
+  return { ...filters, program: "", availableOnly: false, specs: {}, ranges: {}, price: null, page: 1 };
 }
 

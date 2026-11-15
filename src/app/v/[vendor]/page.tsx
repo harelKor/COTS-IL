@@ -16,7 +16,7 @@ import { StoreSearch } from "@/components/store-search";
 import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skeleton";
 import { aliveStyle } from "@/domain/alive";
 import { isStoreFront, vendorBlurb, vendorHref, vendorTheme } from "@/domain/vendors";
-import { getCategoryCounts, getDiscoveryPage, getSpecFacets, getVendorPopular, getVendors, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
+import { getCategoryCounts, getControlCounts, getDiscoveryPage, getSpecFacets, getVendorPopular, getVendors, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { hasFilters, PAGE_SIZE, parseFilters, type CatalogFilters } from "@/lib/catalog-filters";
 
@@ -187,11 +187,12 @@ const MAX_SERVER_PAGES = 2;
 async function Results({ store, filters }: { store: Store; filters: CatalogFilters }) {
   const query = await resolveSearch(filters.q);
   const searched = { ...filters, q: query };
-  const [{ cards, total }, facets, inView] = await Promise.all([
+  const [{ cards, total }, facets, inView, counts] = await Promise.all([
     searchCards(searched, 0, Math.min(filters.page, MAX_SERVER_PAGES) * PAGE_SIZE),
     getSpecFacets(searched),
     // The chips count what this search and these filters hold in the store.
     getCategoryCounts(searched),
+    getControlCounts(searched),
   ]);
   return (
     <CatalogBrowser
@@ -200,6 +201,7 @@ async function Results({ store, filters }: { store: Store; filters: CatalogFilte
       total={total}
       cards={cards}
       facets={facets}
+      counts={counts}
       suppliers={[{ code: store.code, name: store.name, count: total }]}
       categories={store.categories.map((c) => ({ slug: c.slug, name: c.name }))}
       underVendors={

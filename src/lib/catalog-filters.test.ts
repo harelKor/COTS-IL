@@ -1,5 +1,53 @@
 import { describe, expect, it } from "vitest";
-import { catalogHref, hasFilters, parseFilters, toggleSpec } from "./catalog-filters";
+import { catalogHref, clearPanel, hasFilters, panelFilterCount, parseFilters, setRange, toggleSpec } from "./catalog-filters";
+
+describe("ranges and the price (CF2)", () => {
+  it("reads a from–to range on teeth, length and OD, and a price", () => {
+    const f = parseFilters({ category: "gears", "s.teeth": "20-40", "s.length": "2-6in", "s.od": "-30mm", price: "50-200" });
+    expect(f.ranges).toEqual({ teeth: { min: 20, max: 40 }, length: { min: 2, max: 6, unit: "in" }, od: { min: null, max: 30, unit: "mm" } });
+    expect(f.specs).toEqual({});
+    expect(f.price).toEqual({ min: 50, max: 200 });
+    expect(hasFilters(f)).toBe(true);
+  });
+
+  it("reads a range only on keys that have one, and ignores a broken one", () => {
+    expect(parseFilters({ "s.bore": "20-40" }).ranges).toEqual({});
+    expect(parseFilters({ "s.teeth": "20-40-60" }).ranges).toEqual({});
+    expect(parseFilters({ "s.teeth": "-" }).ranges).toEqual({});
+    expect(parseFilters({ price: "cheap" }).price).toBeNull();
+    expect(parseFilters({ price: "-1-5" }).price).toBeNull();
+  });
+
+  it("round-trips ranges and the price", () => {
+    const href = catalogHref({ category: "gears", ranges: { teeth: { min: 20, max: 40 } }, specs: { bore: ['1/2" Hex'] }, price: { min: null, max: 200 } });
+    expect(href).toBe("/catalog?category=gears&s.bore=1%2F2%22+Hex&s.teeth=20-40&price=-200");
+    const params = new URLSearchParams(href.split("?")[1]);
+    const raw: Record<string, string | string[]> = {};
+    for (const key of new Set(params.keys())) raw[key] = params.getAll(key);
+    const f = parseFilters(raw);
+    expect(f.ranges).toEqual({ teeth: { min: 20, max: 40 } });
+    expect(f.price).toEqual({ min: null, max: 200 });
+  });
+
+  it("keeps a key to values or a range, never both", () => {
+    const base = parseFilters({ category: "gears", "s.teeth": ["24T"] });
+    const ranged = setRange(base, "teeth", { min: 20, max: 40 });
+    expect(ranged.specs).toEqual({});
+    expect(ranged.ranges).toEqual({ teeth: { min: 20, max: 40 } });
+    expect(toggleSpec(ranged, "teeth", "36T")).toMatchObject({ specs: { teeth: ["36T"] }, ranges: {} });
+    expect(setRange(ranged, "teeth", null).ranges).toEqual({});
+    // A link with both: the range wins.
+    expect(parseFilters({ "s.teeth": ["24T", "20-40"] })).toMatchObject({ specs: {}, ranges: { teeth: { min: 20, max: 40 } } });
+  });
+
+  it("counts the panel's filters and clears them, keeping the category and the search", () => {
+    const f = parseFilters({ q: "hub", category: "gears", program: "FRC", available: "1", "s.bore": ['1/2" Hex', '3/8" Hex'], "s.teeth": "20-40", price: "10-" });
+    expect(panelFilterCount(f)).toBe(6);
+    const cleared = clearPanel(f);
+    expect(panelFilterCount(cleared)).toBe(0);
+    expect(cleared).toMatchObject({ q: "hub", category: "gears" });
+  });
+});
 
 describe("parseFilters", () => {
   it("reads valid values", () => {
@@ -15,6 +63,8 @@ describe("parseFilters", () => {
       sort: "price-asc",
       page: 3,
       specs: {},
+      ranges: {},
+      price: null,
       view: "grid",
     });
   });
