@@ -77,6 +77,8 @@ type Props = {
   style?: React.CSSProperties;
   /** Popular and "גלו עוד": a glowing outline and a shine on hover. */
   glow?: boolean;
+  /** A wider, shorter photo and tighter spacing (a store's "הכי מבוקשים"), so more of the page shows above the fold. */
+  compact?: boolean;
   /** A stable key on the card's element, for the endless strip to keep its place. */
   dataKey?: string;
   /** False on a repeat of a family already on the page (the endless strip wraps): one morph name each. */
@@ -92,7 +94,7 @@ const SHEET_QUERY = "(max-width: 639px)";
  * or in a bottom sheet on a phone), and picking the last one adds it. Once in
  * the cart, "+" becomes a stepper. Nothing here leaves the page.
  */
-export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style, glow = false, dataKey, morph = true }: Props) {
+export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style, glow = false, compact = false, dataKey, morph = true }: Props) {
   // Only this card's slice of the cart, so an add elsewhere doesn't re-render every card on the page.
   const mode = useCartMode();
   const { leadTimes } = useSiteFacts();
@@ -367,7 +369,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
 
   // Every photo on the same padded white tile: supplier photos are shot on white (a pearl tile on the home page).
   const tile = (
-    <div ref={image} className="card-photo relative aspect-square w-full overflow-hidden rounded-xl bg-white p-3 ring-1 ring-line">
+    <div ref={image} className={`card-photo relative w-full overflow-hidden rounded-xl bg-white ring-1 ring-line ${compact ? "aspect-[16/9] p-2" : "aspect-square p-3"}`}>
       {photo_}
       {familyInCart > 0 && (
         <span className="absolute end-2 top-2 rounded-full bg-brand px-2 py-0.5 text-caption font-medium text-white tabular-nums">
@@ -380,10 +382,10 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
     <li
       data-key={dataKey}
       style={style}
-      className={`family-card card-surface relative flex flex-col justify-between gap-3 rounded-card p-3 transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift ${glow ? "glow-card" : ""} ${className}`}
+      className={`family-card card-surface relative flex flex-col justify-between rounded-card p-3 ${compact ? "gap-2" : "gap-3"} transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift ${glow ? "glow-card" : ""} ${className}`}
     >
       {glow && <span aria-hidden className="card-shine" />}
-      <Link href={href} {...pagePrefetch} className="flex flex-col gap-3">
+      <Link href={href} {...pagePrefetch} className={`flex flex-col ${compact ? "gap-2" : "gap-3"}`}>
         {morph ? (
           <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
             {tile}
@@ -392,7 +394,8 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
           tile
         )}
         <div className="flex flex-col gap-1">
-          <Ltr className="text-start text-caption text-muted">{family.supplierNames.join(", ")}</Ltr>
+          {/* A store's compact cards are all that vendor's: its name would repeat on every one. */}
+          {!compact && <Ltr className="text-start text-caption text-muted">{family.supplierNames.join(", ")}</Ltr>}
           <h2 dir="ltr" className="line-clamp-2 text-start text-callout leading-snug font-medium tracking-normal" title={family.title}>
             {family.title}
           </h2>

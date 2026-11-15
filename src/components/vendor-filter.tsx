@@ -25,8 +25,8 @@ export function VendorFilter({ vendors, value, onChange }: { vendors: VendorOpti
     if (a.left < b.left || a.right > b.right) el.scrollLeft += a.left + a.width / 2 - (b.left + b.width / 2);
   }, [value]);
   const tile = (on: boolean) =>
-    `glow-box relative flex h-[76px] shrink-0 flex-col items-center justify-center gap-1 px-4 transition-[translate,opacity] duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
-      on ? "outline-2 outline-offset-2 outline-solid outline-[var(--accent,var(--brand))]" : value ? "opacity-70 hover:opacity-100" : ""
+    `glow-box relative flex h-16 shrink-0 flex-col items-center justify-center gap-0.5 px-4 py-3 transition-[translate,opacity] duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+      on ? "vendor-tile-on" : value ? "opacity-70 hover:opacity-100" : ""
     }`;
   const tick = (
     <span aria-hidden className="btn-brand absolute -top-1.5 -end-1.5 flex size-6 items-center justify-center rounded-full">
@@ -42,7 +42,7 @@ export function VendorFilter({ vendors, value, onChange }: { vendors: VendorOpti
       <div ref={row} className="no-scrollbar scroll-fade-x -mx-6 -mt-1 flex gap-3 overflow-x-auto px-6 pt-3 pb-4 md:-mx-12 md:px-12">
         <button type="button" aria-pressed={!value} onClick={() => onChange("")} className={`${tile(!value)} min-w-[112px]`}>
           {!value && tick}
-          <LayoutGrid size={22} strokeWidth={1.75} aria-hidden className="text-brand" />
+          <LayoutGrid size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
           <span className="text-caption font-semibold">כל הספקים</span>
         </button>
         {vendors.map((v) => {
@@ -64,7 +64,7 @@ export function VendorFilter({ vendors, value, onChange }: { vendors: VendorOpti
                   src={darkLogo(v.logoUrl) ?? v.logoUrl}
                   alt={v.name}
                   referrerPolicy="no-referrer"
-                  className={`h-8 w-auto max-w-[120px] object-contain vendor-logo ${darkLogo(v.logoUrl) ? "" : "vendor-logo-invert"}`}
+                  className={`h-7 w-auto max-w-[120px] object-contain vendor-logo ${darkLogo(v.logoUrl) ? "" : "vendor-logo-invert"}`}
                 />
               ) : (
                 <Ltr className="text-brand-gradient text-body font-semibold leading-tight">{v.name}</Ltr>

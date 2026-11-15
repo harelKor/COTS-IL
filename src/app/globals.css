@@ -171,10 +171,13 @@ h3 {
   }
 }
 
-/* Fades both ends of a horizontal pill bar, so it reads as scrollable. Symmetric, so it needs no RTL flip. */
+/*
+ * Fades both ends of a horizontal row, so it reads as scrollable. Symmetric, so it needs no RTL flip.
+ * --fade is how far in it fades (24px; "גלו עוד" in the stores sets 4% of the row).
+ */
 @utility scroll-fade-x {
-  -webkit-mask-image: linear-gradient(to left, transparent, black 24px, black calc(100% - 24px), transparent);
-  mask-image: linear-gradient(to left, transparent, black 24px, black calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to left, transparent, black var(--fade, 24px), black calc(100% - var(--fade, 24px)), transparent);
+  mask-image: linear-gradient(to left, transparent, black var(--fade, 24px), black calc(100% - var(--fade, 24px)), transparent);
 }
 
 /*
@@ -1777,4 +1780,164 @@ li.family-card:is(:hover, :focus-within) {
 .strip-arrow:hover {
   background: var(--vendor-primary, #0018e0);
   color: var(--vendor-on-primary, #ffffff);
+}
+
+/* ---------- Finding a part: the category flyout, the category bar and the toolbar (Nov 15, 2026) ---------- */
+
+/*
+ * The group flyout (category-flyout.tsx): a popover in the top layer, placed under its trigger. Its
+ * transparent top padding is the hover bridge; the glass is .flyout-panel. The accent is the page's
+ * --vendor-primary: Orbit ultramarine on /catalog, the vendor's own colour in a store. It fades and
+ * drops 4px in 180ms; under reduced motion it just appears.
+ */
+.flyout {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  border: 0;
+  padding: 8px 0 0;
+  background: transparent;
+  color: var(--foreground);
+  overflow: visible;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 180ms var(--ease-out),
+    transform 180ms var(--ease-out),
+    overlay 180ms allow-discrete,
+    display 180ms allow-discrete;
+}
+.flyout:popover-open {
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  .flyout:popover-open {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flyout {
+    transition: none;
+    transform: none;
+  }
+}
+.flyout-panel {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 18px;
+  border: 1px solid rgb(var(--vendor-primary-rgb) / 0.45);
+  background: rgb(4 8 30 / 0.95);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  backdrop-filter: blur(28px) saturate(1.4);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.07),
+    0 30px 70px -12px rgb(1 2 12 / 0.8),
+    0 12px 40px -18px rgb(var(--vendor-primary-rgb) / 0.55);
+  padding: 6px;
+}
+.flyout-row {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 6px 10px;
+  transition:
+    background-color 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out);
+}
+.flyout-all {
+  margin-bottom: 4px;
+  background: rgb(var(--vendor-primary-rgb) / 0.1);
+}
+.flyout-row:is(:hover, :focus-visible),
+.flyout-row[aria-current="page"] {
+  background: rgb(var(--vendor-primary-rgb) / 0.2);
+  box-shadow: inset 0 0 0 1px rgb(var(--vendor-primary-rgb) / 0.55);
+  outline: none;
+}
+.flyout-row:is(:hover, :focus-visible) .flyout-title,
+.flyout-row[aria-current="page"] .flyout-title,
+.flyout-chevron {
+  color: var(--vendor-text-accent);
+}
+
+/* The category bar: one strip of dark glass, the groups as tabs with an underline in the page's accent. */
+.category-bar {
+  border: 1px solid rgb(var(--vendor-primary-rgb) / 0.22);
+  background: rgb(7 13 34 / 0.72);
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.05);
+}
+.bar-tab {
+  position: relative;
+  color: var(--muted);
+  transition: color 150ms var(--ease-out);
+}
+.bar-tab::after {
+  content: "";
+  position: absolute;
+  inset-inline: 12px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--vendor-primary);
+  box-shadow: 0 0 10px rgb(var(--vendor-primary-rgb) / 0.8);
+  opacity: 0;
+  transform: scaleX(0.4);
+  transition:
+    opacity 180ms var(--ease-out),
+    transform 180ms var(--ease-out);
+}
+.bar-item:is(:hover, :focus-within) .bar-tab,
+.bar-tab[aria-current] {
+  color: var(--foreground);
+}
+.bar-item:has(.flyout:popover-open) .bar-tab::after,
+.bar-item:hover .bar-tab::after,
+.bar-tab[aria-current]::after {
+  opacity: 1;
+  transform: none;
+}
+.bar-item:hover .bar-tab:not([aria-current])::after {
+  opacity: 0.5;
+}
+.bar-chip {
+  background: rgb(var(--vendor-primary-rgb) / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(var(--vendor-primary-rgb) / 0.4);
+}
+
+/* The toolbar over the grid, and its dropdown chips. */
+.toolbar {
+  border: 1px solid rgb(var(--vendor-primary-rgb) / 0.18);
+  background: rgb(7 13 34 / 0.6);
+}
+.tool-chip {
+  background: var(--subtle);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: background-color 150ms var(--ease-out);
+}
+.tool-chip:hover {
+  background: var(--subtle-hover);
+}
+.tool-chip[data-on] {
+  background: rgb(var(--vendor-primary-rgb) / 0.22);
+  box-shadow: inset 0 0 0 1px rgb(var(--vendor-primary-rgb) / 0.6);
+}
+
+/* The chosen vendor tile on /catalog: a crisp ring and glow in its own colour. */
+.vendor-tile-on {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 22px -2px color-mix(in srgb, var(--accent) 70%, transparent),
+    inset 0 1px 0 0 rgb(255 255 255 / 0.1);
+}
+/* A store's group card stays lit while its flyout is open. */
+.group:has(.flyout:popover-open) .glow-box {
+  border-color: rgb(var(--vendor-primary-rgb) / 0.65);
 }

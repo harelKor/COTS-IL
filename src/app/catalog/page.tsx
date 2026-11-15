@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { markupText } from "@/domain/pricing";
-import { getSiteFacts } from "@/lib/settings";
+import { getSettings, getSiteFacts } from "@/lib/settings";
 import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
-import { CategoryGroups } from "@/components/category-groups";
+import { CategoryBar } from "@/components/category-bar";
 import { CardGridSkeleton, Loading } from "@/components/skeleton";
 import { getCategoryCounts, getFacets, getSpecFacets, getSupplierCounts, resolveSearch, searchCards } from "@/lib/catalog";
 import { Ltr } from "@/components/ltr";
@@ -13,9 +13,12 @@ import { catalogHref, hasFilters, PAGE_SIZE, parseFilters } from "@/lib/catalog-
 /** The page's name: the category, or the search. */
 async function catalogTitle(filters: ReturnType<typeof parseFilters>) {
   if (filters.q) return `חיפוש: ${filters.q}`;
-  if (!filters.category) return "קטלוג";
-  const { categories } = await getFacets();
-  return categories.find((c) => c.slug === filters.category)?.name ?? "קטלוג";
+  if (filters.category) {
+    const { categories } = await getFacets();
+    return categories.find((c) => c.slug === filters.category)?.name ?? "קטלוג";
+  }
+  if (filters.group) return (await getSettings()).content.categoryGroups.find((g) => g.id === filters.group)?.name ?? "קטלוג";
+  return "קטלוג";
 }
 
 /**
@@ -42,7 +45,6 @@ async function CatalogTitle({ searchParams }: PageProps<"/catalog">) {
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
 export const maxDuration = 30;
 
-/** One tap per category, in a row that scrolls sideways on phones. */
 /** Pages of cards the server renders at most. */
 const MAX_SERVER_PAGES = 2;
 
@@ -76,7 +78,14 @@ async function Results({ searchParams }: PageProps<"/catalog">) {
         return { code: s.code, name: s.name, count: s.count, logoUrl: look?.logoUrl, accentColor: look?.accentColor, accentColor2: look?.accentColor2 };
       })}
       categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
-      underVendors={<CategoryGroups categories={categories.map((c) => ({ slug: c.slug, name: c.name, group: c.group, count: inView[c.slug] ?? 0 }))} category={filters.category} group={filters.group} q={filters.q} />}
+      underVendors={
+        <CategoryBar
+          categories={categories.map((c) => ({ slug: c.slug, name: c.name, group: c.group, images: c.images, count: inView[c.slug] ?? 0 }))}
+          category={filters.category}
+          group={filters.group}
+          q={filters.q}
+        />
+      }
     />
   );
 }
@@ -93,8 +102,8 @@ async function PriceLine() {
 
 export default function CatalogPage(props: PageProps<"/catalog">) {
   return (
-    // A little wider than other pages on a desktop, for four columns beside the filters.
-    <div className="flex flex-col gap-4 xl:-mx-10 2xl:-mx-24">
+    // As wide as the header's content, never closer to the window's edge: the grid is full width now.
+    <div className="flex flex-col gap-4">
       <Suspense fallback={<h1 className="text-title font-semibold">קטלוג</h1>}>
         <CatalogTitle {...props} />
       </Suspense>

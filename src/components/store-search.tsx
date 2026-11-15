@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, Search } from "lucide-react";
+import { ChevronLeft, Search, X } from "lucide-react";
 import Form from "next/form";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,7 @@ const SHOWN = 3;
 export function StoreSearch({ action, vendor, vendorName, q }: { action: string; vendor: string; vendorName: string; q: string }) {
   const router = useRouter();
   const form = useRef<HTMLFormElement>(null);
+  const input = useRef<HTMLInputElement>(null);
   const id = useId();
   const [text, setText] = useState(q);
   const [results, setResults] = useState<SearchResult[] | null>(null);
@@ -88,6 +89,7 @@ export function StoreSearch({ action, vendor, vendorName, q }: { action: string;
       </label>
       <Search size={22} strokeWidth={1.75} aria-hidden className="pointer-events-none absolute inset-y-0 start-5 my-auto text-brand" />
       <input
+        ref={input}
         id={`${id}-q`}
         name="q"
         type="search"
@@ -106,8 +108,24 @@ export function StoreSearch({ action, vendor, vendorName, q }: { action: string;
         aria-autocomplete="list"
         aria-activedescendant={shown && active >= 0 ? optionId(active) : undefined}
         placeholder={`חיפוש ב-${vendorName}...`}
-        className="h-[60px] w-full rounded-2xl bg-transparent ps-14 pe-5 text-[18px] outline-none"
+        className="h-[60px] w-full rounded-2xl bg-transparent ps-14 pe-14 text-[18px] outline-none [&::-webkit-search-cancel-button]:appearance-none"
       />
+      {text && (
+        // Clears the box and keeps typing in it; the dropdown closes until the next letter.
+        <button
+          type="button"
+          aria-label="ניקוי החיפוש"
+          onClick={() => {
+            setText("");
+            setResults(null);
+            setActive(-1);
+            input.current?.focus();
+          }}
+          className="absolute inset-y-0 end-2 my-auto flex size-11 items-center justify-center rounded-full text-muted transition-colors hover:bg-subtle hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand"
+        >
+          <X size={20} strokeWidth={2} aria-hidden />
+        </button>
+      )}
       {shown && (
         <div className="store-search-menu absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl p-1.5">
           <ul id={`${id}-list`} role="listbox" aria-label={`תוצאות ב-${vendorName}`} className="flex flex-col">

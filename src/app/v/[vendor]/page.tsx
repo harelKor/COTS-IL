@@ -4,8 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
-import { CategoryGroups } from "@/components/category-groups";
-import { GroupBoxes } from "@/components/group-boxes";
+import { CategoryBar } from "@/components/category-bar";
+import { StoreGroupCards } from "@/components/store-groups";
 import { DiscoveryStrip } from "@/components/discovery-strip";
 import { PopularSection } from "@/components/popular-section";
 import { FamilyCard } from "@/components/family-card";
@@ -18,6 +18,7 @@ import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skelet
 import { aliveStyle } from "@/domain/alive";
 import { isStoreFront, vendorBlurb, vendorHref, vendorTheme } from "@/domain/vendors";
 import { getCategoryCounts, getDiscoveryPage, getSpecFacets, getVendorPopular, getVendors, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
+import { getSettings } from "@/lib/settings";
 import { hasFilters, PAGE_SIZE, parseFilters, type CatalogFilters } from "@/lib/catalog-filters";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
@@ -42,11 +43,11 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   };
 }
 
-function Breadcrumb({ store, here }: { store: Store; here?: React.ReactNode }) {
+function Breadcrumb({ store, here, className = "-mb-2" }: { store: Store; here?: React.ReactNode; className?: string }) {
   const current = "flex items-center gap-2 font-medium text-foreground";
   const dot = <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-brand" />;
   return (
-    <nav aria-label="ניווט" className="-mb-2 text-caption text-muted">
+    <nav aria-label="ניווט" className={`${className} text-caption text-muted`}>
       <ol className="flex min-w-0 items-center gap-1">
         <li className="shrink-0">
           <Link href="/#vendors" className="flex min-h-11 items-center hover:text-foreground">
@@ -93,6 +94,7 @@ async function Popular({ store }: { store: Store }) {
             family={c}
             eager={i < 4}
             glow
+            compact
             className="alive hot-card"
             // Out of step on purpose: each card has its own delay and rhythm.
             style={aliveStyle(c.id) as React.CSSProperties}
@@ -106,7 +108,7 @@ async function Popular({ store }: { store: Store }) {
 /** Today's less common picks from this vendor. */
 async function Discover({ store }: { store: Store }) {
   const { cards, pages } = await getDiscoveryPage(store.code, 0);
-  return <DiscoveryStrip cards={cards} pages={pages} vendor={store.code} note={`כל יום מבחר אחר מ-${store.name}, מעבר למבוקשים`} />;
+  return <DiscoveryStrip cards={cards} pages={pages} vendor={store.code} note={`כל יום מבחר אחר מ-${store.name}, מעבר למבוקשים`} wideFade />;
 }
 
 /** "andymark.com" from the vendor's site address, for the link to it. */
@@ -122,10 +124,12 @@ function StoreFront({ store }: { store: Store }) {
   const blurb = vendorBlurb(store.categories.filter((c) => c.slug !== "other"));
   return (
     <>
-      <Breadcrumb store={store} />
+      {/* Pulled up toward the header, so the flagship and the most wanted sit higher. */}
+      <Breadcrumb store={store} className="-mt-6 -mb-3" />
       {/* The flagship header: the logo large on dark glass in the vendor's colours, the search console beside it. */}
-      <header className="store-flagship relative z-20 flex flex-col gap-4 px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8 lg:px-7 lg:py-5">
-        <div className="flex min-w-0 flex-col items-start gap-2">
+      {/* From 1024px a two-column grid: the logo and blurb on the right; the search on the left with the count and the vendor's site under it. A short banner. */}
+      <header className="store-flagship relative z-20 grid grid-cols-1 gap-3 px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-x-8 lg:gap-y-2">
+        <div className="flex min-w-0 flex-col items-start gap-1.5 lg:row-span-2">
           <h1 className="flex min-h-12 items-center">
             {store.logoUrl ? (
               <VendorMark name={store.name} logoUrl={store.logoUrl} size="hero" tone="dark" eager />
@@ -134,24 +138,26 @@ function StoreFront({ store }: { store: Store }) {
             )}
           </h1>
           {blurb && <p className="store-blurb text-callout">{blurb}</p>}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="count-pill rounded-full px-3 py-1 text-caption font-semibold tabular-nums">
-              {store.count.toLocaleString("he-IL")} מוצרים
-            </span>
-            {/* The vendor's own site (suppliers.base_url), in a new tab. */}
-            <a
-              href={store.baseUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`לאתר ${store.name} (נפתח בכרטיסייה חדשה)`}
-              className="glass-pill flex min-h-11 items-center gap-2 rounded-full px-4 text-caption font-medium"
-            >
-              <ExternalLink size={20} strokeWidth={1.75} aria-hidden />
-              <Ltr>{siteName(store.baseUrl)}</Ltr>
-            </a>
-          </div>
         </div>
-        <StoreSearch action={vendorHref(store.code)} vendor={store.code} vendorName={store.name} q="" />
+        <div className="flex flex-wrap items-center gap-2 lg:col-start-2 lg:row-start-2">
+          <span className="count-pill rounded-full px-3 py-1 text-caption font-semibold tabular-nums">
+            {store.count.toLocaleString("he-IL")} מוצרים
+          </span>
+          {/* The vendor's own site (suppliers.base_url), in a new tab. */}
+          <a
+            href={store.baseUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`לאתר ${store.name} (נפתח בכרטיסייה חדשה)`}
+            className="glass-pill flex min-h-11 items-center gap-2 rounded-full px-4 text-caption font-medium"
+          >
+            <ExternalLink size={20} strokeWidth={1.75} aria-hidden />
+            <Ltr>{siteName(store.baseUrl)}</Ltr>
+          </a>
+        </div>
+        <div className="lg:col-start-2 lg:row-start-1">
+          <StoreSearch action={vendorHref(store.code)} vendor={store.code} vendorName={store.name} q="" />
+        </div>
       </header>
       <Suspense
         fallback={
@@ -166,7 +172,7 @@ function StoreFront({ store }: { store: Store }) {
         <SectionHeading id="all" icon={<LayoutGrid size={20} strokeWidth={1.75} />}>
           כל המוצרים של <Ltr>{store.name}</Ltr>
         </SectionHeading>
-        <GroupBoxes categories={store.categories.map((c) => ({ ...c, href: vendorHref(store.code, { category: c.slug }) }))} />
+        <StoreGroupCards vendor={store.code} categories={store.categories} />
       </section>
       <Suspense>
         <Discover store={store} />
@@ -197,23 +203,24 @@ async function Results({ store, filters }: { store: Store; filters: CatalogFilte
       suppliers={[{ code: store.code, name: store.name, count: total }]}
       categories={store.categories.map((c) => ({ slug: c.slug, name: c.name }))}
       underVendors={
-        <CategoryGroups vendor={store.code} categories={store.categories.map((c) => ({ ...c, count: inView[c.slug] ?? 0 }))} category={filters.category} group={filters.group} q={filters.q} />
+        <CategoryBar vendor={store.code} categories={store.categories.map((c) => ({ ...c, count: inView[c.slug] ?? 0 }))} category={filters.category} group={filters.group} q={filters.q} />
       }
     />
   );
 }
 
-function StoreResults({ store, filters }: { store: Store; filters: CatalogFilters }) {
+async function StoreResults({ store, filters }: { store: Store; filters: CatalogFilters }) {
   const category = store.categories.find((c) => c.slug === filters.category)?.name;
+  const group = filters.group ? (await getSettings()).content.categoryGroups.find((g) => g.id === filters.group)?.name : undefined;
   const here = filters.q ? (
     <>
       חיפוש: <Ltr>{filters.q}</Ltr>
     </>
   ) : (
-    (category ?? "מוצרים")
+    (category ?? group ?? "מוצרים")
   );
   return (
-    <div className="flex flex-col gap-4 xl:-mx-10 2xl:-mx-24">
+    <div className="flex flex-col gap-4">
       <Breadcrumb store={store} here={here} />
       <div className="relative z-20 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-title font-semibold">
@@ -268,7 +275,7 @@ async function VendorStore({ params, searchParams }: Props) {
   // The price note comes with the store, not under its skeleton, so nothing below jumps when it streams in.
   // The whole store wears the vendor's palette (vendorTheme): every token, card and wash on the page reads it.
   return (
-    <div style={vendorTheme(store) as React.CSSProperties} className="vendor-theme relative flex flex-col gap-8">
+    <div style={vendorTheme(store) as React.CSSProperties} className="vendor-theme relative flex flex-col gap-6">
       <div aria-hidden className="store-canvas pointer-events-none absolute -z-10" />
       <Suspense fallback={<StoreBodySkeleton />}>
         <StoreBody store={store} searchParams={searchParams} />

@@ -34,6 +34,7 @@ export function DiscoveryStrip({
   vendor,
   title = "גלו עוד",
   note = "כל יום מבחר אחר של חלקים שכדאי להכיר",
+  wideFade = false,
 }: {
   cards: CardFamily[];
   pages: number;
@@ -41,6 +42,12 @@ export function DiscoveryStrip({
   vendor: string;
   title?: string;
   note?: string;
+  /**
+   * The stores' look: the row runs out to the page's margins and fades over the outer 4% at each
+   * end, so a card half in view dissolves into the canvas instead of being cut by a line. The
+   * arrows sit outside the masked row, so the fade never covers them.
+   */
+  wideFade?: boolean;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const row = useRef<HTMLUListElement>(null);
@@ -185,7 +192,9 @@ export function DiscoveryStrip({
       <div ref={wrap} className="relative">
         <ul
           ref={row}
-          className="no-scrollbar scroll-fade-x -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto scroll-smooth px-4 pt-2 pb-6 sm:-mx-2 sm:scroll-px-6 sm:px-6"
+          className={`no-scrollbar scroll-fade-x flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pt-2 pb-6 ${
+            wideFade ? "-mx-6 scroll-px-6 px-6 [--fade:4%] md:-mx-12 md:scroll-px-12 md:px-12" : "-mx-4 scroll-px-4 px-4 sm:-mx-2 sm:scroll-px-6 sm:px-6"
+          }`}
         >
           {pages.flatMap(({ p, cards: list }) =>
             list.map((c, i) => (
