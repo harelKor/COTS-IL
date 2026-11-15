@@ -197,7 +197,7 @@ Four sessions, one after another (CF2–CF4 share `catalog-browser.tsx`; CF2 nee
 | CF1 Clean spec values | Done (Nov 15, 2026). Production updates after the nightly sync (02:00 UTC); no manual regroup | `0c2f918` |
 | CF2 The filter panel | Done (Nov 15, 2026). Production shows the new spec values after the nightly sync | `17961e6` |
 | CF3 Navigation and stability | Done (Nov 15, 2026) | `f73c694` (merged `1cf9d9e`) |
-| CF4 Cards and list view | Not started | |
+| CF4 Cards and list view | Done (Nov 15, 2026) | `f696b5e` (merged `2fffc3c`) |
 
 ### CF1 notes (for CF2–CF4)
 
@@ -233,3 +233,12 @@ Four sessions, one after another (CF2–CF4 share `catalog-browser.tsx`; CF2 nee
 - **Not done.** The store's own breadcrumb ("כל הספקים › WCP › …") doesn't show the group. The count words still read "5 מוצרים"/"1 מוצרים" in places (P2-5, CF4's `countOf` pass).
 - **Testing tip.** When the app's browser pane is hidden, React's streamed reveal (with `<ViewTransition>`) waits for an animation frame and a fresh load can sit on "טוען"; a headless Playwright script doesn't have this.
 
+### CF4 notes
+
+- **Where it is.** `src/components/family-card.tsx` (grid card and `layout="row"`), `src/domain/key-specs.ts` (`KEY_SPECS`, `summarizeSpec`, `keySpecsOf`), `src/domain/pack-size.ts` (`packSize`, `packText`), `OPTION` in `src/domain/plural.ts`, `addKeySpecs` in `src/lib/catalog.ts`.
+- **Stock line.** "זמין: 67/68" on a phone, "זמין: 67/68 אפשרויות" from 640px; the whole sentence is the hover title and screen-reader text. The "N אפשרויות" line under the price is gone from the grid card; the list row keeps it in its meta line.
+- **Price.** `isRange` → "₪26–₪148" (two `Ils`, no-wrap), a step smaller than a single price (15px phone, 17px from 640px). Every amount is no-wrap (a single "₪ 51" broke at its direction marks in the list column). At 360–375px a range doesn't fit beside the "+" without going under 13px, so those cards put the "+" on its own line (bottom-left as before); the bottom block is then about the height of the old "החל מ-"/price/options stack. From 414px nearly all fit beside it.
+- **Key specs.** Only on a category page with columns (Gears, Bearings, Belts and chain, Shafts; Shafts share the category with spacers, so its columns are shape, OD and length). One grouped query over `spec_values` for the cards in view, restricted to listed variants, the chosen vendors and the variants that pass the spec filters, so "20 DP" lists say 20 DP. It runs inside the cached card readers (grid cards carry the cells too, a few short strings). Columns (80px each, label over value, "—" when unknown) from 1280px; below that one wrapped line under the title. A cell is one value, a range of plain sizes with one unit ("12T – 84T", "16–48 DP"), two short values, or "N אפשרויות" (mixed units, shapes).
+- **Heights at 1280×800 (local).** Gears first card row 377–729 (was 377–752); with an active filter 433–785 (was 433–808); Bearings 377–709. No horizontal scroll and no cut line at 1280 or 375 (vendor names in list rows truncate by design).
+- **Counts.** Hand-built "N מוצרים" replaced with `countOf` in the results bar, the phone sheet's button, the category flyout, the home group and vendor boxes, the store groups and header, the store search and the cart pill.
+- **Pack size.** From the family title only ("Qty. 10", "QTY 5 - …", "(6-Pack)", "- 2 Pack", "Pack of 25", "50pk"); a "QTY 1" or a number-less "Pack" shows nothing. Shown under the price on the card and in the list.
