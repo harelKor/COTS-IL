@@ -63,7 +63,7 @@ export function VendorFilter({ vendors, value, onToggle, onClear }: { vendors: V
 
   const none = value.length === 0;
   const tile = (on: boolean, empty = false) =>
-    `glow-box relative flex h-16 min-w-[124px] shrink-0 flex-col items-center justify-center gap-1 px-3 py-2 transition-[translate,opacity] duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none lg:flex-auto ${
+    `glow-box relative flex h-[76px] min-w-[120px] shrink-0 flex-col items-center justify-center gap-1.5 px-3 py-2 transition-[translate,opacity] duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none lg:flex-auto ${
       on ? "vendor-tile-on" : empty ? "opacity-45" : !none ? "opacity-75 hover:opacity-100" : ""
     }`;
   const tick = (
@@ -95,12 +95,12 @@ export function VendorFilter({ vendors, value, onToggle, onClear }: { vendors: V
         aria-label="סינון לפי ספק"
         data-start={edges.start || undefined}
         data-end={edges.end || undefined}
-        className="vendor-row no-scrollbar flex gap-2 overflow-x-auto px-6 pt-2.5 pb-3 md:px-12 lg:px-3"
+        className="vendor-row no-scrollbar flex gap-2 overflow-x-auto px-6 pt-3 pb-5 md:px-12 lg:px-3"
       >
-        <button type="button" aria-pressed={none} onClick={onClear} className={`${tile(none)} lg:max-w-[132px]`}>
+        <button type="button" aria-pressed={none} onClick={onClear} className={`${tile(none)} lg:max-w-[152px]`}>
           {none && tick}
-          <LayoutGrid size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
-          <span className="text-caption font-semibold">כל הספקים</span>
+          <LayoutGrid size={22} strokeWidth={1.75} aria-hidden className="text-brand" />
+          <span className="text-caption font-semibold lg:text-callout">כל הספקים</span>
         </button>
         {vendors.map((v) => {
           const on = value.includes(v.code);
@@ -123,7 +123,7 @@ export function VendorFilter({ vendors, value, onToggle, onClear }: { vendors: V
                   src={logo}
                   alt=""
                   referrerPolicy="no-referrer"
-                  className={`h-6 w-auto max-w-[104px] object-contain vendor-logo ${darkLogo(v.logoUrl ?? null) ? "" : "vendor-logo-invert"}`}
+                  className={`h-7 w-auto max-w-[120px] object-contain vendor-logo ${darkLogo(v.logoUrl ?? null) ? "" : "vendor-logo-invert"}`}
                 />
               )}
               <span className="flex max-w-full items-baseline gap-1.5 text-caption leading-tight whitespace-nowrap">

@@ -254,7 +254,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, counts, s
           <VendorFilter vendors={suppliers} value={filters.suppliers} onToggle={(code) => go(toggleSupplier(filters, code))} onClear={() => go({ ...filters, suppliers: [] })} />
         </div>
       )}
-      <div className="sticky top-[52px] z-20 lg:col-span-2">
+      <div className="sticky top-[52px] z-20 mb-1 lg:col-span-2 lg:mb-2">
         <CategoryBar categories={categories} filters={filters} vendor={vendor} />
         {/* A thin line that runs while the next list loads (B1); only its opacity and transform move. */}
         <div aria-hidden data-on={pending || undefined} className="catalog-progress" />
@@ -339,61 +339,40 @@ export function CatalogBrowser({ filters, total, cards: first, facets, counts, s
           </div>
         </div>
 
-        {members.length > 0 &&
-          (filters.category ? (
-            <ul
-              aria-label={scope ? `קטגוריות ליד ${scope}` : "קטגוריות"}
-              className="no-scrollbar scroll-fade-x -mx-6 flex gap-2 overflow-x-auto px-6 md:-mx-12 md:px-12 lg:mx-0 lg:flex-wrap lg:px-0 lg:[mask-image:none]"
-            >
-              {members.map((c) => {
-                const on = c.slug === filters.category;
-                const to = scopeLink({ group: filters.group, category: c.slug });
-                return (
-                  <li key={c.slug} className="shrink-0">
-                    <CatalogLink
-                      href={to.href}
-                      before={on ? undefined : to.before}
-                      aria-current={on ? "page" : undefined}
-                      className={`flex min-h-11 items-center gap-1.5 rounded-full px-4 text-caption whitespace-nowrap ${on ? "bar-chip font-semibold" : "tool-chip"} ${c.count === 0 && !on ? "opacity-55" : ""}`}
-                    >
-                      {c.name}
-                      <span className="text-muted tabular-nums">{c.count.toLocaleString("he-IL")}</span>
-                    </CatalogLink>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <ul
-              aria-label={scope ? `הקטגוריות ב${scope}` : "קטגוריות"}
-              className="no-scrollbar scroll-fade-x -mx-6 grid auto-cols-[minmax(148px,1fr)] grid-flow-col gap-3 overflow-x-auto px-6 pb-1 md:-mx-12 md:px-12 lg:mx-0 lg:auto-cols-[minmax(148px,208px)] lg:px-0 lg:[mask-image:none]"
-            >
-              {members.map((c) => {
-                const to = scopeLink({ group: filters.group, category: c.slug });
-                return (
-                  <li key={c.slug} className="flex">
-                    <CatalogLink
-                      href={to.href}
-                      before={to.before}
-                      className={`drill-tile flex w-full flex-col gap-2 rounded-2xl p-2 transition-[translate,border-color] duration-200 ease-out hover:-translate-y-0.5 motion-reduce:transition-none ${c.count === 0 ? "opacity-55" : ""}`}
-                    >
-                      <span className="tile-fade flex h-24 items-center justify-center overflow-hidden rounded-xl p-2">
-                        {c.images[0] && (
-                          // The photos the flyouts and the home page use (categories.home_image, then the regroup's picks).
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img {...shopifyImage(c.images[0], 160)} alt="" decoding="async" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
-                        )}
-                      </span>
-                      <span className="flex flex-col px-1 pb-0.5">
-                        <span className="text-callout leading-snug font-medium">{c.name}</span>
-                        <span className="text-caption text-muted tabular-nums">{countOf(c.count, PRODUCT)}</span>
-                      </span>
-                    </CatalogLink>
-                  </li>
-                );
-              })}
-            </ul>
-          ))}
+        {/* The group's categories as photo tiles, on the group page and on each of its categories (the chosen one lit), CF3. */}
+        {members.length > 0 && (
+          <ul
+            aria-label={scope ? `הקטגוריות ב${scope}` : "קטגוריות"}
+            className="no-scrollbar scroll-fade-x -mx-6 grid auto-cols-[minmax(148px,1fr)] grid-flow-col gap-3 overflow-x-auto px-6 pt-1 pb-2 mb-2 md:-mx-12 md:px-12 lg:mx-0 lg:auto-cols-[minmax(148px,208px)] lg:px-0 lg:[mask-image:none]"
+          >
+            {members.map((c) => {
+              const on = c.slug === filters.category;
+              const to = scopeLink({ group: filters.group, category: c.slug });
+              return (
+                <li key={c.slug} className="flex">
+                  <CatalogLink
+                    href={to.href}
+                    before={on ? undefined : to.before}
+                    aria-current={on ? "page" : undefined}
+                    className={`drill-tile flex w-full flex-col gap-2 rounded-2xl p-2 transition-[translate,border-color] duration-200 ease-out hover:-translate-y-0.5 motion-reduce:transition-none ${c.count === 0 && !on ? "opacity-55" : ""}`}
+                  >
+                    <span className="tile-fade flex h-24 items-center justify-center overflow-hidden rounded-xl p-2">
+                      {c.images[0] && (
+                        // The photos the flyouts and the home page use (categories.home_image, then the regroup's picks).
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img {...shopifyImage(c.images[0], 160)} alt="" decoding="async" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
+                      )}
+                    </span>
+                    <span className="flex flex-col px-1 pb-0.5">
+                      <span className="text-callout leading-snug font-medium">{c.name}</span>
+                      <span className="text-caption text-muted tabular-nums">{countOf(c.count, PRODUCT)}</span>
+                    </span>
+                  </CatalogLink>
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
         {active.length > 0 && (
           <div role="group" aria-label="סינונים פעילים" className="flex flex-wrap items-center gap-2">
