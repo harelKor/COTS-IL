@@ -163,7 +163,7 @@ M1 can start now (its files don't overlap the audit tasks). After it:
 | M1 Health and alerts | — | done (Nov 14): needs `CRON_SECRET` in Vercel; cards and the search price path left to T6 (see M1 below) |
 | M2 Order corrections | T4 | done (Nov 15): migration `20261114192750` applied; open: no team email for an admin cancel (needs an event and template), surplus units can't yet be given to another team's order |
 | M3 Payment tracking | M2 | not started |
-| M4 Team management | T9 | not started |
+| M4 Team management | T9 | done (Nov 15): `/admin/teams/<id>` team page; edit, sign-ins, number transfer with block, merge, suspend, delete test data; `blocked_emails`; business setting `pendingTeamsMaySend`; payment slot left for M3 |
 | M5 History, export, season close | T4, M2 | not started |
 | M6 Text and messages | T4, T5, T19 | done (Nov 15): info pages, home words, tagline, email templates, timings and admin email routing are in `/admin/settings` (content, emails, admins) |
 | M7 Search and catalog tuning | T6 | not started |
