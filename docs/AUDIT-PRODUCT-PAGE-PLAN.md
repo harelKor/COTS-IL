@@ -205,7 +205,8 @@ Three sessions, one after the other (they share `family-view.tsx` and `page.tsx`
    - **Where it lives:** a `vendorThemes`/`blendedTheme` helper beside `vendorTheme` in `src/domain/vendors.ts`, with tests. It sets `--vendor-*` variables, plus a second set for the other vendor.
 8. **Embedded feel:**
    - sections sit on the page with the vendor-tinted hairline and glow the cards already use, and the same radius;
-   - English text never runs the full page width.
+   - English text never runs the full page width;
+   - **less like pasted boxes, more a part of the page** (the user, when approving): no filled box around a whole section. Text, lists and the spec rows sit on the canvas between `SectionHeading` hairlines and spacing, with a soft vendor glow or band behind a section where it helps. Tiles only where they are real targets (doc tiles, feature-grid items). The buy box and cards elsewhere keep their dark glass, and photos stay on pearl wells.
 
 **Done when:**
 - at 1280 and 1440 px, neither column leaves more than about 120 px empty beside the other, on SDS MK5n, Kraken X60, the timing belt, Stealth wheels and EVO Shifter;

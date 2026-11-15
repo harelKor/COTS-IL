@@ -45,7 +45,7 @@ export function HotRow({ title, cards }: { title: string; cards: CardFamily[] })
   if (cards.length === 0) return null;
   const track = loops ? [...base, ...base] : base;
   return (
-    <section ref={box} aria-labelledby={`${id}-h`} className="hot-zone relative flex flex-col gap-4 overflow-hidden rounded-card py-5 md:py-6">
+    <section ref={box} aria-labelledby={`${id}-h`} data-jump={title} className="hot-zone scroll-mt-32 relative flex flex-col gap-4 overflow-hidden rounded-card py-5 md:py-6">
       <h2 id={`${id}-h`} className="flex items-center gap-2.5 px-5 text-section font-semibold tracking-tight md:px-6 lg:text-[24px]">
         <FireBadge />
         {title}

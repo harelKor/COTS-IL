@@ -22,7 +22,7 @@ import { PriceNote } from "./price-note";
 import { ProductGallery } from "./product-gallery";
 import { publishChoice } from "./spec-table";
 import { canEditCart, useCart } from "./cart-store";
-import { vendorHref } from "@/domain/vendors";
+import { vendorHref, vendorTheme } from "@/domain/vendors";
 import { Ltr } from "./ltr";
 import { VendorMark } from "./vendor-mark";
 import { OptionCombobox } from "./option-combobox";
@@ -61,9 +61,14 @@ type Props = {
   docs?: { cad: string | null; guide: string | null };
   /** Each vendor's logo by supplier code (`suppliers.logo_url`), shown large above the name. */
   logos?: Record<string, string | null>;
+  /** What sits under the buy box, beside the photos (PP4): the spec table and the document tiles. */
+  below?: React.ReactNode;
 };
 
 type InnerProps = Props & { initialChoices: Record<string, string>; initialSupplier: string | null };
+
+/** A vendor's own palette as custom properties (its supplier card, its logo's glow). */
+const themeOf = (code: string, name: string) => vendorTheme({ code, name });
 
 const noSubscribe = () => () => {};
 type Linked = { href: string; v: string | null; vendor: string | null; query: string };
@@ -106,7 +111,7 @@ const previewText = (p: Preview | null) => (p ? (p.exact ? formatIls(p.price) : 
  * the variant in the link (`?v=`, settled by `?vendor=` when two vendors share a SKU), or the
  * choice so far (`?width=15mm`), is chosen in the browser, so one cached page serves them all.
  */
-export function FamilyView({ family, variants, rateDate, tableRows, docs, logos }: Props) {
+export function FamilyView({ family, variants, rateDate, tableRows, docs, logos, below }: Props) {
   const { v: wanted, vendor, query } = useSyncExternalStore(noSubscribe, linkedOffer, noLinkedOffer);
   const match = findLinked(variants, wanted, vendor);
   const fromVendor = vendor ? variants.filter((x) => x.supplierCode === vendor) : [];
@@ -122,6 +127,7 @@ export function FamilyView({ family, variants, rateDate, tableRows, docs, logos 
       tableRows={tableRows}
       docs={docs}
       logos={logos}
+      below={below}
       initialChoices={initial ? initial.options : choicesFrom(new URLSearchParams(fromQuery), family.optionKeys)}
       initialSupplier={initial ? initial.supplierName : initialSupplier}
     />
@@ -135,7 +141,7 @@ type Clash = { key: string; value: string; items: { title: string; label: string
  * several sell the part) update the photo, price, SKU and URL at once; "Add"
  * puts the chosen variant in the cart without leaving the page.
  */
-function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {}, initialChoices, initialSupplier }: InnerProps) {
+function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {}, below, initialChoices, initialSupplier }: InnerProps) {
   const { mode, lines } = useCart();
   const { leadTimes } = useSiteFacts();
   const now = useNow();
@@ -292,13 +298,13 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
     setMissing(missingView.key);
   }
 
-  /** "הצגה כטבלה": opens the page's table of every option and scrolls to it. */
+  /** "הצגה כטבלה": opens all of the page's table of every option ("כל האפשרויות") and scrolls to it. */
   function toTable(e: React.MouseEvent<HTMLElement>) {
-    const table = e.currentTarget.closest("article")?.querySelector<HTMLDetailsElement>("details[data-options-table]");
+    const table = e.currentTarget.closest("article")?.querySelector<HTMLElement>("[data-options-table]");
     if (!table) return;
-    table.open = true;
+    table.dispatchEvent(new Event("options:open"));
     table.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
-    table.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
+    table.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
   }
 
   function add() {
@@ -411,7 +417,8 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
           <ul aria-label="נמכר אצל" className="flex shrink-0 items-center">
             {vendors.map(([code, name], i) => (
-              <li key={code} className={i > 0 ? "ms-4 border-s border-line ps-4" : ""}>
+              // Each logo over a soft glow of its own vendor's colour; between two, a hairline from one colour to the other.
+              <li key={code} style={{ "--logo-rgb": themeOf(code, name)["--vendor-primary-rgb"] } as React.CSSProperties} className={`pdp-logo ${i > 0 ? "pdp-logo-next ms-4 ps-4" : ""}`}>
                 <Link href={vendorHref(code)} aria-label={`החנות של ${name}`} className="flex min-h-11 items-center rounded-xl transition-opacity duration-200 hover:opacity-80">
                   <VendorMark name={name} logoUrl={logos[code] ?? null} size={vendors.length > 1 ? "productPair" : "product"} tone="dark" eager />
                 </Link>
@@ -447,7 +454,7 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-col gap-2 md:sticky md:top-[68px] md:col-start-1 md:row-span-2 md:row-start-1 md:self-start">
+      <div className="flex min-w-0 flex-col gap-2 md:sticky md:top-[120px] md:col-start-1 md:row-span-2 md:row-start-1 md:self-start">
         <ProductGallery title={family.title} photos={gallery} shown={shown} onShow={setPhoto} transitionName={productImageTransition(family.id)} mainRef={mainImage} />
       </div>
 
@@ -554,7 +561,7 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
           </button>
         )}
 
-        <section ref={buyBox} aria-label="רכישה" className="card-surface flex flex-col gap-4 p-5">
+        <section ref={buyBox} data-buy-box aria-label="רכישה" className="card-surface flex flex-col gap-4 p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <span className="text-title font-semibold" aria-live="polite">
               {priceText}
@@ -609,10 +616,13 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
                       {eta && <span className="text-caption text-muted">{eta}</span>}
                     </>
                   );
-                  const box = "flex min-h-11 flex-col items-start gap-1 rounded-2xl border p-3 text-start transition-[border-color,box-shadow,background-color] duration-150";
+                  const box = "vendor-theme flex min-h-11 flex-col items-start gap-1 rounded-2xl border p-3 text-start transition-[border-color,box-shadow,background-color] duration-150";
+                  // Each vendor's card in its own colours (PP4).
+                  const own = themeOf(code, name) as React.CSSProperties;
                   return sells ? (
                     <button
                       key={code}
+                      style={own}
                       type="button"
                       aria-pressed={on}
                       onClick={() => onSupplier(name)}
@@ -621,7 +631,7 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
                       {body}
                     </button>
                   ) : (
-                    <div key={code} className={`${box} border-line/60 bg-surface/60 opacity-70`}>
+                    <div key={code} style={own} className={`${box} border-line/60 bg-surface/60 opacity-70`}>
                       {body}
                     </div>
                   );
@@ -684,6 +694,8 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
           </div>
         </section>
 
+        {/* The spec table and the document tiles (PP4): under the buy box, beside the photos; on phones after it. */}
+        {below}
       </div>
 
       {canAdd && (

@@ -60,7 +60,7 @@ const PROMO = [
   /\bfree shipping\b/i,
 ];
 /** A heading that starts a block of sales talk: everything under it goes. */
-const PROMO_HEADING = /special offer|promotion|\bsale\b|\bdeals?\b|pricing|discount/i;
+const PROMO_HEADING = /special offer|promotion|\bsale\b|\bdeals?\b|pricing|discount|lead[- ]?times?|shipping/i;
 /** A heading over a list or table of specifications, collapsed into the page's spec section. */
 const SPEC_HEADING = /spec(ification)?s?|electrical|mechanical|dimensions/i;
 /** Links to the supplier's shop pages (not its docs): they send teams to buy there. */
@@ -101,13 +101,91 @@ const isPromo = (text: string) => PROMO.some((p) => p.test(text));
 /** Store links become plain text; a block that was nothing but store links goes. */
 function unwrapStoreLinks(block: string): string | null {
   let linkText = "";
-  const out = block.replace(/<a\b[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (whole, href: string, text: string) => {
-    if (!STORE_LINK.test(decodeEntities(href))) return whole;
+  // Also links that only work on the supplier's own site ("/am-5787", "../ftc", "#tab-7") and links with no address.
+  const out = block.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, (whole, attrs: string, text: string) => {
+    const href = decodeEntities(/\bhref="([^"]*)"/i.exec(attrs)?.[1] ?? "");
+    if (/^https?:\/\//i.test(href) && !STORE_LINK.test(href)) return whole;
     linkText += ` ${text}`;
     return text;
   });
   if (linkText && descriptionText(linkText) === descriptionText(block)) return null;
   return out;
+}
+
+/**
+ * Sentences that speak of the supplier's own page or its shipping, which don't hold here (PP4):
+ * lead times and build times (we quote our own), "click here", "scroll down", "the table at the
+ * bottom of the page", "READ MORE".
+ */
+const STRAY = [
+  /\blead[- ]?times?\b/i,
+  /\bbusiness days\b/i,
+  /\bbuild time\b/i,
+  /\bbuilt to order\b/i,
+  /\bships? (with)?in \d/i,
+  /\bclick (here|the link|below)\b/i,
+  /\bscroll (down|up)\b/i,
+  /\b(above|below) this line\b/i,
+  /\b(bottom|top) of (the|this) page\b/i,
+  /^\s*read more\W*$/i,
+];
+/** A bold label that opens a paragraph about shipping ("Availability:", "Leadtime:"): the paragraph goes. */
+const STRAY_LABEL = /^(availability|lead[- ]?times?|shipping( info(rmation)?)?|ships|build time)\s*:?$/i;
+const isStray = (text: string) => STRAY.some((p) => p.test(text));
+
+/** Empty inline tags left after their words went ("<a></a>"), and stray line breaks at the ends. */
+function tidy(html: string): string {
+  let out = html;
+  for (let i = 0; i < 3; i++) out = out.replace(/<(a|strong|b|em|i|span|u|small)\b[^>]*>(\s|&nbsp;)*<\/\1>/gi, "");
+  return out
+    .replace(/^((\s|&nbsp;)*<br\s*\/?>)+/i, "")
+    .replace(/(<br\s*\/?>(\s|&nbsp;)*)+$/i, "")
+    .replace(/(<br\s*\/?>\s*){3,}/gi, "<br /><br />");
+}
+
+/**
+ * The block without its stray sentences (STRAY). Text is cut into sentences at ". ", "! ", "? "
+ * and line breaks; a dropped sentence loses its words while its tags stay (and go when left
+ * empty), so the HTML stays balanced.
+ */
+export function dropStraySentences(html: string): string {
+  if (!isStray(descriptionText(html))) return html;
+  const pieces: { text: string; tag: boolean; n: number }[] = [];
+  let n = 0;
+  for (const token of html.split(/(<[^>]+>)/)) {
+    if (token === "") continue;
+    if (token.startsWith("<")) {
+      const br = /^<br\b/i.test(token);
+      if (br) n++;
+      pieces.push({ text: token, tag: true, n });
+      if (br) n++;
+      continue;
+    }
+    token.split(/(?<=[.!?])(?=\s)/).forEach((part, i) => {
+      if (i > 0) n++;
+      pieces.push({ text: part, tag: false, n });
+    });
+  }
+  const drop = new Set<number>();
+  for (let i = 0; i <= n; i++) {
+    const text = decodeEntities(
+      pieces
+        .filter((p) => !p.tag && p.n === i)
+        .map((p) => p.text)
+        .join(""),
+    );
+    if (isStray(text)) drop.add(i);
+  }
+  const kept = pieces.map((p) => (p.tag || !drop.has(p.n) ? p.text : "")).join("");
+  // A paragraph or list item keeps its own tags; only what's inside it is tidied.
+  const m = /^(\s*<(p|li)\b[^>]*>)([\s\S]*)(<\/\2>\s*)$/i.exec(kept);
+  return m ? `${m[1]}${tidy(m[3]).trim()}${m[4]}` : tidy(kept).trim();
+}
+
+/** The bold label a block opens with: "Availability:" in "<strong>Availability:</strong> As each…". */
+function leadLabel(html: string): string | null {
+  const m = /^\s*(?:<p\b[^>]*>)?\s*<(strong|b)>([\s\S]{1,60}?)<\/\1>/i.exec(html);
+  return m ? descriptionText(m[2]) : null;
 }
 
 export type Spec = { key: string; value: string };
@@ -230,6 +308,8 @@ export function cleanDescription(html: string | null): CleanDescription {
   const kept: string[] = [];
   let skipBelow = 0; // inside a promo section: skip until a heading at this level or higher
   let heading = "";
+  // After a "Leadtime:" label on a line of its own, the list of ship times under it goes too.
+  let skipList = false;
   for (const raw of paragraphs(expandTabs(blocks(html)))) {
     const tag = tagOf(raw);
     const level = headingLevel(tag);
@@ -255,9 +335,15 @@ export function cleanDescription(html: string | null): CleanDescription {
       }
     }
 
+    const afterLabel = skipList;
+    skipList = false;
+    if ((tag === "ul" || tag === "ol") && afterLabel) continue;
+
     if (tag === "ul" || tag === "ol") {
       // Empty items (an empty tab) and sales talk go.
-      const items = listItems(raw).filter((li) => (descriptionText(li) !== "" || /<img\b/i.test(li)) && !isPromo(descriptionText(li)));
+      const items = listItems(raw)
+        .map(dropStraySentences)
+        .filter((li) => (descriptionText(li) !== "" || /<img\b/i.test(li)) && !isPromo(descriptionText(li)));
       const lines = items.map((li) => specLine(descriptionText(li)));
       // A spec list ("Free Speed: 7500 RPM", …) moves to specs; its odd free-text lines stay.
       const asSpecs = SPEC_HEADING.test(heading) && items.length > 0 && lines.filter(Boolean).length >= items.length * 0.8;
@@ -272,6 +358,12 @@ export function cleanDescription(html: string | null): CleanDescription {
     }
 
     if (!text) continue;
+    // "Availability: built to order, allow 3-4 business days…": we quote our own times.
+    const label = leadLabel(raw);
+    if (label && STRAY_LABEL.test(label.trim())) {
+      skipList = text.replace(/[\s:]+$/, "") === label.replace(/[\s:]+$/, "");
+      continue;
+    }
     let block: string | null = raw;
     if (isPromo(text)) {
       // A paragraph of several lines loses only its sales lines ("…please contact us at support@…").
@@ -281,7 +373,8 @@ export function cleanDescription(html: string | null): CleanDescription {
       block = `<p>${clean.map((l) => l.trim()).join("<br />")}</p>`;
     }
     block = unwrapStoreLinks(block);
-    if (block !== null) kept.push(block);
+    if (block !== null) block = dropStraySentences(block);
+    if (block !== null && descriptionText(block) !== "") kept.push(block);
   }
 
   // Headings left with nothing under them (their table moved to specs, their offer removed).
@@ -308,4 +401,109 @@ export function cleanDescription(html: string | null): CleanDescription {
   if (descriptionText(rest.join("")).length < 200) cut = body.length;
   while (cut > 1 && cut < body.length && headingLevel(tagOf(body[cut - 1]))) cut--;
   return { lead: body.slice(0, cut).join("\n"), more: body.slice(cut).join("\n"), specs };
+}
+
+/**
+ * One piece of the description as the page lays it out (PP4): running text, a heading, an
+ * "IMPORTANT:" or "Note:" paragraph as a callout, a list whose items open with a bold phrase
+ * as a feature grid, or a plain list.
+ */
+export type DescBlock =
+  | { kind: "text"; html: string }
+  | { kind: "heading"; text: string }
+  | { kind: "callout"; tone: "important" | "note"; html: string }
+  | { kind: "features"; items: { title: string; html: string }[] }
+  | { kind: "list"; ordered: boolean; items: string[] };
+
+const CALLOUT = /^(important|warning|caution|attention|note)\b/i;
+
+/** Line breaks moved out of bold tags ("<strong>Usage: <br /></strong>" → "<strong>Usage:</strong><br />"). */
+function breaksOutOfBold(html: string): string {
+  return html
+    .replace(/<(strong|b)>((?:\s|<br\s*\/?>)+)/gi, "$2<$1>")
+    .replace(/((?:\s|<br\s*\/?>)+)<\/(strong|b)>/gi, "</$2>$1")
+    .replace(/<(strong|b)>\s*<\/\1>/gi, "");
+}
+
+/**
+ * A paragraph cut at its blank lines, and a bold label on a line of its own
+ * ("<strong>Air Cylinder Shifting:</strong><br />The EVO…") made a heading over the rest.
+ */
+function splitParagraph(p: string): DescBlock[] {
+  const out: DescBlock[] = [];
+  for (const part of breaksOutOfBold(inner(p)).split(/(?:<br\s*\/?>\s*){2,}/i)) {
+    const m =
+      /^\s*<(strong|b)>([^<]{2,70}?)<\/\1>\s*:?\s*(?:<br\s*\/?>\s*)+([\s\S]*)$/i.exec(part) ??
+      /^\s*<(strong|b)>([^<]{2,100}?)<\/\1>\s*:?\s*$/i.exec(part) ??
+      // "Other features:" on a line of its own, before its list.
+      /^\s*()([^<]{2,50}:)\s*$/.exec(part);
+    const rest = (m ? (m[3] ?? "") : part).replace(/^(\s|<br\s*\/?>)+|(\s|<br\s*\/?>)+$/gi, "");
+    if (m) out.push({ kind: "heading", text: decodeEntities(m[2]).trim().replace(/\s*:$/, "") });
+    if (descriptionText(rest) !== "") out.push(paragraphBlock(`<p>${rest}</p>`));
+  }
+  return out;
+}
+
+/** A paragraph, or a callout when it opens with "IMPORTANT:" or "Note" (the label itself goes: the callout says it). */
+function paragraphBlock(p: string): DescBlock {
+  const text = descriptionText(p);
+  const m = CALLOUT.exec(text);
+  if (!m) return { kind: "text", html: p };
+  const tone = m[1].toLowerCase() === "note" ? "note" : "important";
+  const body = inner(p).replace(/^(\s*(?:<(?:strong|b)>\s*)?)(important|warning|caution|attention|note)\s*[:!]\s*/i, "$1");
+  return { kind: "callout", tone, html: tidy(body).trim() };
+}
+
+/** "Ball-Bearing-Based" and the rest, from "<strong>Ball-Bearing-Based</strong><br />Because…"; null for an item without a bold lead. */
+function featureItem(li: string): { title: string; html: string } | null {
+  const m = /^\s*<(strong|b)>([\s\S]{1,140}?)<\/\1>([\s\S]*)$/i.exec(breaksOutOfBold(inner(li)));
+  if (!m || /<(ul|ol|img|table)\b/i.test(li)) return null;
+  let title = descriptionText(m[2]);
+  let rest = m[3].replace(/^(\s|<br\s*\/?>|[:\-–—.])+/i, "").trim();
+  // All of it bold ("Drive motor: WCP/CTRE Kraken X60."): the words before the colon are the title.
+  if (descriptionText(rest) === "" && title.includes(":")) {
+    const at = title.indexOf(":");
+    rest = escapeText(title.slice(at + 1).trim());
+    title = title.slice(0, at);
+  }
+  title = title.replace(/[\s:.\-–—]+$/, "").trim();
+  if (title.length < 2 || title.length > 70) return null;
+  return { title, html: rest };
+}
+
+/**
+ * The cleaned description (cleanDescription's lead and more, joined) as the page lays it out:
+ * running text merged, headings, callouts, feature grids and lists. The supplier's words are kept
+ * as they are; only the shape changes.
+ */
+export function descriptionBlocks(html: string): DescBlock[] {
+  const out: DescBlock[] = [];
+  const push = (b: DescBlock) => {
+    const last = out.at(-1);
+    if (b.kind === "text" && last?.kind === "text") last.html += `\n${b.html}`;
+    // A supplier's one list cut into several ("Short Hex…", "AM14U…", "Short Keyed…") reads as one.
+    else if (b.kind === "list" && last?.kind === "list" && last.ordered === b.ordered) last.items.push(...b.items);
+    else out.push(b);
+  };
+  for (const block of blocks(html)) {
+    const tag = tagOf(block);
+    if (headingLevel(tag)) {
+      const text = descriptionText(block);
+      if (text) push({ kind: "heading", text });
+    } else if (tag === "p") {
+      splitParagraph(block).forEach(push);
+    } else if (tag === "ul" || tag === "ol") {
+      const items = listItems(block);
+      const features = items.map(featureItem);
+      if (items.length >= 2 && features.filter(Boolean).length >= items.length * 0.8) {
+        push({ kind: "features", items: features.map((f, i) => f ?? { title: "", html: inner(items[i]).trim() }) });
+      } else {
+        push({ kind: "list", ordered: tag === "ol", items: items.map((li) => inner(li).trim()) });
+      }
+    } else if (descriptionText(block) !== "" || /<(img|table)\b/i.test(block)) {
+      push({ kind: "text", html: block });
+    }
+  }
+  // A heading with nothing under it (the last thing, or right before another heading) goes.
+  return out.filter((b, i) => b.kind !== "heading" || (out[i + 1] !== undefined && out[i + 1].kind !== "heading"));
 }

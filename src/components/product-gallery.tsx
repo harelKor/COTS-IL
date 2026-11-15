@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
 import { useRef, ViewTransition } from "react";
+import { thumbColumns } from "@/domain/gallery";
 import { imageLoading, largestImage, shopifyImage } from "@/lib/images";
 import { Ltr } from "./ltr";
 
@@ -152,9 +153,13 @@ export function ProductGallery({ title, photos, shown, onShow, transitionName, m
       </dialog>
 
       {many && (
-        <ul className="grid grid-cols-6 gap-2">
+        // An even grid from md (thumbColumns: never a lone pair); on phones one row that scrolls sideways.
+        <ul
+          style={{ "--thumb-cols": thumbColumns(photos.length) } as React.CSSProperties}
+          className="-mx-1 flex gap-2 overflow-x-auto px-1 py-1 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-[repeat(var(--thumb-cols),minmax(0,1fr))] md:overflow-visible md:px-0"
+        >
           {photos.map((src, i) => (
-            <li key={src}>
+            <li key={src} className="w-16 shrink-0 md:w-auto">
               <button
                 type="button"
                 onClick={() => onShow(src)}

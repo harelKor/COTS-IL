@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanDescription, descriptionText, isRealDescription, metaDescription } from "./description";
+import { cleanDescription, descriptionBlocks, descriptionText, dropStraySentences, isRealDescription, metaDescription } from "./description";
 
 describe("isRealDescription", () => {
   it("hides the supplier's reference-only placeholder", () => {
@@ -128,5 +128,60 @@ describe("cleanDescription on real supplier descriptions", () => {
 describe("descriptionText entities", () => {
   it("decodes &amp; in doc labels", () => {
     expect(descriptionText("Access User Guide, Kit Contents &amp; More!")).toBe("Access User Guide, Kit Contents & More!");
+  });
+});
+
+describe("PP4: stray lines and the page's blocks", () => {
+  const blocksOf = (name: string) => {
+    const c = cleanDescription(fixture(name));
+    return { blocks: descriptionBlocks(`${c.lead}\n${c.more}`), text: descriptionText(`${c.lead} ${c.more}`) };
+  };
+  const STRAY = [/click here/i, /lead[- ]?time/i, /business days/i, /scroll down/i, /read more/i, /bottom of the page/i];
+
+  it("drops lead-time and click-here sentences but keeps the rest of their paragraph", () => {
+    expect(dropStraySentences("<p>Great wheel. Please click here for the lead-time. It grips well.</p>")).toBe("<p>Great wheel. It grips well.</p>");
+    expect(descriptionText(dropStraySentences('<p><a href="https://x.com">Click here</a> to apply for your discount today!</p>'))).toBe("");
+    expect(dropStraySentences("<p>Line one<br />Leadtime: 2-3 weeks</p>")).toBe("<p>Line one</p>");
+  });
+
+  it("SDS MK5n: IMPORTANT and Note become callouts, the not-included list a feature grid, no 'scroll down'", () => {
+    const { blocks, text } = blocksOf("sds-mk5n.html");
+    for (const p of STRAY) expect(text).not.toMatch(p);
+    const callouts = blocks.flatMap((b) => (b.kind === "callout" ? [b] : []));
+    expect(callouts.map((b) => b.tone)).toEqual(["important", "note"]);
+    expect(callouts[0].html).toMatch(/^The adjacent MK5n/);
+    // "/am-5787" only works on AndyMark's own site.
+    expect(callouts[0].html).not.toMatch(/<a\b/);
+    const features = blocks.flatMap((b) => (b.kind === "features" ? [b] : []));
+    expect(features[0].items.map((i) => i.title)).toEqual(["Drive motor", "Steering motor", "Steering encoder"]);
+    expect(blocks.flatMap((b) => (b.kind === "heading" ? [b.text] : []))).toEqual(["Additional new features", "Other features"]);
+  });
+
+  it("EVO Shifter: no build-time paragraph, bold labels become headings, the shaft lists read as one", () => {
+    const { blocks, text } = blocksOf("andymark-evo-shifter.html");
+    for (const p of STRAY) expect(text).not.toMatch(p);
+    expect(text).not.toMatch(/Availability:/);
+    const headings = blocks.flatMap((b) => (b.kind === "heading" ? [b.text] : []));
+    expect(headings).toEqual(expect.arrayContaining(["Improvements", "Air Cylinder Shifting", "Weight Range (Without Motors)", "Output Shaft"]));
+    const shafts = blocks.at(-1);
+    expect(shafts?.kind === "list" && shafts.items.length).toBe(3);
+    expect(blocks.some((b, i) => b.kind === "heading" && blocks[i + 1]?.kind === "heading")).toBe(false);
+  });
+
+  it("Stealth: two paragraphs, then 'Product Usage' as a heading over its own", () => {
+    const { blocks } = blocksOf("andymark-stealth-sushi-wheels.html");
+    expect(blocks.map((b) => b.kind)).toEqual(["text", "heading", "text"]);
+    expect(blocks[1].kind === "heading" && blocks[1].text).toBe("Product Usage");
+  });
+
+  it("a bold-lead list is a feature grid with its titles and text", () => {
+    const [b] = descriptionBlocks("<ul><li><strong>Ball-Bearing-Based</strong><br />Less friction.</li><li><b>Modular:</b> Builds anything.</li></ul>");
+    expect(b).toEqual({
+      kind: "features",
+      items: [
+        { title: "Ball-Bearing-Based", html: "Less friction." },
+        { title: "Modular", html: "Builds anything." },
+      ],
+    });
   });
 });

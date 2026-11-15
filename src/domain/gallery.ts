@@ -201,3 +201,14 @@ export function followPhoto(
   }
   return null;
 }
+
+/**
+ * How many thumbnails a row holds under the main photo (PP4): never a lone pair or one left over.
+ * Up to 6 photos sit in one row at the usual size, 7 or 8 in one row of smaller ones, 9 to 12 in
+ * two rows of half each (9: 5 and 4; 12: 6 and 6). On phones the row scrolls sideways instead.
+ */
+export function thumbColumns(count: number): number {
+  if (count <= 6) return 6;
+  if (count <= 8) return count;
+  return Math.ceil(count / 2);
+}

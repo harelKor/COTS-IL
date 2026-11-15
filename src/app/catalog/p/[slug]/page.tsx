@@ -1,6 +1,6 @@
-import { vendorTheme } from "@/domain/vendors";
+import { blendedTheme } from "@/domain/vendors";
 import { BackToList } from "@/components/back-to-list";
-import { ChevronDown, ChevronLeft, ExternalLink } from "lucide-react";
+import { ChevronLeft, Table2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,15 +15,19 @@ import { CardGridSkeleton, Loading, ProductSkeleton } from "@/components/skeleto
 import { companionRules } from "@/domain/families/companions";
 import { findLinked } from "@/domain/families/link";
 import { specRows } from "@/domain/families/spec-rows";
-import { documentLinks, quickDocs, sortDocs } from "@/domain/doc-links";
+import { docTiles, documentLinks, quickDocs, sortDocs } from "@/domain/doc-links";
 import { SpecTable } from "@/components/spec-table";
+import { DocTiles } from "@/components/doc-tiles";
+import { JumpBar } from "@/components/jump-bar";
+import { ProductDescription } from "@/components/product-description";
+import { SectionHeading } from "@/components/section-heading";
 import { formatIls, priceIls, type PriceContext } from "@/domain/pricing";
 import { getCategoryPicks, getCompanions, getFacets, getFamily, getVendorPopular, getVendors, type FamilyVariant } from "@/lib/catalog";
 import { priceContext } from "@/lib/settings";
 import { getStaleSupplierCodes } from "@/lib/health";
 import { catalogHref } from "@/lib/catalog-filters";
 import { familyHref } from "@/lib/catalog-links";
-import { cleanDescription, descriptionText, metaDescription } from "@/lib/description";
+import { cleanDescription, descriptionBlocks, descriptionText, metaDescription } from "@/lib/description";
 import { siteUrl } from "@/lib/site-url";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
@@ -213,21 +217,36 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
   const description = cleanDescription(family.descriptionHtml);
   // One spec table: the options and the variants' specs (summarized until the choice settles them), then the description's.
   const specs = specRows(family.optionKeys, viewVariants, description.specs);
-  // Each document once, by what it opens (CAD, guide, datasheet…), from every product's description.
-  const docs = sortDocs([...new Map(result.variants.flatMap((v) => documentLinks(v.productDescription, descriptionText, family.title)).map((d) => [d.href, d])).values()]).slice(0, 8);
+  // Each document once, by what it opens (CAD, guide, datasheet…), from every product's description, with the vendor that linked it.
+  const docs = sortDocs([
+    ...new Map(result.variants.flatMap((v) => documentLinks(v.productDescription, descriptionText, family.title).map((d) => ({ ...d, vendor: v.supplierCode }))).map((d) => [d.href, d])).values(),
+  ]).slice(0, 8);
   const quick = quickDocs(docs, family.title);
 
-  // A part sold by one vendor wears that vendor's colours (accents, borders, its fills), like its store.
-  const vendors = [...new Map(result.variants.map((v) => [v.supplierCode, { code: v.supplierCode, name: v.supplierName }])).values()];
-  const theme = vendors.length === 1 ? (vendorTheme(vendors[0]) as React.CSSProperties) : undefined;
+  // The vendors in the order their logos show (FamilyView's, the best offer's first), each with its product page:
+  // the one page all its variants are on, else the one most of them are.
+  const vendors = [...new Map(viewVariants.map((v) => [v.supplierCode, { code: v.supplierCode, name: v.supplierName }])).values()];
+  const logoOf = new Map(supplierRows.map((s) => [s.code, s.logoUrl]));
+  const vendorPages = vendors.map((v) => {
+    const counts = new Map<string, number>();
+    for (const x of viewVariants) if (x.supplierCode === v.code) counts.set(x.productUrl, (counts.get(x.productUrl) ?? 0) + 1);
+    const href = [...counts].sort((a, b) => b[1] - a[1])[0][0];
+    return { ...v, logoUrl: logoOf.get(v.code) ?? null, href };
+  });
+  // The vendor's colours across the page (PP4): one vendor's whole palette, or two blended (blendedTheme).
+  const theme = blendedTheme(vendors);
+  const blocks = descriptionBlocks(`${description.lead}\n${description.more}`);
   // The table of every option, unless the variants differ only by vendor (the Kraken's two offers: the supplier cards show them).
   const optionSets = new Set(result.variants.map((v) => JSON.stringify(Object.entries(v.familyOptions).sort())));
   const showTable = result.variants.length > 1 && optionSets.size > 1;
 
   return (
-    <article style={theme} className={`flex flex-col gap-10 ${theme ? "vendor-theme" : ""}`}>
+    <article style={theme?.style as React.CSSProperties | undefined} className={`pdp relative flex flex-col gap-12 ${theme?.single ? "vendor-theme" : ""}`}>
+      {/* A soft glow of the vendor's colour behind the top of the page; two vendors' blend from one side to the other. */}
+      <div aria-hidden className="pdp-canvas pointer-events-none absolute -z-10" />
+      <JumpBar />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(productJsonLd(result, viewVariants, description.lead), breadcrumbJsonLd(result)) }} />
-      <nav aria-label="ניווט" className="-mb-4 text-caption text-muted">
+      <nav aria-label="ניווט" className="-mb-8 text-caption text-muted">
         <ol className="flex min-w-0 items-center gap-1">
           <li className="shrink-0">
             {result.categorySlug ? (
@@ -265,65 +284,26 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
         tableRows={showTable && result.variants.length > 12 ? result.variants.length : undefined}
         docs={{ cad: quick.cad?.href ?? null, guide: quick.guide?.href ?? null }}
         logos={Object.fromEntries(supplierRows.map((s) => [s.code, s.logoUrl]))}
+        below={
+          // Under the buy box, beside the photos (PP4): the specs and the documents, on the page itself.
+          <div className="flex flex-col gap-10 pt-6">
+            <SpecTable familyId={family.id} optionKeys={family.optionKeys} fixed={description.specs} rows={specs} />
+            <DocTiles familyId={family.id} tiles={docTiles(docs)} vendors={vendorPages} />
+          </div>
+        }
       />
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <SpecTable familyId={family.id} optionKeys={family.optionKeys} fixed={description.specs} rows={specs} />
-        <section className="flex flex-col gap-3">
-          <h2 className="text-section font-semibold">תיעוד</h2>
-          <ul className="flex flex-col divide-y divide-line rounded-card bg-surface text-callout">
-            {docs.map((d) => (
-              <li key={d.href}>
-                {/* What it opens in Hebrew; the supplier's own words in the tooltip, the file or site under it. */}
-                <a href={d.href} target="_blank" rel="noopener noreferrer" title={d.text} className="group flex min-h-11 items-center justify-between gap-3 px-4 py-2">
-                  <span className="flex min-w-0 flex-col">
-                    <span className="text-brand group-hover:underline">{d.label}</span>
-                    <Ltr className="truncate text-caption text-muted">{d.source}</Ltr>
-                  </span>
-                  <ExternalLink size={16} aria-hidden className="shrink-0 text-muted" />
-                </a>
-              </li>
-            ))}
-            {[...new Map(result.variants.map((v) => [v.supplierCode, v])).values()].map((v) => (
-              <li key={v.supplierCode}>
-                <a href={v.productUrl} target="_blank" rel="noopener noreferrer" className="group flex min-h-11 items-center justify-between gap-3 px-4 py-2">
-                  {/* One inline line, so the space before the vendor's name stays (a flex row dropped it: "באתרAndyMark"). */}
-                  <span className="text-brand group-hover:underline">
-                    עמוד המוצר, CAD ותיעוד באתר <Ltr>{v.supplierName}</Ltr>
-                  </span>
-                  <ExternalLink size={16} aria-hidden className="shrink-0 text-muted" />
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
-
       {/* Empty when the supplier left a placeholder ("This Page is for Reference Only") or only sales talk. */}
-      {description.lead && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-section font-semibold">תיאור מהספק (אנגלית)</h2>
-          {/* Sanitized at sync, then cleaned of the supplier's promos, prices and contacts. */}
-          <div className="flex flex-col rounded-card bg-surface p-6">
-            <div lang="en" dir="ltr" className="rich-text text-callout" dangerouslySetInnerHTML={{ __html: description.lead }} />
-            {description.more && (
-              <details className="group">
-                <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 text-brand hover:text-brand-strong group-open:hidden">
-                  קראו עוד <ChevronDown size={16} aria-hidden />
-                </summary>
-                <div lang="en" dir="ltr" className="rich-text pt-3 text-callout" dangerouslySetInnerHTML={{ __html: description.more }} />
-              </details>
-            )}
-          </div>
-        </section>
-      )}
+      <ProductDescription blocks={blocks} long={description.more !== ""} />
 
       {showTable && (
-        <OptionsTable slug={family.slug}>
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 py-3 font-semibold">
-            כל האפשרויות ({result.variants.length.toLocaleString("he-IL")})
-            <ChevronDown size={20} aria-hidden className="text-muted transition-transform duration-200 group-open:rotate-180" />
-          </summary>
+        <OptionsTable slug={family.slug} count={result.variants.length}>
+          <SectionHeading
+            icon={<Table2 size={20} strokeWidth={1.75} />}
+            aside={<span className="shrink-0 text-callout text-muted tabular-nums">{result.variants.length.toLocaleString("he-IL")} אפשרויות</span>}
+          >
+            כל האפשרויות
+          </SectionHeading>
         </OptionsTable>
       )}
 

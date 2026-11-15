@@ -154,3 +154,30 @@ export function darkLogo(logoUrl: string | null): string | null {
   const m = logoUrl?.match(/(?:^|\/)vendors\/([a-z0-9-]+)\.(?:png|svg)$/i);
   return m ? `/vendors/on-dark/${m[1].toLowerCase()}.png` : null;
 }
+
+/** The WCAG contrast ratio of two colours (1 to 21); 4.5 is AA for body text. */
+export function contrastRatio(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * A product page's colours (PP4, Nov 15, 2026). One vendor: its whole palette, as in its store
+ * (vendorTheme), so every token on the page follows it. Two or more: the first two vendors' colours
+ * as a pair (the first is the one whose logo comes first, on the right), for the glow behind the
+ * page and the shared accents, which run from one to the other; the site's own tokens stay, and each
+ * vendor's own things (its supplier card, its doc tiles) wear its vendorTheme. Both sets always
+ * exist: --pa-* is the first vendor, --pb-* the second (the same vendor again when there's one).
+ */
+export function blendedTheme(vendors: Parameters<typeof vendorPalette>[0][]): { style: Record<string, string>; single: boolean } | undefined {
+  if (vendors.length === 0) return undefined;
+  const [a, b] = [vendorPalette(vendors[0]), vendorPalette(vendors[1] ?? vendors[0])];
+  const pair = {
+    "--pa-rgb": rgb(a.primary).join(" "),
+    "--pa-text": a.text,
+    "--pb-rgb": rgb(b.primary).join(" "),
+    "--pb-text": b.text,
+  };
+  const single = vendors.length === 1;
+  return { style: single ? { ...vendorTheme(vendors[0]), ...pair } : pair, single };
+}

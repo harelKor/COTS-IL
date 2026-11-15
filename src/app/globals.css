@@ -2035,3 +2035,171 @@ dialog.sheet-full {
   max-height: 100dvh;
   border-radius: 0;
 }
+
+/* ---------- Product page (PP4): the vendor's colours across the page, sections on the page itself ---------- */
+
+/*
+ * --pa-* is the first vendor (its logo on the right), --pb-* the second; on a one-vendor page both
+ * are that vendor (blendedTheme in src/domain/vendors.ts). Shared accents run from one to the
+ * other; a vendor's own things (its supplier card, its doc tiles) wear its vendorTheme.
+ */
+.pdp {
+  --pa-rgb: var(--vendor-primary-rgb);
+  --pb-rgb: var(--vendor-primary-rgb);
+  --pa-text: var(--vendor-text-accent);
+  --pb-text: var(--vendor-text-accent);
+  --pmix-text: color-mix(in srgb, var(--pa-text) 50%, var(--pb-text));
+}
+.pdp [data-jump] {
+  scroll-margin-top: 128px;
+}
+
+/* The glow behind the top of the page, like a store's scene: the first vendor on the right, the second on the left. */
+.pdp-canvas {
+  top: -84px;
+  height: 1400px;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  background:
+    radial-gradient(52% 560px at 88% 0%, rgb(var(--pa-rgb) / 0.2), transparent 72%),
+    radial-gradient(48% 560px at 12% 0%, rgb(var(--pb-rgb) / 0.17), transparent 72%),
+    radial-gradient(36% 640px at 96% 62%, rgb(var(--pa-rgb) / 0.07), transparent 70%),
+    radial-gradient(36% 640px at 4% 72%, rgb(var(--pb-rgb) / 0.07), transparent 70%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 65%, transparent);
+  mask-image: linear-gradient(to bottom, #000 65%, transparent);
+}
+
+/* The shared accents: section headings' hairline and badge in both colours. */
+.pdp .section-rule {
+  background: linear-gradient(to left, rgb(var(--pa-rgb) / 0.65), rgb(var(--pb-rgb) / 0.45) 50%, transparent);
+}
+.pdp .section-badge {
+  background: linear-gradient(135deg, rgb(var(--pa-rgb) / 0.24), rgb(var(--pb-rgb) / 0.2));
+  color: var(--pmix-text);
+  box-shadow: inset 0 0 0 1px rgb(var(--pa-rgb) / 0.38);
+}
+
+/* Each vendor's logo over a soft glow of its colour; between two, a hairline from one to the other. */
+.pdp-logo {
+  border-radius: 16px;
+  background: radial-gradient(closest-side, rgb(var(--logo-rgb) / 0.24), transparent);
+}
+.pdp-logo-next {
+  border-inline-start: 1px solid transparent;
+  border-image: linear-gradient(to bottom, rgb(var(--pa-rgb) / 0.8), rgb(var(--pb-rgb) / 0.8)) 1;
+}
+
+/* The spec table: a band in the vendors' colours on top, hairline rows on the page, a faint wash under the band. */
+.pdp-spec {
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(to left, rgb(var(--pa-rgb)), rgb(var(--pb-rgb))) 1;
+  background: linear-gradient(to bottom, rgb(var(--pa-rgb) / 0.08), transparent 140px);
+  padding-inline: 4px;
+}
+
+/* Document tiles: real targets, so tiles; each in its vendor's colour. */
+.doc-tile {
+  border-color: rgb(var(--vendor-primary-rgb) / 0.28);
+  background: linear-gradient(135deg, rgb(var(--vendor-primary-rgb) / 0.12), rgb(255 255 255 / 0.02) 70%);
+}
+.doc-tile:hover,
+.doc-tile:focus-visible {
+  border-color: rgb(var(--vendor-primary-rgb) / 0.7);
+  background: linear-gradient(135deg, rgb(var(--vendor-primary-rgb) / 0.2), rgb(255 255 255 / 0.03) 70%);
+}
+.doc-tile-vendor {
+  background: linear-gradient(135deg, rgb(var(--vendor-primary-rgb) / 0.24), rgb(var(--vendor-primary-rgb) / 0.05) 75%);
+}
+.doc-icon {
+  background: rgb(var(--vendor-primary-rgb) / 0.18);
+  color: var(--vendor-text-accent);
+  box-shadow: inset 0 0 0 1px rgb(var(--vendor-primary-rgb) / 0.35);
+}
+.doc-tag {
+  background: rgb(255 255 255 / 0.07);
+  color: #c7cfea;
+}
+.doc-tile:hover .doc-arrow {
+  color: var(--vendor-text-accent);
+  transform: translate(-2px, -2px);
+}
+
+/* "סקירה": a soft band of the vendors' colours behind it, across the window. */
+.pdp-band {
+  position: relative;
+  isolation: isolate;
+}
+.pdp-band::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -56px;
+  bottom: -56px;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 70% at 88% 25%, rgb(var(--pa-rgb) / 0.08), transparent 70%),
+    radial-gradient(42% 70% at 12% 75%, rgb(var(--pb-rgb) / 0.08), transparent 70%);
+}
+/* Prose flows as blocks, so a long run can split into two short columns (CSS columns skip flex boxes). */
+.pdp-prose {
+  display: block;
+  color: #dde3f7;
+}
+.pdp-prose > * + * {
+  margin-top: 0.75rem;
+}
+.pdp-subhead {
+  border-inline-start: 3px solid transparent;
+  border-image: linear-gradient(to bottom, var(--pa-text), var(--pb-text)) 1;
+  padding-inline-start: 12px;
+}
+.pdp-callout {
+  background: rgb(251 191 36 / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(251 191 36 / 0.32);
+}
+.pdp-feature {
+  background: linear-gradient(135deg, rgb(var(--pa-rgb) / 0.1), rgb(var(--pb-rgb) / 0.05));
+  box-shadow: inset 0 0 0 1px rgb(var(--pa-rgb) / 0.2);
+}
+.pdp-check {
+  background: rgb(var(--pa-rgb) / 0.24);
+  color: var(--pmix-text);
+}
+.pdp-dot {
+  background: linear-gradient(var(--pa-text), var(--pb-text));
+}
+.pdp-list .rich-text {
+  display: block;
+}
+/* "קראו עוד": the last lines fade out under the button. */
+.read-more[data-clamped] {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 160px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 160px), transparent);
+}
+
+/* "כל האפשרויות": on the page, its header row in the vendors' colours, the first rows until "הצגת כל N". */
+.pdp-table thead {
+  position: static;
+  background: linear-gradient(to left, rgb(var(--pa-rgb) / 0.18), rgb(var(--pb-rgb) / 0.12));
+  color: var(--foreground);
+}
+.pdp-table tbody {
+  border-top-color: rgb(var(--pa-rgb) / 0.4);
+}
+.pdp-table[data-collapsed] tbody tr:nth-child(n + 7) {
+  display: none;
+}
+
+/* The jump bar: glass under the header, a hairline in both colours, the section in view lit in them. */
+.jump-bar {
+  background: var(--glass);
+  border-bottom-color: transparent;
+  border-image: linear-gradient(to left, rgb(var(--pa-rgb) / 0.6), rgb(var(--pb-rgb) / 0.5)) 1;
+}
+.jump-link[aria-current] {
+  color: var(--foreground);
+  background: linear-gradient(135deg, rgb(var(--pa-rgb) / 0.26), rgb(var(--pb-rgb) / 0.2));
+  box-shadow: inset 0 0 0 1px rgb(var(--pa-rgb) / 0.45);
+}
