@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fifoAllocate, validateAllocations, validateReceiptLine } from "./logistics";
+import { fifoAllocate, rebalanceAllocations, validateAllocations, validateReceiptLine } from "./logistics";
 
 describe("fifoAllocate", () => {
   const shares = [
@@ -65,3 +65,62 @@ describe("validateAllocations", () => {
   });
 });
 
+
+describe("rebalanceAllocations", () => {
+  const shares = [
+    { orderItemId: "old", open: 0 },
+    { orderItemId: "new", open: 0 },
+  ];
+
+  it("takes units back from the newest order first", () => {
+    const held = [
+      { orderItemId: "old", qty: 3, delivered: 0 },
+      { orderItemId: "new", qty: 2, delivered: 0 },
+    ];
+    expect(rebalanceAllocations(4, held, shares)).toEqual([
+      { orderItemId: "old", qty: 3 },
+      { orderItemId: "new", qty: 1 },
+    ]);
+    expect(rebalanceAllocations(1, held, shares)).toEqual([
+      { orderItemId: "old", qty: 1 },
+      { orderItemId: "new", qty: 0 },
+    ]);
+  });
+
+  it("never takes back units already on a delivery note", () => {
+    const held = [
+      { orderItemId: "old", qty: 3, delivered: 0 },
+      { orderItemId: "new", qty: 2, delivered: 2 },
+    ];
+    expect(rebalanceAllocations(3, held, shares)).toEqual([
+      { orderItemId: "old", qty: 1 },
+      { orderItemId: "new", qty: 2 },
+    ]);
+  });
+
+  it("refuses to go below what left on delivery notes", () => {
+    expect(rebalanceAllocations(1, [{ orderItemId: "old", qty: 2, delivered: 2 }], shares)).toHaveProperty("error");
+  });
+
+  it("hands extra units out oldest first, within what each line is still owed", () => {
+    const owed = [
+      { orderItemId: "old", open: 1 },
+      { orderItemId: "new", open: 3 },
+    ];
+    expect(rebalanceAllocations(5, [{ orderItemId: "new", qty: 1, delivered: 0 }], owed)).toEqual([
+      { orderItemId: "old", qty: 1 },
+      { orderItemId: "new", qty: 4 },
+    ]);
+  });
+
+  it("leaves extra units unallocated once every line has its share", () => {
+    expect(rebalanceAllocations(9, [{ orderItemId: "old", qty: 2, delivered: 0 }], [{ orderItemId: "old", open: 1 }])).toEqual([{ orderItemId: "old", qty: 3 }]);
+  });
+
+  it("keeps a line that is no longer among the shares (its order was cancelled) and trims it first", () => {
+    expect(rebalanceAllocations(1, [{ orderItemId: "gone", qty: 1, delivered: 0 }, { orderItemId: "old", qty: 1, delivered: 0 }], [{ orderItemId: "old", open: 0 }])).toEqual([
+      { orderItemId: "old", qty: 1 },
+      { orderItemId: "gone", qty: 0 },
+    ]);
+  });
+});

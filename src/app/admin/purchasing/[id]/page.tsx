@@ -18,6 +18,7 @@ import { ShipmentTag } from "@/components/order-status-tag";
 import { PO_STATUS_LABELS } from "../status";
 import { CancelPoForm, PoRecordForm, RecordOrderedForm, RemoveLineButton } from "./po-forms";
 import { Loading, PageSkeleton } from "@/components/skeleton";
+import { PoLineUnavailable } from "../../orders/[id]/order-actions";
 
 export const metadata: Metadata = { title: "הזמנת ספק" };
 
@@ -151,15 +152,22 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
           {lines.map((line) => (
             <li key={line.id} className="flex flex-wrap items-center gap-2">
               <Ltr className="min-w-0 font-medium">{line.supplierSku ?? line.title}</Ltr>
-              {line.allocations.map((a) => (
-                <Link
-                  key={a.orderId}
-                  href={`/admin?open=${a.orderId}`}
-                  className="inline-flex min-h-11 items-center rounded-full bg-brand-soft px-3 text-caption font-medium text-brand-strong"
-                >
-                  <Ltr>{`${a.teamProgram} ${a.teamNumber} #${a.orderNumber} ×${a.qty}`}</Ltr>
-                </Link>
-              ))}
+              {line.allocations.map((a) => {
+                const surplus = a.orderStatus === "cancelled" || a.orderStatus === "rejected";
+                return (
+                  <Link
+                    key={a.orderId}
+                    href={`/admin?open=${a.orderId}`}
+                    className={`inline-flex min-h-11 items-center gap-1 rounded-full px-3 text-caption font-medium ${surplus ? "bg-subtle text-muted" : "bg-brand-soft text-brand-strong"}`}
+                  >
+                    <Ltr>{`${a.teamProgram} ${a.teamNumber} #${a.orderNumber} ×${a.qty}`}</Ltr>
+                    {surplus && <span>{a.orderStatus === "cancelled" ? "בוטלה, עודף מלאי" : "נדחתה, עודף מלאי"}</span>}
+                  </Link>
+                );
+              })}
+              {line.allocations.some((a) => a.orderStatus === "submitted" || a.orderStatus === "quote_sent" || a.orderStatus === "approved") && (
+                <PoLineUnavailable poLineId={line.id} label={line.supplierSku ?? line.title} unavailable={line.allocations.some((a) => a.unavailable)} />
+              )}
             </li>
           ))}
         </ul>

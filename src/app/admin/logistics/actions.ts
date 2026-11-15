@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { ActionState } from "@/components/action-form";
-import { fifoAllocate, validateAllocations, validateReceiptLine } from "@/domain/logistics";
+import { fifoAllocate, rebalanceAllocations, validateAllocations, validateReceiptLine } from "@/domain/logistics";
 import { requireAdmin } from "@/lib/auth";
 import { notifyStagesLater } from "@/lib/notify";
 import { getShares } from "@/lib/logistics";
@@ -270,7 +270,7 @@ export async function reverseReceipt(_prev: ActionState, formData: FormData): Pr
           ),
         )
         .limit(1);
-      if (used) return { error: "יש מקליטה זו פריטים בתעודת משלוח. קודם צריך לבטל את התעודה." };
+      if (used) return { error: "יש מקליטה זו פריטים בתעודת משלוח. קודם צריך לבטל את התעודה, או לתקן את הכמות בשורה עצמה." };
     }
 
     await tx.delete(receipts).where(eq(receipts.id, receipt.id));
@@ -331,7 +331,9 @@ export async function setAllocations(_prev: ActionState, formData: FormData): Pr
       };
     });
 
-    const error = validateAllocations(line.line.qtyReceived - line.line.qtyDamaged, rows);
+    // Units kept by a cancelled order (already delivered to it) aren't among the shares, but they still take room.
+    const kept = current.filter((c) => !shares.some((s) => s.orderItemId === c.orderItemId)).reduce((n, c) => n + c.qty, 0);
+    const error = validateAllocations(line.line.qtyReceived - line.line.qtyDamaged - kept, rows);
     if (error) return { error };
 
     for (const row of rows) {
@@ -386,4 +388,99 @@ export async function deleteShipment(formData: FormData) {
 
   refresh(id);
   if (removed) redirect("/admin/purchasing#sent");
+}
+
+const editSchema = z.object({
+  receiptLineId: z.uuid(),
+  received: z.coerce.number().int().min(0),
+  damaged: z.coerce.number().int().min(0),
+  location: z.string().trim().max(100).default(""),
+});
+
+/**
+ * Corrects a received line in place (M2): how many arrived, how many of them are damaged, and
+ * where they are. The teams' allocations follow: fewer good units come back from the newest
+ * orders first, more go to the oldest that are still owed. Units on delivery notes stay put.
+ * Zero removes the line (and the receipt, when it was its last line).
+ */
+export async function editReceiptLine(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const parsed = editSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "כמות לא תקינה" };
+  const { receiptLineId, received, damaged, location } = parsed.data;
+
+  let shipmentId: string | undefined;
+  const result = await db.transaction(async (tx): Promise<ActionState> => {
+    const [found] = await tx
+      .select({ line: receiptLines, receiptId: receipts.id, shipmentId: receipts.shipmentId, poId: shipments.poId })
+      .from(receiptLines)
+      .innerJoin(receipts, eq(receipts.id, receiptLines.receiptId))
+      .innerJoin(shipments, eq(shipments.id, receipts.shipmentId))
+      .where(eq(receiptLines.id, receiptLineId));
+    if (!found) return { error: "השורה לא נמצאה" };
+    shipmentId = found.shipmentId;
+    await tx.select({ id: supplierPos.id }).from(supplierPos).where(eq(supplierPos.id, found.poId)).for("update");
+    const { line } = found;
+
+    const [shipped] = await tx
+      .select({ qty: shipmentItems.qty })
+      .from(shipmentItems)
+      .where(and(eq(shipmentItems.shipmentId, found.shipmentId), eq(shipmentItems.poLineId, line.poLineId)));
+    const [others] = await tx
+      .select({ qty: sql<number>`coalesce(sum(${receiptLines.qtyReceived}), 0)::int` })
+      .from(receiptLines)
+      .innerJoin(receipts, eq(receipts.id, receiptLines.receiptId))
+      .where(and(eq(receipts.shipmentId, found.shipmentId), eq(receiptLines.poLineId, line.poLineId), sql`${receiptLines.id} <> ${line.id}`));
+    const invalid = validateReceiptLine({ open: (shipped?.qty ?? 0) - (others?.qty ?? 0), received, damaged });
+    if (invalid) return { error: invalid };
+
+    const held = await tx
+      .select({
+        id: stockAllocations.id,
+        orderItemId: stockAllocations.orderItemId,
+        qty: stockAllocations.qty,
+        delivered: sql<number>`(SELECT coalesce(sum(qty), 0)::int FROM ${deliveryItems} WHERE ${deliveryItems.allocationId} = ${stockAllocations.id})`,
+      })
+      .from(stockAllocations)
+      .where(eq(stockAllocations.receiptLineId, line.id))
+      .for("update", { of: stockAllocations });
+    const shares = await getShares([line.poLineId], tx);
+    const next = rebalanceAllocations(
+      received - damaged,
+      held,
+      shares.map((s) => ({ orderItemId: s.orderItemId, open: s.share - s.allocated })),
+    );
+    if ("error" in next) return { error: next.error };
+
+    const before = { qtyReceived: line.qtyReceived, qtyDamaged: line.qtyDamaged, location: line.location, allocations: held.map((h) => ({ orderItemId: h.orderItemId, qty: h.qty })) };
+    if (received === 0) {
+      await tx.delete(receiptLines).where(eq(receiptLines.id, line.id));
+      const [left] = await tx.select({ id: receiptLines.id }).from(receiptLines).where(eq(receiptLines.receiptId, found.receiptId)).limit(1);
+      if (!left) await tx.delete(receipts).where(eq(receipts.id, found.receiptId));
+    } else {
+      await tx.update(receiptLines).set({ qtyReceived: received, qtyDamaged: damaged, location: location || null }).where(eq(receiptLines.id, line.id));
+      for (const row of next) {
+        const existing = held.find((h) => h.orderItemId === row.orderItemId);
+        if (existing && row.qty === 0) await tx.delete(stockAllocations).where(eq(stockAllocations.id, existing.id));
+        else if (existing && row.qty !== existing.qty) await tx.update(stockAllocations).set({ qty: row.qty }).where(eq(stockAllocations.id, existing.id));
+        else if (!existing && row.qty > 0) await tx.insert(stockAllocations).values({ receiptLineId: line.id, orderItemId: row.orderItemId, qty: row.qty });
+      }
+    }
+
+    await tx.insert(auditLog).values({
+      actorId: admin.id,
+      entity: "receipt_line",
+      entityId: line.id,
+      action: "edit",
+      before,
+      after: { qtyReceived: received, qtyDamaged: damaged, location: location || null, allocations: received === 0 ? [] : next },
+    });
+    return { ok: received === 0 ? "השורה הוסרה מהקליטה." : "הכמות עודכנה." };
+  });
+
+  // A refused correction changed nothing: no refresh, so the open form keeps its message.
+  if (result.error) return result;
+  if (shipmentId) notifyStagesLater({ shipmentId });
+  refresh(shipmentId);
+  return result;
 }

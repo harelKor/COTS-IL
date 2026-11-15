@@ -23,12 +23,21 @@ export type OrderItem = {
   options: { name: string; value: string }[];
   qty: number;
   unitPriceIls: number;
+  /** The admin marked the part "לא זמין" (M2). */
+  unavailableAt?: Date | null;
 };
 
-export function ItemDescription({ item }: { item: Pick<OrderItem, "title" | "supplierName" | "supplierSku" | "options"> }) {
+export function ItemDescription({ item }: { item: Pick<OrderItem, "title" | "supplierName" | "supplierSku" | "options" | "unavailableAt"> }) {
   return (
     <div dir="ltr" className="text-start">
-      <div className="font-medium">{item.title}</div>
+      <div className="font-medium">
+        {item.title}
+        {item.unavailableAt && (
+          <span dir="rtl" className="ms-2 inline-flex rounded-md bg-danger/10 px-2 py-0.5 align-middle text-caption font-medium text-danger">
+            לא זמין
+          </span>
+        )}
+      </div>
       {item.options.length > 0 && <div className="text-caption">{item.options.map((o) => o.value).join(" / ")}</div>}
       <div className="text-caption text-muted">
         {item.supplierName}, {item.supplierSku ?? "no supplier SKU"}

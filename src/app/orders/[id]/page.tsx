@@ -18,6 +18,8 @@ import type { Business } from "@/domain/settings";
 import { getViewer } from "@/lib/auth";
 import { getChangeRequest, getOrderForViewer, getStepDates, recentDecision } from "@/lib/orders";
 import { getBusiness } from "@/lib/settings";
+import { orderSupplierLock } from "@/lib/purchasing";
+import { db } from "@/db";
 import { CancelOrder } from "./cancel-order";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { TeamName } from "@/components/team-name";
@@ -98,11 +100,13 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
   const stoppedAt = latest ? "quote_sent" : "awaiting_quote";
   const waitingForDecision = latest?.status === "sent" && canDecideQuote(order.status);
   const pickup = order.deliveryMethod === "pickup";
-  const [dates, decided, cancelled, changeRequest] = await Promise.all([
+  const [dates, decided, cancelled, changeRequest, lock] = await Promise.all([
     getStepDates(order.id, order.submittedAt),
     recentDecision("quote", latest?.id),
     recentDecision("team_order", order.id),
     waitingForDecision ? getChangeRequest(latest?.id) : null,
+    // A new version after lines were bought (M2): only the Israeli supplier can cancel it now.
+    canCancelOrder(order.status) ? orderSupplierLock(db, order.id) : null,
   ]);
 
   return (
@@ -122,6 +126,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
       </div>
 
       {order.rejectionReason && <Alert>סיבת הדחייה: {order.rejectionReason}</Alert>}
+      {order.status === "cancelled" && order.cancelReason && <Alert>הספק הישראלי ביטל את ההזמנה: {order.cancelReason}</Alert>}
       {latest?.rejectionReason && order.status === "rejected" && (
         <Alert tone="info">הקבוצה דחתה את ההצעה: {latest.rejectionReason}</Alert>
       )}
@@ -216,7 +221,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           {viewer.isAdmin ? "לניהול ההזמנה" : "לכל ההזמנות"}
         </Link>
         {onTeam && <ReorderButton orderId={order.id} />}
-        {onTeam && (canCancelOrder(order.status) || cancelled) && <CancelOrder orderId={order.id} cancelledAt={cancelled ? cancelled.at.toISOString() : null} />}
+        {onTeam && ((canCancelOrder(order.status) && !lock) || cancelled) && <CancelOrder orderId={order.id} cancelledAt={cancelled ? cancelled.at.toISOString() : null} />}
       </div>
     </div>
   );

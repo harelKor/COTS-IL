@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Viewer } from "@/lib/auth";
@@ -159,7 +159,8 @@ export async function getShares(poLineIds: string[], reader: Pick<typeof db, "se
     .innerJoin(teamOrderItems, eq(teamOrderItems.id, poAllocations.orderItemId))
     .innerJoin(teamOrders, eq(teamOrders.id, teamOrderItems.orderId))
     .innerJoin(teams, eq(teams.id, teamOrders.teamId))
-    .where(inArray(poAllocations.poLineId, poLineIds))
+    // A cancelled or rejected order's units are surplus stock (M2): no team gets them from a receipt.
+    .where(and(inArray(poAllocations.poLineId, poLineIds), notInArray(teamOrders.status, ["cancelled", "rejected"])))
     .orderBy(asc(teamOrders.number));
 }
 

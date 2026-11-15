@@ -1,4 +1,5 @@
 import { canAdvance } from "./order-status";
+import { UNIT, countOf } from "./plural";
 
 export type Share = { orderItemId: string; open: number };
 
@@ -44,3 +45,36 @@ export function validateAllocations(goodQty: number, rows: AllocationRow[]): str
   return null;
 }
 
+
+export type HeldAllocation = { orderItemId: string; qty: number; delivered: number };
+
+/**
+ * A received line's good units after its quantity was corrected in place (M2). Units already
+ * on a delivery note stay where they are. A smaller count takes units back from the newest
+ * orders first; a larger one hands the extra out oldest first, within what each line is still
+ * owed (`shares`, oldest first, `open` counted across all receipts). Returns every order line's
+ * new quantity on this receipt line (0 means none), or a Hebrew error.
+ */
+export function rebalanceAllocations(goodQty: number, held: HeldAllocation[], shares: Share[]): { orderItemId: string; qty: number }[] | { error: string } {
+  if (!isCount(goodQty)) return { error: "כמות לא תקינה" };
+  const onNotes = held.reduce((n, h) => n + h.delivered, 0);
+  if (goodQty < onNotes) return { error: `${countOf(onNotes, UNIT)} מהשורה הזאת ${onNotes === 1 ? "כבר בתעודת משלוח" : "כבר בתעודות משלוח"}, ולכן אי אפשר לרדת מתחת לזה` };
+
+  const order = shares.map((s) => s.orderItemId);
+  for (const h of held) if (!order.includes(h.orderItemId)) order.push(h.orderItemId);
+  const qty = new Map(order.map((id) => [id, held.find((h) => h.orderItemId === id)?.qty ?? 0]));
+  let diff = goodQty - held.reduce((n, h) => n + h.qty, 0);
+
+  if (diff < 0) {
+    for (const id of [...order].reverse()) {
+      if (diff === 0) break;
+      const floor = held.find((h) => h.orderItemId === id)?.delivered ?? 0;
+      const take = Math.min(qty.get(id)! - floor, -diff);
+      qty.set(id, qty.get(id)! - take);
+      diff += take;
+    }
+  } else if (diff > 0) {
+    for (const extra of fifoAllocate(diff, shares)) qty.set(extra.orderItemId, qty.get(extra.orderItemId)! + extra.qty);
+  }
+  return order.map((id) => ({ orderItemId: id, qty: qty.get(id)! }));
+}

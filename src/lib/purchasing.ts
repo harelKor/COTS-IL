@@ -122,6 +122,8 @@ export async function getPo(id: string) {
       qty: poAllocations.qty,
       orderId: teamOrders.id,
       orderNumber: teamOrders.number,
+      orderStatus: teamOrders.status,
+      unavailable: sql<boolean>`${teamOrderItems.unavailableAt} IS NOT NULL`,
       teamProgram: teams.program,
       teamNumber: teams.number,
     })

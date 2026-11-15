@@ -1,15 +1,17 @@
 "use server";
 
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { canRejectOrder, canSendQuote, validateQuoteLines } from "@/domain/orders";
+import { validateRevision } from "@/domain/order-corrections";
 import { requireAdmin } from "@/lib/auth";
 import { emailEnabled, notifyLater, notifyQuoteReady } from "@/lib/notify";
 import { orderSupplierLock } from "@/lib/purchasing";
+import { currentQuote, insertQuoteVersion } from "@/lib/quote-versions";
 
-const { auditLog, quoteLines, quotes, teamOrderItems, teamOrders } = schema;
+const { auditLog, quotes, teamOrderItems, teamOrders } = schema;
 
 export type QuoteFormState = {
   error?: string;
@@ -25,15 +27,13 @@ const headerSchema = z.object({
   notes: z.string().trim().max(2000).default(""),
 });
 
-/** Why a quote can't change, by where its lines are on supplier orders. */
-const LOCKED: Record<"ordered" | "draft", string> = {
-  ordered: "חלק מהפריטים כבר הוזמנו מהספק, ולכן ההצעה נעולה. שינוי נעשה בבקשה חדשה של הקבוצה.",
-  draft: "יש בהזמנה שורות שנמצאות בטיוטת הזמנת ספק. קודם צריך להסיר אותן משם.",
-};
-
 const toNumber = (value: FormDataEntryValue | null) => (value === null || value === "" ? NaN : Number(value));
 
-/** Sends a new quote version. Earlier versions stay on record, and the team has to answer this one. */
+/**
+ * Sends a new quote version. Earlier versions stay on record, and the team has to answer this one.
+ * Once lines are on supplier orders (M2) the quantities stay as they were and only prices and
+ * shipping change: the new version still goes to the team for approval.
+ */
 export async function sendQuote(_prev: QuoteFormState, formData: FormData): Promise<QuoteFormState> {
   const admin = await requireAdmin();
   const header = headerSchema.safeParse(Object.fromEntries(formData));
@@ -45,7 +45,6 @@ export async function sendQuote(_prev: QuoteFormState, formData: FormData): Prom
     if (!order) return { error: "ההזמנה לא נמצאה" };
     if (!canSendQuote(order.status)) return { error: "ההזמנה בוטלה" };
     const lock = await orderSupplierLock(tx, orderId);
-    if (lock) return { error: LOCKED[lock] };
 
     const items = await tx.select().from(teamOrderItems).where(eq(teamOrderItems.orderId, orderId));
     const lines = items.map((item) => ({
@@ -55,45 +54,20 @@ export async function sendQuote(_prev: QuoteFormState, formData: FormData): Prom
       changeReason: String(formData.get(`reason:${item.id}`) ?? "").trim().slice(0, 500),
     }));
 
-    const lineErrors = validateQuoteLines(items, lines);
+    const previous = lock ? await currentQuote(tx, orderId) : null;
+    if (lock && !previous) return { error: "לא נמצאה גרסה קודמת של ההצעה" };
+    const lineErrors = { ...validateQuoteLines(items, lines), ...(previous ? validateRevision(previous.lines, lines) : {}) };
     if (Object.keys(lineErrors).length > 0) return { error: "יש שורות שצריך לתקן", lineErrors };
     if (lines.every((l) => l.qty === 0)) return { error: "אי אפשר לשלוח הצעה בלי פריטים. אפשר לדחות את ההזמנה." };
 
-    const [previous] = await tx
-      .select({ version: quotes.version })
-      .from(quotes)
-      .where(eq(quotes.orderId, orderId))
-      .orderBy(desc(quotes.version))
-      .limit(1);
-
-    await tx
-      .update(quotes)
-      .set({ status: "superseded" })
-      .where(and(eq(quotes.orderId, orderId), inArray(quotes.status, ["sent", "approved"])));
-
-    const version = (previous?.version ?? 0) + 1;
-    const [quote] = await tx
-      .insert(quotes)
-      .values({ orderId, version, shippingIls, notes: notes || null, sentBy: admin.id })
-      .returning();
-    await tx.insert(quoteLines).values(
-      lines.map((l) => ({
-        quoteId: quote.id,
-        itemId: l.itemId,
-        qty: l.qty,
-        unitPriceIls: l.unitPriceIls,
-        changeReason: l.changeReason || null,
-      })),
-    );
-
-    await tx.update(teamOrders).set({ status: "quote_sent", rejectionReason: null }).where(eq(teamOrders.id, orderId));
-    await tx.insert(auditLog).values({
-      actorId: admin.id,
-      entity: "quote",
-      entityId: quote.id,
-      action: "send",
-      before: { orderStatus: order.status },
-      after: { version, shippingIls, lines },
+    await insertQuoteVersion(tx, {
+      orderId,
+      adminId: admin.id,
+      orderStatus: order.status,
+      shippingIls,
+      notes: notes || null,
+      lines,
+      revision: !!lock,
     });
     return { sent: true };
   });
@@ -124,8 +98,7 @@ export async function rejectOrder(_prev: QuoteFormState, formData: FormData): Pr
     const [order] = await tx.select().from(teamOrders).where(eq(teamOrders.id, orderId)).for("update");
     if (!order) return { error: "ההזמנה לא נמצאה" };
     if (!canRejectOrder(order.status)) return { error: "אי אפשר לדחות הזמנה במצב הזה" };
-    const lock = await orderSupplierLock(tx, orderId);
-    if (lock) return { error: LOCKED[lock] };
+    if (await orderSupplierLock(tx, orderId)) return { error: "יש בהזמנה שורות בהזמנת ספק, ולכן אי אפשר לדחות אותה. אפשר לבטל אותה." };
 
     await tx.update(teamOrders).set({ status: "rejected", rejectionReason: reason }).where(eq(teamOrders.id, orderId));
     await tx
@@ -145,6 +118,6 @@ export async function rejectOrder(_prev: QuoteFormState, formData: FormData): Pr
 
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath(`/orders/${orderId}`);
-    revalidatePath("/admin", "layout");
+  revalidatePath("/admin", "layout");
   return result;
 }

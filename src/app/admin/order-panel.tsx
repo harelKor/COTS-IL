@@ -10,7 +10,9 @@ import { ItemDescription, QuoteTable, formatDateTime } from "@/components/orders
 import { groupBySupplier } from "@/domain/cart";
 import { LineStatusTag, ShipmentTag } from "@/components/order-status-tag";
 import { deliveryLabel, isFinished, lineStatus, shipmentStatus, type OrderStatusKey } from "@/domain/order-status";
-import { canRejectOrder } from "@/domain/orders";
+import { canRejectOrder, quoteTotals } from "@/domain/orders";
+import { canAdminCancel, canEditLines, canReopen } from "@/domain/order-corrections";
+import { formatIls } from "@/domain/pricing";
 import { priceIls } from "@/domain/pricing";
 import { priceContext } from "@/lib/settings";
 import { requireAdmin } from "@/lib/auth";
@@ -22,9 +24,11 @@ import { getChangeRequest, getOrderForViewer } from "@/lib/orders";
 import { orderSupplierLock } from "@/lib/purchasing";
 import { getApproveLinks } from "@/lib/quote-links";
 import { reviewTeam } from "./actions";
-import { confirmDelivery, createDelivery } from "./deliveries/actions";
+import { confirmDelivery, createDelivery, unconfirmDelivery } from "./deliveries/actions";
 import { ApproveLinks } from "./orders/[id]/approve-links";
-import { OrderMenu, QuoteEditor, type EditorLine } from "./orders/[id]/quote-editor";
+import { QuoteEditor, type EditorLine } from "./orders/[id]/quote-editor";
+import { LineTools, OrderMenu, ReopenOrder } from "./orders/[id]/order-actions";
+import { getOrderHistory, getOrderLinks, getSurplus, listTeamsForMove, previewCancel } from "@/lib/order-corrections";
 import { createShipment } from "./logistics/actions";
 import { addLinesToDraft, sendDraft, sendVendorBatch } from "./purchasing/actions";
 
@@ -90,6 +94,7 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
       livePriceIls: priceIls(variant?.priceUsd, rate, variant?.markup, variant?.fixedIls),
       liveAvailable: variant?.available ?? null,
       checkedAt: variant?.checkedAt.toISOString() ?? null,
+      unavailableAt: item.unavailableAt,
     };
   });
 }
@@ -124,7 +129,7 @@ function Contact({ detail }: { detail: Detail }) {
   );
 }
 
-async function Editor({ detail }: { detail: Detail }) {
+async function Editor({ detail, locked }: { detail: Detail; locked: "ordered" | "draft" | null }) {
   const latest = detail.quotes[0];
   return (
     <QuoteEditor
@@ -135,26 +140,47 @@ async function Editor({ detail }: { detail: Detail }) {
       notes={latest?.notes ?? ""}
       version={(latest?.version ?? 0) + 1}
       paymentTerms={(await getBusiness()).paymentTerms}
+      locked={locked}
     />
   );
 }
 
-function LockedQuote({ detail, orderId, ordered }: { detail: Detail; orderId: string; ordered: boolean }) {
+const QUOTE_STATUS: Record<string, string> = { sent: "מחכה לקבוצה", approved: "אושרה", rejected: "נדחתה", superseded: "הוחלפה בגרסה חדשה" };
+
+function LockedQuote({ detail, orderId, lock }: { detail: Detail; orderId: string; lock: "ordered" | "draft" | null }) {
   const latest = detail.quotes.find((q) => q.status !== "superseded") ?? detail.quotes[0];
   if (!latest) return null;
+  const older = detail.quotes.filter((q) => q.id !== latest.id);
   return (
     <Section title={`הצעה גרסה ${latest.version}, נשלחה ${formatDateTime(latest.sentAt)}`}>
-      <QuoteTable items={detail.items} quote={latest} />
-      {ordered ? (
-        <p className="text-sm text-muted">ההצעה נעולה: חלק מהפריטים כבר הוזמנו מהספק. שינוי נעשה בבקשה חדשה של הקבוצה.</p>
-      ) : (
-        <Link
-          href={`/admin?open=${orderId}&edit=1`}
-          scroll={false}
-          className="flex min-h-11 w-fit items-center rounded-full bg-subtle px-4 text-sm font-medium hover:bg-subtle-hover"
-        >
-          לשנות פרטים ושליחה לאישור מחדש
-        </Link>
+      <QuoteTable items={detail.items} quote={latest} previous={older[0]} />
+      {lock && (
+        <p className="text-sm text-muted">
+          {lock === "ordered" ? "חלק מהפריטים כבר הוזמנו מהספק" : "חלק מהפריטים כבר בטיוטת הזמנת ספק"}: אפשר לשנות מחירים ומשלוח, לא כמויות. גרסה חדשה
+          נשלחת לקבוצה לאישור מחדש.
+        </p>
+      )}
+      <Link
+        href={`/admin?open=${orderId}&edit=1`}
+        scroll={false}
+        className="flex min-h-11 w-fit items-center rounded-full bg-subtle px-4 text-sm font-medium hover:bg-subtle-hover"
+      >
+        {lock ? "שינוי מחיר או משלוח, ושליחה לאישור מחדש" : "לשנות פרטים ושליחה לאישור מחדש"}
+      </Link>
+      {older.length > 0 && (
+        <details className="text-sm">
+          <summary className="flex min-h-11 cursor-pointer items-center text-brand">גרסאות קודמות ({older.length})</summary>
+          <ul className="flex flex-col gap-1">
+            {older.map((q) => (
+              <li key={q.id} className="flex flex-wrap gap-x-3 text-muted">
+                <span>גרסה {q.version}</span>
+                <Ltr>{formatDateTime(q.sentAt)}</Ltr>
+                <span>{QUOTE_STATUS[q.status] ?? q.status}</span>
+                <span className="tabular-nums">{formatIls(quoteTotals(q.lines, q.shippingIls).total)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
     </Section>
   );
@@ -307,6 +333,14 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
                   <ItemDescription item={item} />
                   <LineStatusTag status={stage} audience="admin" />
                 </div>
+                {canEditLines(detail.order.status) && (item.unavailableAt || stage === "to_order") && (
+                  <LineTools
+                    itemId={item.id}
+                    label={item.supplierSku ?? item.title}
+                    unavailable={!!item.unavailableAt}
+                    canReplace={!onPos.some((p) => p.poStatus === "ordered")}
+                  />
+                )}
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-muted">
                   <span>כמות {l.quoted}</span>
                   {onPos.length === 0 && <span>עדיין לא בהזמנת ספק</span>}
@@ -477,6 +511,12 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
                     תעודה והדפסה
                   </Link>
                 </div>
+                {d.status === "delivered" && (
+                  <ActionForm action={unconfirmDelivery}>
+                    <input type="hidden" name="deliveryId" value={d.id} />
+                    <button className="min-h-11 text-sm text-danger hover:underline">ביטול אישור המסירה</button>
+                  </ActionForm>
+                )}
                 {d.status === "prepared" && (
                   <ActionForm action={confirmDelivery} className="flex flex-wrap gap-2">
                     <input type="hidden" name="deliveryId" value={d.id} />
@@ -496,7 +536,12 @@ async function Logistics({ detail, status }: { detail: Detail; status: OrderStat
 
 async function Summary({ detail }: { detail: Detail }) {
   const latest = detail.quotes[0];
-  const [dates, changeRequest] = await Promise.all([getOrderDates(detail.order.id), latest?.status === "sent" ? getChangeRequest(latest.id) : null]);
+  const stopped = canReopen(detail.order.status);
+  const [dates, changeRequest, surplus] = await Promise.all([
+    getOrderDates(detail.order.id),
+    latest?.status === "sent" ? getChangeRequest(latest.id) : null,
+    detail.order.status === "cancelled" ? getSurplus(detail.order.id) : [],
+  ]);
   const rows: [string, Date | null][] = [
     ["בקשה נשלחה", detail.order.submittedAt],
     ["הצעה נשלחה", dates.quoteSent],
@@ -508,7 +553,24 @@ async function Summary({ detail }: { detail: Detail }) {
   return (
     <Section title="סיכום">
       {detail.order.status === "rejected" && <Alert tone="info">ההזמנה נדחתה{detail.order.rejectionReason ? `: ${detail.order.rejectionReason}` : "."}</Alert>}
-      {detail.order.status === "cancelled" && <Alert tone="info">ההזמנה בוטלה.</Alert>}
+      {detail.order.status === "cancelled" && <Alert tone="info">ההזמנה בוטלה{detail.order.cancelReason ? `: ${detail.order.cancelReason}` : "."}</Alert>}
+      {surplus.length > 0 && (
+        <div className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">עודף מלאי מההזמנה</span>
+          <ul className="flex flex-col gap-1">
+            {surplus.map((r) => (
+              <li key={`${r.poId}:${r.label}`} className="flex flex-wrap gap-x-3">
+                <Ltr>{r.label}</Ltr>
+                <span>{r.qty} יח׳</span>
+                <Link href={`/admin/purchasing/${r.poId}`} className="text-brand hover:underline">
+                  הזמנת ספק <Ltr>#{r.poNumber}</Ltr>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <span className="text-caption text-muted">היחידות נשארות בהזמנת הספק. מה שמגיע מהן למחסן לא מוקצה לאף קבוצה.</span>
+        </div>
+      )}
       {changeRequest && (
         <Alert tone="info">
           הקבוצה ביקשה שינוי בגרסה {latest.version} (<Ltr>{formatDateTime(changeRequest.at)}</Ltr>): {changeRequest.reason}
@@ -526,7 +588,52 @@ async function Summary({ detail }: { detail: Detail }) {
             </div>
           ))}
       </dl>
+      {stopped && <ReopenOrder orderId={detail.order.id} />}
     </Section>
+  );
+}
+
+/** Open lines before the quote is approved: the "לא זמין" mark and "replace with another part". */
+function LineAvailability({ detail }: { detail: Detail }) {
+  return (
+    <Section title="זמינות פריטים">
+      <ul className="flex flex-col">
+        {detail.items.map((item) => (
+          <li key={item.id} className="flex flex-col gap-2 border-t border-line py-3 first:border-t-0">
+            <ItemDescription item={item} />
+            <LineTools itemId={item.id} label={item.supplierSku ?? item.title} unavailable={!!item.unavailableAt} canReplace />
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+/** Everything done to the order, from audit_log, newest first. */
+async function History({ orderId }: { orderId: string }) {
+  const rows = await getOrderHistory(orderId);
+  if (rows.length === 0) return null;
+  return (
+    <section className="card-surface rounded-[18px] p-4" aria-label="היסטוריה">
+      <details>
+        <summary className="flex min-h-11 cursor-pointer items-center text-section font-semibold tracking-[-0.02em]">היסטוריה ({rows.length})</summary>
+        <ol className="mt-2 flex flex-col gap-2 text-sm">
+          {rows.map((r) => (
+            <li key={r.id} className="flex flex-col border-t border-line pt-2 first:border-t-0 first:pt-0">
+              <span>{r.text}</span>
+              <span className="text-caption text-muted">
+                <Ltr>{formatDateTime(r.at)}</Ltr>
+                {r.actor && (
+                  <>
+                    , <bdi>{r.actor}</bdi>
+                  </>
+                )}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </details>
+    </section>
   );
 }
 
@@ -535,9 +642,14 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
   const admin = await requireAdmin();
   const detail = await getOrderForViewer(orderId, admin);
   if (!detail) return <Alert>ההזמנה לא נמצאה.</Alert>;
-  const finished = detail.order.status === "rejected" || detail.order.status === "cancelled";
-  // Once a line is ordered from a supplier the quote can't change (S13), whatever the URL says.
-  const ordered = (await orderSupplierLock(db, orderId)) === "ordered";
+  const stored = detail.order.status;
+  const finished = stored === "rejected" || stored === "cancelled";
+  const [lock, links, cancel, teams] = await Promise.all([
+    orderSupplierLock(db, orderId),
+    getOrderLinks(db, orderId),
+    canAdminCancel(stored) ? previewCancel(orderId) : null,
+    listTeamsForMove(),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -546,19 +658,32 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
           <div className="min-w-0 flex-1">
             <Contact detail={detail} />
           </div>
-          {canRejectOrder(detail.order.status) && !isFinished(status) && <OrderMenu orderId={orderId} />}
+          <OrderMenu
+            orderId={orderId}
+            canReject={canRejectOrder(stored) && !lock}
+            canCancel={!!cancel}
+            cancelWarnings={cancel?.warnings ?? []}
+            cancelBlocked={cancel?.blocked ?? null}
+            teams={links.onDeliveryNotes === 0 ? teams.filter((t) => t.id !== detail.team.id) : []}
+            deletable={links.onSupplierOrders === 0}
+          />
         </div>
       </Section>
-      {status === "awaiting_quote" || (edit && !finished && !ordered) ? (
+      {status === "awaiting_quote" || (edit && !finished) ? (
         <Section title="הצעה">
-          <Editor detail={detail} />
+          <Editor detail={detail} locked={lock} />
         </Section>
       ) : (
-        !finished && <LockedQuote detail={detail} orderId={orderId} ordered={ordered} />
+        !finished && <LockedQuote detail={detail} orderId={orderId} lock={lock} />
+      )}
+      {(stored === "submitted" || stored === "quote_sent") && <LineAvailability detail={detail} />}
+      {status === "quote_sent" && lock && (
+        <p className="text-sm text-muted">פריטים שכבר הוזמנו ממשיכים בדרכם. המעקב אחריהם חוזר לכרטיס אחרי שהקבוצה תאשר את הגרסה החדשה.</p>
       )}
       {status === "quote_sent" && <Links orderId={orderId} />}
-      {detail.order.status === "approved" && <Logistics detail={detail} status={status} />}
-      {isFinished(status) && <Summary detail={detail} />}
+      {stored === "approved" && <Logistics detail={detail} status={status} />}
+      {(isFinished(status) || finished) && <Summary detail={detail} />}
+      <History orderId={orderId} />
       <Link href={`/orders/${orderId}`} className="text-sm text-brand hover:underline">
         תצוגת הקבוצה והדפסה
       </Link>

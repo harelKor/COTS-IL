@@ -12,6 +12,17 @@ import { notifyStagesLater } from "@/lib/notify";
 
 const { auditLog, deliveries, deliveryItems, stockAllocations, teamOrderItems, teamOrders } = schema;
 
+/** The team orders a delivery note carries units of, so the order cards' history finds the note even after it's cancelled. */
+async function noteOrderIds(tx: Pick<typeof db, "selectDistinct">, deliveryId: string) {
+  const rows = await tx
+    .selectDistinct({ orderId: teamOrderItems.orderId })
+    .from(deliveryItems)
+    .innerJoin(stockAllocations, eq(stockAllocations.id, deliveryItems.allocationId))
+    .innerJoin(teamOrderItems, eq(teamOrderItems.id, stockAllocations.orderItemId))
+    .where(eq(deliveryItems.deliveryId, deliveryId));
+  return rows.map((r) => r.orderId);
+}
+
 function refresh(id?: string) {
   revalidatePath("/admin", "layout");
   revalidatePath("/admin/deliveries");
@@ -72,7 +83,12 @@ export async function createDelivery(_prev: ActionState, formData: FormData): Pr
       entity: "delivery",
       entityId: delivery.id,
       action: "create",
-      after: { number: delivery.number, method, lines: lines.map((a) => ({ allocation: a.id, qty: a.take })) },
+      after: {
+        number: delivery.number,
+        method,
+        lines: lines.map((a) => ({ allocation: a.id, qty: a.take })),
+        orderIds: await noteOrderIds(tx, delivery.id),
+      },
     });
     return { id: delivery.id };
   });
@@ -133,15 +149,16 @@ export async function cancelDelivery(_prev: ActionState, formData: FormData): Pr
   const result = await db.transaction(async (tx): Promise<ActionState> => {
     const [delivery] = await tx.select().from(deliveries).where(eq(deliveries.id, deliveryId.data)).for("update");
     if (!delivery) return { error: "התעודה לא נמצאה" };
-    if (delivery.status !== "prepared") return { error: "אי אפשר לבטל תעודה שנמסרה" };
+    if (delivery.status !== "prepared") return { error: "אי אפשר לבטל תעודה שנמסרה. קודם צריך לבטל את אישור המסירה." };
 
+    const orderIds = await noteOrderIds(tx, delivery.id);
     await tx.delete(deliveries).where(eq(deliveries.id, delivery.id));
     await tx.insert(auditLog).values({
       actorId: admin.id,
       entity: "delivery",
       entityId: delivery.id,
       action: "cancel",
-      before: { number: delivery.number, status: delivery.status },
+      before: { number: delivery.number, status: delivery.status, orderIds },
     });
     return {};
   });
@@ -149,4 +166,43 @@ export async function cancelDelivery(_prev: ActionState, formData: FormData): Pr
   if (result.error) return result;
   refresh(deliveryId.data);
   redirect("/admin/deliveries");
+}
+
+/**
+ * Takes back a delivery confirmed by mistake (M2): the note is open again ("מוכנה למסירה"),
+ * so it can be confirmed again or cancelled. Who received it and when go to the audit log.
+ */
+export async function unconfirmDelivery(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const deliveryId = z.uuid().safeParse(formData.get("deliveryId"));
+  if (!deliveryId.success) return { error: "הבקשה לא תקינה" };
+
+  const result = await db.transaction(async (tx): Promise<ActionState> => {
+    const [delivery] = await tx.select().from(deliveries).where(eq(deliveries.id, deliveryId.data)).for("update");
+    if (!delivery) return { error: "התעודה לא נמצאה" };
+    if (delivery.status !== "delivered") return { error: "התעודה עוד לא אושרה" };
+
+    await tx
+      .update(deliveries)
+      .set({ status: "prepared", recipientName: null, deliveredAt: null, proofNote: null })
+      .where(eq(deliveries.id, delivery.id));
+    await tx.insert(auditLog).values({
+      actorId: admin.id,
+      entity: "delivery",
+      entityId: delivery.id,
+      action: "unconfirm",
+      before: {
+        number: delivery.number,
+        status: delivery.status,
+        recipientName: delivery.recipientName,
+        deliveredAt: delivery.deliveredAt,
+        proofNote: delivery.proofNote,
+      },
+      after: { status: "prepared" },
+    });
+    return { ok: "אישור המסירה בוטל. התעודה פתוחה שוב." };
+  });
+
+  refresh(deliveryId.data);
+  return result;
 }

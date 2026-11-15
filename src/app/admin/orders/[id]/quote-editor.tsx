@@ -1,14 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Ellipsis, ImageOff, RefreshCw } from "lucide-react";
+import { ImageOff, RefreshCw } from "lucide-react";
 import { Alert, Field, Input } from "@/components/form";
 import { Availability } from "@/components/availability";
 import { ItemDescription } from "@/components/orders";
 import { formatIls } from "@/domain/pricing";
 import { quoteSummary } from "@/domain/quote-summary";
 import { shopifyImage } from "@/lib/images";
-import { rejectOrder, sendQuote, type QuoteFormState } from "../actions";
+import { sendQuote, type QuoteFormState } from "../actions";
 
 export type EditorLine = {
   id: string;
@@ -28,6 +28,8 @@ export type EditorLine = {
   liveAvailable: boolean | null;
   /** When the last sync checked this variant (ISO). */
   checkedAt: string | null;
+  /** Marked "לא זמין" by the admin (M2). */
+  unavailableAt: Date | null;
 };
 
 type Values = { qty: string; price: string; reason: string };
@@ -63,6 +65,12 @@ export function QuoteEditor(props: {
   version: number;
   /** From the admin's settings (פרטי העסק); null hides the line. */
   paymentTerms: string | null;
+  /**
+   * Lines already on supplier orders (M2): "ordered" once one was marked ordered, "draft" while
+   * only on drafts. Quantities then stay as they were; prices and shipping can still change,
+   * as a new version the team approves again.
+   */
+  locked?: "ordered" | "draft" | null;
 }) {
   const [state, action, pending] = useActionState(sendQuote, {} as QuoteFormState);
   const [values, setValues] = useState<Record<string, Values>>(() =>
@@ -79,6 +87,12 @@ export function QuoteEditor(props: {
   return (
     <form action={action} className="flex flex-col gap-4 rounded-[18px] border border-line bg-surface p-4">
       <h2 className="font-semibold">{props.version > 1 ? `טיוטת הצעה, גרסה ${props.version}` : "טיוטת הצעה"}</h2>
+      {props.locked && (
+        <Alert tone="info">
+          {props.locked === "ordered" ? "חלק מהפריטים כבר הוזמנו מהספק" : "חלק מהפריטים כבר בטיוטת הזמנת ספק"}, ולכן הכמויות נשארות כמו שהן. אפשר
+          לשנות מחירים ומשלוח, עם סיבה לכל מחיר שמשתנה. הגרסה החדשה תישלח לקבוצה לאישור מחדש.
+        </Alert>
+      )}
       {state.sent && (
         <Alert tone="info">
           {state.emailed
@@ -112,7 +126,7 @@ export function QuoteEditor(props: {
               <div className="flex flex-wrap items-center gap-2">
                 <label className="flex items-center gap-1 text-caption">
                   כמות
-                  <input name={`qty:${line.id}`} type="number" min={0} inputMode="numeric" value={v.qty} onChange={(e) => set(line.id, { qty: e.target.value })} className={`${inputClass} w-20`} />
+                  <input name={`qty:${line.id}`} type="number" min={0} inputMode="numeric" value={v.qty} readOnly={!!props.locked} onChange={(e) => set(line.id, { qty: e.target.value })} className={`${inputClass} w-20 read-only:opacity-60`} />
                 </label>
                 <label className="flex items-center gap-1 text-caption">
                   מחיר ליחידה ₪
@@ -165,31 +179,8 @@ export function QuoteEditor(props: {
       {props.paymentTerms && <p className="text-caption text-muted">תנאי תשלום (מופיע בהצעה): {props.paymentTerms}</p>}
       {state.error && <Alert>{state.error}</Alert>}
       <button disabled={pending} className="btn-brand min-h-11 self-start rounded-full px-6 font-medium disabled:opacity-60">
-        {pending ? "שולח…" : "שליחת ההצעה לקבוצה"}
+        {pending ? "שולח…" : props.locked ? "שליחת הגרסה החדשה לאישור הקבוצה" : "שליחת ההצעה לקבוצה"}
       </button>
     </form>
-  );
-}
-
-/** "…" next to the order: rejecting is rare and final, so it isn't a button beside Send. */
-export function OrderMenu({ orderId }: { orderId: string }) {
-  const [state, action, pending] = useActionState(rejectOrder, {} as QuoteFormState);
-  return (
-    <details className="group relative self-end">
-      <summary className="flex size-11 cursor-pointer list-none items-center justify-center rounded-full hover:bg-subtle [&::-webkit-details-marker]:hidden" aria-label="פעולות נוספות">
-        <Ellipsis size={20} aria-hidden />
-      </summary>
-      <form action={action} className="absolute end-0 z-10 mt-1 flex w-[min(20rem,calc(100vw-3rem))] flex-col gap-2 rounded-[18px] border border-line bg-surface p-3 shadow-lift">
-        {state.error && <Alert>{state.error}</Alert>}
-        <input type="hidden" name="orderId" value={orderId} />
-        <label className="flex flex-col gap-1 text-sm">
-          דחיית ההזמנה
-          <input name="reason" placeholder="סיבת הדחייה (הקבוצה תראה אותה)" required minLength={2} maxLength={1000} className={inputClass} />
-        </label>
-        <button disabled={pending} className="min-h-11 rounded-full bg-subtle px-4 text-sm font-medium text-danger hover:bg-subtle-hover disabled:opacity-60">
-          {pending ? "דוחה…" : "דחיית ההזמנה"}
-        </button>
-      </form>
-    </details>
   );
 }

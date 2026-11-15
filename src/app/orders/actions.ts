@@ -179,6 +179,8 @@ export async function cancelOrder(orderIdInput: string): Promise<CancelState> {
     const [order] = await tx.select().from(teamOrders).where(eq(teamOrders.id, orderId)).for("update");
     const membership = order && viewer.teams.find((t) => t.id === order.teamId && teamCanOrder(t.status));
     if (!membership || !canCancelOrder(order.status)) return false;
+    // A new quote version after lines were bought (M2): only the Israeli supplier can cancel now.
+    if (await orderSupplierLock(tx, orderId)) return false;
 
     await tx.update(teamOrders).set({ status: "cancelled" }).where(eq(teamOrders.id, orderId));
     const superseded = await tx

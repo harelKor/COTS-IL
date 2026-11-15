@@ -426,6 +426,8 @@ export const teamOrders = pgTable(
     contactPhone: text("contact_phone").notNull(),
     notes: text("notes"),
     rejectionReason: text("rejection_reason"),
+    /** Why the admin cancelled it (M2); the team sees it. Null for the team's own cancel. */
+    cancelReason: text("cancel_reason"),
     submittedBy: uuid("submitted_by")
       .notNull()
       .references(() => profiles.id),
@@ -458,6 +460,8 @@ export const teamOrderItems = pgTable(
     usdIlsRate: numeric("usd_ils_rate", { precision: 10, scale: 4 }),
     unitPriceIls: integer("unit_price_ils").notNull(),
     pricedAt: timestamp("priced_at", { withTimezone: true }).notNull(),
+    /** The admin marked the part "לא זמין" (no longer sold, M2); cleared when it's replaced. */
+    unavailableAt: timestamp("unavailable_at", { withTimezone: true }),
   },
   (t) => [index("team_order_items_order_id_idx").on(t.orderId)],
 );

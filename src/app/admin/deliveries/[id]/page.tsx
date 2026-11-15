@@ -8,7 +8,7 @@ import { Button, Field, Input } from "@/components/form";
 import { PrintButton } from "@/components/print-button";
 import { requireAdmin } from "@/lib/auth";
 import { getDeliveryForViewer } from "@/lib/logistics";
-import { cancelDelivery, confirmDelivery } from "../actions";
+import { cancelDelivery, confirmDelivery, unconfirmDelivery } from "../actions";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 
 export const metadata: Metadata = { title: "תעודת משלוח" };
@@ -31,6 +31,16 @@ async function AdminDelivery({ params }: PageProps<"/admin/deliveries/[id]">) {
       </div>
 
       <DeliveryNote {...result} />
+
+      {result.delivery.status === "delivered" && (
+        <ActionForm action={unconfirmDelivery} className="flex flex-col gap-2 card-surface p-4 print:hidden">
+          <p className="text-sm text-muted">אושרה בטעות? ביטול האישור פותח את התעודה שוב, ואז אפשר לאשר אותה מחדש או לבטל אותה.</p>
+          <input type="hidden" name="deliveryId" value={result.delivery.id} />
+          <Button variant="danger" className="self-start">
+            ביטול אישור המסירה
+          </Button>
+        </ActionForm>
+      )}
 
       {result.delivery.status === "prepared" && (
         <>

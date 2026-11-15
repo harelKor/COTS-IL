@@ -9,7 +9,7 @@ import { formatDateTime } from "@/components/orders";
 import { describeOptions } from "@/domain/purchasing";
 import { requireAdmin } from "@/lib/auth";
 import { getShipment } from "@/lib/logistics";
-import { addImportCost, deleteShipment, receiveShipment, removeImportCost, reverseReceipt, setAllocations } from "../actions";
+import { addImportCost, deleteShipment, editReceiptLine, receiveShipment, removeImportCost, reverseReceipt, setAllocations } from "../actions";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 import { ShipmentTag } from "@/components/order-status-tag";
 
@@ -127,7 +127,8 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
             const here = allocations.filter((a) => a.receiptLineId === row.lineId);
             const allocated = here.reduce((sum, a) => sum + a.qty, 0);
             return (
-              <ActionForm key={row.lineId} action={setAllocations} className="flex flex-col gap-2 border-t border-line pt-3">
+              <div key={row.lineId} className="flex flex-col gap-2 border-t border-line pt-3">
+              <ActionForm action={setAllocations} className="flex flex-col gap-2">
                 <input type="hidden" name="receiptLineId" value={row.lineId} />
                 <div dir="ltr" className="text-start text-sm font-medium">
                   {titleOf.get(row.poLineId)?.title}
@@ -158,6 +159,29 @@ async function Shipment({ params }: PageProps<"/admin/logistics/[id]">) {
                   <button className="btn-soft min-h-11 rounded-full px-4">עדכון הקצאה</button>
                 </div>
               </ActionForm>
+              <details className="text-caption">
+                <summary className="flex min-h-11 w-fit cursor-pointer items-center text-brand">תיקון הכמות שנקלטה</summary>
+                <ActionForm action={editReceiptLine} className="flex flex-col gap-2 pt-1">
+                  <input type="hidden" name="receiptLineId" value={row.lineId} />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-1">
+                      התקבל
+                      <input name="received" type="number" min={0} required defaultValue={row.qtyReceived} className={`${smallInput} w-20`} />
+                    </label>
+                    <label className="flex items-center gap-1">
+                      מתוכם פגומים
+                      <input name="damaged" type="number" min={0} required defaultValue={row.qtyDamaged} className={`${smallInput} w-20`} />
+                    </label>
+                    <label className="flex items-center gap-1">
+                      מיקום
+                      <input name="location" maxLength={100} defaultValue={row.location ?? ""} className={`${smallInput} w-32`} />
+                    </label>
+                    <button className="btn-soft min-h-11 rounded-full px-4">שמירת התיקון</button>
+                  </div>
+                  <span className="text-muted">ההקצאה לקבוצות מתעדכנת: פחות יחידות תקינות יורדות מההזמנות החדשות קודם. 0 מסיר את השורה.</span>
+                </ActionForm>
+              </details>
+              </div>
             );
           })}
         </section>
