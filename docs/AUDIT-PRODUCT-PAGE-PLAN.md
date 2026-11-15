@@ -149,5 +149,5 @@ Three sessions, one after the other (they share `family-view.tsx` and `page.tsx`
 | Task | Status | Commit |
 |---|---|---|
 | PP1 Gallery and lightbox | Done (Nov 15, 2026). The timing belt shows 2 thumbnails until a CTRE belt is chosen (its photo adds a third): the 6 were 2 photos repeated | `1b642d4` |
-| PP2 Choosing and buying | Not started | |
+| PP2 Choosing and buying | Done (Nov 15, 2026). A group becomes a searchable list at more than 8 values, or labels over 12 letters in a group of more than 3 (EVO's three output shafts stay chips). The phone buy bar shows whenever the buy box is off screen, above or below it. On the timing belt the Add button sits about 830 px down at 1280×800, on EVO about 790 px | `323f517` |
 | PP3 Supplier data | Not started | |
