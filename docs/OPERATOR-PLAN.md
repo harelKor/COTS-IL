@@ -165,6 +165,6 @@ M1 can start now (its files don't overlap the audit tasks). After it:
 | M3 Payment tracking | M2 | not started |
 | M4 Team management | T9 | not started |
 | M5 History, export, season close | T4, M2 | not started |
-| M6 Text and messages | T4, T5, T19 | not started |
+| M6 Text and messages | T4, T5, T19 | done (Nov 15): info pages, home words, tagline, email templates, timings and admin email routing are in `/admin/settings` (content, emails, admins) |
 | M7 Search and catalog tuning | T6 | not started |
 | M8 In-app help | M1–M7 | not started |
