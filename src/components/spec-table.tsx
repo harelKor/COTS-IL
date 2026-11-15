@@ -51,16 +51,16 @@ export function SpecTable({ familyId, optionKeys, fixed, rows }: { familyId: str
   return (
     <section data-jump="מפרט" className="pdp-section flex flex-col gap-4">
       <SectionHeading icon={<ListChecks size={20} strokeWidth={1.75} />}>מפרט</SectionHeading>
-      <dl className="pdp-spec flex flex-col">
+      <dl className="pdp-spec flex flex-col gap-0.5">
         {shown.map((s) => (
-          <div key={s.label} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-baseline gap-4 border-b border-line/70 py-3 last:border-b-0">
-            <dt className="text-callout text-muted">{hasHebrew(s.label) ? s.label : <Ltr>{s.label}</Ltr>}</dt>
-            <dd className="text-end">
+          <div key={s.label} className="grid grid-cols-[minmax(7rem,2fr)_minmax(0,3fr)] items-baseline gap-4 rounded-xl px-4 py-3.5">
+            <dt className="text-body text-muted">{hasHebrew(s.label) ? s.label : <Ltr>{s.label}</Ltr>}</dt>
+            <dd className="text-start">
               {/* About three lines at most; the whole value is in the tooltip. */}
-              <span title={s.value} className={`line-clamp-3 text-body ${s.summary ? "text-muted" : "font-medium text-foreground"}`}>
+              <span title={s.value} className={`line-clamp-3 text-[18px] leading-snug ${s.summary ? "text-muted" : "font-medium text-foreground"}`}>
                 {hasHebrew(s.value) ? s.value : <Ltr>{s.value}</Ltr>}
               </span>
-              {s.sub && <span className="block text-caption text-muted">{s.sub}</span>}
+              {s.sub && <span className="mt-0.5 block text-callout text-muted">{s.sub}</span>}
             </dd>
           </div>
         ))}
