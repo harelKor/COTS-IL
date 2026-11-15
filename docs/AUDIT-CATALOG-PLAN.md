@@ -196,7 +196,7 @@ Four sessions, one after another (CF2–CF4 share `catalog-browser.tsx`; CF2 nee
 |---|---|---|
 | CF1 Clean spec values | Done (Nov 15, 2026). Production updates after the nightly sync (02:00 UTC); no manual regroup | `0c2f918` |
 | CF2 The filter panel | Done (Nov 15, 2026). Production shows the new spec values after the nightly sync | `17961e6` |
-| CF3 Navigation and stability | Not started | |
+| CF3 Navigation and stability | Done (Nov 15, 2026) | `f73c694` (merged `1cf9d9e`) |
 | CF4 Cards and list view | Not started | |
 
 ### CF1 notes (for CF2–CF4)
@@ -222,3 +222,14 @@ Four sessions, one after another (CF2–CF4 share `catalog-browser.tsx`; CF2 nee
 - **Shared with the product page.** `search-field.tsx` (`SearchField`, `fieldClass`) and `src/domain/list-search.ts` (`matchList`) are used by `option-combobox.tsx` too.
 - **Open state** is per facet key for the session (`catalog-facets-open` in sessionStorage, with an in-memory fallback), shared by the side panel and the phone sheet.
 - **Pending state (CF3, B1).** The panel's search uses `router.replace` after a 450 ms pause; the other controls `router.push`. Both run inside `startTransition`, so `pending` already dims the results.
+
+### CF3 notes (for CF4)
+
+- **Where it is.** `src/domain/catalog-nav.ts` (`keepsSpecs`, `moveTo`, `crumbTrail`, `groupMembers`, `scopeGroup`, `droppedText`), `src/components/catalog-nav.tsx` (the browser's transition as a context; `CatalogLink`, `interceptClick`), `catalog-heading.tsx` (breadcrumb + h1), `category-bar.tsx` (`useScopeLink`), `vendor-filter.tsx`. `catalog-browser.tsx` now renders the strip, the sticky bar, the heading, the tiles/pills and the active row itself; the pages pass `categories` (every category, with counts) and `suppliers` (every vendor in `homeVendorOrder`, with counts), and `underVendors` is gone.
+- **Filters.** `CatalogFilters.supplier` is now `suppliers: string[]` (`?supplier=` repeated, sorted in the URL, OR in `searchQuery` with `&&`). `toggleSupplier`, `clearAll` (the results row's "נקה הכל": the panel plus the vendors; the category and search stay). A store passes `suppliers: [code]`. `toCards(rows, codes)` shows the chosen vendors' offer on each card; one vendor still sets `card.vendor`.
+- **Counts.** The bar, tiles and pills count the current list without the spec filters and ranges (they belong to a category and are dropped on leaving it), so spec clicks never change the bar. The strip counts with them.
+- **Stability, checked.** A panel click, a vendor click and a bar click keep the panel mounted, show no skeleton, and set `aria-busy` and the progress line at once (local, MutationObserver). Every state rendered the same 6 bar items and the same vendor order (local, 16 states at 1280 and 375).
+- **Heights at 1280×800 (local).** Panel top 261 (was ~414). Category page: first card row 377–752. With an active-filters row it's 433–808, so CF4's card text changes should keep the cards from growing. At 375 the toolbar wraps to three short lines (title, count, then "סינון" and sort/view), as before.
+- **Not done.** The store's own breadcrumb ("כל הספקים › WCP › …") doesn't show the group. The count words still read "5 מוצרים"/"1 מוצרים" in places (P2-5, CF4's `countOf` pass).
+- **Testing tip.** When the app's browser pane is hidden, React's streamed reveal (with `<ViewTransition>`) waits for an animation frame and a fresh load can sit on "טוען"; a headless Playwright script doesn't have this.
+
