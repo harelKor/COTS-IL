@@ -83,6 +83,8 @@ type Props = {
   dataKey?: string;
   /** False on a repeat of a family already on the page (the endless strip wraps): one morph name each. */
   morph?: boolean;
+  /** A repeat that only fills a sliding row (hot-row.tsx): hidden from screen readers and the keyboard. */
+  inert?: boolean;
 };
 
 /** Below this width the chips open in a bottom sheet instead of over the card. */
@@ -94,7 +96,7 @@ const SHEET_QUERY = "(max-width: 639px)";
  * or in a bottom sheet on a phone), and picking the last one adds it. Once in
  * the cart, "+" becomes a stepper. Nothing here leaves the page.
  */
-export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style, glow = false, compact = false, dataKey, morph = true }: Props) {
+export function FamilyCard({ family, preset = {}, layout = "grid", eager = false, className = "", style, glow = false, compact = false, dataKey, morph = true, inert = false }: Props) {
   // Only this card's slice of the cart, so an add elsewhere doesn't re-render every card on the page.
   const mode = useCartMode();
   const { leadTimes } = useSiteFacts();
@@ -381,6 +383,8 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   return (
     <li
       data-key={dataKey}
+      inert={inert || undefined}
+      aria-hidden={inert || undefined}
       style={style}
       className={`family-card card-surface relative flex flex-col justify-between rounded-card p-3 ${compact ? "gap-2" : "gap-3"} transition-[translate,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift ${glow ? "glow-card" : ""} ${className}`}
     >

@@ -6,7 +6,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
 import { OptionsTable } from "@/components/options-table";
-import { FamilyCard } from "@/components/family-card";
+import { HotRow } from "@/components/hot-row";
+import { suggestionRow } from "@/domain/suggestions";
 import { FamilyView, type ViewVariant } from "@/components/family-view";
 import { galleryPhotos } from "@/lib/image-size";
 import { Ltr } from "@/components/ltr";
@@ -17,7 +18,7 @@ import { specRows } from "@/domain/families/spec-rows";
 import { documentLinks, quickDocs, sortDocs } from "@/domain/doc-links";
 import { SpecTable } from "@/components/spec-table";
 import { formatIls, priceIls, type PriceContext } from "@/domain/pricing";
-import { getCompanions, getFacets, getFamily, getVendorPopular, getVendors, type FamilyVariant } from "@/lib/catalog";
+import { getCategoryPicks, getCompanions, getFacets, getFamily, getVendorPopular, getVendors, type FamilyVariant } from "@/lib/catalog";
 import { priceContext } from "@/lib/settings";
 import { getStaleSupplierCodes } from "@/lib/health";
 import { catalogHref } from "@/lib/catalog-filters";
@@ -156,19 +157,16 @@ async function Companions({ slug, searchParams }: { slug: string; searchParams: 
   const rules = selected
     ? rulesFor(selected)
     : (byOffer(result.variants, await priceContext()).map(rulesFor).find((r) => r.length > 0) ?? rulesFor(undefined));
-  if (rules.length === 0) return null;
-  const cards = await getCompanions(family.id, rules);
-  if (cards.length === 0) return null;
-  return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-section font-semibold">מתאים לשימוש עם</h2>
-      <ul className="-mx-6 grid auto-cols-[44%] grid-flow-col gap-4 overflow-x-auto px-6 pb-2 sm:auto-cols-[30%] md:-mx-0 md:grid-flow-row md:grid-cols-4 md:px-0">
-        {cards.map((c) => (
-          <FamilyCard key={c.id} family={c} />
-        ))}
-      </ul>
-    </section>
-  );
+  // Every product gets the row: the parts that fit it, filled when they're few from its category
+  // and its vendor's most wanted (suggestionRow keeps the title honest).
+  const vendor = (selected ?? result.variants[0])?.supplierCode;
+  const [fitting, sameCategory, vendorPopular] = await Promise.all([
+    rules.length > 0 ? getCompanions(family.id, rules) : [],
+    result.categorySlug ? getCategoryPicks(family.id, result.categorySlug) : [],
+    vendor ? getVendorPopular(vendor, 8) : [],
+  ]);
+  const row = suggestionRow(family.id, fitting, sameCategory, vendorPopular);
+  return <HotRow title={row.title} cards={row.cards} />;
 }
 
 async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) {

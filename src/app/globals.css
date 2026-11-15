@@ -834,6 +834,72 @@ header.sticky {
   }
 }
 
+/*
+ * A product's suggestions as a hot row (src/components/hot-row.tsx): a warm glass panel with an
+ * ember glow rising from its floor, a fiery hairline along its top that breathes, the flame badge,
+ * and the cards sliding sideways forever. The track holds the cards twice and slides by one copy
+ * (half the track plus half a gap; the track has no padding, only a start margin) in RTL's reading direction, so it never shows a seam. It stops
+ * under a pointer, with focus inside, after a touch (data-held) and off screen (data-offscreen).
+ * One transform on one element, on the compositor. Under reduced motion it stands still, the
+ * repeats are gone, and the row scrolls by hand.
+ */
+.hot-zone {
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse 75% 70% at 50% 115%, rgb(249 115 22 / 0.22), rgb(239 68 68 / 0.08) 45%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 85% -10%, rgb(251 146 60 / 0.1), transparent 70%),
+    var(--surface);
+  box-shadow:
+    inset 0 0 0 1px rgb(251 146 60 / 0.26),
+    0 18px 50px -28px rgb(249 115 22 / 0.55);
+}
+.hot-zone::before {
+  content: "";
+  position: absolute;
+  inset-inline: 8%;
+  inset-block-start: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #fb923c 30%, #fde68a 50%, #fb923c 70%, transparent);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.hot-marquee {
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+}
+.hot-marquee .hot-card::after {
+  inset-block-end: -18px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hot-zone::before {
+    animation: heat-glow 3.2s ease-in-out infinite;
+  }
+  .hot-track.is-looping {
+    animation: hot-slide var(--loop, 40s) linear infinite;
+  }
+  .hot-zone:is(:hover, :focus-within, [data-held]) .hot-track,
+  .hot-zone[data-offscreen] .hot-track,
+  .hot-zone[data-offscreen]::before {
+    animation-play-state: paused;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hot-marquee {
+    overflow-x: auto;
+  }
+  .hot-dup {
+    display: none;
+  }
+}
+/* RTL lays the track out leftwards: moving it right by one copy brings the next copy into place. */
+@keyframes hot-slide {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(50% + 8px));
+  }
+}
+
 /* The product editor (S16c): a side sheet, full screen on phones, wider from 768px. */
 dialog.sheet-side.sheet-wide {
   height: 100dvh;

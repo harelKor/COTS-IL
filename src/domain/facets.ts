@@ -55,9 +55,9 @@ export function facetCountPlans<T extends readonly unknown[] | object = string[]
 
 /** A facet with more values than this is a checkbox list (with search and "הצגת כל N"), not chips. */
 export const MAX_CHIP_VALUES = 10;
-/** A list facet shows this many rows until "הצגת כל N" (one fewer under a from–to range): 44px rows, and the facet stays under ~320px. */
-export const PREVIEW_ROWS = 4;
-/** Under this share of the products in view, a facet says how many it knows ("ידוע ל-45 מתוך 167"). */
+/** A list facet shows this many rows (its search box and from–to range above them) until "הצגת כל N". */
+export const PREVIEW_ROWS = 3;
+/** Under this share of the products in view, a facet says how many state it ("60 מתוך 192 המוצרים מציינים קוטר פנימי"). */
 export const COVERAGE_NOTE_BELOW = 0.9;
 /** How many facets are open before the user opens or closes any: the ones most products have. */
 export const OPEN_FACETS = 2;
@@ -118,14 +118,36 @@ export function showsCoverage(reach: number, total: number): boolean {
   return total > 0 && reach < total * COVERAGE_NOTE_BELOW;
 }
 
-/* ---------- From–to ranges (teeth, length, OD) and the price ---------- */
+/* ---------- From–to ranges (teeth and the sizes) and the price ---------- */
 
 export type RangeUnit = "in" | "mm";
-/** A from–to range; either end may be open. `unit` only for sizes (length, OD). */
+/** A from–to range; either end may be open. `unit` only for sizes (length, ID, OD, width). */
 export type NumRange = { min: number | null; max: number | null; unit?: RangeUnit };
 
-/** Specs that also get a from–to range, with the units it can be typed in (the first is the default). */
-export const RANGE_KEYS: Record<string, RangeUnit[] | null> = { teeth: null, length: ["in", "mm"], od: ["in", "mm"] };
+const SIZE_UNITS: RangeUnit[] = ["in", "mm"];
+
+/**
+ * Specs that also get a from–to range, with the units it can be typed in (the first is the URL's
+ * default). Not the bore: its values mix shapes (1/2" Hex, 1/2" Round), so a size range would too.
+ */
+export const RANGE_KEYS: Record<string, RangeUnit[] | null> = {
+  teeth: null,
+  length: SIZE_UNITS,
+  id: SIZE_UNITS,
+  od: SIZE_UNITS,
+  width: SIZE_UNITS,
+};
+
+/** The unit a facet's range starts in: the one most of its values are written in (1/2" → in, 8mm → mm). */
+export function rangeUnitFor(values: readonly FacetValue[]): RangeUnit {
+  let inch = 0;
+  let mm = 0;
+  for (const v of values) {
+    if (/mm$/i.test(v.value.trim())) mm += v.count;
+    else if (/"$/.test(v.value.trim())) inch += v.count;
+  }
+  return mm > inch ? "mm" : "in";
+}
 
 export function hasRange(key: string): boolean {
   return key in RANGE_KEYS;
