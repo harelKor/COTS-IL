@@ -1940,3 +1940,25 @@ li.family-card:is(:hover, :focus-within) {
 .group:has(.flyout:popover-open) .glow-box {
   border-color: rgb(var(--vendor-primary-rgb) / 0.65);
 }
+
+/*
+ * The product photo lightbox (PP1, Nov 15, 2026): an opaque pearl panel over a near-black
+ * backdrop, so no page text shows through. It fades in, except under reduced motion.
+ */
+.photo-lightbox-panel {
+  background: radial-gradient(circle at 50% 30%, rgb(241 245 249), rgb(222 228 238));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18), 0 24px 64px rgb(0 0 0 / 0.5);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .photo-lightbox[open] {
+    animation: lightbox-in 200ms ease-out;
+  }
+  .photo-lightbox[open]::backdrop {
+    animation: lightbox-in 200ms ease-out;
+  }
+}
+@keyframes lightbox-in {
+  from {
+    opacity: 0;
+  }
+}

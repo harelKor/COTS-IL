@@ -1,22 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { Copy, Maximize2, Minus, Plus, ShoppingBag, X } from "lucide-react";
+import { Copy, Minus, Plus, ShoppingBag } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, useSyncExternalStore, ViewTransition } from "react";
+import { useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { findLinked, variantParam } from "@/domain/families/link";
 import { changedKeys, chipPrice, choose, linkedKeys, linkedValue, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
 import { arrivalShort, arrivalText } from "@/domain/lead-time";
 import { offerReason, rankOffers } from "@/domain/offers";
+import { dedupePhotos, followPhoto, ownPhoto } from "@/domain/gallery";
 import { formatIls } from "@/domain/pricing";
 import { useSiteFacts } from "./site-facts";
 import { RequestPart } from "./zero-results";
 import { availabilityStatus, isFresh, useNow } from "./availability";
 import { familyHref, productImageTransition } from "@/lib/catalog-links";
-import { imageLoading, shopifyImage } from "@/lib/images";
 import { addToCartNow } from "./cart-actions";
 import { PriceNote } from "./price-note";
+import { ProductGallery } from "./product-gallery";
 import { canEditCart, useCart } from "./cart-store";
 import { vendorHref } from "@/domain/vendors";
 import { Ltr } from "./ltr";
@@ -129,8 +130,9 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
   const [flash, setFlash] = useState<string[]>([]);
   const flashTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const mainImage = useRef<HTMLDivElement>(null);
-  const zoom = useRef<HTMLDialogElement>(null);
-  const swipe = useRef<{ x: number; y: number } | null>(null);
+  // Next keeps earlier pages in the DOM (hidden), so ids must be unique to this one.
+  const uid = useId();
+  const groupId = (key: string) => `${uid}-option-${key}`;
   const router = useRouter();
   // Keys that always go together (a bearing's ID and OD) get one picker, not two that switch each other.
   const groups = useMemo(() => linkedKeys(variants, keys), [variants, keys]);
@@ -142,8 +144,13 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
   const cartCount = lines.reduce((n, l) => n + l.qty, 0);
   const inCart = chosen ? lines.find((l) => l.variantId === chosen.id) : undefined;
   const canAdd = canEditCart(mode);
-  const shown = photo ?? chosen?.image ?? family.images[0] ?? null;
-  const gallery = [...new Set([...(chosen?.image ? [chosen.image] : []), ...family.images])].slice(0, 6);
+  // The family's photos (once each, a large one first: the server ordered them), and the chosen
+  // variant's own photo at the end when the family doesn't have it. Their order never changes.
+  const own = chosen ? ownPhoto(chosen, variants) : null;
+  const gallery = dedupePhotos([...family.images, ...(own ? [own] : [])]).slice(0, 12);
+  // The photo follows the choice (its own photo, its SKU, its colour) until a thumbnail is tapped.
+  const followed = Object.keys(choices).length > 0 || chosen ? followPhoto(gallery, picked.candidates, chosen, variants, picked.selected) : null;
+  const shown = (photo && gallery.includes(photo) ? photo : null) ?? followed ?? gallery[0] ?? null;
   const lowest = Math.min(...variants.flatMap((v) => (v.priceIls === null ? [] : [v.priceIls])));
 
   function highlight(groupKeys: string[]) {
@@ -181,23 +188,8 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
   function toMissing() {
     const group = groups.find((g) => g.some((k) => picked.selected[k] === undefined));
     if (!group) return;
-    document.getElementById(`option-${group[0]}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    document.getElementById(groupId(group[0]))?.scrollIntoView({ behavior: "smooth", block: "center" });
     highlight([group[0]]);
-  }
-
-  /** Swipe the main photo on touch screens; a tap opens it full size. */
-  function onPhotoUp(e: React.PointerEvent) {
-    const start = swipe.current;
-    swipe.current = null;
-    if (!start) return;
-    const dx = e.clientX - start.x;
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(e.clientY - start.y) && gallery.length > 1) {
-      const i = Math.max(0, gallery.indexOf(shown ?? ""));
-      // Right to left: a swipe to the right brings the next photo, as the thumbnails run.
-      setPhoto(gallery[(i + (dx > 0 ? 1 : -1) + gallery.length) % gallery.length]);
-    } else if (Math.abs(dx) < 8 && shown) {
-      zoom.current?.showModal();
-    }
   }
 
   function add() {
@@ -208,7 +200,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
         title: family.title,
         options: family.optionKeys.flatMap((k) => (chosen.options[k] ? [chosen.options[k]] : [])).join(" / "),
         sku: chosen.sku,
-        image: chosen.image ?? family.images[0] ?? null,
+        image: followed ?? chosen.image ?? family.images[0] ?? null,
         href: familyHref(family.slug, variantParam(chosen, variants)),
         supplierName: chosen.supplierName,
         supplierCode: chosen.supplierCode,
@@ -271,103 +263,44 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
   );
 
   return (
-    <div className="grid gap-8 md:grid-cols-2">
-      <div className="flex flex-col gap-2">
-        <ViewTransition name={productImageTransition(family.id)} share="morph" default="none">
-          <div
-            ref={mainImage}
-            onPointerDown={(e) => (swipe.current = { x: e.clientX, y: e.clientY })}
-            onPointerUp={onPhotoUp}
-            onPointerCancel={() => (swipe.current = null)}
-            className="relative aspect-square w-full cursor-zoom-in touch-pan-y overflow-hidden rounded-card tile-fade p-8 select-none"
-          >
-            {shown && (
-              // Hot-linked from the supplier's CDN, as agreed in the plan, so next/image is not used.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img {...shopifyImage(shown, 560)} alt={family.title} {...imageLoading(true)} referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
-            )}
-            {shown && (
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerUp={(e) => e.stopPropagation()}
-                onClick={() => zoom.current?.showModal()}
-                aria-label="הגדלת התמונה"
-                className="absolute end-2 bottom-2 flex size-11 items-center justify-center rounded-full bg-surface/85 text-foreground shadow-sm backdrop-blur hover:bg-surface"
-              >
-                <Maximize2 size={18} strokeWidth={1.75} aria-hidden />
-              </button>
-            )}
-            {chosen?.sku && (
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerUp={(e) => e.stopPropagation()}
-                onClick={() => navigator.clipboard?.writeText(chosen.sku!).then(() => showToast("המק״ט הועתק"))}
-                aria-label={`העתקת המק״ט ${chosen.sku}`}
-                className="group absolute start-2 top-2 flex min-h-11 items-center"
-              >
-                <span className="flex h-8 items-center gap-1.5 rounded-full bg-surface/85 px-3 text-caption text-foreground shadow-sm backdrop-blur transition-colors group-hover:bg-surface">
-                  <Ltr className="font-mono">{chosen.sku}</Ltr>
-                  <Copy size={13} strokeWidth={1.75} aria-hidden className="text-muted" />
-                </span>
-              </button>
-            )}
-          </div>
-        </ViewTransition>
-        <dialog
-          ref={zoom}
-          aria-label={family.title}
-          onClick={() => zoom.current?.close()}
-          className="m-auto size-full max-h-none max-w-none tile-fade p-0 backdrop:bg-black/70 md:size-[min(90vw,90vh)] md:rounded-card"
-        >
-          {shown && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img {...shopifyImage(shown, 1200)} alt={family.title} loading="lazy" referrerPolicy="no-referrer" className="size-full cursor-zoom-out object-contain p-4" />
-          )}
-          <button type="button" onClick={() => zoom.current?.close()} aria-label="סגירה" className="fixed end-4 top-4 flex size-11 items-center justify-center rounded-full bg-surface shadow-md md:absolute">
-            <X size={20} aria-hidden />
-          </button>
-        </dialog>
-        {gallery.length > 1 && (
-          <ul className="grid grid-cols-6 gap-2">
-            {gallery.map((src, i) => (
-              <li key={src}>
-                <button
-                  type="button"
-                  onClick={() => setPhoto(src)}
-                  aria-label={`תמונה ${i + 1}`}
-                  aria-pressed={src === shown}
-                  className={`aspect-square w-full overflow-hidden rounded-xl bg-tile p-1 ${src === shown ? "ring-2 ring-brand" : "ring-1 ring-line"}`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img {...shopifyImage(src, 80)} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-5 md:sticky md:top-[68px] md:self-start">
-        <div>
-          <p className="flex flex-wrap items-center gap-x-2 text-caption text-muted">
-            נמכר אצל
-            {[...new Map(variants.map((v) => [v.supplierCode, v.supplierName])).entries()].map(([code, name]) => (
-              <Link
-                key={code}
-                href={vendorHref(code)}
-                className="flex min-h-11 items-center rounded-full px-1 font-semibold text-brand hover:underline"
-              >
+    // One DOM order for both layouts: on phones the name comes first, then the photos, then the
+    // options; from md the photos take the first column (sticky under the header) beside both.
+    <div className="grid gap-5 md:grid-cols-2 md:grid-rows-[auto_1fr] md:gap-x-8">
+      <div className="min-w-0 md:col-start-2 md:row-start-1">
+        <p className="text-caption text-muted">
+          נמכר אצל{" "}
+          {[...new Map(variants.map((v) => [v.supplierCode, v.supplierName])).entries()].map(([code, name], i) => (
+            <span key={code}>
+              {i > 0 && ", "}
+              <Link href={vendorHref(code)} className="inline-flex min-h-11 items-center font-semibold text-brand hover:underline">
                 <Ltr>{name}</Ltr>
               </Link>
-            ))}
-          </p>
-          <h1 dir="ltr" className="text-start text-title font-semibold text-balance">
-            {family.title}
-          </h1>
-        </div>
+            </span>
+          ))}
+          {chosen?.sku && (
+            <>
+              , מק״ט <Ltr className="font-mono text-foreground">{chosen.sku}</Ltr>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard?.writeText(chosen.sku!).then(() => showToast("המק״ט הועתק"))}
+                aria-label={`העתקת המק״ט ${chosen.sku}`}
+                className="ms-0.5 inline-flex size-11 items-center justify-center rounded-full align-middle text-muted hover:bg-subtle hover:text-foreground"
+              >
+                <Copy size={14} strokeWidth={1.75} aria-hidden />
+              </button>
+            </>
+          )}
+        </p>
+        <h1 dir="ltr" className="text-start text-title font-semibold text-balance">
+          {family.title}
+        </h1>
+      </div>
 
+      <div className="flex min-w-0 flex-col gap-2 md:sticky md:top-[68px] md:col-start-1 md:row-span-2 md:row-start-1 md:self-start">
+        <ProductGallery title={family.title} photos={gallery} shown={shown} onShow={setPhoto} transitionName={productImageTransition(family.id)} mainRef={mainImage} />
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-5 md:col-start-2 md:row-start-2">
         {groups.map((group) => {
           const key = group[0];
           const value = picked.selected[key];
@@ -381,7 +314,7 @@ function FamilyPicker({ family, variants, rateDate, initialVariantId, initialSup
           return (
             <section
               key={key}
-              id={`option-${key}`}
+              id={groupId(key)}
               className={`flex scroll-mt-20 flex-col gap-3 rounded-2xl border bg-surface p-4 transition-[border-color,box-shadow] duration-300 ${
                 lit ? "border-brand shadow-[0_0_0_3px_var(--brand-soft)]" : "border-line/80"
               }`}

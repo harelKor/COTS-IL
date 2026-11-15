@@ -29,3 +29,11 @@ export function imageLoading(eager: boolean) {
 
 /** How many catalog cards load their photo eagerly: the first row or two on any screen. */
 export const EAGER_CARDS = 6;
+
+/**
+ * The lightbox's photo: as large as the CDN has it, capped at 2400px (some originals are 6000px).
+ * Shopify never enlarges, so a 650px original comes back at 650px.
+ */
+export function largestImage(src: string): string {
+  return sized(src, 2400);
+}

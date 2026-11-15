@@ -8,6 +8,7 @@ import { Suspense, ViewTransition } from "react";
 import { OptionsTable } from "@/components/options-table";
 import { FamilyCard } from "@/components/family-card";
 import { FamilyView, type ViewVariant } from "@/components/family-view";
+import { galleryPhotos } from "@/lib/image-size";
 import { Ltr } from "@/components/ltr";
 import { CardGridSkeleton, Loading, ProductSkeleton } from "@/components/skeleton";
 import { companionRules } from "@/domain/families/companions";
@@ -218,7 +219,8 @@ async function Family({ params, searchParams }: PageProps<"/catalog/p/[slug]">) 
 async function FamilyBody({ slug, children }: { slug: string; children: React.ReactNode }) {
   const result = await getFamily(slug);
   if (!result) notFound();
-  const [rate, stale] = await Promise.all([priceContext(), getStaleSupplierCodes()]);
+  // The photos once each, a large one first when the first is small (read from their headers, cached).
+  const [rate, stale, photos] = await Promise.all([priceContext(), getStaleSupplierCodes(), galleryPhotos(result.family.images)]);
   const { rateDate } = rate;
 
   const { family } = result;
@@ -283,7 +285,7 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
       </nav>
 
       <FamilyView
-        family={{ id: family.id, slug: family.slug, title: family.title, images: family.images, optionKeys: family.optionKeys }}
+        family={{ id: family.id, slug: family.slug, title: family.title, images: photos, optionKeys: family.optionKeys }}
         variants={viewVariants}
         rateDate={rateDate}
       />
