@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { categorize, categorizeByTitleFirst, programsFor, statusFor } from "./classify";
+import { categorize, categorizeByTitleFirst, categorizeShopify, programsFor, statusFor } from "./classify";
 
 const product = (title: string, productType: string | null = null, tags: string[] = []) => ({
   title,
@@ -74,5 +74,23 @@ describe("categorizeByTitleFirst", () => {
   });
   it("falls back to the whole trail", () => {
     expect(categorizeByTitleFirst(product("Widget", "Kits", ["Bearings", "Kits"]))).toBe("bearings");
+  });
+});
+
+describe("categorizeShopify", () => {
+  const stealth = product("Stealth and Sushi Wheels", "Compliant & Intake", ["All FTC Parts", "Robits Wheels", "Traction Wheels"]);
+  it("puts a wheel the vendor filed under intakes with the wheels", () => {
+    expect(categorize(stealth)).toBe("mechanisms");
+    expect(categorizeShopify(stealth)).toBe("wheels");
+    expect(categorizeShopify(product("Polycarb Round Tubing", null, ["Intake"]))).toBe("structure");
+  });
+  it("keeps the vendor's type and tags everywhere else", () => {
+    // Title first would read "wire" (electronics) or "Kraken" (motors).
+    expect(categorizeShopify(product("8-22 AWG Wire Stripper", "Tools"))).toBe("tools");
+    expect(categorizeShopify(product("WCP Kraken X60 Wrist Band", null, ["Merch"]))).toBe("other");
+  });
+  it("keeps a mechanism whose title only names a size or a bolt pattern", () => {
+    expect(categorizeShopify(product("WCP Friction Brake (1/2\" Hex)", null, ["Intake"]))).toBe("mechanisms");
+    expect(categorizeShopify(product("WCP Friction Brake Pad – 2 Inch Bolt Pattern", null, ["Climber"]))).toBe("mechanisms");
   });
 });

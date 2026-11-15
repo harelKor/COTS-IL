@@ -1,6 +1,6 @@
 import sanitizeHtml from "sanitize-html";
 import { z } from "zod";
-import { categorize, programsFor, statusFor } from "./classify";
+import { categorizeShopify, programsFor, statusFor } from "./classify";
 import type { FetchResult, NormalizedProduct, Program } from "./types";
 
 export type { FetchResult };
@@ -106,7 +106,7 @@ export function normalizeProduct(raw: ShopifyProduct, baseUrl: string, supplierP
     productType,
     tags,
     programs: programsFor(input, supplierPrograms),
-    categorySlug: categorize(input),
+    categorySlug: categorizeShopify(input),
     sourceUpdatedAt: raw.updated_at ?? null,
     status: statusFor(input, variants.some((v) => v.priceUsd !== null)),
     variants,

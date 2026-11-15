@@ -118,6 +118,81 @@ function specLine(text: string): Spec | null {
   return m ? { key: m[1].trim(), value: m[2].trim() } : null;
 }
 
+/** A spec that only points elsewhere ("Ratio: Refer to EVO Shifter Ratio Chart"): the doc links carry the chart. */
+const POINTER = /^(refer to|see|check|please see)\b/i;
+
+/** Names of the tabs a supplier's page shows, which its description keeps as a bulleted list. */
+const TAB_LABEL =
+  /^(description|overview|details|features|specs|specifications?|tech(nical)? specs|documentation|docs|downloads|resources|cad|faqs?|videos?|reviews?|kit contents|what'?s in the box\??|included|gearbox ratios|ratios?|compatibility|instructions)$/i;
+
+const listItems = (block: string) => blocks(inner(block)).filter((li) => tagOf(li) === "li");
+const isList = (block: string) => tagOf(block) === "ul" || tagOf(block) === "ol";
+const escapeText = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** The labels of a tab bar ("Description", "Specifications", "Documentation"), or null for a real list. */
+function tabLabels(block: string): string[] | null {
+  if (!isList(block)) return null;
+  const labels = listItems(block).map((li) => descriptionText(li));
+  if (labels.length < 2 || labels.some((l) => !l || l.length > 30 || /[.:,;]/.test(l))) return null;
+  return labels.filter((l) => TAB_LABEL.test(l)).length * 2 >= labels.length ? labels : null;
+}
+
+/** Where one tab's text ends and the next starts: loose text on either side stays apart. */
+const BREAK = "\u0000";
+
+/**
+ * AndyMark's descriptions hold its page's tabs: a list of the tab names, then a list whose
+ * items are the tabs' contents. The names go; each tab's content becomes plain blocks under
+ * its name as a heading (none for the description itself), so its spec list is found as one.
+ */
+function expandTabs(list: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < list.length; i++) {
+    const labels = tabLabels(list[i]);
+    if (!labels) {
+      out.push(list[i]);
+      continue;
+    }
+    const next = list[i + 1];
+    const panels = next && isList(next) ? listItems(next) : [];
+    out.push(BREAK);
+    if (panels.length === 0 || panels.length > labels.length) continue;
+    panels.forEach((panel, j) => {
+      out.push(BREAK);
+      if (j > 0 || !/^(description|overview)$/i.test(labels[j])) out.push(`<h3>${escapeText(labels[j])}</h3>`);
+      out.push(...blocks(inner(panel)));
+    });
+    i++;
+  }
+  return out;
+}
+
+const INLINE = new Set(["", "br", "wbr", "a", "b", "strong", "em", "i", "u", "span", "sup", "sub", "small", "code", "bdi", "mark"]);
+
+/**
+ * Loose text and the inline tags around it become one paragraph, so a link inside a
+ * sentence ("…found in <a>Nub Bore</a> Stealth Wheels…") is read with its sentence, not as
+ * a block of its own that the store-link rule would drop with its words.
+ */
+function paragraphs(list: string[]): string[] {
+  const out: string[] = [];
+  let run: string[] = [];
+  const flush = () => {
+    if (run.length > 0 && descriptionText(run.join("")) !== "") out.push(`<p>${run.join("").trim()}</p>`);
+    run = [];
+  };
+  for (const block of list) {
+    if (block === BREAK) flush();
+    else if (INLINE.has(tagOf(block))) run.push(block);
+    else {
+      flush();
+      out.push(block);
+    }
+  }
+  flush();
+  return out;
+}
+
 /** A two-column table of name and value, without its "Parameter | Details" header row. */
 function tableSpecs(table: string): Spec[] | null {
   const rows = [...table.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map((r) =>
@@ -155,7 +230,7 @@ export function cleanDescription(html: string | null): CleanDescription {
   const kept: string[] = [];
   let skipBelow = 0; // inside a promo section: skip until a heading at this level or higher
   let heading = "";
-  for (const raw of blocks(html)) {
+  for (const raw of paragraphs(expandTabs(blocks(html)))) {
     const tag = tagOf(raw);
     const level = headingLevel(tag);
     const text = descriptionText(raw);
@@ -181,11 +256,12 @@ export function cleanDescription(html: string | null): CleanDescription {
     }
 
     if (tag === "ul" || tag === "ol") {
-      const items = blocks(inner(raw)).filter((li) => tagOf(li) === "li" && !isPromo(descriptionText(li)));
+      // Empty items (an empty tab) and sales talk go.
+      const items = listItems(raw).filter((li) => (descriptionText(li) !== "" || /<img\b/i.test(li)) && !isPromo(descriptionText(li)));
       const lines = items.map((li) => specLine(descriptionText(li)));
       // A spec list ("Free Speed: 7500 RPM", …) moves to specs; its odd free-text lines stay.
       const asSpecs = SPEC_HEADING.test(heading) && items.length > 0 && lines.filter(Boolean).length >= items.length * 0.8;
-      if (asSpecs) specs.push(...lines.filter((l): l is Spec => l !== null));
+      if (asSpecs) specs.push(...lines.filter((l): l is Spec => l !== null && !POINTER.test(l.value)));
       const list = items
         .filter((_, i) => !asSpecs || !lines[i])
         .map(unwrapStoreLinks)
@@ -195,8 +271,16 @@ export function cleanDescription(html: string | null): CleanDescription {
       continue;
     }
 
-    if (!text || isPromo(text)) continue;
-    const block = unwrapStoreLinks(raw);
+    if (!text) continue;
+    let block: string | null = raw;
+    if (isPromo(text)) {
+      // A paragraph of several lines loses only its sales lines ("…please contact us at support@…").
+      const lines = inner(raw).split(/<br\s*\/?>/i);
+      const clean = lines.filter((l) => descriptionText(l) !== "" && !isPromo(descriptionText(l)));
+      if (tag !== "p" || lines.length < 2 || clean.length === 0) continue;
+      block = `<p>${clean.map((l) => l.trim()).join("<br />")}</p>`;
+    }
+    block = unwrapStoreLinks(block);
     if (block !== null) kept.push(block);
   }
 

@@ -53,7 +53,7 @@ export const OPTION_LABELS: Record<string, string> = {
   mounting: "הרכבה",
   mount: "הרכבה",
   "mounting pattern": "דפוס הרכבה",
-  "hole pattern": "דפוס חורים",
+  "hole pattern": "תבנית חורים",
   flanged: "עם אוגן",
   // Wheels
   wheel: "גלגל",
@@ -209,7 +209,7 @@ export const OPTION_LABELS: Record<string, string> = {
   "outside diameter": "קוטר חיצוני",
   meter: "מד",
   "color and size": "צבע ומידה",
-  "hole punch pattern": "דפוס חורים",
+  "hole punch pattern": "תבנית חורים",
   hub: "רכזת",
   interface: "ממשק",
   "plug or sleeve": "תקע או שרוול",
@@ -292,6 +292,70 @@ export function optionLabel(key: string): string {
 
   const text = key.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/**
+ * Spec names from suppliers' spec tables and "Name: value" lines that aren't option names.
+ * Looked up whole: "Nominal Voltage" is מתח נומינלי, never just מתח beside a second מתח.
+ */
+export const SPEC_LABELS: Record<string, string> = {
+  "free speed": "מהירות חופשית",
+  "free current": "זרם ללא עומס",
+  "stall torque": "מומנט עצירה",
+  "stall current": "זרם עצירה",
+  torque: "מומנט",
+  "peak power": "הספק שיא",
+  "max power": "הספק מרבי",
+  "maximum power": "הספק מרבי",
+  efficiency: "נצילות",
+  "max efficiency": "נצילות מרבית",
+  "peak efficiency": "נצילות מרבית",
+  "nominal voltage": "מתח נומינלי",
+  "operating voltage": "מתח הפעלה",
+  "supply voltage": "מתח אספקה",
+  "input voltage": "מתח כניסה",
+  "min/max voltage": "טווח מתח",
+  "voltage range": "טווח מתח",
+  "max current": "זרם מרבי",
+  "maximum current": "זרם מרבי",
+  "continuous current": "זרם רציף",
+  "rated current": "זרם נקוב",
+  "communication protocols": "פרוטוקולי תקשורת",
+  "communication protocol": "פרוטוקול תקשורת",
+  communication: "תקשורת",
+  resolution: "רזולוציה",
+  "encoder resolution": "רזולוציית אנקודר",
+  "sample rate": "קצב דגימה",
+  "update rate": "קצב עדכון",
+  range: "טווח",
+  accuracy: "דיוק",
+  "field of view": "שדה ראייה",
+  "operating temperature": "טמפרטורת עבודה",
+  temperature: "טמפרטורה",
+  mass: "משקל",
+  "net weight": "משקל נטו",
+  "bolt circle": "מעגל ברגים",
+  "bolt pattern": "תבנית ברגים",
+  "pressure angle": "זווית לחץ",
+  capacity: "קיבולת",
+  "max load": "עומס מרבי",
+  "load rating": "עומס מותר",
+  compatibility: "תאימות",
+  "compatible with": "מתאים ל",
+  "kit contents": "תכולת הערכה",
+  includes: "כולל",
+  included: "כולל",
+  warranty: "אחריות",
+};
+
+/**
+ * A spec's name in Hebrew when we know it whole, else the supplier's own words as written
+ * (shown left to right), never half translated: "PWM Deadband" stays "PWM Deadband", not
+ * "PWM" beside a Hebrew word. A unit in brackets doesn't stop the lookup ("Weight (lbs)").
+ */
+export function specLabel(key: string): string {
+  const k = normalizeOptionKey(key.replace(/\s*\([^)]*\)\s*$/, ""));
+  return SPEC_LABELS[k] ?? hebrewLabel(k) ?? key.replace(/\s+/g, " ").trim();
 }
 
 /** Compares two option values: by size when both have one (9mm < 15mm, 12t < 100t), else alphabetically. */

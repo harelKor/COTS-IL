@@ -1,6 +1,6 @@
 import { vendorTheme } from "@/domain/vendors";
 import { BackToList } from "@/components/back-to-list";
-import { ChevronDown, ChevronLeft } from "lucide-react";
+import { ChevronDown, ChevronLeft, ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,15 +13,16 @@ import { Ltr } from "@/components/ltr";
 import { CardGridSkeleton, Loading, ProductSkeleton } from "@/components/skeleton";
 import { companionRules } from "@/domain/families/companions";
 import { findLinked } from "@/domain/families/link";
-import { measure } from "@/domain/families/parse";
-import { compareOptionValues, optionLabel } from "@/domain/families/sort";
+import { specRows } from "@/domain/families/spec-rows";
+import { documentLinks, quickDocs, sortDocs } from "@/domain/doc-links";
+import { SpecTable } from "@/components/spec-table";
 import { formatIls, priceIls, type PriceContext } from "@/domain/pricing";
 import { getCompanions, getFamily, getVendorPopular, getVendors, type FamilyVariant } from "@/lib/catalog";
 import { priceContext } from "@/lib/settings";
 import { getStaleSupplierCodes } from "@/lib/health";
 import { catalogHref } from "@/lib/catalog-filters";
 import { familyHref } from "@/lib/catalog-links";
-import { cleanDescription, descriptionText, metaDescription, type Spec } from "@/lib/description";
+import { cleanDescription, descriptionText, metaDescription } from "@/lib/description";
 import { siteUrl } from "@/lib/site-url";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
@@ -71,24 +72,6 @@ export async function generateMetadata({ params }: PageProps<"/catalog/p/[slug]"
 function selectedVariant(variants: FamilyVariant[], v: string | string[] | undefined, vendor: string | string[] | undefined) {
   const first = (x: string | string[] | undefined) => (Array.isArray(x) ? x[0] : x);
   return findLinked(variants, first(v), first(vendor)) ?? null;
-}
-
-/** Per spec, the family's value or its range ("12t – 100t"), for the specifications table. */
-function specSummary(specs: Record<string, { key: string; value: string }[]>) {
-  const values = new Map<string, Set<string>>();
-  for (const list of Object.values(specs)) for (const s of list) values.set(s.key, (values.get(s.key) ?? new Set()).add(s.value));
-  return [...values].map(([key, set]) => {
-    const sorted = [...set].sort(compareOptionValues);
-    const numeric = sorted.every((v) => measure(v).num !== null) && new Set(sorted.map((v) => measure(v).unit)).size === 1;
-    const value = sorted.length === 1 ? sorted[0] : numeric && sorted.length > 4 ? `${sorted[0]} – ${sorted.at(-1)}` : sorted.slice(0, 8).join(", ") + (sorted.length > 8 ? "…" : "");
-    return { key, value };
-  });
-}
-
-/** Specs from the description's tables after the variants' own, without repeating a name. */
-function mergeSpecs(own: Spec[], fromText: Spec[]) {
-  const seen = new Set(own.map((s) => s.key.toLowerCase()));
-  return [...own, ...fromText.filter((s) => !seen.has(s.key.toLowerCase()) && seen.add(s.key.toLowerCase()))].slice(0, 30);
 }
 
 const SITE = siteUrl();
@@ -148,19 +131,6 @@ function breadcrumbJsonLd({ family, categorySlug, categoryName }: FamilyResult) 
     "@type": "BreadcrumbList",
     itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, ...c })),
   };
-}
-
-/** CAD, STEP, drawings and manuals linked from the supplier's description. */
-function documentLinks(html: string | null): { href: string; text: string }[] {
-  if (!html) return [];
-  const links: { href: string; text: string }[] = [];
-  for (const m of html.matchAll(/<a [^>]*href="(https:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)) {
-    const text = descriptionText(m[2]);
-    if (/\b(step|cad|onshape|drawing|manual|pdf|docs?|guide|datasheet|instructions?)\b/i.test(`${text} ${m[1]}`)) {
-      if (!links.some((l) => l.href === m[1])) links.push({ href: m[1], text: text || m[1] });
-    }
-  }
-  return links.slice(0, 8);
 }
 
 /** Offers cheapest in stock first, so a settled choice picks the best one. */
@@ -243,8 +213,11 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
   }));
   // Our copy of the supplier's description: no sales talk; its spec tables join the spec section.
   const description = cleanDescription(family.descriptionHtml);
-  const specs = mergeSpecs(specSummary(result.specs), description.specs);
-  const docs = [...new Map(result.variants.flatMap((v) => documentLinks(v.productDescription)).map((d) => [d.href, d])).values()].slice(0, 8);
+  // One spec table: the options and the variants' specs (summarized until the choice settles them), then the description's.
+  const specs = specRows(family.optionKeys, viewVariants, description.specs);
+  // Each document once, by what it opens (CAD, guide, datasheet…), from every product's description.
+  const docs = sortDocs([...new Map(result.variants.flatMap((v) => documentLinks(v.productDescription, descriptionText, family.title)).map((d) => [d.href, d])).values()]).slice(0, 8);
+  const quick = quickDocs(docs, family.title);
 
   // A part sold by one vendor wears that vendor's colours (accents, borders, its fills), like its store.
   const vendors = [...new Map(result.variants.map((v) => [v.supplierCode, { code: v.supplierCode, name: v.supplierName }])).values()];
@@ -292,39 +265,34 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
         variants={viewVariants}
         rateDate={rateDate}
         tableRows={showTable && result.variants.length > 12 ? result.variants.length : undefined}
+        docs={{ cad: quick.cad?.href ?? null, guide: quick.guide?.href ?? null }}
       />
 
       <div className="grid gap-6 md:grid-cols-2">
-        {specs.length > 0 && (
-          <section className="flex flex-col gap-3">
-            <h2 className="text-section font-semibold">מפרט</h2>
-            <dl className="divide-y divide-line rounded-card bg-surface text-callout">
-              {specs.map((s) => (
-                <div key={s.key} className="flex justify-between gap-4 px-4 py-3">
-                  <dt className="text-muted">{/[a-z]/i.test(optionLabel(s.key)) ? <Ltr>{optionLabel(s.key)}</Ltr> : optionLabel(s.key)}</dt>
-                  <dd className="text-end">
-                    <Ltr>{s.value}</Ltr>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
+        <SpecTable familyId={family.id} optionKeys={family.optionKeys} fixed={description.specs} rows={specs} />
         <section className="flex flex-col gap-3">
           <h2 className="text-section font-semibold">תיעוד</h2>
           <ul className="flex flex-col divide-y divide-line rounded-card bg-surface text-callout">
             {docs.map((d) => (
               <li key={d.href}>
-                <a href={d.href} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center px-4 py-2 text-brand hover:underline">
-                  <Ltr>{d.text}</Ltr>
+                {/* What it opens in Hebrew; the supplier's own words in the tooltip, the file or site under it. */}
+                <a href={d.href} target="_blank" rel="noopener noreferrer" title={d.text} className="group flex min-h-11 items-center justify-between gap-3 px-4 py-2">
+                  <span className="flex min-w-0 flex-col">
+                    <span className="text-brand group-hover:underline">{d.label}</span>
+                    <Ltr className="truncate text-caption text-muted">{d.source}</Ltr>
+                  </span>
+                  <ExternalLink size={16} aria-hidden className="shrink-0 text-muted" />
                 </a>
               </li>
             ))}
             {[...new Map(result.variants.map((v) => [v.supplierCode, v])).values()].map((v) => (
               <li key={v.supplierCode}>
-                <a href={v.productUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center px-4 py-2 text-brand hover:underline">
-                  עמוד המוצר, CAD ותיעוד באתר{" "}
-                  <Ltr>{v.supplierName}</Ltr>
+                <a href={v.productUrl} target="_blank" rel="noopener noreferrer" className="group flex min-h-11 items-center justify-between gap-3 px-4 py-2">
+                  {/* One inline line, so the space before the vendor's name stays (a flex row dropped it: "באתרAndyMark"). */}
+                  <span className="text-brand group-hover:underline">
+                    עמוד המוצר, CAD ותיעוד באתר <Ltr>{v.supplierName}</Ltr>
+                  </span>
+                  <ExternalLink size={16} aria-hidden className="shrink-0 text-muted" />
                 </a>
               </li>
             ))}
@@ -335,16 +303,16 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
       {/* Empty when the supplier left a placeholder ("This Page is for Reference Only") or only sales talk. */}
       {description.lead && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-section font-semibold">תיאור כללי של הספק</h2>
+          <h2 className="text-section font-semibold">תיאור מהספק (אנגלית)</h2>
           {/* Sanitized at sync, then cleaned of the supplier's promos, prices and contacts. */}
           <div className="flex flex-col rounded-card bg-surface p-6">
-            <div dir="ltr" className="rich-text text-callout" dangerouslySetInnerHTML={{ __html: description.lead }} />
+            <div lang="en" dir="ltr" className="rich-text text-callout" dangerouslySetInnerHTML={{ __html: description.lead }} />
             {description.more && (
               <details className="group">
                 <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 text-brand hover:text-brand-strong group-open:hidden">
                   קראו עוד <ChevronDown size={16} aria-hidden />
                 </summary>
-                <div dir="ltr" className="rich-text pt-3 text-callout" dangerouslySetInnerHTML={{ __html: description.more }} />
+                <div lang="en" dir="ltr" className="rich-text pt-3 text-callout" dangerouslySetInnerHTML={{ __html: description.more }} />
               </details>
             )}
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Copy, Minus, Plus, ShoppingBag, Table2 } from "lucide-react";
+import { Copy, ExternalLink, Minus, Plus, ShoppingBag, Table2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { choiceQuery, choicesFrom, findLinked, variantParam } from "@/domain/families/link";
@@ -20,6 +20,7 @@ import { familyHref, productImageTransition } from "@/lib/catalog-links";
 import { addToCartNow } from "./cart-actions";
 import { PriceNote } from "./price-note";
 import { ProductGallery } from "./product-gallery";
+import { publishChoice } from "./spec-table";
 import { canEditCart, useCart } from "./cart-store";
 import { vendorHref } from "@/domain/vendors";
 import { Ltr } from "./ltr";
@@ -43,7 +44,7 @@ export type ViewVariant = {
   supplierCode: string;
   productUrl: string;
   image: string | null;
-  /** This variant's own specs, shown beside Add once it's chosen. */
+  /** This variant's own specs: the page's spec table shows them as the choice settles them. */
   specs: { key: string; value: string }[];
 };
 
@@ -55,6 +56,8 @@ type Props = {
   rateDate?: string;
   /** Rows in the page's "כל האפשרויות" table, when the options area should link to it. */
   tableRows?: number;
+  /** This part's own CAD and guide, for the short row of links under the price note. */
+  docs?: { cad: string | null; guide: string | null };
 };
 
 type InnerProps = Props & { initialChoices: Record<string, string>; initialSupplier: string | null };
@@ -100,7 +103,7 @@ const previewText = (p: Preview | null) => (p ? (p.exact ? formatIls(p.price) : 
  * the variant in the link (`?v=`, settled by `?vendor=` when two vendors share a SKU), or the
  * choice so far (`?width=15mm`), is chosen in the browser, so one cached page serves them all.
  */
-export function FamilyView({ family, variants, rateDate, tableRows }: Props) {
+export function FamilyView({ family, variants, rateDate, tableRows, docs }: Props) {
   const { v: wanted, vendor, query } = useSyncExternalStore(noSubscribe, linkedOffer, noLinkedOffer);
   const match = findLinked(variants, wanted, vendor);
   const fromVendor = vendor ? variants.filter((x) => x.supplierCode === vendor) : [];
@@ -114,6 +117,7 @@ export function FamilyView({ family, variants, rateDate, tableRows }: Props) {
       variants={variants}
       rateDate={rateDate}
       tableRows={tableRows}
+      docs={docs}
       initialChoices={initial ? initial.options : choicesFrom(new URLSearchParams(fromQuery), family.optionKeys)}
       initialSupplier={initial ? initial.supplierName : initialSupplier}
     />
@@ -127,7 +131,7 @@ type Clash = { key: string; value: string; items: { title: string; label: string
  * several sell the part) update the photo, price, SKU and URL at once; "Add"
  * puts the chosen variant in the cart without leaving the page.
  */
-function FamilyPicker({ family, variants, rateDate, tableRows, initialChoices, initialSupplier }: InnerProps) {
+function FamilyPicker({ family, variants, rateDate, tableRows, docs, initialChoices, initialSupplier }: InnerProps) {
   const { mode, lines } = useCart();
   const { leadTimes } = useSiteFacts();
   const now = useNow();
@@ -167,6 +171,8 @@ function FamilyPicker({ family, variants, rateDate, tableRows, initialChoices, i
   const offerFor = (candidates: ViewVariant[]) => candidates.find((v) => v.supplierName === supplier) ?? rankOffers(candidates, leadTimes)[0];
 
   const picked = pick(variants, keys, choices);
+  // The spec table lower on the page shows what this choice leaves (a picked bore, the teeth still open).
+  useEffect(() => publishChoice(family.id, picked.candidates));
   // Best first (in stock, then price, then the vendor's lead time), so the first is the one to recommend.
   const offers = picked.chosen ? rankOffers(picked.candidates, leadTimes) : [];
   const chosen = picked.chosen ? (offerFor(picked.candidates) ?? null) : null;
@@ -331,6 +337,8 @@ function FamilyPicker({ family, variants, rateDate, tableRows, initialChoices, i
   // While choosing, what's left: all of it in stock, some of it, or the best one's status.
   const best = chosen ?? rankOffers(picked.candidates, leadTimes)[0] ?? null;
   const bestStatus = best ? availabilityText(best) : null;
+  // The vendor's page for the buy box: the chosen part's, or before a choice the one page every size left is on (a WCP belt has a page per size).
+  const vendorPage = chosen ?? (best && picked.candidates.every((v) => v.supplierCode !== best.supplierCode || v.productUrl === best.productUrl) ? best : null);
   const availability =
     chosen || !bestStatus
       ? bestStatus
@@ -624,26 +632,40 @@ function FamilyPicker({ family, variants, rateDate, tableRows, initialChoices, i
           )}
           <div className="border-t border-line pt-3">
             <PriceNote rateDate={rateDate} markup={chosen?.markup} />
+            {/* CAD, the guide and the vendor's page, right here: often why a team opens the part. Only the ones that exist. */}
+            {(docs?.cad || docs?.guide || vendorPage) && (
+              <ul aria-label="קבצים וקישורים" className="flex flex-wrap gap-x-5 text-caption">
+                {docs?.cad && (
+                  <li>
+                    <a href={docs.cad} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 text-brand hover:underline">
+                      <Ltr>CAD</Ltr>
+                      <ExternalLink size={14} aria-hidden />
+                    </a>
+                  </li>
+                )}
+                {docs?.guide && (
+                  <li>
+                    <a href={docs.guide} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 text-brand hover:underline">
+                      מדריך
+                      <ExternalLink size={14} aria-hidden />
+                    </a>
+                  </li>
+                )}
+                {vendorPage && (
+                  <li>
+                    <a href={vendorPage.productUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 text-brand hover:underline">
+                      <span>
+                        דף המוצר אצל <Ltr>{vendorPage.supplierName}</Ltr>
+                      </span>
+                      <ExternalLink size={14} aria-hidden />
+                    </a>
+                  </li>
+                )}
+              </ul>
+            )}
           </div>
         </section>
 
-        {chosen && chosen.specs.length > 0 && (
-          <section className="flex flex-col gap-2">
-            <h2 className="text-callout text-muted">
-              מפרט {chosen.sku ? <Ltr className="font-mono">{chosen.sku}</Ltr> : "האפשרות שנבחרה"}
-            </h2>
-            <dl className="divide-y divide-line rounded-2xl border border-line/80 bg-surface text-callout">
-              {chosen.specs.map((spec) => (
-                <div key={spec.key} className="flex justify-between gap-4 px-4 py-2.5">
-                  <dt className="text-muted">{optionLabel(spec.key)}</dt>
-                  <dd className="text-end">
-                    <Ltr>{spec.value}</Ltr>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
       </div>
 
       {canAdd && (

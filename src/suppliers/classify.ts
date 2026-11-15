@@ -44,6 +44,28 @@ export function categorizeByTitleFirst(input: Input): string {
   return own !== "other" ? own : categorize(input);
 }
 
+/** Categories that say where a part goes (an intake, a shooter), not what it is (a wheel, a tube). */
+const USE_CATEGORIES = new Set(["mechanisms"]);
+/**
+ * Categories a title names reliably. Not "shafts" or "fasteners": any "1/2\" Hex" or "bolt
+ * pattern" matches those, so a friction brake would become a shaft.
+ */
+const KIND_CATEGORIES = new Set(["wheels", "structure", "belts-chain", "gears", "gearboxes", "bearings", "motors", "sensors", "pneumatics"]);
+
+/**
+ * For Shopify stores, whose product types and tags often say where a part is used
+ * ("Compliant & Intake", "intake"): when they put it under mechanisms and the title names
+ * what it is ("Stealth and Sushi Wheels"), the title wins. Otherwise the vendor's own type
+ * and tags still lead: they file a wire stripper under tools, where a title-first rule
+ * would read "wire" and call it electronics.
+ */
+export function categorizeShopify(input: Input): string {
+  const tagged = categorize(input);
+  if (!USE_CATEGORIES.has(tagged)) return tagged;
+  const own = categorize({ title: input.title, productType: null, tags: [] });
+  return KIND_CATEGORIES.has(own) ? own : tagged;
+}
+
 /** Which programs a product is for. Falls back to the supplier's programs when the listing doesn't say. */
 export function programsFor(input: Input, supplierPrograms: Program[]): Program[] {
   const text = searchable(input);

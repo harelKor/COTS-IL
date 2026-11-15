@@ -93,6 +93,33 @@ describe("cleanDescription on real supplier descriptions", () => {
     expect(specs).toEqual([]);
   });
 
+  it("Stealth: no tab-label or empty bullets; its spec tab moves to specs", () => {
+    const { lead, more, specs } = cleanDescription(fixture("andymark-stealth-sushi-wheels.html"));
+    const html = `${lead}${more}`;
+    expect(html).not.toMatch(/<li>\s*(Description|Specifications|Documentation)\s*<\/li>/);
+    expect(html).not.toMatch(/<li>\s*<\/li>/);
+    expect(html).not.toMatch(/<h3>(Specifications|Documentation)<\/h3>/);
+    // A shop link inside a sentence keeps its words.
+    expect(descriptionText(html)).toContain("Nub Bore Stealth Wheels feature a 4 bolt pattern");
+    expect(specs.map((s) => s.key)).toEqual(["Bore", "Diameter", "Durometer", "Hole Pattern", "Material", "Weight", "Width"]);
+    expect(specs).toContainEqual({ key: "Material", value: "TPU, Polycarbonate" });
+  });
+
+  it("EVO Shifter: tabs become headings, empty tabs and the support email go", () => {
+    const { lead, more } = cleanDescription(fixture("andymark-evo-shifter.html"));
+    const html = `${lead}${more}`;
+    expect(html).not.toMatch(/<li>\s*(Description|Gearbox Ratios|What's in the Box\?)\s*<\/li>/);
+    expect(html).toContain("<h3>What's in the Box?</h3>");
+    expect(html).not.toMatch(/<li>\s*<\/li>/);
+    expect(descriptionText(html)).toContain("4-tooth dog shifting method");
+    expect(descriptionText(html)).not.toMatch(/support@|Refer to EVO/);
+  });
+
+  it("keeps a real short list that isn't a tab bar", () => {
+    const { lead } = cleanDescription("<p>A sturdy part for robots, made of aluminum and steel.</p><ul><li>Features</li><li>Lightweight frame rail</li><li>Anodized blue</li></ul>");
+    expect(lead).toContain("<li>Lightweight frame rail</li>");
+  });
+
   it("a description of only sales talk leaves nothing", () => {
     expect(cleanDescription("<p>Buy now and save $50! Contact sales@example.com</p>").lead).toBe("");
   });
