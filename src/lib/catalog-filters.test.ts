@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { catalogHref, clearPanel, hasFilters, panelFilterCount, parseFilters, setRange, toggleSpec } from "./catalog-filters";
+import { catalogHref, clearAll, clearPanel, hasFilters, panelFilterCount, parseFilters, setRange, toggleSpec, toggleSupplier } from "./catalog-filters";
 
 describe("ranges and the price (CF2)", () => {
   it("reads a from–to range on teeth, length and OD, and a price", () => {
@@ -57,7 +57,7 @@ describe("parseFilters", () => {
       q: "gear",
       category: "gears",
       group: "",
-      supplier: "wcp",
+      suppliers: ["wcp"],
       program: "FRC",
       availableOnly: true,
       sort: "price-asc",
@@ -152,5 +152,24 @@ describe("catalogHref", () => {
       "motor-fit": ["RS775"],
       teeth: ["36T"],
     });
+  });
+});
+
+describe("several vendors (CF3)", () => {
+  it("reads one or more ?supplier= and writes them sorted", () => {
+    expect(parseFilters({ supplier: "wcp" }).suppliers).toEqual(["wcp"]);
+    expect(parseFilters({ supplier: ["wcp", "andymark", "wcp"] }).suppliers).toEqual(["wcp", "andymark"]);
+    expect(parseFilters({ supplier: "bad code!" }).suppliers).toEqual([]);
+    expect(parseFilters({}).suppliers).toEqual([]);
+    expect(catalogHref({ category: "gears", suppliers: ["wcp", "andymark"] })).toBe("/catalog?category=gears&supplier=andymark&supplier=wcp");
+  });
+
+  it("toggles a vendor, and only the results row's clear drops them", () => {
+    const f = parseFilters({ supplier: "wcp", program: "FRC", category: "gears" });
+    expect(toggleSupplier(f, "andymark").suppliers).toEqual(["wcp", "andymark"]);
+    expect(toggleSupplier(f, "wcp").suppliers).toEqual([]);
+    expect(hasFilters(f)).toBe(true);
+    expect(clearPanel(f)).toMatchObject({ suppliers: ["wcp"], program: "", category: "gears" });
+    expect(clearAll(f)).toMatchObject({ suppliers: [], program: "", category: "gears" });
   });
 });

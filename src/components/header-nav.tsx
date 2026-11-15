@@ -23,20 +23,29 @@ function AllCatalogLink() {
   );
 }
 
-/** The desktop "קטגוריות" panel: each group a column, its categories as links. */
+/**
+ * The desktop "קטגוריות" panel: each group a column, its title a link to the group's page
+ * (`?group=`, CF3) and its categories as links. The same groups and categories as the catalog's
+ * bar: both come from getFacets and the admin's groups (groupCategories).
+ */
 function CategoryColumns({ groups }: { groups: Nav["groups"] }) {
   return (
     <nav aria-label="קטגוריות">
       <div className="grid gap-x-2 gap-y-4 p-2" style={{ gridTemplateColumns: `repeat(${Math.max(groups.length, 1)}, minmax(0, 1fr))` }}>
         {groups.map((g) => (
           <div key={g.id} className="min-w-0">
-            <p id={`menu-group-${g.id}`} className="px-2 pb-2 text-caption font-semibold text-muted">
+            <Link
+              id={`menu-group-${g.id}`}
+              href={catalogHref({ group: g.id })}
+              className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-caption font-semibold text-muted hover:bg-subtle hover:text-foreground"
+            >
               {g.name}
-            </p>
+              <ChevronLeft size={14} strokeWidth={2} aria-hidden className="ltr:rotate-180" />
+            </Link>
             <ul aria-labelledby={`menu-group-${g.id}`} className="flex flex-col">
               {g.items.map((c) => (
                 <li key={c.slug}>
-                  <Link href={catalogHref({ category: c.slug })} className="flex min-h-11 items-center gap-2.5 rounded-lg px-1 py-0.5 hover:bg-subtle">
+                  <Link href={catalogHref({ group: g.id, category: c.slug })} className="flex min-h-11 items-center gap-2.5 rounded-lg px-1 py-0.5 hover:bg-subtle">
                     <CategoryIcon slug={c.slug} />
                     <span className="min-w-0 leading-tight">{c.name}</span>
                   </Link>
@@ -119,13 +128,14 @@ export function MenuNavSections({ nav }: { nav: Nav }) {
       {nav.groups.length > 0 && <p className="px-3 pt-2 text-callout font-semibold">קטגוריות</p>}
       {nav.groups.map((g) => (
         <div key={g.id}>
-          <p id={`menu-sheet-group-${g.id}`} className="px-3 pt-2 text-caption text-muted">
+          <Link id={`menu-sheet-group-${g.id}`} href={catalogHref({ group: g.id })} className={`${menuLink} mt-1 gap-1 text-caption text-muted`}>
             {g.name}
-          </p>
+            <ChevronLeft size={14} strokeWidth={2} aria-hidden className="ltr:rotate-180" />
+          </Link>
           <ul aria-labelledby={`menu-sheet-group-${g.id}`} className="grid grid-cols-2">
             {g.items.map((c) => (
               <li key={c.slug} className="min-w-0">
-                <Link href={catalogHref({ category: c.slug })} className={`${menuLink} leading-tight`}>
+                <Link href={catalogHref({ group: g.id, category: c.slug })} className={`${menuLink} leading-tight`}>
                   {c.name}
                 </Link>
               </li>

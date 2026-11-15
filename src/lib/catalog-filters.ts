@@ -19,7 +19,8 @@ export type CatalogFilters = {
   category: string;
   /** A category group's id (content.categoryGroups): every category in the group. A category narrows it further. */
   group: string;
-  supplier: string;
+  /** Vendors' codes, any of which a family must be sold by (`?supplier=wcp&supplier=andymark`, CF3); empty for all. */
+  suppliers: string[];
   program: "FRC" | "FTC" | "";
   availableOnly: boolean;
   sort: Sort;
@@ -39,6 +40,7 @@ type RawParams = Record<string, string | string[] | undefined>;
 export const SPEC_PREFIX = "s.";
 const SPEC_KEY = /^[a-z0-9-]{1,40}$/;
 const GROUP_ID = /^[a-z0-9_-]{1,40}$/;
+const SUPPLIER_CODE = /^[a-z0-9_-]{1,40}$/i;
 
 function single(value: string | string[] | undefined): string {
   return (Array.isArray(value) ? value[0] : value)?.trim() ?? "";
@@ -79,7 +81,8 @@ export function parseFilters(params: RawParams): CatalogFilters {
     q: single(params.q).slice(0, 100),
     category: single(params.category),
     group: GROUP_ID.test(single(params.group)) ? single(params.group) : "",
-    supplier: single(params.supplier),
+    // Repeated for several vendors; an old link's single ?supplier= is a list of one.
+    suppliers: all(params.supplier).filter((c) => SUPPLIER_CODE.test(c)).slice(0, 10),
     program: program === "FRC" || program === "FTC" ? program : "",
     availableOnly: single(params.available) === "1",
     sort: SORTS.includes(sort) ? sort : "relevance",
@@ -97,7 +100,7 @@ export function catalogQuery(filters: Partial<CatalogFilters>): string {
   if (filters.q) params.set("q", filters.q);
   if (filters.category) params.set("category", filters.category);
   if (filters.group) params.set("group", filters.group);
-  if (filters.supplier) params.set("supplier", filters.supplier);
+  for (const code of [...(filters.suppliers ?? [])].sort()) params.append("supplier", code);
   if (filters.program) params.set("program", filters.program);
   if (filters.availableOnly) params.set("available", "1");
   const ranges = filters.ranges ?? {};
@@ -140,7 +143,7 @@ export function setRange(filters: CatalogFilters, key: string, range: NumRange |
 /** True when anything narrows the list, so "Clear" has something to clear. */
 export function hasFilters(filters: CatalogFilters): boolean {
   return !!(
-    filters.supplier ||
+    (filters.suppliers?.length ?? 0) > 0 ||
     filters.program ||
     filters.availableOnly ||
     filters.price ||
@@ -160,7 +163,18 @@ export function panelFilterCount(filters: CatalogFilters): number {
   );
 }
 
-/** Everything the panel's "נקה הכל" clears; the category, group, search and supplier stay. */
+/** Adds a vendor to the chosen ones, or takes it off (OR between them). */
+export function toggleSupplier(filters: CatalogFilters, code: string): CatalogFilters {
+  const on = filters.suppliers.includes(code);
+  return { ...filters, suppliers: on ? filters.suppliers.filter((c) => c !== code) : [...filters.suppliers, code], page: 1 };
+}
+
+/** Everything the results row's "נקה הכל" clears: the panel's filters and the vendors; the category, group and search stay. */
+export function clearAll(filters: CatalogFilters): CatalogFilters {
+  return { ...clearPanel(filters), suppliers: [] };
+}
+
+/** Everything the panel's "נקה הכל" clears; the category, group, search and suppliers stay. */
 export function clearPanel(filters: CatalogFilters): CatalogFilters {
   return { ...filters, program: "", availableOnly: false, specs: {}, ranges: {}, price: null, page: 1 };
 }

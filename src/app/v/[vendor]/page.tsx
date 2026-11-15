@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
 import { CatalogBrowser } from "@/components/catalog-browser";
-import { CategoryBar } from "@/components/category-bar";
 import { StoreGroupCards } from "@/components/store-groups";
 import { DiscoveryStrip } from "@/components/discovery-strip";
 import { PopularSection } from "@/components/popular-section";
@@ -190,8 +189,8 @@ async function Results({ store, filters }: { store: Store; filters: CatalogFilte
   const [{ cards, total }, facets, inView, counts] = await Promise.all([
     searchCards(searched, 0, Math.min(filters.page, MAX_SERVER_PAGES) * PAGE_SIZE),
     getSpecFacets(searched),
-    // The chips count what this search and these filters hold in the store.
-    getCategoryCounts(searched),
+    // The bar counts what this search and the program, stock and price hold in the store (not the spec filters, CF3).
+    getCategoryCounts({ ...searched, specs: {}, ranges: {} }),
     getControlCounts(searched),
   ]);
   return (
@@ -202,11 +201,8 @@ async function Results({ store, filters }: { store: Store; filters: CatalogFilte
       cards={cards}
       facets={facets}
       counts={counts}
-      suppliers={[{ code: store.code, name: store.name, count: total }]}
-      categories={store.categories.map((c) => ({ slug: c.slug, name: c.name }))}
-      underVendors={
-        <CategoryBar vendor={store.code} categories={store.categories.map((c) => ({ ...c, count: inView[c.slug] ?? 0 }))} category={filters.category} group={filters.group} q={filters.q} />
-      }
+      suppliers={[]}
+      categories={store.categories.map((c) => ({ ...c, count: inView[c.slug] ?? 0 }))}
     />
   );
 }
@@ -248,7 +244,7 @@ async function StoreResults({ store, filters }: { store: Store; filters: Catalog
 /** A store's view of the URL's query: its front page, or a search or category. The only part of the store that reads it. */
 async function StoreBody({ store, searchParams }: { store: Store; searchParams: Props["searchParams"] }) {
   // The vendor is the path: a `?supplier=` in the URL can't switch the store.
-  const filters = { ...parseFilters(await searchParams), supplier: store.code };
+  const filters = { ...parseFilters(await searchParams), suppliers: [store.code] };
   return isStoreFront(filters) ? <StoreFront store={store} /> : <StoreResults store={store} filters={filters} />;
 }
 
