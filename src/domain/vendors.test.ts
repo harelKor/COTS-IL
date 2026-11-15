@@ -80,7 +80,7 @@ describe("spansBoth", () => {
 
 describe("vendorPalette", () => {
   it("gives the known vendors their own palette, by code or by name", () => {
-    expect(vendorPalette({ code: "am", name: "AndyMark" })).toEqual({ primary: "#ef4444", secondary: "#dc2626", text: "#fca5a5", ink: "#b91c1c", onPrimary: "#ffffff" });
+    expect(vendorPalette({ code: "am", name: "AndyMark" })).toEqual({ primary: "#ef4444", secondary: "#dc2626", text: "#fca5a5", ink: "#b91c1c", onPrimary: "#ffffff", fill: "#d23c3c" });
     expect(vendorPalette({ code: "swerve", name: "Swerve Drive Specialties" }).text).toBe("#e2e8f0");
     expect(vendorPalette({ code: "ttb", name: "The Thrifty Bot" }).primary).toBe("#10b981");
   });
@@ -96,6 +96,7 @@ describe("vendorPalette", () => {
       text: "#737373",
       ink: "#000000",
       onPrimary: "#ffffff",
+      fill: "#000000",
     });
     expect(vendorPalette({ code: "acme", name: "Acme", accentColor: null }).primary).toBe("#0018e0");
   });
@@ -108,8 +109,9 @@ describe("vendorTheme", () => {
       "--vendor-primary-rgb": "249 115 22",
       "--vendor-secondary": "#ea580c",
       "--vendor-text-dark": "#fdba74",
-      "--vendor-text-light": "#b93d0a",
+      "--vendor-text-light": "#b53c0a",
       "--vendor-on-primary": "#020416",
+      "--vendor-fill-light": "#f97316",
     });
   });
 });

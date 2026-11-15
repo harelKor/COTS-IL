@@ -98,9 +98,9 @@ const VENDOR_THEMES: { match: RegExp; primary: string; secondary: string; text: 
   { match: /^ctre$|ctr electronics|cross the road/i, primary: "#84cc16", secondary: "#22c55e", text: "#bef264", ink: "#3f6212" },
   { match: /gobilda/i, primary: "#f59e0b", secondary: "#eab308", text: "#fde047", ink: "#92400e" },
   { match: /^wcp$|west coast/i, primary: "#2563eb", secondary: "#3b82f6", text: "#93c5fd", ink: "#1d4ed8" },
-  { match: /^rev$|rev robotics/i, primary: "#f97316", secondary: "#ea580c", text: "#fdba74", ink: "#b93d0a" },
+  { match: /^rev$|rev robotics/i, primary: "#f97316", secondary: "#ea580c", text: "#fdba74", ink: "#b53c0a" },
   { match: /^sds$|swerve drive/i, primary: "#94a3b8", secondary: "#cbd5e1", text: "#e2e8f0", ink: "#475569" },
-  { match: /^ttb$|thrifty/i, primary: "#10b981", secondary: "#14b8a6", text: "#6ee7b7", ink: "#047857" },
+  { match: /^ttb$|thrifty/i, primary: "#10b981", secondary: "#14b8a6", text: "#6ee7b7", ink: "#047454" },
 ];
 
 /** The light theme's pearl canvas: a vendor's ink must read on it and on white cards. */
@@ -117,15 +117,30 @@ function luminance(hex: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-export type VendorPalette = { primary: string; secondary: string; text: string; ink: string; onPrimary: string };
+export type VendorPalette = { primary: string; secondary: string; text: string; ink: string; onPrimary: string; fill: string };
+
+/** A colour mixed toward black or white in 2% steps, just far enough to reach `min` against `other`. */
+function shadeUntil(hex: string, other: string, min: number, toward: "black" | "white"): string {
+  for (let k = 0; k <= 1.0001; k += 0.02) {
+    const c = toHex(rgb(hex).map((v) => (toward === "black" ? v * (1 - k) : v + (255 - v) * k)));
+    if (contrastRatio(c, other) >= min) return c;
+  }
+  return toward === "black" ? "#000000" : "#ffffff";
+}
 
 /** A colour darkened (mixed toward black) just enough for AA (4.5:1) on pearl, for an unknown brand's ink. */
 export function inkFor(hex: string): string {
-  for (let k = 0; k <= 1.0001; k += 0.02) {
-    const c = toHex(rgb(hex).map((v) => v * (1 - k)));
-    if (contrastRatio(c, PEARL) >= 4.6) return c;
-  }
-  return "#000000";
+  return shadeUntil(hex, PEARL, 4.6, "black");
+}
+
+/**
+ * The light theme's fill behind a vendor's buttons and badges (LM2): its primary, or a shade of it
+ * deep enough for AA with the text on it (AndyMark's red under white text). The dark theme keeps
+ * the primary as it was.
+ */
+export function fillFor(primary: string, onPrimary: string): string {
+  if (contrastRatio(primary, onPrimary) >= 4.5) return primary;
+  return shadeUntil(primary, onPrimary, 4.6, onPrimary === "#ffffff" ? "black" : "white");
 }
 
 /** A vendor's palette: the known brands' own, else from its admin accent (or Orbit ultramarine). */
@@ -138,13 +153,14 @@ export function vendorPalette(vendor: { code: string; name: string; accentColor?
   const ink = known?.ink ?? inkFor(primary);
   // Dark text on a bright fill (amber, lime, silver, mint, orange), white on a deep one (red, blue).
   const onPrimary = luminance(primary) > 0.25 ? "#020416" : "#ffffff";
-  return { primary, secondary, text, ink, onPrimary };
+  return { primary, secondary, text, ink, onPrimary, fill: fillFor(primary, onPrimary) };
 }
 
 /**
  * The custom properties a vendor's store wraps its page in (globals.css, ".vendor-theme"). The text
  * tint comes as a pair, the dark theme's and the light theme's; globals.css turns any element that
- * carries --vendor-text-dark into --vendor-text-accent for the theme in effect.
+ * carries --vendor-text-dark into --vendor-text-accent for the theme in effect. --vendor-fill-light
+ * is the light theme's button fill (fillFor).
  */
 export function vendorTheme(vendor: Parameters<typeof vendorPalette>[0]): Record<string, string> {
   const p = vendorPalette(vendor);
@@ -155,6 +171,7 @@ export function vendorTheme(vendor: Parameters<typeof vendorPalette>[0]): Record
     "--vendor-text-dark": p.text,
     "--vendor-text-light": p.ink,
     "--vendor-on-primary": p.onPrimary,
+    "--vendor-fill-light": p.fill,
   };
 }
 

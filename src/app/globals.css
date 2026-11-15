@@ -1835,7 +1835,7 @@ html::-webkit-scrollbar {
   background: var(--soft-fill-hover);
 }
 
-/* ---------- Vendor stores (/v/<code>): the night canvas in the vendor's own colours ---------- */
+/* ---------- Vendor stores (/v/<code>): the vendor's own colours on the night canvas, or on pearl by day (LM2) ---------- */
 
 /*
  * Every page reads its brand from --vendor-* (Orbit ultramarine on :root; vendorTheme in
@@ -1942,6 +1942,76 @@ html::-webkit-scrollbar {
 }
 .store-search input::placeholder {
   color: #94a3b8;
+}
+
+/*
+ * The stores by day (LM2, Nov 15, 2026): the same rules with light-dark() pairs, whose dark half is
+ * the value above. Pearl under a pale wash of the vendor's colour, frosted white glass with the
+ * vendor's border, its colour logo (VendorMark's auto tone) and its ink for text.
+ */
+@supports (color: light-dark(#000, #fff)) {
+  .store-canvas {
+    background:
+      radial-gradient(70% 560px at 80% 0%, light-dark(rgb(var(--vendor-primary-rgb) / 0.17), rgb(var(--vendor-primary-rgb) / 0.16)), transparent 72%),
+      radial-gradient(38% 420px at 14% 4%, light-dark(rgb(var(--vendor-primary-rgb) / 0.09), rgb(var(--vendor-primary-rgb) / 0.08)), transparent 70%),
+      radial-gradient(42% 720px at 6% 34%, light-dark(rgb(var(--vendor-primary-rgb) / 0.08), rgb(var(--vendor-primary-rgb) / 0.07)), transparent 70%),
+      radial-gradient(36% 620px at 94% 58%, light-dark(rgb(var(--vendor-primary-rgb) / 0.07), rgb(var(--vendor-primary-rgb) / 0.06)), transparent 70%),
+      radial-gradient(48% 760px at 22% 90%, light-dark(rgb(var(--vendor-primary-rgb) / 0.05), rgb(var(--vendor-primary-rgb) / 0.04)), transparent 70%),
+      radial-gradient(60% 900px at 50% 0%, light-dark(rgb(0 20 190 / 0.04), rgb(0 20 190 / 0.1)), transparent 70%),
+      linear-gradient(to bottom, light-dark(#f8f9ff, var(--orbit-night)) 0%, light-dark(#f4f6ff, var(--orbit-midnight)) 45%, light-dark(#f6f7ff, var(--orbit-deep)) 100%);
+  }
+  .store-flagship {
+    border-color: light-dark(rgb(var(--vendor-primary-rgb) / 0.42), rgb(var(--vendor-primary-rgb) / 0.32));
+    background:
+      radial-gradient(60% 150% at 100% 0%, light-dark(rgb(var(--vendor-primary-rgb) / 0.16), rgb(var(--vendor-primary-rgb) / 0.3)), transparent 62%),
+      linear-gradient(110deg, light-dark(rgb(var(--vendor-primary-rgb) / 0.07), rgb(var(--vendor-primary-rgb) / 0.12)) 0%, light-dark(rgb(var(--vendor-primary-rgb) / 0.02), rgb(var(--vendor-primary-rgb) / 0.03)) 45%, transparent 75%),
+      light-dark(rgb(255 255 255 / 0.8), rgb(6 11 30 / 0.7));
+    box-shadow:
+      inset 0 1px 0 0 light-dark(rgb(255 255 255 / 0.9), rgb(255 255 255 / 0.1)),
+      0 24px 60px -24px light-dark(rgb(var(--vendor-primary-rgb) / 0.3), rgb(var(--vendor-primary-rgb) / 0.4)),
+      0 10px 40px light-dark(rgb(30 45 120 / 0.08), rgb(1 2 12 / 0.5));
+  }
+  .store-blurb {
+    color: light-dark(#3a4a6b, #d5dbf0);
+  }
+  .store-search {
+    border-color: light-dark(rgb(var(--vendor-primary-rgb) / 0.5), rgb(var(--vendor-primary-rgb) / 0.35));
+    background: light-dark(rgb(255 255 255 / 0.94), rgb(3 7 20 / 0.8));
+    color: light-dark(#0b1528, #ffffff);
+    box-shadow: inset 0 2px 8px light-dark(rgb(30 45 120 / 0.06), rgb(0 0 0 / 0.35));
+  }
+  .store-search:focus-within {
+    box-shadow:
+      inset 0 2px 8px light-dark(rgb(30 45 120 / 0.06), rgb(0 0 0 / 0.35)),
+      0 0 0 3px rgb(var(--vendor-primary-rgb) / 0.25);
+  }
+  .store-search-menu {
+    border-color: light-dark(rgb(var(--vendor-primary-rgb) / 0.4), rgb(var(--vendor-primary-rgb) / 0.3));
+    background: linear-gradient(180deg, light-dark(#ffffff, #0a1236), light-dark(#fbfcff, #070c26));
+    box-shadow: 0 24px 60px light-dark(rgb(30 45 120 / 0.18), rgb(1 2 12 / 0.65)), inset 0 1px 0 0 rgb(255 255 255 / 0.06);
+  }
+  .store-search input::placeholder {
+    color: light-dark(#52658a, #94a3b8);
+  }
+  /* Fills by day: the vendor's primary, or the shade of it that carries its text at AA (fillFor: AndyMark's red). */
+  .vendor-theme .bg-brand,
+  .vendor-theme .bg-brand-strong {
+    background-color: light-dark(var(--vendor-fill-light, var(--vendor-primary)), var(--vendor-primary));
+  }
+  .vendor-theme .btn-brand {
+    background: linear-gradient(
+      180deg,
+      light-dark(color-mix(in srgb, var(--vendor-fill-light, var(--vendor-primary)) 92%, #ffffff), color-mix(in srgb, var(--vendor-primary) 80%, #ffffff)) 0%,
+      light-dark(var(--vendor-fill-light, var(--vendor-primary)), var(--vendor-primary)) 100%
+    );
+  }
+  /* The hot row's "+": the page's vendor colour by day (Orbit ultramarine on /catalog), Orbit blue by night as before. */
+  .glow-card .btn-plus {
+    box-shadow:
+      0 0 0 4px light-dark(rgb(var(--vendor-primary-rgb) / 0.22), rgb(110 133 255 / 0.25)),
+      0 8px 22px -4px light-dark(rgb(var(--vendor-primary-rgb) / 0.5), rgb(0 24 224 / 0.7)),
+      0 0 18px -2px light-dark(rgb(var(--vendor-primary-rgb) / 0.3), rgb(110 133 255 / 0.6));
+  }
 }
 
 /* Section headings: the icon badge and the hairline in the page's brand. */

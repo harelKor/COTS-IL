@@ -127,7 +127,7 @@ Three sessions, one after another. They start **after the work running now** (PP
 | Task | Status | Commit |
 |---|---|---|
 | LM1 Foundation and everyday pages | Done (Nov 15, 2026) | see "LM1 notes" |
-| LM2 Daylight vendor stores | Not started | |
+| LM2 Daylight vendor stores | Done (Nov 15, 2026) | see "LM2 notes" |
 | LM3 Home in daylight | Not started | |
 
 ### LM1 notes (for LM2 and LM3)
@@ -140,3 +140,14 @@ Three sessions, one after another. They start **after the work running now** (PP
 - **Variable pitfall:** a token on `:root` that reads `var(--vendor-…)` or `var(--accent)` is frozen to the root's value; declare such things on the element that has the vendor's inline style (as `.glow-box` does).
 - **Known, not changed (dark kept as it was):** white on the dark `--success-fill` (#16A34A) is 3.3:1, under AA for small text (`approve-links.tsx`, timeline dots); the light fill passes. The hot row's "+" glow is Orbit blue on every vendor (`.glow-card .btn-plus`).
 - **Checked:** every LM1 page at 375 and 1280 in both themes, interactive states (welcome note, flyout, vendors menu, search, cart sheet, phone menu and filter sheet, jump bar, hot row) in light; dark compared with the pre-LM1 screenshots pixel by pixel (only the header's new switch differs).
+
+### LM2 notes (for LM3)
+
+- **Stores:** `.dark-island` is gone from the store wrapper (`src/app/v/[vendor]/page.tsx`) and the flagship logo uses `VendorMark`'s auto tone (colour by day, white ink by night). The store-only rules (`.store-canvas`, `.store-flagship`, `.store-blurb`, `.store-search*`) got a second `@supports (color: light-dark(...))` block right after them in `globals.css`, whose dark halves are the original values, so dark is byte-for-byte the same. Do the home scene the same way: keep the plain rules, add `light-dark()` pairs after them, then drop `.dark-island` from `page.tsx` and `tone="dark"` from `vendor-boxes.tsx`.
+- **Everything else already followed the tokens:** group cards, flyout, category bar, filter panel, cards, "הכי מבוקשים" (fire tokens) and "גלו עוד" read `--vendor-*` and the LM1 tokens, so removing the island was enough for them.
+- **Light button fill:** `vendorPalette().fill` / `--vendor-fill-light` (`fillFor`): the primary, or a shade of it deep enough for AA with `onPrimary`. Only AndyMark changes (#ef4444 → #d23c3c under white text). Used by `.vendor-theme .bg-brand`/`.btn-brand` in light only. Dark keeps white on #ef4444 (3.8:1, as before).
+- **Inks:** TTB #047857 → #047454 and REV #b93d0a → #b53c0a, so they stay AA on the store canvas's wash. `--v-ink` (the home boxes) follows them.
+- **Hot row "+":** by day `.glow-card .btn-plus` glows in the page's vendor colour (Orbit ultramarine on `/catalog`); by night it's Orbit blue as before.
+- **Tests:** `src/app/theme-tokens.test.ts` checks each vendor's ink on pearl, white and the store's washes at their strongest alphas, and AA text on its light fill. If you change a wash alpha in the store CSS, change it there too.
+- **Checked:** all seven stores, a search, the search dropdown and a group flyout in light at 375, 1280 and 1920; product pages with one and two vendors in light; dark compared pixel by pixel with screenshots from before (only the group cards' rotating part photos and the dev badge differ); e2e in both themes.
+- **Seen, not changed:** a React "unique key" warning in `FamilyPicker` (from `FamilyBody`) on product pages, in both themes.

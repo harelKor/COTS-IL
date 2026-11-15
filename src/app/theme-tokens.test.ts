@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { over, parseColour, ratio, type Rgba } from "@/domain/contrast";
 import { THEME_COLOR } from "@/domain/theme";
+import { PEARL, vendorPalette } from "@/domain/vendors";
 
 /**
  * The two themes' tokens (LM1, docs/LIGHT-MODE-PLAN.md), read from globals.css: the dark :root
@@ -135,5 +136,40 @@ describe("white text on the deep fills", () => {
   });
   it("is at least 3:1 in the dark theme (its fills are the Nov 14 ones, unchanged)", () => {
     for (const fill of FILLS) expect(ratio(WHITE, colour(dark, fill)), fill).toBeGreaterThanOrEqual(3);
+  });
+});
+
+/**
+ * The vendor stores and product pages by day (LM2): each vendor's ink (its text, links, counts and
+ * prices) on the store's surfaces, which are white or pearl under a wash of the vendor's primary at
+ * the alphas globals.css uses at their strongest; and the text on its button fill.
+ */
+describe("the vendors' colours in the light theme (AA)", () => {
+  const VENDORS = ["AndyMark", "WCP", "CTR Electronics", "The Thrifty Bot", "goBILDA", "REV Robotics", "Swerve Drive Specialties"];
+  const hex = (h: string) => parseColour(h) as Rgba;
+  const wash = (primary: string, alpha: number, base: Rgba): Rgba => {
+    const [r, g, b] = hex(primary);
+    return over([r, g, b, alpha], base);
+  };
+  const PEARL_RGB = hex(PEARL);
+
+  it.each(VENDORS)("%s's ink reads on its store's surfaces", (name) => {
+    const { primary, ink } = vendorPalette({ code: name, name });
+    const surfaces: [string, Rgba][] = [
+      ["pearl", PEARL_RGB],
+      ["white card", WHITE],
+      ["the canvas's wash (.store-canvas)", wash(primary, 0.17, PEARL_RGB)],
+      ["the flagship's corner (.store-flagship)", wash(primary, 0.16, WHITE)],
+      ["a group card's corner (.glow-box)", wash(primary, 0.16, WHITE)],
+      ["a count pill (.count-pill)", wash(primary, 0.15, WHITE)],
+      ["the flyout's lit row (.flyout-row)", wash(primary, 0.2, WHITE)],
+      ["--subtle-hover (.vendor-theme)", wash(primary, 0.16, WHITE)],
+    ];
+    for (const [where, surface] of surfaces) expect(ratio(hex(ink), surface), `${name} ink on ${where}`).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(VENDORS)("%s's buttons carry AA text on their light fill", (name) => {
+    const { fill, onPrimary } = vendorPalette({ code: name, name });
+    expect(ratio(hex(onPrimary), hex(fill))).toBeGreaterThanOrEqual(4.5);
   });
 });

@@ -40,9 +40,9 @@ export function ThemedLogo({ src, className = "", loading = "lazy" }: { src: str
 }
 
 /**
- * `tone="auto"` (the default): the logo follows the theme (ThemedLogo). `tone="dark"`: the white-ink
- * copy always, for the home page and the vendor stores, which keep the night look in both themes
- * until their daylight versions (docs/LIGHT-MODE-PLAN.md, LM2 and LM3).
+ * `tone="auto"` (the default): the logo follows the theme (ThemedLogo), as in the vendor stores since
+ * LM2. `tone="dark"`: the white-ink copy always, for the home page, which keeps the night look in
+ * both themes until its daylight version (docs/LIGHT-MODE-PLAN.md, LM3).
  */
 export function VendorMark({
   name,

@@ -127,13 +127,13 @@ function StoreFront({ store }: { store: Store }) {
       <div className="flex flex-col gap-3">
         {/* Pulled up toward the header, so the banner sits higher. */}
         <Breadcrumb store={store} className="-mt-6" />
-        {/* The flagship header: the logo large on dark glass in the vendor's colours, the search console beside it. */}
+        {/* The flagship header: the logo large on glass in the vendor's colours (dark by night, frosted white by day), the search console beside it. */}
         {/* From 1024px a two-column grid: the logo and blurb on the right; the search on the left with the count and the vendor's site under it. A short banner. */}
         <header className="store-flagship relative z-20 grid grid-cols-1 gap-3 px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-x-8 lg:gap-y-2">
           <div className="flex min-w-0 flex-col items-start gap-1.5 lg:row-span-2">
             <h1 className="flex min-h-12 items-center">
               {store.logoUrl ? (
-                <VendorMark name={store.name} logoUrl={store.logoUrl} size="hero" tone="dark" eager />
+                <VendorMark name={store.name} logoUrl={store.logoUrl} size="hero" eager />
               ) : (
                 <Ltr className="text-brand-gradient text-title font-semibold">{store.name}</Ltr>
               )}
@@ -274,7 +274,7 @@ async function VendorStore({ params, searchParams }: Props) {
   // The price note comes with the store, not under its skeleton, so nothing below jumps when it streams in.
   // The whole store wears the vendor's palette (vendorTheme): every token, card and wash on the page reads it.
   return (
-    <div style={vendorTheme(store) as React.CSSProperties} className="vendor-theme dark-island relative flex flex-col gap-6">
+    <div style={vendorTheme(store) as React.CSSProperties} className="vendor-theme relative flex flex-col gap-6">
       <div aria-hidden className="store-canvas pointer-events-none absolute -z-10" />
       <Suspense fallback={<StoreBodySkeleton />}>
         <StoreBody store={store} searchParams={searchParams} />
@@ -292,7 +292,6 @@ export async function generateStaticParams(): Promise<{ vendor: string }[]> {
 }
 
 export default function VendorPage(props: Props) {
-  // Dark from the first frame (store-scene), so the page doesn't flash white while the store streams in.
   return (
     <div className="store-scene relative isolate flex flex-col gap-8">
       <Suspense fallback={<StoreBodySkeleton />}>
