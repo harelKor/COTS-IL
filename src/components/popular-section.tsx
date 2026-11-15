@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronDown, Flame } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { FireBadge } from "./fire-badge";
 
 /**
  * "הכי מבוקשים": a heading on a hairline, open at first. The title itself (badge and text) and the
@@ -42,12 +43,7 @@ export function PopularSection({ children }: { children: ReactNode }) {
             {...control}
             className="flex min-h-11 items-center gap-2.5 rounded-xl text-start text-section font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-brand lg:text-[24px]"
           >
-            <span aria-hidden className="fire-badge relative flex size-9 shrink-0 items-center justify-center rounded-xl">
-              <Flame size={20} strokeWidth={2} className="fire-outer" />
-              <Flame size={10} strokeWidth={0} className="fire-core" />
-              <span className="fire-ember" />
-              <span className="fire-ember fire-ember-2" />
-            </span>
+            <FireBadge />
             הכי מבוקשים
           </button>
         </h2>

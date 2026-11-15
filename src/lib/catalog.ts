@@ -925,6 +925,23 @@ export async function getCompanions(familyId: string, rules: CompanionRule[]): P
   return toCards(rows.slice(0, 8));
 }
 
+/**
+ * More of the same category for a family's suggestions row when the fitting parts are few or none:
+ * in stock first, then the families with the most options, cheapest first. Never the family itself.
+ */
+export async function getCategoryPicks(familyId: string, categorySlug: string, limit = 8): Promise<CardFamily[]> {
+  "use cache";
+  catalogCache();
+  const rows = await db
+    .select(cardColumns)
+    .from(families)
+    .leftJoin(categories, eq(categories.id, families.categoryId))
+    .where(and(visible, eq(categories.slug, categorySlug), sql`${families.id} <> ${familyId}`))
+    .orderBy(sql`${families.available} IS TRUE DESC`, sql`${families.variantCount} DESC`, asc(families.minPriceUsd))
+    .limit(limit);
+  return toCards(rows);
+}
+
 export type FamilyVariant = NonNullable<Awaited<ReturnType<typeof getFamily>>>["variants"][number];
 
 /**
