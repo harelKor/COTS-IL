@@ -1,4 +1,4 @@
-import { ChevronLeft, ExternalLink, LayoutGrid } from "lucide-react";
+import { ChevronLeft, ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,7 +13,6 @@ import { Ltr } from "@/components/ltr";
 import { PriceNote } from "@/components/price-note";
 import { VendorMark } from "@/components/vendor-mark";
 import { StoreSearch } from "@/components/store-search";
-import { SectionHeading } from "@/components/section-heading";
 import { CardGridSkeleton, Loading, TileGridSkeleton } from "@/components/skeleton";
 import { aliveStyle } from "@/domain/alive";
 import { isStoreFront, vendorBlurb, vendorHref, vendorTheme } from "@/domain/vendors";
@@ -122,7 +121,7 @@ function siteName(url: string) {
 
 function StoreFront({ store }: { store: Store }) {
   const blurb = vendorBlurb(store.categories.filter((c) => c.slug !== "other"));
-  // The banner, then every category, then the most wanted, then "גלו עוד", with room between them.
+  // The banner with the groups right under it, then the most wanted, then "גלו עוד", with room between them.
   return (
     <div className="flex flex-col gap-12 lg:gap-16">
       <div className="flex flex-col gap-3">
@@ -161,13 +160,11 @@ function StoreFront({ store }: { store: Store }) {
             <StoreSearch action={vendorHref(store.code)} vendor={store.code} vendorName={store.name} q="" />
           </div>
         </header>
+        {/* The groups straight under the banner, with no heading: they are the store's way in. */}
+        <div className="mt-3 lg:mt-5">
+          <StoreGroupCards vendor={store.code} name={store.name} categories={store.categories} />
+        </div>
       </div>
-      <section aria-labelledby="all" className="flex flex-col gap-4">
-        <SectionHeading id="all" icon={<LayoutGrid size={20} strokeWidth={1.75} />}>
-          כל המוצרים של <Ltr>{store.name}</Ltr>
-        </SectionHeading>
-        <StoreGroupCards vendor={store.code} categories={store.categories} />
-      </section>
       <Suspense
         fallback={
           <Loading>

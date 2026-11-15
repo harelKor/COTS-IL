@@ -1829,7 +1829,9 @@ li.family-card:is(:hover, :focus-within) {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-radius: 18px;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--vendor-primary-rgb) / 0.5) transparent;
+  border-radius: 20px;
   border: 1px solid rgb(var(--vendor-primary-rgb) / 0.45);
   background: rgb(4 8 30 / 0.95);
   -webkit-backdrop-filter: blur(28px) saturate(1.4);
@@ -1838,15 +1840,15 @@ li.family-card:is(:hover, :focus-within) {
     inset 0 1px 0 0 rgb(255 255 255 / 0.07),
     0 30px 70px -12px rgb(1 2 12 / 0.8),
     0 12px 40px -18px rgb(var(--vendor-primary-rgb) / 0.55);
-  padding: 6px;
+  padding: 8px;
 }
 .flyout-row {
   display: flex;
-  min-height: 52px;
+  min-height: 68px;
   align-items: center;
-  gap: 12px;
-  border-radius: 12px;
-  padding: 6px 10px;
+  gap: 14px;
+  border-radius: 14px;
+  padding: 6px 12px;
   transition:
     background-color 150ms var(--ease-out),
     box-shadow 150ms var(--ease-out);
@@ -1882,7 +1884,7 @@ li.family-card:is(:hover, :focus-within) {
   content: "";
   position: absolute;
   inset-inline: 12px;
-  bottom: 4px;
+  bottom: 6px;
   height: 2px;
   border-radius: 2px;
   background: var(--vendor-primary);

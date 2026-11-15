@@ -7,12 +7,19 @@ const FAN = [
   "z-10 size-14 -translate-x-[34px] translate-y-2 -rotate-[8deg] sm:size-[68px] sm:-translate-x-[54px]",
   "z-10 size-14 translate-x-[34px] translate-y-2 rotate-[8deg] sm:size-[68px] sm:translate-x-[54px]",
 ];
+/** The same fan, larger: a store's group cards. */
+const FAN_LARGE = [
+  "z-20 size-[84px] sm:size-[108px]",
+  "z-10 size-16 -translate-x-[30px] translate-y-2 -rotate-[8deg] sm:size-[84px] sm:-translate-x-[46px]",
+  "z-10 size-16 translate-x-[30px] translate-y-2 rotate-[8deg] sm:size-[84px] sm:translate-x-[46px]",
+];
 
 /** Up to three real product photos fanned out on studio tiles; the category's icon only when it has none. */
-export function PhotoFan({ slug, images }: { slug?: string; images: string[] }) {
+export function PhotoFan({ slug, images, large = false }: { slug?: string; images: string[]; large?: boolean }) {
+  const fan = large ? FAN_LARGE : FAN;
   if (images.length === 0) {
     return (
-      <span className="tile-fade flex size-[84px] items-center justify-center rounded-2xl">
+      <span className={`tile-fade flex items-center justify-center rounded-2xl ${large ? "size-[108px]" : "size-[84px]"}`}>
         <CategoryIcon slug={slug ?? "other"} />
       </span>
     );
@@ -22,14 +29,14 @@ export function PhotoFan({ slug, images }: { slug?: string; images: string[] }) 
       {images.slice(0, 3).map((src, i) => (
         <span
           key={src}
-          className={`tile-fade absolute flex items-center justify-center overflow-hidden rounded-2xl p-2 shadow-card transition duration-300 ease-out ${FAN[i]} ${
+          className={`tile-fade absolute flex items-center justify-center overflow-hidden rounded-2xl p-2 shadow-card transition duration-300 ease-out ${fan[i]} ${
             i === 0 ? "group-hover:-translate-y-1 group-hover:scale-[1.04]" : ""
           }`}
         >
           {/* Hot-linked from the supplier's CDN, like every catalog photo. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            {...shopifyImage(src, 100)}
+            {...shopifyImage(src, large ? 160 : 100)}
             alt=""
             loading="lazy"
             referrerPolicy="no-referrer"

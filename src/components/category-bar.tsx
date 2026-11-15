@@ -11,7 +11,7 @@ import { useSiteFacts } from "./site-facts";
 
 export type BarCategory = { slug: string; name: string; group: string; count: number; images: string[] };
 
-const tab = "bar-tab flex min-h-12 shrink-0 items-center gap-2 rounded-xl ps-4 text-callout font-medium whitespace-nowrap lg:min-h-14 lg:text-body";
+const tab = "bar-tab flex min-h-14 shrink-0 items-center gap-2 rounded-xl ps-4 text-body font-medium whitespace-nowrap lg:min-h-16 2xl:text-section";
 
 /**
  * The upper category bar of /catalog and a store's results (WCP style): "הכל" and the admin's
@@ -90,11 +90,11 @@ export function CategoryBar({
                 trigger={
                   <>
                     {g.name}
-                    {/* The count from 1280px, so the bar fits one line at 1024px; the flyout always has it. */}
-                    <span className="hidden text-caption text-muted tabular-nums xl:inline">{g.count.toLocaleString("he-IL")}</span>
+                    {/* The count only on a wide window, so the bar fits one line; the flyout always has it. */}
+                    <span className="hidden text-caption text-muted tabular-nums 2xl:inline">{g.count.toLocaleString("he-IL")}</span>
                   </>
                 }
-                toggleClassName="-ms-1 flex min-h-12 w-9 shrink-0 lg:min-h-14 items-center justify-center rounded-xl text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand"
+                toggleClassName="-ms-1 flex min-h-14 w-9 shrink-0 lg:min-h-16 items-center justify-center rounded-xl text-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-brand"
               />
             </li>
           ))}

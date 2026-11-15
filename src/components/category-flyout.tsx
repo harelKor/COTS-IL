@@ -4,7 +4,7 @@ import { ChevronDown, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { shopifyImage } from "@/lib/images";
-import { placeUnder } from "./anchored-popover";
+import { fitToRoom, placeUnder } from "./anchored-popover";
 
 export type FlyoutItem = { slug: string; name: string; count: number; image?: string | null; href: string; current?: boolean };
 
@@ -15,21 +15,30 @@ const CLOSE_MS = 160;
 let openCount = 0;
 
 /**
- * A group's dark-glass flyout of categories (WCP style), shared by the store's category cards and
- * the category bar on /catalog and in the stores. The trigger is a link to the whole group: a click
- * goes there in one step. With a mouse, resting on the trigger drops the flyout right under it; the
- * flyout's transparent top padding is the 8px bridge that keeps the hover alive on the way down.
- * On touch the first tap opens the flyout (its first row is "הכל ב…", the group itself) and a
- * second tap on the trigger goes to the group. The chevron button is the keyboard and screen-reader
- * way in: a disclosure (aria-expanded) whose panel follows it in the tab order; Escape closes it and
- * puts focus back on the button.
+ * A group's dark-glass flyout of categories (WCP style), shared by the store's group cards and the
+ * category bar on /catalog and in the stores. It is wide, its rows tall (a photo, the name, the
+ * count) and in two columns from 640px, so a group's categories show without a scroll box; its
+ * first row, "הכל ב…", is the whole group.
  *
- * The panel is a popover in the browser's top layer, placed with fixed coordinates (placeUnder), so
- * opening it moves nothing on the page and no scrolling row clips it. It closes when the page
- * scrolls. Everything in it comes from data the page already has: no request on hover.
+ * Two kinds of trigger:
+ * - `mode="button"` (the store's group cards): the card is a disclosure button. A click or a tap
+ *   opens the flyout and pins it open until a click anywhere else, Escape, or the same card again.
+ *   With a mouse, resting on the card previews it. Enter and Space toggle it.
+ * - `mode="link"` (the bar): the trigger is a link to the whole group, one click away. With a mouse,
+ *   resting on it drops the flyout; on touch the first tap opens it and a second goes to the group.
+ *   A chevron button beside it is the keyboard's disclosure, and a click on it pins the flyout.
+ * Either way, the flyout's transparent top padding is an 8px bridge that keeps the hover alive on
+ * the way down, its panel follows the trigger in the tab order, and Escape closes it and puts focus
+ * back on the button.
+ *
+ * The panel is a popover in the browser's top layer, placed with fixed coordinates (placeUnder,
+ * then fitToRoom opens it upward when there's no room under the trigger), so opening it moves
+ * nothing on the page and no scrolling row clips it. It closes when the page scrolls. Everything in
+ * it comes from data the page already has: no request on hover.
  */
 export function CategoryFlyout({
   id,
+  mode = "link",
   href,
   label,
   allLabel,
@@ -38,12 +47,13 @@ export function CategoryFlyout({
   trigger,
   triggerClassName,
   triggerProps,
-  toggleClassName,
+  toggleClassName = "",
   className = "",
-  width = 340,
+  width = 560,
 }: {
   id: string;
-  /** The whole group. */
+  mode?: "link" | "button";
+  /** The whole group: the link trigger's target and the "הכל ב…" row's. */
   href: string;
   /** The group's name, for the button's and the panel's accessible names. */
   label: string;
@@ -54,8 +64,8 @@ export function CategoryFlyout({
   trigger: ReactNode;
   triggerClassName: string;
   triggerProps?: { "aria-current"?: "page" | "true" };
-  /** The chevron button's look and place. */
-  toggleClassName: string;
+  /** The link trigger's chevron button: its look and place. */
+  toggleClassName?: string;
   className?: string;
   width?: number;
 }) {
@@ -65,22 +75,42 @@ export function CategoryFlyout({
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Opened by the chevron (a click or the keyboard): then leaving it with the mouse doesn't close it. */
+  /** Opened by a click, a tap or the keyboard: then leaving it with the mouse doesn't close it. */
   const pinned = useRef(false);
-  /** The pointer of the last press on the trigger, and whether the flyout was open then (a tap outside closes it before the click). */
+  /** The pointer of the last press on a link trigger, and whether the flyout was open then (a tap outside closes it before the click). */
   const press = useRef<{ type: string; wasOpen: boolean }>({ type: "mouse", wasOpen: false });
 
   const clear = () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
   };
-  const show = () => {
+  /** Until when a page scroll is our own (fitToRoom making room) and mustn't close the flyout. */
+  const quietUntil = useRef(0);
+  /** Opens the flyout; a click (`pin`) may scroll the page so all of it fits under the trigger. */
+  const show = (pin = false) => {
     const el = panel.current;
-    if (el && !el.matches(":popover-open")) el.showPopover();
+    if (!el || el.matches(":popover-open")) return;
+    el.showPopover();
+    // Open now, so it can be measured; moved before the browser paints.
+    if (anchor.current && fitToRoom(anchor.current, el, pin)) quietUntil.current = performance.now() + 400;
   };
   const hide = () => {
     const el = panel.current;
     if (el?.matches(":popover-open")) el.hidePopover();
+  };
+  /**
+   * A click on the card or the chevron. A press outside an open popover closes it before the click
+   * lands (light dismiss), but openRef still holds the state from before the press: so a pinned
+   * flyout closes, and one the hover had opened is opened again and pinned.
+   */
+  const toggle = () => {
+    clear();
+    // The element itself too: two quick key presses come before the toggle event updates openRef.
+    if ((openRef.current || panel.current?.matches(":popover-open")) && pinned.current) hide();
+    else {
+      pinned.current = true;
+      show(true);
+    }
   };
 
   useEffect(() => {
@@ -93,29 +123,29 @@ export function CategoryFlyout({
       if ((e as ToggleEvent).newState === "open" && anchor.current) placeUnder(anchor.current, el, width);
     };
     const onScroll = (e: Event) => {
-      if (!el.contains(e.target as Node)) close();
+      if (!el.contains(e.target as Node) && performance.now() > quietUntil.current) close();
     };
     // Read from the element, not the event: quick opens and closes can arrive as one coalesced event.
-    const toggle = () => {
+    const sync = () => {
       const now = el.matches(":popover-open");
       setOpen(now);
       if (now === openRef.current) return;
       openRef.current = now;
       openCount += now ? 1 : -1;
-      if (!now) pinned.current = false;
       if (now) {
         window.addEventListener("scroll", onScroll, { capture: true, passive: true });
         window.addEventListener("resize", close);
       } else {
+        pinned.current = false;
         window.removeEventListener("scroll", onScroll, { capture: true });
         window.removeEventListener("resize", close);
       }
     };
     el.addEventListener("beforetoggle", place);
-    el.addEventListener("toggle", toggle);
+    el.addEventListener("toggle", sync);
     return () => {
       el.removeEventListener("beforetoggle", place);
-      el.removeEventListener("toggle", toggle);
+      el.removeEventListener("toggle", sync);
       window.removeEventListener("scroll", onScroll, { capture: true });
       window.removeEventListener("resize", close);
       if (openRef.current) openCount -= 1;
@@ -130,7 +160,7 @@ export function CategoryFlyout({
     if (e.pointerType !== "mouse") return;
     clear();
     if (openRef.current) return;
-    timer.current = setTimeout(show, openCount > 0 ? 0 : OPEN_MS);
+    timer.current = setTimeout(() => show(), openCount > 0 ? 0 : OPEN_MS);
   };
   const onPointerLeave = (e: React.PointerEvent) => {
     if (e.pointerType !== "mouse" || pinned.current) return;
@@ -138,45 +168,42 @@ export function CategoryFlyout({
     timer.current = setTimeout(hide, CLOSE_MS);
   };
 
+  const chevron = (
+    <ChevronDown size={18} strokeWidth={2} aria-hidden className={`transition-transform duration-200 ease-out motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
+  );
+
   return (
     <div ref={anchor} className={`relative ${className}`} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
-      <Link
-        href={href}
-        {...triggerProps}
-        onPointerDown={(e) => {
-          press.current = { type: e.pointerType, wasOpen: openRef.current };
-        }}
-        onClick={(e) => {
-          // A click cancels a hover that hasn't opened the flyout yet. A tap (not a mouse click) on a closed flyout opens it first.
-          clear();
-          if (press.current.type !== "mouse" && !press.current.wasOpen && items.length > 1) {
-            e.preventDefault();
-            show();
-          } else hide();
-        }}
-        className={triggerClassName}
-      >
-        {trigger}
-      </Link>
-      <button
-        ref={button}
-        type="button"
-        onClick={() => {
-          // Not popoverTarget: a hover may have opened the flyout a moment before this click, which should keep it open.
-          clear();
-          if (openRef.current && pinned.current) hide();
-          else {
-            pinned.current = true;
-            show();
-          }
-        }}
-        aria-expanded={open}
-        aria-controls={id}
-        aria-label={`הקטגוריות ב${label}`}
-        className={toggleClassName}
-      >
-        <ChevronDown size={18} strokeWidth={2} aria-hidden className={`transition-transform duration-200 ease-out motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
-      </button>
+      {mode === "button" ? (
+        <button ref={button} type="button" onClick={toggle} aria-expanded={open} aria-controls={id} className={triggerClassName}>
+          {trigger}
+        </button>
+      ) : (
+        <>
+          <Link
+            href={href}
+            {...triggerProps}
+            onPointerDown={(e) => {
+              press.current = { type: e.pointerType, wasOpen: openRef.current };
+            }}
+            onClick={(e) => {
+              // A click cancels a hover that hasn't opened the flyout yet. A tap (not a mouse click) on a closed flyout opens it first.
+              clear();
+              if (press.current.type !== "mouse" && !press.current.wasOpen && items.length > 1) {
+                e.preventDefault();
+                pinned.current = true;
+                show(true);
+              } else hide();
+            }}
+            className={triggerClassName}
+          >
+            {trigger}
+          </Link>
+          <button ref={button} type="button" onClick={toggle} aria-expanded={open} aria-controls={id} aria-label={`הקטגוריות ב${label}`} className={toggleClassName}>
+            {chevron}
+          </button>
+        </>
+      )}
       <div
         ref={panel}
         id={id}
@@ -200,25 +227,27 @@ export function CategoryFlyout({
         <div className="flyout-panel">
           <Link href={href} className="flyout-row flyout-all">
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="flyout-title text-callout font-semibold">{allLabel}</span>
+              <span className="flyout-title text-body font-semibold">{allLabel}</span>
               <span className="text-caption text-muted tabular-nums">{allCount.toLocaleString("he-IL")} מוצרים</span>
             </span>
-            <ChevronLeft size={18} strokeWidth={1.75} aria-hidden className="flyout-chevron shrink-0" />
+            <ChevronLeft size={20} strokeWidth={1.75} aria-hidden className="flyout-chevron shrink-0" />
           </Link>
-          <ul className="flex flex-col">
+          <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
             {items.map((c) => (
               <li key={c.slug}>
                 <Link href={c.href} aria-current={c.current ? "page" : undefined} className="flyout-row">
-                  <span className="tile-fade flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg p-1">
+                  <span className="tile-fade flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl p-1.5">
                     {c.image && (
                       // Hot-linked from the supplier's CDN, like every catalog photo. Fetched with the page at low
                       // priority (not lazily), so a hover makes no request and the flyout opens with its photos.
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img {...shopifyImage(c.image, 48)} alt="" fetchPriority="low" decoding="async" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
+                      <img {...shopifyImage(c.image, 96)} alt="" fetchPriority="low" decoding="async" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
                     )}
                   </span>
-                  <span className="flyout-title min-w-0 flex-1 truncate text-callout font-medium">{c.name}</span>
-                  <span className="shrink-0 text-caption text-muted tabular-nums">{c.count.toLocaleString("he-IL")}</span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="flyout-title text-body leading-snug font-medium">{c.name}</span>
+                    <span className="text-caption text-muted tabular-nums">{c.count.toLocaleString("he-IL")} מוצרים</span>
+                  </span>
                 </Link>
               </li>
             ))}
