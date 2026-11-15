@@ -6,6 +6,8 @@ import { tallyFamilies, type CatalogCounts } from "@/domain/catalog-counts";
 import { ACCESSORY_TITLE_PATTERN, HARDWARE_CATEGORIES, MAIN_ITEM_MIN_USD } from "@/domain/catalog-rank";
 import { facetCountPlans, isRelevantFacet, orderFacetValues, rangeInSortUnits, type NumRange } from "@/domain/facets";
 import { sortValue } from "@/domain/specs/units";
+import { keySpecColumns, keySpecKeys, keySpecsOf, type KeySpec, type SpecValue } from "@/domain/key-specs";
+import { packSize } from "@/domain/pack-size";
 import type { CompanionRule } from "@/domain/families/companions";
 import { priceIls } from "@/domain/pricing";
 import { interleave, pageCount, pickDiscovery, rankPopular, wrappedPage, type FamilySignals } from "@/domain/popular";
@@ -268,6 +270,10 @@ export type CardFamily = {
   skuPreset?: Record<string, string>;
   /** In a vendor's store: the card shows only this vendor's offer (prices, options, stock). */
   vendor?: { code: string; name: string };
+  /** How many come in one line, when the title says so ("10-Pack", "Qty. 2"; P2-6). */
+  packSize: number | null;
+  /** On a category with key spec columns (src/domain/key-specs.ts): the list view's cells (P2-4). */
+  keySpecs?: KeySpec[];
 };
 
 const cardColumns = {
@@ -430,6 +436,7 @@ async function toCards(rows: CardRow[], supplierCodes?: string[]): Promise<CardF
       optionSets: s?.sets ?? 0,
       availableOptionSets: s?.availableSets ?? 0,
       onlyVariant: onlyVariant.get(r.id) ?? null,
+      packSize: packSize(r.title),
       ...(vendor ? { vendor } : {}),
     };
   });
@@ -507,6 +514,7 @@ async function findCards(filters: ResolvedFilters, offset: number, limit: number
       ? (await db.select({ total: sql<number>`count(*)::int` }).from(families).leftJoin(categories, eq(categories.id, families.categoryId)).where(where))[0].total
       : 0);
   const cards = await toCards(found, filters.suppliers.length > 0 ? filters.suppliers : undefined);
+  await addKeySpecs(cards, filters);
   if (looksLikeSku(filters.q) && cards.length > 0) {
     const matched = await db
       .select({ familyId: variants.familyId, options: variants.familyOptions })
@@ -518,6 +526,44 @@ async function findCards(filters: ResolvedFilters, offset: number, limit: number
     }
   }
   return { cards, total };
+}
+
+/**
+ * The list view's key spec cells for a category that has columns (P2-4): one light query over
+ * `spec_values` for the cards in view, from their listed variants, narrowed like the cards are (the
+ * chosen vendors, and the parts that pass the spec filters), so a "20 DP" list says 20 DP. It runs
+ * inside the cached card readers, and the grid gets the same cells (a few short strings a card).
+ */
+async function addKeySpecs(cards: CardFamily[], filters: ResolvedFilters) {
+  const columns = keySpecColumns(filters.category);
+  if (columns.length === 0 || cards.length === 0) return;
+  const sv = schema.specValues;
+  const narrowed = specVariants(specPicks(filters));
+  const rows = await db
+    .select({ familyId: sv.familyId, key: sv.key, value: sv.value, num: sv.num, unit: sv.unit })
+    .from(sv)
+    .innerJoin(variants, eq(variants.id, sv.variantId))
+    .innerJoin(products, eq(products.id, variants.productId))
+    .innerJoin(suppliers, eq(suppliers.id, variants.supplierId))
+    .where(
+      and(
+        inArray(sv.familyId, cards.map((c) => c.id)),
+        inArray(sv.key, keySpecKeys(columns)),
+        filters.suppliers.length > 0 ? inArray(suppliers.code, filters.suppliers) : undefined,
+        eq(products.status, "published"),
+        isNull(products.missingSince),
+        isNull(variants.missingSince),
+        narrowed ? sql`${sv.variantId} IN (${narrowed})` : undefined,
+      ),
+    )
+    .groupBy(sv.familyId, sv.key, sv.value, sv.num, sv.unit);
+  const byFamily = new Map<string, SpecValue[]>();
+  for (const r of rows) {
+    const list = byFamily.get(r.familyId) ?? [];
+    list.push({ key: r.key, value: r.value, num: r.num === null ? null : Number(r.num), unit: r.unit });
+    byFamily.set(r.familyId, list);
+  }
+  for (const card of cards) card.keySpecs = keySpecsOf(columns, byFamily.get(card.id) ?? []);
 }
 
 /**

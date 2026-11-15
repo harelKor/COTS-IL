@@ -18,6 +18,7 @@ import { isStoreFront, vendorBlurb, vendorHref, vendorTheme } from "@/domain/ven
 import { getCategoryCounts, getControlCounts, getDiscoveryPage, getSpecFacets, getVendorPopular, getVendors, getVendorStore, resolveSearch, searchCards } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { hasFilters, PAGE_SIZE, parseFilters, type CatalogFilters } from "@/lib/catalog-filters";
+import { countOf, PRODUCT } from "@/domain/plural";
 
 /** Fail fast instead of Vercel's 300 s default: every query stops at 8 s (src/db/index.ts). */
 export const maxDuration = 30;
@@ -141,7 +142,7 @@ function StoreFront({ store }: { store: Store }) {
           </div>
           <div className="flex flex-wrap items-center gap-2 lg:col-start-2 lg:row-start-2">
             <span className="count-pill rounded-full px-3 py-1 text-caption font-semibold tabular-nums">
-              {store.count.toLocaleString("he-IL")} מוצרים
+              {countOf(store.count, PRODUCT)}
             </span>
             {/* The vendor's own site (suppliers.base_url), in a new tab. */}
             <a

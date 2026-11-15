@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { shopifyImage } from "@/lib/images";
 import { fitToRoom, placeUnder } from "./anchored-popover";
+import { countOf, PRODUCT } from "@/domain/plural";
 
 export type FlyoutItem = { slug: string; name: string; count: number; image?: string | null; href: string; current?: boolean };
 
@@ -236,7 +237,7 @@ export function CategoryFlyout({
           <Link href={href} onClick={(e) => onNavigate?.(e, href)} className="flyout-row flyout-all">
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="flyout-title text-body font-semibold">{allLabel}</span>
-              <span className="text-caption text-muted tabular-nums">{allCount.toLocaleString("he-IL")} מוצרים</span>
+              <span className="text-caption text-muted tabular-nums">{countOf(allCount, PRODUCT)}</span>
             </span>
             <ChevronLeft size={20} strokeWidth={1.75} aria-hidden className="flyout-chevron shrink-0" />
           </Link>
@@ -254,7 +255,7 @@ export function CategoryFlyout({
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="flyout-title text-body leading-snug font-medium">{c.name}</span>
-                    <span className="text-caption text-muted tabular-nums">{c.count.toLocaleString("he-IL")} מוצרים</span>
+                    <span className="text-caption text-muted tabular-nums">{countOf(c.count, PRODUCT)}</span>
                   </span>
                 </Link>
               </li>

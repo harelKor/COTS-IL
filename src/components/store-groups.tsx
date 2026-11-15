@@ -6,6 +6,7 @@ import { vendorHref } from "@/domain/vendors";
 import { CategoryFlyout } from "./category-flyout";
 import { PhotoFan } from "./category-showcase";
 import { useSiteFacts } from "./site-facts";
+import { countOf, PRODUCT } from "@/domain/plural";
 
 type Category = { slug: string; name: string; group: string; count: number; images: string[] };
 
@@ -47,7 +48,7 @@ export function StoreGroupCards({ vendor, categories, name }: { vendor: string; 
                   <span className="flex items-end justify-between gap-2">
                     <span className="flex min-w-0 flex-col items-start gap-2">
                       <span className="text-body leading-snug font-semibold group-hover:text-brand sm:text-section">{g.name}</span>
-                      <span className="count-pill rounded-full px-2.5 py-0.5 text-caption font-semibold tabular-nums">{g.count.toLocaleString("he-IL")} מוצרים</span>
+                      <span className="count-pill rounded-full px-2.5 py-0.5 text-caption font-semibold tabular-nums">{countOf(g.count, PRODUCT)}</span>
                     </span>
                     <ChevronDown
                       size={20}

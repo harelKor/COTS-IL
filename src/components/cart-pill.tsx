@@ -3,6 +3,7 @@
 import { ShoppingBag, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
+import { countOf, ITEM } from "@/domain/plural";
 import { formatIls } from "@/domain/pricing";
 import { canEditCart, cartTotals, useCart } from "./cart-store";
 import { TeamName } from "@/components/team-name";
@@ -49,7 +50,7 @@ export function CartButton() {
       onPointerEnter={loadPanel}
       onTouchStart={loadPanel}
       onFocus={loadPanel}
-      aria-label={count > 0 ? `הסל, ${count} פריטים, ${formatIls(totalIls)}` : "הסל"}
+      aria-label={count > 0 ? `הסל, ${countOf(count, ITEM)}, ${formatIls(totalIls)}` : "הסל"}
       className={`cart-button relative flex h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-full border border-line bg-surface shadow-2xs hover:bg-subtle text-foreground transition-colors ${count > 0 ? "md:ps-3 md:pe-4" : ""}`}
     >
       <ShoppingBag size={20} strokeWidth={1.75} aria-hidden />
@@ -159,7 +160,7 @@ export function CartPill() {
                   "הסל"
                 )}
               </h2>
-              {count > 0 && <span className="text-caption text-muted">{count === 1 ? "פריט אחד" : `${count} פריטים`}</span>}
+              {count > 0 && <span className="text-caption text-muted">{countOf(count, ITEM)}</span>}
             </div>
             <div className="flex shrink-0 items-center">
               <ShareCartButton />

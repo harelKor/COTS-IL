@@ -15,6 +15,7 @@ import type { SearchResponse, SearchResult } from "@/app/api/search/route";
 import { formatIls } from "@/domain/pricing";
 import { catalogHref } from "@/lib/catalog-filters";
 import type { CardFamily } from "@/lib/catalog";
+import { packSize } from "@/domain/pack-size";
 import { shopifyImage } from "@/lib/images";
 import { normalizeSearch, parseQuickQuery } from "@/lib/quick-query";
 import { useSiteFacts } from "./site-facts";
@@ -119,6 +120,7 @@ function asCard(r: SearchResult): CardFamily {
     optionKeys: r.optionKeys,
     orderable: r.variantCount > 0,
     onlyVariant: null,
+    packSize: packSize(r.title),
   };
 }
 

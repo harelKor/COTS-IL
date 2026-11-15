@@ -302,7 +302,14 @@ export function CatalogBrowser({ filters, total, cards: first, facets, counts, s
             )}
           </button>
           <p className={`w-full min-w-0 truncate px-1 text-callout font-medium tabular-nums sm:w-auto ${vendor ? "sm:me-auto" : "sm:me-auto lg:me-0"}`} aria-live="polite">
-            {total.toLocaleString("he-IL")} <span className="font-normal text-muted">מוצרים</span>
+            {/* The number strong and the word muted; "מוצר אחד" for one (countOf). */}
+            {total === 1 ? (
+              countOf(1, PRODUCT)
+            ) : (
+              <>
+                {total.toLocaleString("he-IL")} <span className="font-normal text-muted">{PRODUCT.many}</span>
+              </>
+            )}
           </p>
           <div className="order-2 flex items-center gap-2 sm:order-none">
           <SortSelect value={filters.sort} onChange={(sort) => go({ ...filters, sort })} />
@@ -490,7 +497,7 @@ export function CatalogBrowser({ filters, total, cards: first, facets, counts, s
               aria-busy={pending}
               className="flex h-11 flex-1 items-center justify-center rounded-full btn-brand font-semibold tabular-nums"
             >
-              הצגת {total.toLocaleString("he-IL")} מוצרים
+              הצגת {countOf(total, PRODUCT)}
             </button>
           </div>
         </div>
