@@ -195,7 +195,7 @@ Four sessions, one after another (CF2–CF4 share `catalog-browser.tsx`; CF2 nee
 | Task | Status | Commit |
 |---|---|---|
 | CF1 Clean spec values | Done (Nov 15, 2026). Production updates after the nightly sync (02:00 UTC); no manual regroup | `0c2f918` |
-| CF2 The filter panel | Not started | |
+| CF2 The filter panel | Done (Nov 15, 2026). Production shows the new spec values after the nightly sync | `17961e6` |
 | CF3 Navigation and stability | Not started | |
 | CF4 Cards and list view | Not started | |
 
@@ -212,3 +212,13 @@ Four sessions, one after another (CF2–CF4 share `catalog-browser.tsx`; CF2 nee
   - Belts and chain: pitch 131 → 137; teeth 125 (197 values) → 139 (132); bore 41 (26) → 64 (21); material 65 → 74.
   - Shafts: bore 29 (36) → 54 (29); length 73 (197 values) → 73 (132); material 80 → 86.
 - **Not met: DP ≥ 90% in Gears.** The 47 local Gears families left with no DP or module state none anywhere in their supplier data: WCP Swerve X/X2 spare gears, goBILDA and REV servo gear sets, swerve and hardware kits, AndyMark Sport gears. Not guessed. CF2's "ידוע ל-N מתוך M" line is the honest answer for them.
+
+### CF2 notes (for CF3–CF4)
+
+- **Where it is.** `src/components/filter-panel.tsx` (`FilterFields`, `PanelSearch`, sections, chips, the checkbox list, `RangeFields`); `catalog-browser.tsx` only lays it out (side column, phone sheet). Pure rules in `src/domain/facets.ts`: `facetLayout` (chips up to 10), `orderFacetValues` (by size when 75%+ have one, else by count), `previewValues`, `defaultOpenFacets`/`isFacetOpen`, `showsCoverage`, `parseRange`/`formatRange`/`rangeLabel`, `parsePrice`.
+- **Filters gained `ranges` and `price`** (`CatalogFilters`). `?s.teeth=20-40`, `?s.length=2-6in`, `?s.od=10-30mm` (no unit: inches for length and OD), `?price=50-200` (whole ₪ on the family's lowest price, `min_list_usd` × rate, ±½ shekel). A key holds values or a range, never both (`toggleSpec`/`setRange`). `clearPanel` clears program, stock, specs, ranges and price and keeps the category, group, search and supplier; `panelFilterCount` is the "סינון (N)" number. CF3's active-filters row should list ranges and price too (the current row already does, as a stopgap).
+- **Counts.** `SpecFacet` now carries `reach` and `total`. `getControlCounts` returns FRC, FTC and in-stock counts (each under the other filters) and the ₪ range in view; the store page passes them too.
+- **Deviation from the plan, on purpose.** A long facet shows its 4 most common values (3 under a from–to range), not 8, and its search box appears with "הצגת כל N": with 44px rows that is what keeps every facet under ~320px. Local Gears at 1280×800: teeth 297px, material 281, the closed ones 49; Bearings ID 289, OD 301. "Every facet title visible without scrolling" is now a page scroll: the panel starts at about y=414 under the vendor tiles and the group bar, which is CF3's to raise (P1-11).
+- **Shared with the product page.** `search-field.tsx` (`SearchField`, `fieldClass`) and `src/domain/list-search.ts` (`matchList`) are used by `option-combobox.tsx` too.
+- **Open state** is per facet key for the session (`catalog-facets-open` in sessionStorage, with an in-memory fallback), shared by the side panel and the phone sheet.
+- **Pending state (CF3, B1).** The panel's search uses `router.replace` after a 450 ms pause; the other controls `router.push`. Both run inside `startTransition`, so `pending` already dims the results.
