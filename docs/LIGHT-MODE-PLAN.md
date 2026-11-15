@@ -49,6 +49,13 @@ The rules that hold in both modes:
 - **The switch:**
   - a `ThemeToggle` (sun/moon, 44px, `aria-pressed`, label "מצב בהיר"/"מצב כהה") in the header from 1024px, and in the account/guest menu below that;
   - three states internally (device, light, dark): clearing the choice returns to the device setting, offered as "לפי המכשיר" in the menu.
+- **The welcome note (the user asked for it):**
+  - a small glass pop-up at the **top left** of the page (`inset-inline-end`, under the header) appears when someone enters the site;
+  - it says which mode the site is in ("האתר במצב כהה" / "האתר במצב בהיר", with the sun or moon icon), with a switch button ("למצב בהיר" / "למצב כהה") and a close ×;
+  - it appears once per browser session (`sessionStorage`, in try/catch), on the first page they land on;
+  - it fades out by itself after about 8 seconds unless the pointer or focus is on it; × or a switch closes it, and a switch also applies and saves the choice;
+  - `role="status"`, no focus steal, 44px targets, fade and slide only on transform/opacity, none under reduced motion;
+  - it must never cover the header's controls or the cart pill, and on phones it sits under the header across the width.
 - **`theme-color` and the manifest:** two `theme-color` metas with `media` (light #F6F7FF, dark #020416). The manifest keeps the dark colours, since a manifest can't switch.
 - **Vendor palettes:**
   - `vendorPalette`/`vendorTheme`/`vendorGlass` in `src/domain/vendors.ts` get a light variant: the same `--vendor-*` variables with light values (the tint, the border, the text accent darkened to AA on pearl);
@@ -67,7 +74,7 @@ Three sessions, one after another. They start **after the work running now** (PP
 - Light tokens:
   - start from the pre-Nov-14 light tokens and extend them to every token `:root` has today (glass, glow, gradients, shadows, vendor variables, status fills);
   - every token pair used for text is AA (Vitest contrast test).
-- The inline theme script, `data-theme`, the `ThemeToggle` with its three states, `theme-color` per scheme, and `color-scheme`.
+- The inline theme script, `data-theme`, the `ThemeToggle` with its three states, the welcome note (top left, once per session, with a switch), `theme-color` per scheme, and `color-scheme`.
 - Sweep the shared utilities and components for raw colours: `card-surface`, `btn-brand`, `btn-soft`, `glass-pill`, `tile-fade`, `glow-*`, header, search panel, cart sheet and pill, toasts, sheets and dialogs, form fields, `StatusTag` tones, `HeaderMenu`, footer, skeletons.
 - **Pages that must be fully right in light by the end of LM1:**
   - the catalog (`/catalog`, the filter panel, cards, list view);
