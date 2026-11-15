@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import type { SearchResponse, SearchResult } from "@/app/api/search/route";
+import { countOf, OPTION } from "@/domain/plural";
 import { formatIls } from "@/domain/pricing";
 import { shopifyImage } from "@/lib/images";
 import { Ltr } from "./ltr";
@@ -148,7 +149,7 @@ export function StoreSearch({ action, vendor, vendorName, q }: { action: string;
                   <span className="flex min-w-0 flex-1 flex-col">
                     <Ltr className="truncate text-start text-callout font-medium">{r.title}</Ltr>
                     <span className="truncate text-caption text-muted">
-                      {r.sku ? <Ltr className="font-mono">{r.sku}</Ltr> : r.variantCount > 1 ? `${r.variantCount.toLocaleString("he-IL")} אפשרויות` : null}
+                      {r.sku ? <Ltr className="font-mono">{r.sku}</Ltr> : r.variantCount > 1 ? countOf(r.variantCount, OPTION) : null}
                     </span>
                   </span>
                   {/* The price only when the part is this vendor's alone (a shared part's price may be another vendor's). */}

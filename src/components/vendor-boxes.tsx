@@ -5,6 +5,7 @@ import { spansBoth, vendorBlurb, vendorGlass, vendorHref } from "@/domain/vendor
 import type { VendorSummary } from "@/lib/catalog";
 import { shopifyImage } from "@/lib/images";
 import { VendorMark } from "./vendor-mark";
+import { countOf, PRODUCT } from "@/domain/plural";
 
 /** Static class names, so Tailwind keeps them: the first row's columns from 1024px, by how many it holds. */
 const ROW_COLS = ["", "lg:grid-cols-1", "lg:grid-cols-2", "lg:grid-cols-3"];
@@ -82,7 +83,7 @@ export function VendorBoxes({ vendors, layout, eager = 0 }: { vendors: VendorSum
                   {blurb && <span className="line-clamp-2 text-caption leading-snug text-muted">{blurb}</span>}
                 </span>
                 <span className="vendor-count shrink-0 rounded-full px-2.5 py-0.5 text-caption font-semibold tabular-nums">
-                  {v.count.toLocaleString("he-IL")} מוצרים
+                  {countOf(v.count, PRODUCT)}
                 </span>
               </span>
               <PhotoRow images={v.images} seed={v.code} />

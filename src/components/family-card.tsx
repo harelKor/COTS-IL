@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useRef, useState, ViewTransition } from "react";
 import { chipPrice, choose, NONE, pick } from "@/domain/families/pick";
 import { optionLabel } from "@/domain/families/sort";
+import type { KeySpec } from "@/domain/key-specs";
 import { cardArrival } from "@/domain/lead-time";
+import { packText } from "@/domain/pack-size";
+import { countOf, OPTION } from "@/domain/plural";
 import { formatIls } from "@/domain/pricing";
 import { availabilityStatus, isFresh, useNow } from "./availability";
 import { Ils } from "./ils";
@@ -38,25 +41,90 @@ function lineFor(family: CardFamily, v: CardVariant): AddableLine {
 
 type PartialStock = { of: number; available: number };
 
-/** A dot for availability, with the words for screen readers and on hover. */
+const num = (n: number) => n.toLocaleString("he-IL");
+
+/**
+ * A dot for availability and a few words that fit one line of the narrowest card (P2-1):
+ * "זמין: 67/68" on a phone, "זמין: 67/68 אפשרויות" from 640px; the whole sentence for
+ * screen readers and on hover.
+ */
 function AvailabilityDot({ available, checkedAt, partial, shipsLater }: { available: boolean | null; checkedAt: string; partial?: PartialStock; shipsLater?: boolean }) {
   const fresh = isFresh(checkedAt, useNow());
   const { dot: color } = availabilityStatus(available, checkedAt, fresh, { shipsLater });
+  const someOf = available === true && fresh && !shipsLater ? partial : undefined;
   const text =
     available === null || !fresh
       ? "זמינות לא אומתה"
       : available && shipsLater
         ? "בהזמנה מראש"
-        : available && partial
-        ? `${partial.available.toLocaleString("he-IL")} מתוך ${partial.of.toLocaleString("he-IL")} אפשרויות זמינות`
-        : available
-          ? "זמין אצל הספק"
-          : "לא זמין כרגע";
+        : someOf
+          ? `${num(someOf.available)} מתוך ${num(someOf.of)} אפשרויות זמינות`
+          : available
+            ? "זמין אצל הספק"
+            : "לא זמין כרגע";
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-caption text-muted" title={text}>
       <span className={`size-2 shrink-0 rounded-full ${color}`} aria-hidden />
-      <span className="truncate">{text}</span>
+      {someOf ? (
+        <span className="truncate">
+          <span aria-hidden>
+            זמין: <span className="tabular-nums">{`${num(someOf.available)}/${num(someOf.of)}`}</span>
+            <span className="hidden sm:inline"> אפשרויות</span>
+          </span>
+          <span className="sr-only">{text}</span>
+        </span>
+      ) : (
+        <span className="truncate">{text}</span>
+      )}
     </span>
+  );
+}
+
+/** A cell's value: the supplier's text in its own direction, our Hebrew count as it is. */
+function SpecValueText({ spec }: { spec: KeySpec }) {
+  return spec.ltr ? <Ltr>{spec.value}</Ltr> : <>{spec.value}</>;
+}
+
+/** The key specs as one line under the title (the list view below 1280px). */
+function SpecLine({ specs }: { specs: KeySpec[] }) {
+  const known = specs.filter((s) => s.value);
+  if (known.length === 0) return null;
+  return (
+    <dl className="flex flex-wrap gap-x-3 text-caption xl:hidden">
+      {known.map((s) => (
+        <div key={s.label} className="flex gap-1">
+          <dt className="text-muted">{s.label}</dt>
+          <dd className="text-foreground">
+            <SpecValueText spec={s} />
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** The key specs as columns from 1280px, each with its name, so the rows read like a spec table (P2-4). */
+function SpecColumns({ specs }: { specs: KeySpec[] }) {
+  return (
+    <dl className="hidden shrink-0 gap-2 xl:flex">
+      {specs.map((s) => (
+        <div key={s.label} className="flex w-20 flex-col">
+          <dt className="text-caption text-muted">{s.label}</dt>
+          <dd className="text-callout">
+            {s.value ? (
+              <SpecValueText spec={s} />
+            ) : (
+              <>
+                <span aria-hidden className="text-muted">
+                  —
+                </span>
+                <span className="sr-only">לא צוין</span>
+              </>
+            )}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -143,37 +211,35 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   const photoSrc = current?.image ?? family.image;
   const photo = photoSrc ? shopifyImage(photoSrc, layout === "row" ? 64 : 240) : null;
 
-  // A chosen part with no price (its supplier's price is stale) never falls back to the family's range.
+  /**
+   * The family's range on one line, "₪26–₪148" (P2-2, the user's choice), or one price for a single
+   * part or a chosen one. A chosen part with no price (its supplier's price is stale, M1) never falls
+   * back to the family's range.
+   */
+  const isRange = !current && family.minPriceIls !== null && family.maxPriceIls !== null && family.maxPriceIls !== family.minPriceIls;
+  // Every amount on one line: "₪ 51" can break at its own direction marks in a narrow column.
   const price =
     current?.priceIls != null ? (
-      <Ils amount={current.priceIls} />
+      <span className="whitespace-nowrap">
+        <Ils amount={current.priceIls} />
+      </span>
     ) : current || family.minPriceIls === null ? (
       <span className="text-caption font-normal text-muted">{PRICE_LATER}</span>
+    ) : isRange ? (
+      <span className="whitespace-nowrap">
+        <Ils amount={family.minPriceIls} />–<Ils amount={family.maxPriceIls!} />
+      </span>
     ) : (
-      <>
-        {family.maxPriceIls !== family.minPriceIls && <span className="text-caption font-normal text-muted">החל מ-</span>}
+      <span className="whitespace-nowrap">
         <Ils amount={family.minPriceIls} />
-      </>
+      </span>
     );
-
-  /**
-   * The grid card's price, the strongest text on it (design review, Nov 14, 2026): 18px on a phone,
-   * 20px from 640px. "החל מ-" sits on its own line above a range, so "₪ 1,116" still fits beside the
-   * "+" on a 360px phone.
-   */
-  const fromPrice = !current && family.minPriceIls !== null && family.maxPriceIls !== family.minPriceIls;
+  // "חבילה של 10" by the price, when the title states the pack (P2-6).
+  const pack = family.packSize ? <span className="text-caption font-normal whitespace-nowrap text-muted">{packText(family.packSize)}</span> : null;
   // When it reaches Israel, from the vendors' lead times (hidden while any is empty). Not for a sold-out
   // or preorder part: its wait starts when the vendor ships, and the availability line says so.
   const offerLater = current ? current.shipsLater || current.available === false : family.shipsLater || family.available === false;
   const arrival = offerLater ? null : cardArrival(current ? [current.supplierCode] : family.supplierCodes, leadTimes);
-  const cardPrice =
-    current?.priceIls != null ? (
-      <Ils amount={current.priceIls} />
-    ) : current || family.minPriceIls === null ? (
-      <span className="text-caption font-normal text-muted">{PRICE_LATER}</span>
-    ) : (
-      <Ils amount={family.minPriceIls} />
-    );
 
   /** Adds the part the card has settled on (one part, or the filters chose every option), or opens the chips. */
   function plusWith(list: CardVariant[]) {
@@ -328,6 +394,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
   );
 
   if (layout === "row") {
+    const specs = family.keySpecs ?? [];
     return (
       <li className="flex flex-col gap-2 border-b border-line py-3 last:border-b-0">
         <div className="flex items-center gap-3">
@@ -336,26 +403,36 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
               {photo_}
             </div>
           </Link>
-          <Link href={href} {...pagePrefetch} className="min-w-0 flex-1 hover:text-brand">
+          <Link href={href} {...pagePrefetch} className="flex min-w-0 flex-1 flex-col gap-0.5 hover:text-brand">
             <Ltr className="line-clamp-2 text-start text-callout font-medium">{family.title}</Ltr>
-            <span className="block truncate text-caption text-muted">
-              <Ltr>{family.supplierNames.join(", ")}</Ltr>
-              {current?.sku && (
-                <>
+            {/* Separate spans (P2-3): the vendors in their own direction, and only they are cut off. */}
+            <span className="flex min-w-0 text-caption text-muted">
+              <Ltr className="min-w-0 truncate">{family.supplierNames.join(", ")}</Ltr>
+              {current?.sku ? (
+                <span className="shrink-0 whitespace-pre">
                   {", "}
                   <Ltr className="font-mono">{current.sku}</Ltr>
-                </>
+                </span>
+              ) : (
+                !current && family.variantCount > 1 && <span className="shrink-0 whitespace-pre">{`, ${countOf(family.variantCount, OPTION)}`}</span>
               )}
-              {!current && family.variantCount > 1 && `, ${family.variantCount.toLocaleString("he-IL")} אפשרויות`}
             </span>
+            <span className="flex min-w-0 flex-wrap items-center gap-x-3">
+              {availability}
+              {arrival && <span className="truncate text-caption text-muted">{arrival}</span>}
+            </span>
+            {specs.length > 0 && <SpecLine specs={specs} />}
             {/* Under the title on a phone; its own column from 640px. */}
-            <span className="block text-callout font-semibold tabular-nums sm:hidden">{price}</span>
+            <span className="flex flex-wrap items-baseline gap-x-2 text-callout font-semibold tabular-nums sm:hidden">
+              {price}
+              {pack}
+            </span>
           </Link>
-          <div className="hidden w-32 sm:block">
-            {availability}
-            {arrival && <span className="block truncate text-caption text-muted">{arrival}</span>}
-          </div>
-          <span className="hidden w-20 shrink-0 text-end text-callout font-semibold tabular-nums sm:block">{price}</span>
+          {specs.length > 0 && <SpecColumns specs={specs} />}
+          <span className="hidden w-28 shrink-0 flex-col items-end text-callout font-semibold tabular-nums sm:flex">
+            {price}
+            {pack}
+          </span>
           <div className="flex shrink-0 justify-end sm:w-28">{action}</div>
         </div>
         {showPicker && !asSheet && (
@@ -415,15 +492,17 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       </Link>
 
       {/* In the cart, the stepper wraps to its own row on a narrow card instead of covering the price. */}
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          {fromPrice && <span className="text-caption text-muted">החל מ-</span>}
-          <span className="text-[1.125rem] leading-tight font-semibold text-foreground tabular-nums sm:text-section">{cardPrice}</span>
-          {!current && family.variantCount > 1 && (
-            <span className="truncate text-caption text-muted">{family.variantCount.toLocaleString("he-IL")} אפשרויות</span>
-          )}
+      {/*
+        The price, the strongest text on the card (design review, Nov 14, 2026): 18px on a phone, 20px
+        from 640px; a range a step smaller, so "₪26–₪148" fits beside the "+" on a 360px phone. A range
+        too wide for that moves the "+" to its own line instead of cutting the price.
+      */}
+      <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
+        <div className="flex min-w-0 flex-col">
+          <span className={`leading-tight font-semibold text-foreground tabular-nums ${isRange ? "text-callout sm:text-body" : "text-[1.125rem] sm:text-section"}`}>{price}</span>
+          {pack}
         </div>
-        {action}
+        {action && <div className="ms-auto">{action}</div>}
       </div>
 
       {sheet}

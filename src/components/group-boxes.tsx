@@ -7,6 +7,7 @@ import { groupCategories } from "@/domain/category-groups";
 import { shopifyImage } from "@/lib/images";
 import { PhotoFan } from "./category-showcase";
 import { useSiteFacts } from "./site-facts";
+import { countOf, PRODUCT } from "@/domain/plural";
 
 export type GroupTile = { slug: string; name: string; group: string; count: number; images: string[]; href: string };
 
@@ -64,7 +65,7 @@ function Panel({ id, labelledBy, items }: { id: string; labelledBy: string; item
                 </span>
                 <span className="flex min-w-0 flex-col">
                   <span className="text-callout leading-snug font-semibold group-hover:text-brand">{c.name}</span>
-                  <span className="text-caption text-muted tabular-nums">{c.count.toLocaleString("he-IL")} מוצרים</span>
+                  <span className="text-caption text-muted tabular-nums">{countOf(c.count, PRODUCT)}</span>
                 </span>
               </Link>
             </li>
@@ -110,7 +111,7 @@ export function GroupBoxes({ categories }: { categories: GroupTile[] }) {
                 <span className="flex min-w-0 flex-col items-start gap-1.5">
                   <span className="text-body leading-snug font-semibold group-hover:text-brand">{g.name}</span>
                   <span className="count-pill rounded-full bg-brand-soft/70 px-2.5 py-0.5 text-caption font-semibold text-brand tabular-nums">
-                    {g.count.toLocaleString("he-IL")} מוצרים
+                    {countOf(g.count, PRODUCT)}
                   </span>
                 </span>
                 <ChevronDown

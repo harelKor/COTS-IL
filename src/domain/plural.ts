@@ -10,6 +10,8 @@ export const ORDER: Noun = { one: "הזמנה", many: "הזמנות", gender: "f
 export const UNIT: Noun = { one: "יחידה", many: "יחידות", gender: "f" };
 export const LINE: Noun = { one: "שורה", many: "שורות", gender: "f" };
 export const PRODUCT: Noun = { one: "מוצר", many: "מוצרים", gender: "m" };
+/** A family's options (sizes, colours): "148 אפשרויות". */
+export const OPTION: Noun = { one: "אפשרות", many: "אפשרויות", gender: "f" };
 
 const number = (n: number) => n.toLocaleString("he-IL");
 
