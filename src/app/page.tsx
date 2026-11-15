@@ -255,11 +255,11 @@ export default function HomePage() {
   return (
     <ViewTransition enter="page-enter" exit="page-exit" default="none">
       {/*
-        One continuous competition photograph: an Orbit ultramarine midnight canvas from under the
-        navbar to the footer, the Crescendo robot on the right at the top, the Reefscape one in the
-        left lane lower down, both mirrored to face in.
+        One continuous competition photograph: an Orbit ultramarine midnight canvas (a pearl and ice
+        sky in the light theme) from under the navbar to the footer, the Crescendo robot on the left
+        at the top, the Reefscape one in the right lane lower down, both as shot.
       */}
-      <div className="home-scene dark-island relative isolate flex flex-col gap-8">
+      <div className="home-scene relative isolate flex flex-col gap-8">
         <div aria-hidden className="scene-canvas pointer-events-none absolute -z-20" />
         <ScrollParallax />
         <OrganizationJsonLd />

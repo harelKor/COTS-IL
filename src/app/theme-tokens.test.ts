@@ -164,6 +164,8 @@ describe("the vendors' colours in the light theme (AA)", () => {
       ["a count pill (.count-pill)", wash(primary, 0.15, WHITE)],
       ["the flyout's lit row (.flyout-row)", wash(primary, 0.2, WHITE)],
       ["--subtle-hover (.vendor-theme)", wash(primary, 0.16, WHITE)],
+      ["a home vendor box's corner (.vendor-glass, LM3)", wash(primary, 0.13, WHITE)],
+      ["a home vendor box's count (.vendor-count, LM3)", wash(primary, 0.11, WHITE)],
     ];
     for (const [where, surface] of surfaces) expect(ratio(hex(ink), surface), `${name} ink on ${where}`).toBeGreaterThanOrEqual(4.5);
   });

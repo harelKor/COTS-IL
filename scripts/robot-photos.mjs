@@ -16,6 +16,12 @@
 // The hero has two looks: "-phone" (below 1024px, at most 1,500 px wide) and the desktop one,
 // which also darkens the right side behind the headline.
 //
+// The light theme (LM3, Nov 15, 2026) has its own copies, "-day" (public/robots/<name>[-phone]-day-<width>):
+// the same photo, crop and soft mask, a brighter grade, a lighter ultramarine soft-light and
+// the shade turned to an ice-white wash (soft white fades where the night ones are midnight), so
+// the photo melts into the pearl sky. `npm run robot-photos -- day` writes only those (`night`
+// only the night ones); home-scene.tsx shows one set or the other by the theme, in CSS.
+//
 // Set `mirror: true` on a photo to show it mirrored instead: a plain mirror would print "1690"
 // backwards, so it then also flips every lettered patch (the bumper numbers, the Reefscape robot's
 // sponsor plate) back along its own baseline, and writes public/robots/<name>-facing… files
@@ -54,6 +60,19 @@ const union = (layers) => (x, y) => layers.reduce((a, l) => {
 
 const NIGHT = [2 / 255, 4 / 255, 22 / 255]; // --orbit-night
 const BLUE = [0, 20 / 255, 190 / 255]; // --orbit-blue
+const ICE = [238 / 255, 242 / 255, 255 / 255]; // the day sky behind the photos (globals.css, .scene-canvas in light)
+
+/**
+ * The day version of a look: the same mask and shade shapes (so the same crop and soft edges), a
+ * brighter grade, the tint and the ultramarine soft-light lighter, and the shade an ice-white wash.
+ */
+const daylight = (look, { brightness, contrast, saturate, tint = 0.85, grade = 0.1 }) => ({
+  ...look,
+  filter: { brightness, contrast, saturate },
+  tint: look.tint && ((y) => tint * look.tint(y)),
+  shadeTo: ICE,
+  grade,
+});
 
 /**
  * The look, as the CSS had it (globals.css, "The home page as one competition photograph"):
@@ -64,8 +83,9 @@ const BLUE = [0, 20 / 255, 190 / 255]; // --orbit-blue
  * - mask: the frame's soft edges, as alpha.
  * The shade, tint and mask sit on the frame, which holds the photo scaled by `scale` about its
  * centre (the tall photo is drawn at 106%), so they're read at the frame point each pixel lands on.
+ * `daylight()` turns a look into its light-theme copy.
  */
-const LOOKS = {
+const NIGHT_LOOKS = {
   "orbit-1690-short": (desktop) => ({
     scale: 1,
     filter: { brightness: 0.8, contrast: 1.06, saturate: 1.05 },
@@ -110,6 +130,13 @@ const LOOKS = {
       return (x, y) => fade(y) * hfade(1 - x) * lobes(x, y);
     })(),
   }),
+};
+const LOOKS = {
+  night: NIGHT_LOOKS,
+  day: {
+    "orbit-1690-short": (desktop) => daylight(NIGHT_LOOKS["orbit-1690-short"](desktop), { brightness: 1.04, contrast: 1.02, saturate: 1.02 }),
+    "orbit-1690-tall": () => daylight(NIGHT_LOOKS["orbit-1690-tall"](), { brightness: 1.04, contrast: 1.03, saturate: 1 }),
+  },
 };
 
 const clamp = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -163,8 +190,10 @@ function bake(rgb, width, height, look) {
         }
       }
       const sh = look.shade(fx, fy);
-      if (sh > 0) c = c.map((v, k) => (1 - sh) * v + sh * NIGHT[k]);
-      c = c.map((v, k) => 0.78 * v + 0.22 * softLight(v, BLUE[k]));
+      const to = look.shadeTo ?? NIGHT;
+      if (sh > 0) c = c.map((v, k) => (1 - sh) * v + sh * to[k]);
+      const g = look.grade ?? 0.22;
+      c = c.map((v, k) => (1 - g) * v + g * softLight(v, BLUE[k]));
       out[o] = Math.round(c[0] * 255);
       out[o + 1] = Math.round(c[1] * 255);
       out[o + 2] = Math.round(c[2] * 255);
@@ -249,6 +278,11 @@ function unmirrorPatch(px, width, height, { c, slope, half, soft }) {
 }
 
 
+/** Which copies to write: `night`, `day` or (no argument) both. */
+const only = process.argv[2];
+const themes = only ? [only] : ["night", "day"];
+if (!themes.every((t) => t in LOOKS)) throw new Error(`Unknown look "${only}": night or day`);
+
 mkdirSync("public/robots", { recursive: true });
 for (const [name, { outputs, mirror, patches, master }] of Object.entries(PHOTOS)) {
   let source = sharp(master ?? `public/${name}.jpg`).rotate();
@@ -263,8 +297,9 @@ for (const [name, { outputs, mirror, patches, master }] of Object.entries(PHOTOS
   }
   const { width: full } = await source.metadata();
   const q = PHOTOS[name].quality ?? { avif: 55, webp: 78 };
-  for (const { suffix, widths, desktop } of outputs) {
-    const look = LOOKS[name](desktop);
+  for (const [theme, { suffix, widths, desktop }] of themes.flatMap((t) => outputs.map((o) => [t, o]))) {
+    const look = LOOKS[theme][name](desktop);
+    const tag = theme === "day" ? "-day" : "";
     for (const width of widths) {
       const { data, info } = await source
         .clone()
@@ -275,10 +310,10 @@ for (const [name, { outputs, mirror, patches, master }] of Object.entries(PHOTOS
       const img = sharp(bake(data, info.width, info.height, look), {
         raw: { width: info.width, height: info.height, channels: 4 },
       });
-      const file = `${out}${suffix}-${width}`;
+      const file = `${out}${suffix}${tag}-${width}`;
       await img.clone().avif({ quality: q.avif, effort: 6, chromaSubsampling: "4:4:4" }).toFile(`${file}.avif`);
       await img.clone().webp({ quality: q.webp, alphaQuality: 90, smartSubsample: true }).toFile(`${file}.webp`);
     }
-    console.log(`${out}${suffix}-{${widths.join(",")}}.{avif,webp}${mirror ? " (mirrored)" : ""}`);
+    console.log(`${out}${suffix}${tag}-{${widths.join(",")}}.{avif,webp}${mirror ? " (mirrored)" : ""}`);
   }
 }

@@ -128,7 +128,7 @@ Three sessions, one after another. They start **after the work running now** (PP
 |---|---|---|
 | LM1 Foundation and everyday pages | Done (Nov 15, 2026) | see "LM1 notes" |
 | LM2 Daylight vendor stores | Done (Nov 15, 2026) | see "LM2 notes" |
-| LM3 Home in daylight | Not started | |
+| LM3 Home in daylight | Done (Nov 15, 2026) | see "LM3 notes" |
 
 ### LM1 notes (for LM2 and LM3)
 
@@ -151,3 +151,12 @@ Three sessions, one after another. They start **after the work running now** (PP
 - **Tests:** `src/app/theme-tokens.test.ts` checks each vendor's ink on pearl, white and the store's washes at their strongest alphas, and AA text on its light fill. If you change a wash alpha in the store CSS, change it there too.
 - **Checked:** all seven stores, a search, the search dropdown and a group flyout in light at 375, 1280 and 1920; product pages with one and two vendors in light; dark compared pixel by pixel with screenshots from before (only the group cards' rotating part photos and the dev badge differ); e2e in both themes.
 - **Seen, not changed:** a React "unique key" warning in `FamilyPicker` (from `FamilyBody`) on product pages, in both themes.
+
+### LM3 notes
+
+- **Home:** `.dark-island` is gone from `src/app/page.tsx` (and from `globals.css`: nothing uses it now). The scene's plain rules stay the night look; a `@supports (color: light-dark(...))` block after `.vendor-logo-invert` in `globals.css` repeats their colour properties as `light-dark(day, night)` with the night halves unchanged. Dark compared pixel by pixel at 375, 1280 and 1920 with screenshots from before: identical.
+- **Photos:** `scripts/robot-photos.mjs` writes daylight copies, `public/robots/<name>[-phone]-day-<width>` (`npm run robot-photos -- day`; `night` for the night ones only): the same photo, crop and alpha mask, a brighter grade, the tint and ultramarine soft-light lighter, and the shade an ice-white wash (#EEF2FF) in place of midnight. `ScenePhoto` renders a night and a day `<picture>`, hidden by `.only-dark`/`.only-light`; both are lazy, so the hidden one is never fetched, and the hero's copy for the device's scheme is preloaded (`preload()` with `media`, desktop and phone). A saved choice that differs from the device gets its photo from the lazy image a moment later (checked: the right copy shows in both mismatches).
+- **Scene by day:** sky #EAF0FF to pearl with faint ultramarine glows; splashes at about 40% of their night alpha; the headline in #0B1528 with a pearl halo and "בהזמנה אחת" from #000C8A to #2B4CFF; sub-line and telemetry #3A4A6B; the telemetry line on white glass (`.scene-telemetry::after`, which hugs the line by day and is transparent by night; its hairline gives way to it); vendor boxes as white glass at 80% tinted 13% in the vendor's colour, counts and "לחנות" in `--v-ink`, colour logos (`VendorMark` lost its `tone` prop: always both logos, one hidden by the theme).
+- **Tests:** `theme-tokens.test.ts` also checks each vendor's ink on the home box's corner wash (13%) and count pill (11%).
+- **Checked:** light at 375, 1280 and 1920 (whole page, no dark patches, no white-on-white); dark identical; e2e in both themes; lint, typecheck, tests, design-lint.
+

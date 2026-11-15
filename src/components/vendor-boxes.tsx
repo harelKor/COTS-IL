@@ -51,9 +51,10 @@ function PhotoRow({ images, seed }: { images: string[]; seed: string }) {
 
 /**
  * The way into the site: one box per vendor in the `suppliers` table (a vendor added in the admin
- * appears by itself), with its logo in white ink straight on glass tinted in its own colour, its biggest categories, how many products and
- * a row of its most wanted parts on soft pearl tiles, in dark glass over the home photos. The whole box
- * is one link to its store.
+ * appears by itself), with its logo straight on glass tinted in its own colour (white ink on dark glass
+ * by night, its own colours on frosted white glass by day), its biggest categories, how many products
+ * and a row of its most wanted parts on soft pearl tiles, over the home photos. The whole box is one
+ * link to its store.
  * - "row": the first row, up to 3 across from 1024px, under the hero robot.
  * - "bento": the rest, two to a row from 640px (beside the Reefscape robot on a desktop).
  * A lone last box spans both columns of a 2-column row (spansBoth), so no row has a gap.
@@ -76,9 +77,9 @@ export function VendorBoxes({ vendors, layout, eager = 0 }: { vendors: VendorSum
             >
               <span className="flex items-start justify-between gap-3">
                 <span className="flex min-w-0 flex-col items-start gap-2.5">
-                  {/* The heading is the vendor's logo (alt = its name), white ink straight on the glass, or its name when it has none. */}
+                  {/* The heading is the vendor's logo (its name for screen readers) straight on the glass, or its name when it has none. */}
                   <h3 className="flex min-h-14 items-center">
-                    <VendorMark name={v.name} logoUrl={v.logoUrl} size="card" tone="dark" eager={i < eager} />
+                    <VendorMark name={v.name} logoUrl={v.logoUrl} size="card" eager={i < eager} />
                   </h3>
                   {blurb && <span className="line-clamp-2 text-caption leading-snug text-muted">{blurb}</span>}
                 </span>
