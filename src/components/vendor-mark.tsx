@@ -13,6 +13,8 @@ const LOGO_SIZE = {
   card: "h-12 max-w-[min(100%,230px)] sm:h-14",
   // A vendor store's flagship header (/v/<code>), the page's centrepiece.
   hero: "h-12 max-w-[min(100%,320px)] sm:h-16",
+  // Above a product's name on its page (family-view.tsx), in place of "נמכר אצל".
+  product: "h-10 max-w-[min(100%,200px)] sm:h-12",
   // The header's "ספקים" menu (site-header.tsx).
   menu: "h-7 max-w-[min(100%,140px)]",
 };

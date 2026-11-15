@@ -24,6 +24,7 @@ import { publishChoice } from "./spec-table";
 import { canEditCart, useCart } from "./cart-store";
 import { vendorHref } from "@/domain/vendors";
 import { Ltr } from "./ltr";
+import { VendorMark } from "./vendor-mark";
 import { OptionCombobox } from "./option-combobox";
 import { QtyStepper } from "./qty-stepper";
 import { showToast } from "./toast";
@@ -58,6 +59,8 @@ type Props = {
   tableRows?: number;
   /** This part's own CAD and guide, for the short row of links under the price note. */
   docs?: { cad: string | null; guide: string | null };
+  /** Each vendor's logo by supplier code (`suppliers.logo_url`), shown large above the name. */
+  logos?: Record<string, string | null>;
 };
 
 type InnerProps = Props & { initialChoices: Record<string, string>; initialSupplier: string | null };
@@ -103,7 +106,7 @@ const previewText = (p: Preview | null) => (p ? (p.exact ? formatIls(p.price) : 
  * the variant in the link (`?v=`, settled by `?vendor=` when two vendors share a SKU), or the
  * choice so far (`?width=15mm`), is chosen in the browser, so one cached page serves them all.
  */
-export function FamilyView({ family, variants, rateDate, tableRows, docs }: Props) {
+export function FamilyView({ family, variants, rateDate, tableRows, docs, logos }: Props) {
   const { v: wanted, vendor, query } = useSyncExternalStore(noSubscribe, linkedOffer, noLinkedOffer);
   const match = findLinked(variants, wanted, vendor);
   const fromVendor = vendor ? variants.filter((x) => x.supplierCode === vendor) : [];
@@ -118,6 +121,7 @@ export function FamilyView({ family, variants, rateDate, tableRows, docs }: Prop
       rateDate={rateDate}
       tableRows={tableRows}
       docs={docs}
+      logos={logos}
       initialChoices={initial ? initial.options : choicesFrom(new URLSearchParams(fromQuery), family.optionKeys)}
       initialSupplier={initial ? initial.supplierName : initialSupplier}
     />
@@ -131,7 +135,7 @@ type Clash = { key: string; value: string; items: { title: string; label: string
  * several sell the part) update the photo, price, SKU and URL at once; "Add"
  * puts the chosen variant in the cart without leaving the page.
  */
-function FamilyPicker({ family, variants, rateDate, tableRows, docs, initialChoices, initialSupplier }: InnerProps) {
+function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {}, initialChoices, initialSupplier }: InnerProps) {
   const { mode, lines } = useCart();
   const { leadTimes } = useSiteFacts();
   const now = useNow();
@@ -400,33 +404,32 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, initialChoi
     // options; from md the photos take the first column (sticky under the header) beside both.
     <div className="grid gap-5 md:grid-cols-2 md:grid-rows-[auto_1fr] md:gap-x-8">
       <div className="min-w-0 md:col-start-2 md:row-start-1">
-        <p className="text-caption text-muted">
-          נמכר אצל{" "}
-          {vendors.map(([code, name], i) => (
-            <span key={code}>
-              {i > 0 && ", "}
-              <Link href={vendorHref(code)} className="inline-flex min-h-11 items-center font-semibold text-brand hover:underline">
-                <Ltr>{name}</Ltr>
+        {/* The vendor's own logo, large, where "נמכר אצל" was: a link to its store. */}
+        <ul aria-label="נמכר אצל" className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          {vendors.map(([code, name]) => (
+            <li key={code}>
+              <Link href={vendorHref(code)} aria-label={`החנות של ${name}`} className="flex min-h-11 items-center rounded-xl transition-opacity duration-200 hover:opacity-80">
+                <VendorMark name={name} logoUrl={logos[code] ?? null} size="product" tone="dark" eager />
               </Link>
-            </span>
+            </li>
           ))}
-          {chosen?.sku && (
-            <>
-              , מק״ט <Ltr className="font-mono text-foreground">{chosen.sku}</Ltr>
-              <button
-                type="button"
-                onClick={() => navigator.clipboard?.writeText(chosen.sku!).then(() => showToast("המק״ט הועתק"))}
-                aria-label={`העתקת המק״ט ${chosen.sku}`}
-                className="-my-2 ms-0.5 inline-flex size-11 items-center justify-center rounded-full align-middle text-muted hover:bg-subtle hover:text-foreground"
-              >
-                <Copy size={14} strokeWidth={1.75} aria-hidden />
-              </button>
-            </>
-          )}
-        </p>
-        <h1 dir="ltr" className="text-start text-title font-semibold text-balance">
-          {family.title}
+        </ul>
+        <h1 className="mt-3 text-title font-semibold text-balance">
+          <Ltr>{family.title}</Ltr>
         </h1>
+        {chosen?.sku && (
+          <p className="mt-1 flex items-center text-caption text-muted">
+            מק״ט <Ltr className="ms-1.5 font-mono text-foreground">{chosen.sku}</Ltr>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard?.writeText(chosen.sku!).then(() => showToast("המק״ט הועתק"))}
+              aria-label={`העתקת המק״ט ${chosen.sku}`}
+              className="-my-2 ms-0.5 inline-flex size-11 items-center justify-center rounded-full text-muted hover:bg-subtle hover:text-foreground"
+            >
+              <Copy size={14} strokeWidth={1.75} aria-hidden />
+            </button>
+          </p>
+        )}
       </div>
 
       <div className="flex min-w-0 flex-col gap-2 md:sticky md:top-[68px] md:col-start-1 md:row-span-2 md:row-start-1 md:self-start">

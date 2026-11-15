@@ -17,7 +17,7 @@ import { specRows } from "@/domain/families/spec-rows";
 import { documentLinks, quickDocs, sortDocs } from "@/domain/doc-links";
 import { SpecTable } from "@/components/spec-table";
 import { formatIls, priceIls, type PriceContext } from "@/domain/pricing";
-import { getCompanions, getFamily, getVendorPopular, getVendors, type FamilyVariant } from "@/lib/catalog";
+import { getCompanions, getFacets, getFamily, getVendorPopular, getVendors, type FamilyVariant } from "@/lib/catalog";
 import { priceContext } from "@/lib/settings";
 import { getStaleSupplierCodes } from "@/lib/health";
 import { catalogHref } from "@/lib/catalog-filters";
@@ -190,7 +190,7 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
   const result = await getFamily(slug);
   if (!result) notFound();
   // The photos once each, a large one first when the first is small (read from their headers, cached).
-  const [rate, stale, photos] = await Promise.all([priceContext(), getStaleSupplierCodes(), galleryPhotos(result.family.images)]);
+  const [rate, stale, photos, { suppliers: supplierRows }] = await Promise.all([priceContext(), getStaleSupplierCodes(), galleryPhotos(result.family.images), getFacets()]);
   const { rateDate } = rate;
 
   const { family } = result;
@@ -266,6 +266,7 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
         rateDate={rateDate}
         tableRows={showTable && result.variants.length > 12 ? result.variants.length : undefined}
         docs={{ cad: quick.cad?.href ?? null, guide: quick.guide?.href ?? null }}
+        logos={Object.fromEntries(supplierRows.map((s) => [s.code, s.logoUrl]))}
       />
 
       <div className="grid gap-6 md:grid-cols-2">
