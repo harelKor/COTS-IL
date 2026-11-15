@@ -2469,11 +2469,9 @@ dialog.sheet-full {
 }
 
 /* The spec table: a band in the vendors' colours on top, hairline rows on the page, a faint wash under the band. */
-.pdp-spec {
-  border-top: 2px solid transparent;
-  border-image: linear-gradient(to left, rgb(var(--pa-rgb)), rgb(var(--pb-rgb))) 1;
-  background: linear-gradient(to bottom, rgb(var(--pa-rgb) / 0.08), transparent 140px);
-  padding-inline: 4px;
+/* Banded rows in the vendor's tint, no rule under the heading (its hairline is enough). */
+.pdp-spec > div:nth-child(odd) {
+  background: rgb(var(--pa-rgb) / 0.08);
 }
 
 /* Document tiles: real targets, so tiles; each in its vendor's colour. */
