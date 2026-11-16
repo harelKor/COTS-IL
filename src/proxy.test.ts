@@ -14,7 +14,7 @@ describe("proxy matcher", () => {
   it("skips static files, metadata routes and the public catalog APIs", () => {
     for (const url of [
       "/_next/static/chunks/a.js",
-      "/orbit-1690-tall.avif",
+      "/robots/home-reef-lane-1000.avif",
       "/vendors/andymark.svg",
       "/icon-192.png",
       "/favicon.ico",

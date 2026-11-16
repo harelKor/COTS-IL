@@ -1,20 +1,26 @@
-// Prepares the two 1690 Orbit competition photos behind the home page (src/components/home-scene.tsx).
+// Prepares the two competition photos behind the home page (src/components/home-scene.tsx).
 //
 //   npm run robot-photos
 //
-// The originals sit in public/ as orbit-1690-tall.jpg (2025 Reefscape, the tall elevator robot,
-// 4:3) and orbit-1690-short.jpg (2024 Crescendo, red bumpers, 3:2). They're used whole: no
-// cutout, no blur. Since Nov 14, 2026 the page shows both the way they were shot (the Crescendo
-// robot on the left, the Reefscape one on the right, each facing in), so this writes smaller AVIF
-// and WebP copies (public/robots/<name>[-phone]-<width>.{avif,webp}).
+// The home page shows the competition itself, field elements and several teams' robots, not one
+// team (owner's decision, Nov 16, 2026; the photos are the owner's to use). The originals sit in
+// public/ and are used whole, as shot: no cutout, no blur, never mirrored.
+// - home-field-wide.jpg (3:2, 2,000 px): the hero. Israeli District Championship 2025 (Reefscape):
+//   robots 1937, 2230 and 2630 hanging from the barge chains, the reef behind them, empty blue stands
+//   and a light truss on the right.
+// - home-reef-lane.jpg (4:3, 2,000 px): the lane beside the vendor cards on a desktop. FIRST
+//   Championship 2025 (Reefscape): the reef, its purple coral branches holding white coral and teal
+//   algae, the stands behind, and robot 1690 right of it (x 49-75%). The page shows the photo's left
+//   two thirds (globals.css), so the reef is the subject and the robot stands at the edge, partly cut off.
+// This writes smaller AVIF and WebP copies (public/robots/<name>[-phone]-<width>.{avif,webp}).
 //
 // The night look is baked into those copies (Nov 14, 2026, for speed): the colour grade, the
 // ultramarine tint and soft-light, the midnight shade and the soft mask that melts the edges into
 // the canvas, as an alpha channel. The browser then draws a plain picture, with no CSS masks,
 // filters or blend modes to recompute while the page scrolls. `look()` below is the exact maths of
 // the CSS it replaced (sRGB, the W3C blend formulas); change the look here and run this again.
-// The hero has two looks: "-phone" (below 1024px, at most 1,500 px wide) and the desktop one,
-// which also darkens the right side behind the headline.
+// The hero has two looks: "-phone" (below 1024px) and the desktop one, which also darkens the
+// right side (the truss) behind the headline.
 //
 // The light theme (LM3, Nov 15, 2026) has its own copies, "-day" (public/robots/<name>[-phone]-day-<width>):
 // the same photo, crop and soft mask, a brighter grade, a lighter ultramarine soft-light and
@@ -22,16 +28,10 @@
 // the photo melts into the pearl sky. `npm run robot-photos -- day` writes only those (`night`
 // only the night ones); home-scene.tsx shows one set or the other by the theme, in CSS.
 //
-// Set `mirror: true` on a photo to show it mirrored instead: a plain mirror would print "1690"
-// backwards, so it then also flips every lettered patch (the bumper numbers, the Reefscape robot's
-// sponsor plate) back along its own baseline, and writes public/robots/<name>-facing… files
-// (home-scene.tsx would need those names).
-// Drop a sharper original in under the same name, adjust the patches to it, and run it again.
-//
-// The Crescendo photo's original is only 1,497 px wide but the hero shows it up to ~2,600 px, so
-// its copies come from public/orbit-1690-short-hd.jpg (3,000 px): the original enlarged 4x with
-// Real-ESRGAN x4plus (Qualcomm AI Hub's ONNX release, run locally in 128 px tiles with blended
-// overlaps), then brought down to 3,000 px. Nothing in the picture was added, moved or removed.
+// The desktop hero is drawn at most ~1,750 px wide (68vw, capped by the window's height), so the
+// 2,000 px originals are sharp enough as they are. If a photo is ever shown larger than its
+// original, an earlier version of this script (git log, "Real-ESRGAN") enlarged one 4x with
+// Real-ESRGAN x4plus (Qualcomm AI Hub's ONNX release, run locally in 128 px tiles) into a master.
 import sharp from "sharp";
 import { mkdirSync } from "node:fs";
 
@@ -84,60 +84,73 @@ const daylight = (look, { brightness, contrast, saturate, tint = 0.85, grade = 0
  * - grade: --orbit-blue in `soft-light` at 22%;
  * - mask: the frame's soft edges, as alpha.
  * The shade, tint and mask sit on the frame, which holds the photo scaled by `scale` about its
- * centre (the tall photo is drawn at 106%), so they're read at the frame point each pixel lands on.
+ * centre (the lane photo is drawn at 106%), so they're read at the frame point each pixel lands on.
  * `daylight()` turns a look into its light-theme copy.
  */
 const NIGHT_LOOKS = {
-  "orbit-1690-short": (desktop) => ({
+  "home-field-wide": (desktop) => ({
     scale: 1,
-    filter: { brightness: 0.8, contrast: 1.06, saturate: 1.05 },
-    tint: ramp([[0, 0.75], [0.56, 0.55], [0.64, 0]]),
+    filter: { brightness: 0.82, contrast: 1.06, saturate: 1.04 },
+    // The blue stands above the field, toward the canvas's ultramarine.
+    tint: ramp([[0, 0.6], [0.14, 0.4], [0.24, 0]]),
     shade: (x, y) => {
-      const down = ramp([[0, 1], [0.42, 0.78], [0.58, 0.3], [0.66, 0]])(y);
+      // Midnight over the stands at the top and the empty carpet below the bumpers.
+      const top = ramp([[0, 0.75], [0.1, 0.45], [0.2, 0.1], [0.3, 0]])(y);
+      const floor = ramp([[0.62, 0], [0.74, 0.35], [0.9, 0.7]])(y);
+      const down = 1 - (1 - top) * (1 - floor);
       if (!desktop) return down;
-      const side = ramp([[0, 0.7], [0.3, 0.3], [0.44, 0]])(1 - x);
+      // The truss on the right, under the headline.
+      const side = ramp([[0, 0.75], [0.14, 0.45], [0.3, 0]])(1 - x);
       return 1 - (1 - down) * (1 - side);
     },
     mask: (() => {
-      const fade = ramp([[0.3, 0], [0.54, 1], [0.86, 1], [0.99, 0]]);
+      const fadeY = ramp([[0.02, 0], [0.14, 1], [0.66, 1], [0.86, 0]]);
+      const fadeX = ramp([[0, 0], [0.06, 1], [0.86, 1], [1, 0]]);
       const lobes = union([
-        ellipse(0.24, 0.28, 0.45, 0.74, [[0.42, 1], [0.7, 0.55], [1, 0]]),
-        ellipse(0.15, 0.13, 0.36, 0.54, [[0, 0.55], [1, 0]]),
-        ellipse(0.24, 0.08, 0.62, 0.87, [[0, 0.6], [1, 0]]),
-        ellipse(0.26, 0.2, 0.62, 0.7, [[0, 0.22], [1, 0]]),
-        ellipse(0.1, 0.2, 0.28, 0.76, [[0, 0.65], [1, 0]]),
+        // The three robots and the reef.
+        ellipse(0.5, 0.36, 0.48, 0.4, [[0.62, 1], [1, 0]]),
+        ellipse(0.22, 0.28, 0.2, 0.48, [[0.45, 1], [1, 0]]),
+        ellipse(0.22, 0.18, 0.76, 0.42, [[0.4, 1], [1, 0]]),
+        // Their shadows on the carpet, and the truss.
+        ellipse(0.3, 0.1, 0.4, 0.66, [[0, 0.7], [1, 0]]),
+        ellipse(0.16, 0.14, 0.86, 0.3, [[0, 0.5], [1, 0]]),
       ]);
-      return (x, y) => fade(y) * lobes(x, y);
+      return (x, y) => fadeY(y) * fadeX(x) * lobes(x, y);
     })(),
   }),
-  "orbit-1690-tall": () => ({
+  "home-reef-lane": () => ({
     scale: 1.06,
     filter: { brightness: 0.92, contrast: 1.05, saturate: 1 },
     tint: null,
     shade: (() => {
-      const ring = ellipse(0.16, 0.34, 0.63, 0.52, [[0.66, 0], [1, 0.45]]);
-      const band = ramp([[0.08, 0], [0.18, 1], [0.46, 1], [0.6, 0]]);
-      return (x, y) => ring(x, y) * band(y);
+      // The stands behind the reef, darker toward the top; the reef itself stays bright.
+      const stands = ramp([[0, 0.9], [0.3, 0.55], [0.5, 0.35], [0.75, 0.15], [0.84, 0]]);
+      const reef = ellipse(0.26, 0.4, 0.27, 0.62, [[0.5, 1], [1, 0]]);
+      return (x, y) => stands(y) * (1 - reef(x, y));
     })(),
     mask: (() => {
-      const fade = ramp([[0.25, 0], [0.33, 1], [0.98, 1], [1, 0]]);
-      const hfade = ramp([[0.17, 0.2], [0.27, 1]]);
+      const fadeY = ramp([[0.18, 0], [0.32, 1], [0.97, 1], [1, 0]]);
+      // Under the vendor cards on the left.
+      const fadeX = ramp([[0, 0.2], [0.07, 1]]);
       const lobes = union([
-        ellipse(0.2, 0.44, 0.62, 0.64, [[0.66, 1], [1, 0]]),
-        ellipse(0.26, 0.26, 0.36, 0.56, [[0.25, 0.85], [1, 0]]),
-        ellipse(0.3, 0.14, 0.58, 0.28, [[0, 0.4], [1, 0]]),
-        ellipse(0.34, 0.08, 0.5, 0.88, [[0, 0.6], [1, 0]]),
-        ellipse(0.12, 0.16, 0.14, 0.4, [[0, 0.3], [1, 0]]),
+        // The reef.
+        ellipse(0.32, 0.46, 0.27, 0.66, [[0.6, 1], [1, 0]]),
+        // The field behind it, toward the window's edge, and the reef's base.
+        ellipse(0.2, 0.3, 0.45, 0.6, [[0.3, 0.8], [1, 0]]),
+        ellipse(0.3, 0.1, 0.3, 0.92, [[0, 0.8], [1, 0]]),
+        // The robot's elevator and bumper, at the window's edge.
+        ellipse(0.12, 0.32, 0.62, 0.64, [[0.3, 0.9], [1, 0]]),
+        ellipse(0.18, 0.08, 0.58, 0.91, [[0.3, 0.9], [1, 0]]),
       ]);
-      return (x, y) => fade(y) * hfade(1 - x) * lobes(x, y);
+      return (x, y) => fadeY(y) * fadeX(x) * lobes(x, y);
     })(),
   }),
 };
 const LOOKS = {
   night: NIGHT_LOOKS,
   day: {
-    "orbit-1690-short": (desktop) => daylight(NIGHT_LOOKS["orbit-1690-short"](desktop), { brightness: 1.04, contrast: 1.02, saturate: 1.02 }),
-    "orbit-1690-tall": () => daylight(NIGHT_LOOKS["orbit-1690-tall"](), { brightness: 0.97, contrast: 1.04, saturate: 1.02, grade: 0.16, shade: 0.3 }),
+    "home-field-wide": (desktop) => daylight(NIGHT_LOOKS["home-field-wide"](desktop), { brightness: 1.04, contrast: 1.02, saturate: 1.02 }),
+    "home-reef-lane": () => daylight(NIGHT_LOOKS["home-reef-lane"](), { brightness: 0.97, contrast: 1.04, saturate: 1.02, grade: 0.16, shade: 0.3 }),
   },
 };
 
@@ -205,80 +218,19 @@ function bake(rgb, width, height, look) {
   return out;
 }
 
-/**
- * Lettered patches, in the ORIGINAL photo's pixels: the centre, the slope of the text's baseline
- * (letters stay upright in the photo, so a receding side keeps its slope), how far the text reaches
- * left and right and up and down from the centre, and a soft edge, all in pixels.
- * `outputs`: each set of copies, its file-name suffix, its widths and whether it takes the desktop look.
- */
+/** Each set of copies: its file-name suffix, its widths and whether it takes the desktop look. */
 const PHOTOS = {
-  "orbit-1690-tall": {
-    // Shown from 1024px only.
-    outputs: [{ suffix: "", widths: [960, 1600, 2000], desktop: true }],
-    mirror: false,
-    patches: [
-      // The sponsor plate and the front bumper's "1690".
-      { c: [1274, 1361], slope: 0, half: [182, 78], soft: 12 },
-      // "1690" on the bumper's left side, receding.
-      { c: [1022, 1382], slope: 0.6, half: [17, 23], soft: 2.5 },
-    ],
-  },
-  "orbit-1690-short": {
-    // From the AI-enlarged master (see the top of this file), at a higher encode quality.
-    master: "public/orbit-1690-short-hd.jpg",
+  "home-field-wide": {
     outputs: [
-      // Phones and tablets: never more than 1,500 px, so a phone never fetches the 3,000 px copy.
-      { suffix: "-phone", widths: [800, 1500], desktop: false },
-      { suffix: "", widths: [1500, 2200, 3000], desktop: true },
+      // Phones and tablets: never more than 1,400 px.
+      { suffix: "-phone", widths: [800, 1400], desktop: false },
+      { suffix: "", widths: [1000, 1500, 2000], desktop: true },
     ],
-    quality: { avif: 68, webp: 88 },
-    mirror: false,
-    // Patches are in the original's pixels (1,497 px wide); double them to mirror the 3,000 px master.
-    patches: [
-      // "1690" across the front bumper.
-      { c: [729, 826], slope: 0, half: [68, 22], soft: 6 },
-      // "1690" on the side bumper, receding.
-      { c: [550, 784], slope: 0.82, half: [21, 19.5], soft: 2.5 },
-    ],
+    quality: { avif: 62, webp: 84 },
   },
+  // Shown from 1024px only.
+  "home-reef-lane": { outputs: [{ suffix: "", widths: [1000, 1500, 2000], desktop: true }] },
 };
-
-const smooth = (edge, soft, x) => Math.min(1, Math.max(0, (edge - x) / soft + 0.5));
-
-/**
- * Flips one patch of the mirrored image back along its own baseline: each point takes the colour
- * of the point as far the other way along the baseline, at the same height above it.
- */
-function unmirrorPatch(px, width, height, { c, slope, half, soft }) {
-  const cx = width - 1 - c[0];
-  const cy = c[1];
-  const m = -slope; // the baseline's slope, mirrored
-  const src = Buffer.from(px);
-  const reachX = half[0] + soft;
-  const reachY = half[1] + Math.abs(m) * half[0] + soft;
-  for (let y = Math.max(0, Math.floor(cy - reachY)); y <= Math.min(height - 1, Math.ceil(cy + reachY)); y++) {
-    for (let x = Math.max(0, Math.floor(cx - reachX)); x <= Math.min(width - 1, Math.ceil(cx + reachX)); x++) {
-      const dx = x - cx;
-      const up = y - cy - m * dx; // height above the baseline through the centre
-      const a = smooth(half[0], soft, Math.abs(dx)) * smooth(half[1], soft, Math.abs(up));
-      if (a <= 0) continue;
-      const sx = cx - dx;
-      const sy = y - 2 * m * dx;
-      const x0 = Math.min(width - 2, Math.max(0, Math.floor(sx)));
-      const y0 = Math.min(height - 2, Math.max(0, Math.floor(sy)));
-      const fx = sx - x0;
-      const fy = sy - y0;
-      const o = (y * width + x) * 3;
-      for (let k = 0; k < 3; k++) {
-        const at = (xx, yy) => src[(yy * width + xx) * 3 + k];
-        const v =
-          at(x0, y0) * (1 - fx) * (1 - fy) + at(x0 + 1, y0) * fx * (1 - fy) + at(x0, y0 + 1) * (1 - fx) * fy + at(x0 + 1, y0 + 1) * fx * fy;
-        px[o + k] = Math.round(src[o + k] * (1 - a) + v * a);
-      }
-    }
-  }
-}
-
 
 /** Which copies to write: `night`, `day` or (no argument) both. */
 const only = process.argv[2];
@@ -286,19 +238,11 @@ const themes = only ? [only] : ["night", "day"];
 if (!themes.every((t) => t in LOOKS)) throw new Error(`Unknown look "${only}": night or day`);
 
 mkdirSync("public/robots", { recursive: true });
-for (const [name, { outputs, mirror, patches, master }] of Object.entries(PHOTOS)) {
-  let source = sharp(master ?? `public/${name}.jpg`).rotate();
-  let out = `public/robots/${name}`;
-  if (mirror) {
-    const { data, info } = await source.flop().removeAlpha().raw().toBuffer({ resolveWithObject: true });
-    for (const p of patches) unmirrorPatch(data, info.width, info.height, p);
-    const raw = { raw: { width: info.width, height: info.height, channels: 3 } };
-    out += "-facing";
-    await sharp(data, raw).jpeg({ quality: 86, mozjpeg: true }).toFile(`${out}.jpg`);
-    source = sharp(data, raw);
-  }
+for (const [name, { outputs, quality }] of Object.entries(PHOTOS)) {
+  const source = sharp(`public/${name}.jpg`).rotate();
+  const out = `public/robots/${name}`;
   const { width: full } = await source.metadata();
-  const q = PHOTOS[name].quality ?? { avif: 55, webp: 78 };
+  const q = quality ?? { avif: 55, webp: 78 };
   for (const [theme, { suffix, widths, desktop }] of themes.flatMap((t) => outputs.map((o) => [t, o]))) {
     const look = LOOKS[theme][name](desktop);
     const tag = theme === "day" ? "-day" : "";
@@ -316,6 +260,6 @@ for (const [name, { outputs, mirror, patches, master }] of Object.entries(PHOTOS
       await img.clone().avif({ quality: q.avif, effort: 6, chromaSubsampling: "4:4:4" }).toFile(`${file}.avif`);
       await img.clone().webp({ quality: q.webp, alphaQuality: 90, smartSubsample: true }).toFile(`${file}.webp`);
     }
-    console.log(`${out}${suffix}${tag}-{${widths.join(",")}}.{avif,webp}${mirror ? " (mirrored)" : ""}`);
+    console.log(`${out}${suffix}${tag}-{${widths.join(",")}}.{avif,webp}`);
   }
 }

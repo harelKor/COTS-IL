@@ -1,16 +1,18 @@
 import { preload } from "react-dom";
 
 /**
- * Team 1690 Orbit's two competition photos behind the home page, whole and sharp: no cutout, no
- * blur and no mirroring, so "1690", "FIRST" and the sponsor names read naturally. globals.css
- * ("The home page as one competition photograph") places them, laid out the way Hebrew reads
- * (headline on the right); their night look and soft edges are baked into the files
- * (`npm run robot-photos`), so the browser only draws a picture:
- * - "short" (2024 Crescendo, 3:2): the hero, large on the physical left with its shooter aiming
- *   in toward the headline; the CRESCENDO sign is off screen. Phones and tablets get their own
- *   copies, at most 1,500 px wide (a phone never fetches the 3,000 px one).
- * - "tall" (2025 Reefscape, 4:3): in the open physical-right lane beside the lower vendor cards on
- *   a desktop (the field cage off screen); not shown below 1024px.
+ * Two competition photos behind the home page, whole and sharp: the competition itself, field
+ * elements and several teams' robots (no cutout, no blur and never mirrored, so the team numbers
+ * read naturally). globals.css ("The home page as one competition photograph") places them, laid
+ * out the way Hebrew reads (headline on the right); their night look and soft edges are baked into
+ * the files (`npm run robot-photos`), so the browser only draws a picture:
+ * - "short" (3:2, `home-field-wide`): the hero. Israeli District Championship 2025 (Reefscape),
+ *   robots 1937, 2230 and 2630 hanging from the barge chains with the reef behind them, on the
+ *   physical left; the truss on the photo's right fades out under the headline. Phones and tablets
+ *   get their own copies, at most 1,400 px wide.
+ * - "tall" (4:3, `home-reef-lane`): in the open physical-right lane beside the lower vendor cards
+ *   on a desktop, the 2025 Reefscape reef with its coral and algae filling it; the robot beside it
+ *   stands at the window's edge, partly cut off. Not shown below 1024px.
  * Each has a daylight copy ("-day") for the light theme, the same photo with white fades (LM3).
  * Decorative, hidden from assistive tech, and absolutely placed, so nothing shifts as they load.
  * On a desktop they move a little as the page scrolls (globals.css, ScrollParallax).
@@ -19,17 +21,17 @@ type Source = { name: string; widths: readonly number[]; sizes: string; media?: 
 const PHOTOS: Record<"short" | "tall", { sources: Source[]; width: number; height: number }> = {
   short: {
     sources: [
-      { name: "orbit-1690-short", widths: [1500, 2200, 3000], sizes: "132vw", media: "(min-width: 1024px)" },
-      { name: "orbit-1690-short-phone", widths: [800, 1500], sizes: "(min-width: 640px) 150vw, 250vw" },
+      { name: "home-field-wide", widths: [1000, 1500, 2000], sizes: "68vw", media: "(min-width: 1024px)" },
+      { name: "home-field-wide-phone", widths: [800, 1400], sizes: "(min-width: 640px) 110vw, 170vw" },
     ],
-    // The <img> fallback (the phone copy at 1,500 px).
-    width: 1500,
-    height: 1000,
+    // The <img> fallback (the phone copy at 1,400 px).
+    width: 1400,
+    height: 934,
   },
   tall: {
-    sources: [{ name: "orbit-1690-tall", widths: [960, 1600, 2000], sizes: "100vw" }],
-    width: 1600,
-    height: 1202,
+    sources: [{ name: "home-reef-lane", widths: [1000, 1500, 2000], sizes: "72vw" }],
+    width: 1500,
+    height: 1127,
   },
 };
 

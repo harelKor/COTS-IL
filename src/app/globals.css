@@ -1283,8 +1283,8 @@ dialog.sheet-side.sheet-wide {
 /*
  * Team 1690 Orbit's palette, anchored on the team's own ultramarine (#0014BE): an ultramarine-tinted
  * midnight base, ultramarine fills and glows, and a pure ultramarine light ramp for text and borders
- * on dark glass (never cyan or teal). The splash colours come from the photos: Crescendo bumper
- * crimson, Reefscape violet and a deep indigo.
+ * on dark glass (never cyan or teal). The splash colours come from the photos: the bumpers' blue,
+ * the reef's violet and a deep indigo.
  */
 :root {
   --orbit-night: #020416;
@@ -1403,34 +1403,36 @@ html::-webkit-scrollbar {
 
 /*
  * The hero: short, so "מאיזה ספק קונים?" and the first vendor row start about half way down the
- * window. The Hebrew headline on the physical right; the Crescendo robot (3:2, as shot) large on
- * the physical left with its bumpers just above the first row, the shooter aiming up and in toward
- * the headline. The CRESCENDO sign (the photo's left 22%) runs off the window's left edge.
+ * window. The Hebrew headline on the physical right; the field photo (3:2, as shot) on the physical
+ * left: robots 1937, 2230 and 2630 hanging from the barge (photo x 7-88%, y 12-63%) with the reef
+ * behind them, their bumpers just above the first row. The light truss (x 89-100%) fades out under
+ * the headline's darker side.
  */
 .scene-hero {
-  --photo-w: 250vw;
+  --photo-w: 170vw;
   --photo-h: calc(var(--photo-w) * 0.6667);
-  /* The photo's x 28% on the window's left edge. */
-  --photo-x: calc(-0.28 * var(--photo-w));
-  /* Phones: the robot (y 62-85%) at the top of the hero, behind the motto. */
-  --photo-top: calc(-0.615 * var(--photo-h));
+  /* Phones: 1937, 2230 and the reef across the window (photo x 5-64%); 2630 runs off the right. */
+  --photo-x: calc(-0.05 * var(--photo-w));
+  /* The robots (y 12-63%) at the top of the hero, behind the motto. */
+  --photo-top: calc(-0.1 * var(--photo-h));
   min-height: calc(52svh - 176px);
   justify-content: center;
 }
 @media (min-width: 640px) {
   .scene-hero {
-    --photo-w: 150vw;
-    --photo-x: calc(-0.26 * var(--photo-w));
-    /* The bumpers' bottom (y 85%) about 34px above the vendors heading's hairline (32px gap + 32px margin + half the heading). */
-    --photo-top: calc(100% + 46px - 0.85 * var(--photo-h));
+    --photo-w: 110vw;
+    --photo-x: calc(-0.04 * var(--photo-w));
+    /* The bumpers' bottom (y 63%) about 34px above the vendors heading's hairline (32px gap + 32px margin + half the heading). */
+    --photo-top: calc(100% + 46px - 0.63 * var(--photo-h));
   }
 }
 @media (min-width: 1024px) {
   .scene-hero {
-    --photo-w: min(132vw, 228vh);
-    --photo-x: calc(-0.22 * var(--photo-w));
+    /* All three robots left of the headline: the photo's x 88% about where the headline starts. */
+    --photo-w: min(68vw, 120vh);
+    --photo-x: calc(0.02 * var(--photo-w));
     /* 32px gap + 72px margin + half the heading, less ~34px of air under the bumpers. */
-    --photo-top: calc(100% + 88px - 0.85 * var(--photo-h));
+    --photo-top: calc(100% + 88px - 0.63 * var(--photo-h));
   }
 }
 .scene-photo-short,
@@ -1439,9 +1441,9 @@ html::-webkit-scrollbar {
   height: var(--photo-h);
 }
 /*
- * The night look (a darker colour grade, the red stage wall turned ultramarine, a midnight wash
- * above the robot and, on a desktop, a darker right side behind the headline, the ultramarine
- * soft-light and the soft edges) is baked into the photo files with an alpha channel
+ * The night look (a darker colour grade, the stands tinted ultramarine, a midnight wash over the
+ * stands and the empty carpet and, on a desktop, a darker right side behind the headline, the
+ * ultramarine soft-light and the soft edges) is baked into the photo files with an alpha channel
  * (scripts/robot-photos.mjs), so the browser draws a plain picture: no masks, filters or blend
  * modes to recompute on scroll (audit S-1, Nov 14, 2026).
  */
@@ -1450,14 +1452,14 @@ html::-webkit-scrollbar {
   width: var(--photo-w);
 }
 .scene-photo-short .scene-img {
-  /* On a desktop, scroll pushes in a touch around the robot's base (below). */
-  transform-origin: 45% 85%;
+  /* On a desktop, scroll pushes in a touch around the robots' bumpers (below). */
+  transform-origin: 45% 62%;
 }
 
 /*
  * Paint splashing out of each photo into the open canvas beside it: uneven ellipses at different
  * sizes, softened, on the midnight (behind the photos, never over them). In window coordinates;
- * the hero's reach right toward the headline in Orbit ultramarine with a little bumper crimson.
+ * the hero's reach right toward the headline in Orbit ultramarine with a little reef violet.
  * Plain blending: over the dark canvas it looks the same as the `screen` it had, without making
  * the whole page a blend group.
  */
@@ -1468,13 +1470,13 @@ html::-webkit-scrollbar {
 }
 .scene-splash-short {
   background:
-    radial-gradient(30% 8% at 54% 82%, rgb(0 24 224 / 0.5), transparent 72%),
-    radial-gradient(22% 13% at 68% 68%, rgb(0 20 190 / 0.42), transparent 72%),
-    radial-gradient(15% 17% at 86% 76%, rgb(0 20 190 / 0.3), transparent 72%),
-    radial-gradient(26% 6% at 76% 91%, rgb(59 91 255 / 0.22), transparent 72%),
-    radial-gradient(12% 7% at 46% 86%, rgb(225 29 72 / 0.12), transparent 72%),
-    radial-gradient(9% 10% at 62% 60%, rgb(225 29 72 / 0.1), transparent 72%),
-    radial-gradient(16% 15% at 34% 62%, rgb(0 20 190 / 0.32), transparent 72%);
+    radial-gradient(30% 8% at 38% 68%, rgb(0 24 224 / 0.5), transparent 72%),
+    radial-gradient(22% 13% at 58% 52%, rgb(0 20 190 / 0.42), transparent 72%),
+    radial-gradient(15% 17% at 72% 62%, rgb(0 20 190 / 0.3), transparent 72%),
+    radial-gradient(26% 6% at 50% 78%, rgb(59 91 255 / 0.22), transparent 72%),
+    radial-gradient(12% 7% at 46% 40%, rgb(109 40 217 / 0.16), transparent 72%),
+    radial-gradient(9% 10% at 62% 36%, rgb(109 40 217 / 0.14), transparent 72%),
+    radial-gradient(16% 15% at 16% 60%, rgb(0 20 190 / 0.32), transparent 72%);
 }
 
 /* The motto: from the right edge, as Hebrew reads; on a desktop in the physical-right half of the grid, clear of the robot. */
@@ -1504,22 +1506,17 @@ html::-webkit-scrollbar {
 }
 
 /*
- * Below the first row: the Reefscape robot (4:3, as shot, so "FIRST" and "1690 WHISPER" read
- * naturally), its black arm and white coral tube reaching up and in toward the cards beside the
- * purple Reef. Phones: in a window between the vendor groups. Desktop: the open physical-right lane
- * (~43%) beside the 2×2 grid, down into "גלו עוד", with the stands faded in above it. The field
- * cage (the photo's right ~21%) runs off the window's right edge.
+ * Below the first row, on a desktop: the reef (2025 Reefscape, 4:3, as shot; photo x 3-50%, y 32-100%),
+ * its purple coral branches, white coral and teal algae filling the open physical-right lane (~46%)
+ * beside the 2×2 grid, its left end at the cards' edge. The window's right edge cuts the photo at
+ * x 66%, so the robot beside the reef (x 49-75%) stands at the edge, partly out of the picture.
  */
 .scene-lane {
-  --win: min(96vw, 420px);
-  --photo-w: max(210vw, 700px);
+  --photo-w: min(72vw, 128vh);
   --photo-h: calc(var(--photo-w) * 0.751);
-  /* The robot (y 37-92%) centred in the window. */
-  --photo-top: calc(var(--win) / 2 - 0.645 * var(--photo-h));
 }
-/* Below a desktop the lower vendors are one column: no robot window between them (its photo, which is lazy, isn't fetched). */
+/* Below a desktop the lower vendors are one column: no photo between them (it's lazy, so it isn't fetched). */
 @media (max-width: 1023px) {
-  .scene-window,
   .scene-photo-tall,
   .scene-splash-tall {
     display: none;
@@ -1531,11 +1528,11 @@ html::-webkit-scrollbar {
   height: var(--photo-h);
 }
 /*
- * Its look (the grade, the stands dimmed around the robot, the field cage fading at the window's
- * edge, the soft edges) is baked into the files too, for the photo drawn at 106%.
+ * Its look (the grade, the stands dimmed behind the reef, the soft edges) is baked into the files
+ * too, for the photo drawn at 106%. The photo's x 66% (67% once scaled) on the window's right edge.
  */
 .scene-photo-tall .scene-frame {
-  left: calc(100vw - 0.83 * var(--photo-w));
+  left: calc(100vw - 0.67 * var(--photo-w));
   width: var(--photo-w);
 }
 .scene-photo-tall .scene-img {
@@ -1596,34 +1593,29 @@ html::-webkit-scrollbar {
 .home-scene section[aria-labelledby="discover"] > div:first-child {
   text-shadow: 0 0 4px rgb(2 4 22 / 0.9), 0 1px 14px rgb(2 4 22 / 0.95);
 }
-/* Into the cards beside it: Orbit ultramarine, deep indigo and a little Reef violet. */
+/* Into the cards beside it: Orbit ultramarine, deep indigo and the reef's violet. */
 .scene-splash-tall {
   background:
-    radial-gradient(24% 10% at 60% 46%, rgb(0 24 224 / 0.45), transparent 72%),
-    radial-gradient(18% 18% at 48% 64%, rgb(109 40 217 / 0.24), transparent 72%),
-    radial-gradient(22% 9% at 42% 36%, rgb(49 46 129 / 0.5), transparent 72%),
-    radial-gradient(14% 15% at 80% 32%, rgb(0 20 190 / 0.3), transparent 72%),
-    radial-gradient(26% 6% at 66% 86%, rgb(0 20 190 / 0.32), transparent 72%),
-    radial-gradient(12% 13% at 34% 80%, rgb(109 40 217 / 0.16), transparent 72%),
-    radial-gradient(10% 18% at 92% 70%, rgb(49 46 129 / 0.35), transparent 72%);
+    radial-gradient(22% 10% at 74% 70%, rgb(0 24 224 / 0.45), transparent 72%),
+    radial-gradient(16% 18% at 80% 52%, rgb(109 40 217 / 0.26), transparent 72%),
+    radial-gradient(22% 9% at 70% 30%, rgb(49 46 129 / 0.5), transparent 72%),
+    radial-gradient(14% 15% at 94% 40%, rgb(0 20 190 / 0.3), transparent 72%),
+    radial-gradient(26% 6% at 74% 86%, rgb(0 20 190 / 0.32), transparent 72%),
+    radial-gradient(12% 10% at 62% 64%, rgb(109 40 217 / 0.16), transparent 72%),
+    radial-gradient(10% 18% at 97% 70%, rgb(49 46 129 / 0.35), transparent 72%);
 }
 @media (min-width: 1024px) {
   .scene-lane {
-    --photo-w: min(112vw, 180vh);
     /*
-     * The bumpers' bottom level with the last vendor row's bottom edge: y 95.7% in the photo, 98.5%
-     * once the image's 6% scale is counted. The elevator's top tucks behind the first row.
+     * The reef's base level with the last vendor row's bottom edge: the photo's bottom, less the
+     * image's 6% scale and its soft edge. The coral's tips tuck behind the first row.
      */
     --photo-top: calc(100% - 0.985 * var(--photo-h));
   }
-  .scene-window {
-    display: none;
-  }
   /*
-   * The remaining vendors on the left; the physical right ~46% stays open for the robot. The lane
-   * starts 48px under the first row and its grid is at least as tall as the robot from its arm to
-   * its bumpers, so the arm and coral tube clear the first row while the
-   * bumpers still end level with the last row.
+   * The remaining vendors on the left; the physical right ~46% stays open for the photo. The lane
+   * starts 48px under the first row and its grid is most of the reef's height, so the coral clears
+   * the first row while the reef's base still ends level with the last row.
    */
   .scene-lane {
     margin-top: 48px;
@@ -1633,7 +1625,7 @@ html::-webkit-scrollbar {
     width: 54%;
   }
   .scene-lane-cards > ul {
-    min-height: calc(0.65 * var(--photo-h));
+    min-height: calc(0.6 * var(--photo-h));
     /* A roomier gap between the two rows; the rest of the spare height is shared by the rows. */
     grid-auto-rows: 1fr;
     row-gap: 48px;
@@ -1742,7 +1734,7 @@ html::-webkit-scrollbar {
     var(--glass-fill);
 }
 /*
- * The lower vendor boxes sit over the Reefscape photo: a heavier blur keeps the robot a soft
+ * The lower vendor boxes sit over the lane photo's edge: a heavier blur keeps the field a soft
  * backdrop behind them. Desktop only, like the photo (below 1024px there is no blur, see glass-dark).
  */
 @media (min-width: 1024px) {
@@ -1791,23 +1783,23 @@ html::-webkit-scrollbar {
   }
   .scene-splash-short {
     background:
-      radial-gradient(30% 8% at 54% 82%, light-dark(rgb(0 24 224 / 0.2), rgb(0 24 224 / 0.5)), transparent 72%),
-      radial-gradient(22% 13% at 68% 68%, light-dark(rgb(0 20 190 / 0.16), rgb(0 20 190 / 0.42)), transparent 72%),
-      radial-gradient(15% 17% at 86% 76%, light-dark(rgb(0 20 190 / 0.12), rgb(0 20 190 / 0.3)), transparent 72%),
-      radial-gradient(26% 6% at 76% 91%, light-dark(rgb(59 91 255 / 0.16), rgb(59 91 255 / 0.22)), transparent 72%),
-      radial-gradient(12% 7% at 46% 86%, light-dark(rgb(225 29 72 / 0.1), rgb(225 29 72 / 0.12)), transparent 72%),
-      radial-gradient(9% 10% at 62% 60%, light-dark(rgb(225 29 72 / 0.08), rgb(225 29 72 / 0.1)), transparent 72%),
-      radial-gradient(16% 15% at 34% 62%, light-dark(rgb(0 20 190 / 0.13), rgb(0 20 190 / 0.32)), transparent 72%);
+      radial-gradient(30% 8% at 38% 68%, light-dark(rgb(0 24 224 / 0.2), rgb(0 24 224 / 0.5)), transparent 72%),
+      radial-gradient(22% 13% at 58% 52%, light-dark(rgb(0 20 190 / 0.16), rgb(0 20 190 / 0.42)), transparent 72%),
+      radial-gradient(15% 17% at 72% 62%, light-dark(rgb(0 20 190 / 0.12), rgb(0 20 190 / 0.3)), transparent 72%),
+      radial-gradient(26% 6% at 50% 78%, light-dark(rgb(59 91 255 / 0.16), rgb(59 91 255 / 0.22)), transparent 72%),
+      radial-gradient(12% 7% at 46% 40%, light-dark(rgb(109 40 217 / 0.1), rgb(109 40 217 / 0.16)), transparent 72%),
+      radial-gradient(9% 10% at 62% 36%, light-dark(rgb(109 40 217 / 0.08), rgb(109 40 217 / 0.14)), transparent 72%),
+      radial-gradient(16% 15% at 16% 60%, light-dark(rgb(0 20 190 / 0.13), rgb(0 20 190 / 0.32)), transparent 72%);
   }
   .scene-splash-tall {
     background:
-      radial-gradient(24% 10% at 60% 46%, light-dark(rgb(0 24 224 / 0.18), rgb(0 24 224 / 0.45)), transparent 72%),
-      radial-gradient(18% 18% at 48% 64%, light-dark(rgb(109 40 217 / 0.12), rgb(109 40 217 / 0.24)), transparent 72%),
-      radial-gradient(22% 9% at 42% 36%, light-dark(rgb(67 56 202 / 0.14), rgb(49 46 129 / 0.5)), transparent 72%),
-      radial-gradient(14% 15% at 80% 32%, light-dark(rgb(0 20 190 / 0.2), rgb(0 20 190 / 0.3)), transparent 72%),
-      radial-gradient(26% 6% at 66% 86%, light-dark(rgb(0 20 190 / 0.13), rgb(0 20 190 / 0.32)), transparent 72%),
-      radial-gradient(12% 13% at 34% 80%, light-dark(rgb(109 40 217 / 0.08), rgb(109 40 217 / 0.16)), transparent 72%),
-      radial-gradient(10% 18% at 92% 70%, light-dark(rgb(67 56 202 / 0.24), rgb(49 46 129 / 0.35)), transparent 72%),
+      radial-gradient(22% 10% at 74% 70%, light-dark(rgb(0 24 224 / 0.18), rgb(0 24 224 / 0.45)), transparent 72%),
+      radial-gradient(16% 18% at 80% 52%, light-dark(rgb(109 40 217 / 0.12), rgb(109 40 217 / 0.26)), transparent 72%),
+      radial-gradient(22% 9% at 70% 30%, light-dark(rgb(67 56 202 / 0.14), rgb(49 46 129 / 0.5)), transparent 72%),
+      radial-gradient(14% 15% at 94% 40%, light-dark(rgb(0 20 190 / 0.2), rgb(0 20 190 / 0.3)), transparent 72%),
+      radial-gradient(26% 6% at 74% 86%, light-dark(rgb(0 20 190 / 0.13), rgb(0 20 190 / 0.32)), transparent 72%),
+      radial-gradient(12% 10% at 62% 64%, light-dark(rgb(109 40 217 / 0.08), rgb(109 40 217 / 0.16)), transparent 72%),
+      radial-gradient(10% 18% at 97% 70%, light-dark(rgb(67 56 202 / 0.24), rgb(49 46 129 / 0.35)), transparent 72%),
       /* By day only: an ultramarine haze where the photo fades out at the window's right edge, so it isn't a white glare. */
       radial-gradient(16% 34% at 100% 32%, light-dark(rgb(0 20 190 / 0.2), transparent), transparent 72%),
       radial-gradient(16% 34% at 100% 72%, light-dark(rgb(67 56 202 / 0.2), transparent), transparent 72%);

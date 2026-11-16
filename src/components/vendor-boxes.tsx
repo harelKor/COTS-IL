@@ -56,7 +56,7 @@ function PhotoRow({ images, seed }: { images: string[]; seed: string }) {
  * and a row of its most wanted parts on soft pearl tiles, over the home photos. The whole box is one
  * link to its store.
  * - "row": the first row, up to 3 across from 1024px, under the hero robot.
- * - "bento": the rest, two to a row from 640px (beside the Reefscape robot on a desktop).
+ * - "bento": the rest, two to a row from 640px (beside the lane photo on a desktop).
  * A lone last box spans both columns of a 2-column row (spansBoth), so no row has a gap.
  */
 export function VendorBoxes({ vendors, layout, eager = 0 }: { vendors: VendorSummary[]; layout: "row" | "bento"; eager?: number }) {

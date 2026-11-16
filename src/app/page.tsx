@@ -90,9 +90,9 @@ async function Telemetry() {
 }
 
 /**
- * The way in: one box per vendor. The first row runs across the page just under the hero robot's
- * bumpers, visible on load; the rest sit in a 2-column grid on the right on a desktop, leaving the left
- * lane open for the Reefscape robot (on phones, a window between the two groups shows it).
+ * The way in: one box per vendor. The first row runs across the page just under the hero robots'
+ * bumpers, visible on load; the rest sit in a 2-column grid on the physical left on a desktop,
+ * leaving the right lane open for the second field photo (not shown on phones).
  */
 async function Vendors() {
   const vendors = homeVendorOrder(await getVendors());
@@ -111,7 +111,6 @@ async function Vendors() {
       {rest.length > 0 && (
         <div className="scene-lane relative">
           <ScenePhoto kind="tall" />
-          <div aria-hidden className="scene-window" />
           <div className="scene-lane-cards">
             <VendorBoxes vendors={rest} layout="bento" />
           </div>
@@ -256,8 +255,9 @@ export default function HomePage() {
     <ViewTransition enter="page-enter" exit="page-exit" default="none">
       {/*
         One continuous competition photograph: an Orbit ultramarine midnight canvas (a pearl and ice
-        sky in the light theme) from under the navbar to the footer, the Crescendo robot on the left
-        at the top, the Reefscape one in the right lane lower down, both as shot.
+        sky in the light theme) from under the navbar to the footer, one field photo (three robots on
+        the barge) on the left at the top, a second (five robots and the reef) in the right lane lower
+        down, both as shot.
       */}
       <div className="home-scene relative isolate flex flex-col gap-8">
         <div aria-hidden className="scene-canvas pointer-events-none absolute -z-20" />
@@ -265,8 +265,8 @@ export default function HomePage() {
         <OrganizationJsonLd />
 
         {/*
-          A short hero, so the first vendor row shows on load: the motto in the physical-left half
-          of the grid, the Crescendo robot large on the right with its bumpers just above the first row.
+          A short hero, so the first vendor row shows on load: the motto on the physical right,
+          the field photo on the left with the robots' bumpers just above the first row.
         */}
         <section className="scene-hero relative flex flex-col">
           <ScenePhoto kind="short" />
@@ -291,7 +291,7 @@ export default function HomePage() {
           <Vendors />
         </Suspense>
 
-        {/* Clear of the Reefscape robot's bumpers, which end level with the last vendor row. */}
+        {/* Clear of the lane photo's bumpers, which end level with the last vendor row. */}
         <div className="mt-6 lg:mt-12">
           <Suspense>
             <Discover />
