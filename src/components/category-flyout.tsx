@@ -2,7 +2,7 @@
 
 import { ChevronDown, ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { shopifyImage } from "@/lib/images";
 import { fitToRoom, placeUnder } from "./anchored-popover";
 import { countOf, PRODUCT } from "@/domain/plural";
@@ -11,6 +11,26 @@ export type FlyoutItem = { slug: string; name: string; count: number; image?: st
 
 /** A click on one of the flyout's links (or the bar's trigger link): the catalog browser may take it over (catalog-nav.tsx). */
 export type FlyoutNavigate = (e: React.MouseEvent, href: string) => void;
+
+/** Phones: under 640px a group's categories open inline, in the page, not in a floating flyout. */
+const NARROW = "(max-width: 639.98px)";
+const subscribeNarrow = (on: () => void) => {
+  const m = window.matchMedia(NARROW);
+  m.addEventListener("change", on);
+  return () => m.removeEventListener("change", on);
+};
+/** Whether the window is phone-narrow (false on the server and in the first render). */
+export function useNarrow() {
+  return useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false);
+}
+
+/**
+ * On a phone the trigger is an inline disclosure instead: the parent renders the categories
+ * (FlyoutList in InlineFlyout) in the page, under the trigger's row, where they push the rest down,
+ * scroll with the page and are never cut off by the browser's toolbars. A floating panel there
+ * covered the other cards and lost its bottom under iPhone Safari's toolbar.
+ */
+export type InlineDisclosure = { expanded: boolean; controls: string; onToggle: (trigger: HTMLElement) => void };
 
 /** Hover intent: how long the pointer rests before a closed flyout opens, and how long it may be away before it closes. */
 const OPEN_MS = 70;
@@ -55,6 +75,7 @@ export function CategoryFlyout({
   className = "",
   width = 560,
   onNavigate,
+  inline,
 }: {
   id: string;
   mode?: "link" | "button";
@@ -74,6 +95,8 @@ export function CategoryFlyout({
   className?: string;
   width?: number;
   onNavigate?: FlyoutNavigate;
+  /** Phones: open in the page (see InlineDisclosure); the popover and the hover then stay off. */
+  inline?: InlineDisclosure;
 }) {
   const anchor = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -163,25 +186,28 @@ export function CategoryFlyout({
   // The panel sits inside the anchor in the DOM (only its box is in the top layer), so hovering the
   // panel counts as hovering the anchor: moving from one to the other never fires pointerleave.
   const onPointerEnter = (e: React.PointerEvent) => {
-    if (e.pointerType !== "mouse") return;
+    if (e.pointerType !== "mouse" || inline) return;
     clear();
     if (openRef.current) return;
     timer.current = setTimeout(() => show(), openCount > 0 ? 0 : OPEN_MS);
   };
   const onPointerLeave = (e: React.PointerEvent) => {
-    if (e.pointerType !== "mouse" || pinned.current) return;
+    if (e.pointerType !== "mouse" || pinned.current || inline) return;
     clear();
     timer.current = setTimeout(hide, CLOSE_MS);
   };
 
+  const expanded = inline ? inline.expanded : open;
+  const controls = inline ? inline.controls : id;
+  const onButton = () => (inline ? inline.onToggle(anchor.current!) : toggle());
   const chevron = (
-    <ChevronDown size={18} strokeWidth={2} aria-hidden className={`transition-transform duration-200 ease-out motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
+    <ChevronDown size={18} strokeWidth={2} aria-hidden className={`transition-transform duration-200 ease-out motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`} />
   );
 
   return (
     <div ref={anchor} className={`relative ${className}`} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
       {mode === "button" ? (
-        <button ref={button} type="button" onClick={toggle} aria-expanded={open} aria-controls={id} className={triggerClassName}>
+        <button ref={button} type="button" onClick={onButton} aria-expanded={expanded} aria-controls={controls} className={triggerClassName}>
           {trigger}
         </button>
       ) : (
@@ -195,6 +221,17 @@ export function CategoryFlyout({
             onClick={(e) => {
               // A click cancels a hover that hasn't opened the flyout yet. A tap (not a mouse click) on a closed flyout opens it first.
               clear();
+              if (inline) {
+                // A phone: the first tap opens the categories in the page, a second goes to the group (and closes them).
+                if (!inline.expanded && items.length > 1) {
+                  e.preventDefault();
+                  inline.onToggle(anchor.current!);
+                  return;
+                }
+                if (inline.expanded) inline.onToggle(anchor.current!);
+                onNavigate?.(e, href);
+                return;
+              }
               if (press.current.type !== "mouse" && !press.current.wasOpen && items.length > 1) {
                 e.preventDefault();
                 pinned.current = true;
@@ -208,7 +245,7 @@ export function CategoryFlyout({
           >
             {trigger}
           </Link>
-          <button ref={button} type="button" onClick={toggle} aria-expanded={open} aria-controls={id} aria-label={`הקטגוריות ב${label}`} className={toggleClassName}>
+          <button ref={button} type="button" onClick={onButton} aria-expanded={expanded} aria-controls={controls} aria-label={`הקטגוריות ב${label}`} className={toggleClassName}>
             {chevron}
           </button>
         </>
@@ -234,35 +271,82 @@ export function CategoryFlyout({
         }}
       >
         <div className="flyout-panel">
-          <Link href={href} onClick={(e) => onNavigate?.(e, href)} className="flyout-row flyout-all">
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="flyout-title text-body font-semibold">{allLabel}</span>
-              <span className="text-caption text-muted tabular-nums">{countOf(allCount, PRODUCT)}</span>
-            </span>
-            <ChevronLeft size={20} strokeWidth={1.75} aria-hidden className="flyout-chevron shrink-0" />
-          </Link>
-          <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-            {items.map((c) => (
-              <li key={c.slug}>
-                <Link href={c.href} onClick={(e) => onNavigate?.(e, c.href)} aria-current={c.current ? "page" : undefined} className={`flyout-row ${c.count === 0 && !c.current ? "opacity-55" : ""}`}>
-                  <span className="tile-fade flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl p-1.5">
-                    {c.image && (
-                      // Hot-linked from the supplier's CDN, like every catalog photo. Fetched with the page at low
-                      // priority (not lazily), so a hover makes no request and the flyout opens with its photos.
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img {...shopifyImage(c.image, 96)} alt="" fetchPriority="low" decoding="async" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
-                    )}
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="flyout-title text-body leading-snug font-medium">{c.name}</span>
-                    <span className="text-caption text-muted tabular-nums">{countOf(c.count, PRODUCT)}</span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <FlyoutList href={href} allLabel={allLabel} allCount={allCount} items={items} onNavigate={onNavigate} />
         </div>
       </div>
+    </div>
+  );
+}
+
+/** A group's categories: "הכל ב…" first, then a row per category. In the flyout, and inline on a phone. */
+export function FlyoutList({
+  href,
+  allLabel,
+  allCount,
+  items,
+  onNavigate,
+}: {
+  href: string;
+  allLabel: ReactNode;
+  allCount: number;
+  items: FlyoutItem[];
+  onNavigate?: FlyoutNavigate;
+}) {
+  return (
+    <>
+      <Link href={href} onClick={(e) => onNavigate?.(e, href)} className="flyout-row flyout-all">
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flyout-title text-body font-semibold">{allLabel}</span>
+          <span className="text-caption text-muted tabular-nums">{countOf(allCount, PRODUCT)}</span>
+        </span>
+        <ChevronLeft size={20} strokeWidth={1.75} aria-hidden className="flyout-chevron shrink-0" />
+      </Link>
+      <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+        {items.map((c) => (
+          <li key={c.slug}>
+            <Link href={c.href} onClick={(e) => onNavigate?.(e, c.href)} aria-current={c.current ? "page" : undefined} className={`flyout-row ${c.count === 0 && !c.current ? "opacity-55" : ""}`}>
+              <span className="tile-fade flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl p-1.5">
+                {c.image && (
+                  // Hot-linked from the supplier's CDN, like every catalog photo. Fetched with the page at low
+                  // priority (not lazily), so a hover makes no request and the flyout opens with its photos.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img {...shopifyImage(c.image, 96)} alt="" fetchPriority="low" decoding="async" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
+                )}
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="flyout-title text-body leading-snug font-medium">{c.name}</span>
+                <span className="text-caption text-muted tabular-nums">{countOf(c.count, PRODUCT)}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/**
+ * A phone's categories in the page, under their trigger's row: they push the page down and scroll
+ * with it. Escape closes them and puts focus back on the trigger; following a link closes them too.
+ */
+export function InlineFlyout({ id, label, onClose, children }: { id: string; label: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div
+      id={id}
+      role="group"
+      aria-label={label}
+      className="flyout-panel flyout-inline"
+      onClick={(e) => {
+        if ((e.target as Element).closest("a")) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key !== "Escape") return;
+        e.preventDefault();
+        onClose();
+        document.querySelector<HTMLElement>(`[aria-controls="${id}"]`)?.focus();
+      }}
+    >
+      {children}
     </div>
   );
 }

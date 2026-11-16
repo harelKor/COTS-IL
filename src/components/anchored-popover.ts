@@ -59,3 +59,27 @@ export function fitToRoom(anchor: HTMLElement, panel: HTMLElement, scroll = fals
   }
   return scrolled;
 }
+
+/** How much of a phone's inline categories must show under their trigger after a tap. */
+const SHOW_AT_LEAST = 300;
+
+/**
+ * After a phone's inline categories open, close or move (call it in a layout effect, before the
+ * paint): `tapped` is the trigger and its top on screen before the change. A panel closing in a row
+ * above moves the trigger up, so the page scrolls it back under the finger; then, if the newly open
+ * `panel` starts low in the window, the page scrolls until a good part of it shows, never taking the
+ * trigger under the sticky header. A panel above the trigger's bottom (the catalog's bar is sticky:
+ * scrolled down the list, its panel opens at the bar's place in the page, out of sight above) is
+ * brought up to just under the trigger.
+ */
+export function keepInView(tapped: { el: HTMLElement; top: number }, panel: HTMLElement | null) {
+  const r = tapped.el.getBoundingClientRect();
+  let by = r.top - tapped.top;
+  if (panel) {
+    const p = panel.getBoundingClientRect();
+    const short = p.top - by + Math.min(p.height, SHOW_AT_LEAST) - (window.innerHeight - 16);
+    if (p.top < r.bottom) by = p.top - r.bottom - 8;
+    else if (short > 0) by += Math.max(0, Math.min(short, r.top - by - TOP_ROOM));
+  }
+  if (Math.abs(by) >= 1) window.scrollBy({ top: by, behavior: "instant" });
+}

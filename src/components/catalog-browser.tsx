@@ -105,6 +105,8 @@ export function CatalogBrowser({ filters, total, cards: first, facets, counts, s
   const [cards, setCards] = useState(first);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  /** Where a phone's open group in the category bar shows its categories (CategoryBar's inlineSlot). */
+  const [barSlot, setBarSlot] = useState<HTMLDivElement | null>(null);
   const top = useRef<HTMLDivElement>(null);
   const sheet = useRef<HTMLDialogElement>(null);
 
@@ -255,10 +257,12 @@ export function CatalogBrowser({ filters, total, cards: first, facets, counts, s
         </div>
       )}
       <div className="sticky top-[52px] z-20 mb-1 lg:col-span-2 lg:mb-2">
-        <CategoryBar categories={categories} filters={filters} vendor={vendor} />
+        <CategoryBar categories={categories} filters={filters} vendor={vendor} inlineSlot={barSlot} />
         {/* A thin line that runs while the next list loads (B1); only its opacity and transform move. */}
         <div aria-hidden data-on={pending || undefined} className="catalog-progress" />
       </div>
+      {/* A phone's open group: its categories in the page, under the bar, scrolling with the list. */}
+      <div ref={setBarSlot} className="empty:hidden sm:hidden" />
 
       {/* A plain column that scrolls with the page (CF2): folded sections keep it short, nothing scrolls inside it. */}
       <aside aria-label="סינון" className="filter-panel hidden flex-col gap-3 rounded-2xl p-3 lg:flex">
