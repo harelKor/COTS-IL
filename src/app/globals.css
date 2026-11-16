@@ -1403,36 +1403,42 @@ html::-webkit-scrollbar {
 
 /*
  * The hero: short, so "מאיזה ספק קונים?" and the first vendor row start about half way down the
- * window. The Hebrew headline on the physical right; the field photo (3:2, as shot) on the physical
- * left: robots 1937, 2230 and 2630 hanging from the barge (photo x 7-88%, y 12-63%) with the reef
- * behind them, their bumpers just above the first row. The light truss (x 89-100%) fades out under
- * the headline's darker side.
+ * window. The Hebrew headline on the physical right, over the photo's dimmed stands; the field photo
+ * (FRC 2026 REBUILT, 3:2, as shot) on the physical left. It is placed by its focal point, not by one
+ * object-fit: the blue tower and the whole ball arc (photo x 33-66%, the arc's peak at y 16%) are
+ * the subject, and at every width their middle (--focus-x, x 49%) lands at --at-x in the window and
+ * the arc's peak at --at-y below the hero's top, so the arc is never cropped. The lower carpet runs
+ * softly under the telemetry and fades out above the vendors heading.
  */
 .scene-hero {
-  --photo-w: 170vw;
+  --focus-x: 0.49;
+  --focus-y: 0.16;
+  /* Phones: centred on the tower and the arc, which span about 60% of the window; the carpet fades out above the vendors heading. */
+  --photo-w: 180vw;
+  --at-x: 50vw;
+  --at-y: 24px;
   --photo-h: calc(var(--photo-w) * 0.6667);
-  /* Phones: 1937, 2230 and the reef across the window (photo x 5-64%); 2630 runs off the right. */
-  --photo-x: calc(-0.05 * var(--photo-w));
-  /* The robots (y 12-63%) at the top of the hero, behind the motto. */
-  --photo-top: calc(-0.1 * var(--photo-h));
+  --photo-x: calc(var(--at-x) - var(--focus-x) * var(--photo-w));
+  --photo-top: calc(var(--at-y) - var(--focus-y) * var(--photo-h));
   min-height: calc(52svh - 176px);
   justify-content: center;
 }
 @media (min-width: 640px) {
   .scene-hero {
     --photo-w: 110vw;
-    --photo-x: calc(-0.04 * var(--photo-w));
-    /* The bumpers' bottom (y 63%) about 34px above the vendors heading's hairline (32px gap + 32px margin + half the heading). */
-    --photo-top: calc(100% + 46px - 0.63 * var(--photo-h));
+    --at-x: 46vw;
+    --at-y: 16px;
   }
 }
 @media (min-width: 1024px) {
   .scene-hero {
-    /* All three robots left of the headline: the photo's x 88% about where the headline starts. */
-    --photo-w: min(68vw, 120vh);
-    --photo-x: calc(0.02 * var(--photo-w));
-    /* 32px gap + 72px margin + half the heading, less ~34px of air under the bumpers. */
-    --photo-top: calc(100% + 88px - 0.63 * var(--photo-h));
+    /*
+     * The tower and arc in the left ~40% of the window, the stands under the headline. The photo's
+     * height is capped by the window's (the hero is short), so the arc's peak stays below the header.
+     */
+    --photo-w: min(70vw, 96vh, 1300px);
+    --at-x: calc(50vw - 0.5 * var(--scene-w, 100vw) + 0.22 * var(--scene-w, 100vw));
+    --at-y: 8px;
   }
 }
 .scene-photo-short,
@@ -1452,8 +1458,8 @@ html::-webkit-scrollbar {
   width: var(--photo-w);
 }
 .scene-photo-short .scene-img {
-  /* On a desktop, scroll pushes in a touch around the robots' bumpers (below). */
-  transform-origin: 45% 62%;
+  /* On a desktop, scroll pushes in a touch around the tower's foot (below). */
+  transform-origin: 54% 60%;
 }
 
 /*

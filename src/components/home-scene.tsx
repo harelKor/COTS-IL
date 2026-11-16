@@ -6,10 +6,11 @@ import { preload } from "react-dom";
  * read naturally). globals.css ("The home page as one competition photograph") places them, laid
  * out the way Hebrew reads (headline on the right); their night look and soft edges are baked into
  * the files (`npm run robot-photos`), so the browser only draws a picture:
- * - "short" (3:2, `home-field-wide`): the hero. Israeli District Championship 2025 (Reefscape),
- *   robots 1937, 2230 and 2630 hanging from the barge chains with the reef behind them, on the
- *   physical left; the truss on the photo's right fades out under the headline. Phones and tablets
- *   get their own copies, at most 1,400 px wide.
+ * - "short" (3:2, `home-rebuilt-tower`): the hero. FRC 2026 REBUILT: the blue alliance tower with
+ *   an arc of yellow balls flying over it, on the physical left, the whole arc in view at every
+ *   width; the blurred, darkened stands on the photo's right fade out under the headline. Made
+ *   team-neutral (no team numbers, sponsor logos or faces) and enlarged with Real-ESRGAN before it
+ *   was graded. Phones and tablets get their own copies, at most 1,400 px wide.
  * - "tall" (4:3, `home-reef-lane`): in the open physical-right lane beside the lower vendor cards
  *   on a desktop, the 2025 Reefscape reef with its coral and algae filling it; the robot beside it
  *   stands at the window's edge, partly cut off. Not shown below 1024px.
@@ -21,12 +22,12 @@ type Source = { name: string; widths: readonly number[]; sizes: string; media?: 
 const PHOTOS: Record<"short" | "tall", { sources: Source[]; width: number; height: number }> = {
   short: {
     sources: [
-      { name: "home-field-wide", widths: [1000, 1500, 2000], sizes: "68vw", media: "(min-width: 1024px)" },
-      { name: "home-field-wide-phone", widths: [800, 1400], sizes: "(min-width: 640px) 110vw, 170vw" },
+      { name: "home-rebuilt-tower", widths: [1000, 1500, 2000, 2600], sizes: "min(70vw, 96vh, 1300px)", media: "(min-width: 1024px)" },
+      { name: "home-rebuilt-tower-phone", widths: [800, 1400], sizes: "(min-width: 640px) 110vw, 180vw" },
     ],
     // The <img> fallback (the phone copy at 1,400 px).
     width: 1400,
-    height: 934,
+    height: 933,
   },
   tall: {
     sources: [{ name: "home-reef-lane", widths: [1000, 1500, 2000], sizes: "(max-width: 1279px) 100vw, 84vw" }],

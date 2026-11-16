@@ -5,9 +5,16 @@
 // The home page shows the competition itself, field elements and several teams' robots, not one
 // team (owner's decision, Nov 16, 2026; the photos are the owner's to use). The originals sit in
 // public/ and are used whole, as shot: no cutout, no blur, never mirrored.
-// - home-field-wide.jpg (3:2, 2,000 px): the hero. Israeli District Championship 2025 (Reefscape):
-//   robots 1937, 2230 and 2630 hanging from the barge chains, the reef behind them, empty blue stands
-//   and a light truss on the right.
+// - home-rebuilt-tower.jpg (3:2, 3,000 px): the hero. FRC 2026 REBUILT: the blue alliance tower
+//   (x 46-66%, y 14-68%) with an arc of yellow balls flying over it (x 33-58%, its peak at y 16%),
+//   balls across the grey carpet, the packed stands on the right (x 60-100%) and the red alliance
+//   side on the left. The 1,497 px original was enlarged 4x with Real-ESRGAN x4plus (Qualcomm AI
+//   Hub's ONNX release, run locally in blended 128 px tiles), mixed 80/20 with a plain Lanczos
+//   enlargement to keep the carpet's grain, and brought to 3,000 px; then made team-neutral by hand
+//   (Nov 16, 2026): the "4744" bumper digits, the scoreboards and banner numbers and the sponsor
+//   logos filled from their surroundings, the stands, referees and spectators blurred and darkened
+//   so no face reads, the drivers' yellow shirts softened and the reds cooled. That master is what
+//   ships; this script only grades, masks and resizes it.
 // - home-reef-lane.jpg (4:3, 2,000 px): the lane beside the vendor cards on a desktop. FIRST
 //   Championship 2025 (Reefscape): the reef, its purple coral branches holding white coral and teal
 //   algae, the stands behind, and robot 1690 right of it (x 49-75%). The page shows the photo's
@@ -29,10 +36,8 @@
 // the photo melts into the pearl sky. `npm run robot-photos -- day` writes only those (`night`
 // only the night ones); home-scene.tsx shows one set or the other by the theme, in CSS.
 //
-// The desktop hero is drawn at most ~1,750 px wide (68vw, capped by the window's height), so the
-// 2,000 px originals are sharp enough as they are. If a photo is ever shown larger than its
-// original, an earlier version of this script (git log, "Real-ESRGAN") enlarged one 4x with
-// Real-ESRGAN x4plus (Qualcomm AI Hub's ONNX release, run locally in 128 px tiles) into a master.
+// The desktop hero is drawn at most ~1,300 CSS px wide (globals.css, .scene-hero), so the
+// 2,600 px copy covers a 2x screen; the lane's 2,000 px original is shown smaller than that.
 import sharp from "sharp";
 import { mkdirSync } from "node:fs";
 
@@ -53,12 +58,6 @@ const ellipse = (rx, ry, cx, cy, stops) => {
   const f = ramp(stops);
   return (x, y) => f(Math.hypot((x - cx) / rx, (y - cy) / ry));
 };
-/** Mask layers composited with `add` (source-over). */
-const union = (layers) => (x, y) => layers.reduce((a, l) => {
-  const b = l(x, y);
-  return a + b - a * b;
-}, 0);
-
 const NIGHT = [2 / 255, 4 / 255, 22 / 255]; // --orbit-night
 const BLUE = [0, 20 / 255, 190 / 255]; // --orbit-blue
 const ICE = [238 / 255, 242 / 255, 255 / 255]; // the day sky behind the photos (globals.css, .scene-canvas in light)
@@ -68,19 +67,23 @@ const ICE = [238 / 255, 242 / 255, 255 / 255]; // the day sky behind the photos 
  * brighter grade, the tint and the ultramarine soft-light lighter, and the shade an ice-white wash
  * (`shade` scales it: the Reefscape stands keep most of their colour, so the lane isn't a white glare).
  */
-const daylight = (look, { brightness, contrast, saturate, tint = 0.85, grade = 0.1, shade = 1 }) => ({
+const daylight = (look, { brightness, contrast, saturate, tint = 0.85, grade = 0.1, shade = 1, lift }) => ({
   ...look,
   filter: { brightness, contrast, saturate },
-  tint: look.tint && ((y) => tint * look.tint(y)),
-  shade: (x, y) => shade * look.shade(x, y),
+  tint: look.tint && ((x, y) => tint * look.tint(x, y)),
+  shade: lift ? (x, y) => Math.max(shade * look.shade(x, y), lift(x, y)) : (x, y) => shade * look.shade(x, y),
   shadeTo: ICE,
+  // `lift` (a dark arena by day): the ice wash falls mostly on the dark pixels, so the dark ceiling
+  // and stands lift to pearl while the lit field and the yellow balls keep their colour.
+  shadeDark: Boolean(lift),
   grade,
 });
 
 /**
  * The look, as the CSS had it (globals.css, "The home page as one competition photograph"):
  * - filter: brightness, contrast, saturate, in that order, each clamped (sRGB, as Chromium does);
- * - tint (hero only): rgb(0 20 190) in `mix-blend-mode: color`, fading down the frame;
+ * - tint (hero only): rgb(0 20 190) in `mix-blend-mode: color`, by frame position, sparing the
+ *   yellow balls if `spareYellow` (pixels that are clearly yellow keep their colour);
  * - shade: midnight overlays;
  * - grade: --orbit-blue in `soft-light` at 22%;
  * - mask: the frame's soft edges, as alpha.
@@ -89,34 +92,36 @@ const daylight = (look, { brightness, contrast, saturate, tint = 0.85, grade = 0
  * `daylight()` turns a look into its light-theme copy.
  */
 const NIGHT_LOOKS = {
-  "home-field-wide": (desktop) => ({
+  "home-rebuilt-tower": (desktop) => ({
     scale: 1,
-    filter: { brightness: 0.82, contrast: 1.06, saturate: 1.04 },
-    // The blue stands above the field, toward the canvas's ultramarine.
-    tint: ramp([[0, 0.6], [0.14, 0.4], [0.24, 0]]),
+    spareYellow: true,
+    filter: { brightness: 0.86, contrast: 1.06, saturate: 1.04 },
+    // Ultramarine over the stands (their red shirts) and, lighter, over the red alliance side.
+    tint: (x, y) => {
+      const stands = ramp([[0.58, 0], [0.68, 0.7]])(x) * ramp([[0.5, 1], [0.6, 0]])(y);
+      const red = ramp([[0.3, 0.45], [0.42, 0]])(x) * ramp([[0.3, 0], [0.4, 1], [0.62, 1], [0.7, 0]])(y);
+      const ceiling = ramp([[0, 0.5], [0.1, 0.25], [0.14, 0]])(y);
+      return Math.max(stands, red, ceiling);
+    },
     shade: (x, y) => {
-      // Midnight over the stands at the top and the empty carpet below the bumpers.
-      const top = ramp([[0, 0.75], [0.1, 0.45], [0.2, 0.1], [0.3, 0]])(y);
-      const floor = ramp([[0.62, 0], [0.74, 0.35], [0.9, 0.7]])(y);
+      // Midnight over the arena's ceiling and the empty carpet at the bottom.
+      const top = ramp([[0, 0.7], [0.08, 0.4], [0.14, 0.08], [0.2, 0]])(y);
+      const floor = ramp([[0.72, 0], [0.86, 0.35], [1, 0.7]])(y);
       const down = 1 - (1 - top) * (1 - floor);
-      if (!desktop) return down;
-      // The truss on the right, under the headline.
-      const side = ramp([[0, 0.75], [0.14, 0.45], [0.3, 0]])(1 - x);
-      return 1 - (1 - down) * (1 - side);
+      // The stands, dimmer toward the right.
+      const stands = ramp([[0.62, 0], [0.74, 0.3], [1, 0.55]])(x);
+      const both = 1 - (1 - down) * (1 - stands);
+      if (!desktop) return both;
+      // On a desktop the stands sit under the headline: darker still.
+      const side = ramp([[0.66, 0], [0.8, 0.4], [1, 0.7]])(x);
+      return 1 - (1 - both) * (1 - side);
     },
     mask: (() => {
-      const fadeY = ramp([[0.02, 0], [0.14, 1], [0.66, 1], [0.86, 0]]);
-      const fadeX = ramp([[0, 0], [0.06, 1], [0.86, 1], [1, 0]]);
-      const lobes = union([
-        // The three robots and the reef.
-        ellipse(0.5, 0.36, 0.48, 0.4, [[0.62, 1], [1, 0]]),
-        ellipse(0.22, 0.28, 0.2, 0.48, [[0.45, 1], [1, 0]]),
-        ellipse(0.22, 0.18, 0.76, 0.42, [[0.4, 1], [1, 0]]),
-        // Their shadows on the carpet, and the truss.
-        ellipse(0.3, 0.1, 0.4, 0.66, [[0, 0.7], [1, 0]]),
-        ellipse(0.16, 0.14, 0.86, 0.3, [[0, 0.5], [1, 0]]),
-      ]);
-      return (x, y) => fadeY(y) * fadeX(x) * lobes(x, y);
+      // A wide, soft feather all round, so the field feels open; the tower and the whole arc stay solid.
+      const fadeY = ramp([[0, 0], [0.09, 1], [0.74, 1], [0.93, 0]]);
+      const fadeX = ramp([[0, 0], [0.12, 1], [0.8, 1], [1, 0]]);
+      const field = ellipse(0.64, 0.6, 0.5, 0.46, [[0.56, 1], [1, 0]]);
+      return (x, y) => fadeY(y) * fadeX(x) * field(x, y);
     })(),
   }),
   "home-reef-lane": () => ({
@@ -149,7 +154,7 @@ const NIGHT_LOOKS = {
     scale: 1,
     filter: { brightness: 0.86, contrast: 1.06, saturate: 1 },
     // The blurred stands toward the canvas's ultramarine.
-    tint: desktop ? ramp([[0, 0.5], [0.3, 0.3], [0.6, 0]]) : ramp([[0, 0.3], [0.5, 0]]),
+    tint: ((down) => (x, y) => down(y))(desktop ? ramp([[0, 0.5], [0.3, 0.3], [0.6, 0]]) : ramp([[0, 0.3], [0.5, 0]])),
     shade: desktop
       ? (x, y) => {
           const top = ramp([[0, 0.55], [0.12, 0.25], [0.3, 0]])(y);
@@ -176,7 +181,18 @@ const NIGHT_LOOKS = {
 const LOOKS = {
   night: NIGHT_LOOKS,
   day: {
-    "home-field-wide": (desktop) => daylight(NIGHT_LOOKS["home-field-wide"](desktop), { brightness: 1.04, contrast: 1.02, saturate: 1.02 }),
+    "home-rebuilt-tower": (desktop) =>
+      daylight(NIGHT_LOOKS["home-rebuilt-tower"](desktop), {
+        brightness: 1.06,
+        contrast: 1.02,
+        saturate: 1.04,
+        lift: (x, y) => {
+          const ceiling = ramp([[0, 0.92], [0.2, 0.72], [0.4, 0.4], [0.56, 0]])(y);
+          const stands = ramp([[0.6, 0], [0.72, 0.6], [1, 0.9]])(x) * ramp([[0.5, 1], [0.62, 0]])(y);
+          const floor = ramp([[0.74, 0], [0.9, 0.6], [1, 0.85]])(y);
+          return Math.max(ceiling, stands, floor);
+        },
+      }),
     "home-reef-lane": () => daylight(NIGHT_LOOKS["home-reef-lane"](), { brightness: 0.97, contrast: 1.04, saturate: 1.02, grade: 0.16, shade: 0.3 }),
     "home-ftc-lane": (desktop) =>
       daylight(NIGHT_LOOKS["home-ftc-lane"](desktop), { brightness: 1.06, contrast: 1.02, saturate: 1, tint: 0.6, grade: 0.12, shade: 0.7 }),
@@ -204,7 +220,6 @@ const softLight = (b, s) =>
 function bake(rgb, width, height, look) {
   const out = Buffer.alloc(width * height * 4);
   const { brightness, contrast, saturate: s } = look.filter;
-  const tintCache = new Map();
   for (let y = 0; y < height; y++) {
     const fy = 0.5 + look.scale * ((y + 0.5) / height - 0.5);
     for (let x = 0; x < width; x++) {
@@ -226,14 +241,16 @@ function bake(rgb, width, height, look) {
         ];
       }
       if (look.tint) {
-        let a = tintCache.get(y);
-        if (a === undefined) tintCache.set(y, (a = look.tint(fy)));
+        // The yellow balls keep their colour (`spareYellow`).
+        const yellow = look.spareYellow ? clamp((Math.min(c[0], c[1]) - c[2] - 0.18) / 0.2) : 0;
+        const a = look.tint(fx, fy) * (1 - yellow);
         if (a > 0) {
           const m = colorBlend(c, BLUE);
           c = c.map((v, k) => (1 - a) * v + a * m[k]);
         }
       }
-      const sh = look.shade(fx, fy);
+      let sh = look.shade(fx, fy);
+      if (look.shadeDark) sh *= 1 - 0.8 * lum(...c);
       const to = look.shadeTo ?? NIGHT;
       if (sh > 0) c = c.map((v, k) => (1 - sh) * v + sh * to[k]);
       const g = look.grade ?? 0.22;
@@ -354,11 +371,11 @@ async function prepFtc(rgb, w, h, theme) {
 
 /** Each set of copies: its file-name suffix, its widths, whether it takes the desktop look, and a crop. */
 const PHOTOS = {
-  "home-field-wide": {
+  "home-rebuilt-tower": {
     outputs: [
       // Phones and tablets: never more than 1,400 px.
       { suffix: "-phone", widths: [800, 1400], desktop: false },
-      { suffix: "", widths: [1000, 1500, 2000], desktop: true },
+      { suffix: "", widths: [1000, 1500, 2000, 2600], desktop: true },
     ],
     quality: { avif: 62, webp: 84 },
   },
