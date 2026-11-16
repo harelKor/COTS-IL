@@ -31,7 +31,7 @@ const leadTime = z
 export const businessSchema = z.object({
   /** Business days from a request to its quote, e.g. 2. Shown after sending: "הצעת מחיר תוך N ימי עסקים". */
   quoteLeadBusinessDays: z.number().int().min(1).max(60).nullable().default(null),
-  /** Registered business name, e.g. "קוטס ישראל בע״מ". */
+  /** Registered business name, e.g. "<company> בע״מ". */
   legalName: text(120).default(null),
   /** ח.פ. or עוסק מורשה number. */
   companyNumber: text(20).default(null),

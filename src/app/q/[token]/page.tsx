@@ -89,7 +89,7 @@ export default function ApprovePage(props: PageProps<"/q/[token]">) {
         <Approval {...props} />
       </Suspense>
       <div className="mt-6 print:hidden">
-        <WhatsAppLink text="שאלה על הצעת מחיר ב-COTS-IL" />
+        <WhatsAppLink text="שאלה על הצעת מחיר ב-BLUEHUB" />
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ import { inviteMember, removeMember, restoreMember, type InviteState } from "./a
 /** Adds a sign-in email (S8): the link goes by email when email is on, and here with Copy and WhatsApp. */
 export function InviteForm() {
   const [state, action, pending] = useActionState(inviteMember, {} as InviteState);
-  const share = state.link ? `הצטרפות לחשבון ${state.teamName ?? "הקבוצה"} ב-COTS-IL: ${state.link}` : "";
+  const share = state.link ? `הצטרפות לחשבון ${state.teamName ?? "הקבוצה"} ב-BLUEHUB: ${state.link}` : "";
 
   return (
     <form action={action} className="flex flex-col gap-3">

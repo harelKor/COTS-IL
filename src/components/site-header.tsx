@@ -182,12 +182,12 @@ export function SiteHeader() {
   return (
     <header className="site-header sticky top-0 z-30 border-b border-line/70 bg-glass backdrop-blur-xl backdrop-saturate-150 print:hidden">
       <div className="mx-auto flex h-[52px] max-w-[1200px] items-center gap-2 px-4 sm:gap-3 md:px-12">
-        <Link href="/" aria-label="COTS-IL, דף הבית" className="flex h-11 shrink-0 items-center gap-2">
+        <Link href="/" aria-label="BLUEHUB, דף הבית" className="flex h-11 shrink-0 items-center gap-2">
           <span aria-hidden className="btn-brand flex size-9 items-center justify-center rounded-xl">
             <Boxes size={20} strokeWidth={1.75} />
           </span>
           <Ltr className="text-brand-gradient text-section font-extrabold tracking-tight">
-            COTS-IL
+            BLUEHUB
           </Ltr>
           <span className="hidden rounded-full bg-brand-soft px-2 py-0.5 text-caption font-semibold text-brand sm:inline-flex">
             <Ltr>FRC / FTC</Ltr>

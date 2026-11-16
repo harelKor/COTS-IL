@@ -88,7 +88,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/admin/setti
         <Card className="flex flex-col gap-3 lg:col-span-2">
           <div className="flex flex-col gap-1">
             <h2 className="text-section font-semibold">דף הבית</h2>
-            <p className="text-caption text-muted">הסיסמה שבראש הדף ו״למה דרך COTS-IL״. העיצוב נשאר כמו שהוא; רק המילים משתנות.</p>
+            <p className="text-caption text-muted">הסיסמה שבראש הדף ו״למה דרך BLUEHUB״. העיצוב נשאר כמו שהוא; רק המילים משתנות.</p>
           </div>
           <HomeWordsForm home={content.home} edited={JSON.stringify(content.home) !== JSON.stringify(DEFAULT_HOME)} />
         </Card>

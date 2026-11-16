@@ -9,8 +9,8 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const { content } = await getSettings();
   return {
     id: "/",
-    name: "COTS-IL",
-    short_name: "COTS-IL",
+    name: "BLUEHUB",
+    short_name: "BLUEHUB",
     description: content.tagline,
     lang: "he",
     dir: "rtl",

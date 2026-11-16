@@ -16,7 +16,7 @@ import postgres from "postgres";
 config({ path: ".env.local", override: false });
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL is not set");
-if (/:543\d\d\//.test(url)) throw new Error("Refusing: port 543xx belongs to another project (COTS-IL local is 544xx)");
+if (/:543\d\d\//.test(url)) throw new Error("Refusing: port 543xx belongs to another project (this project's local stack is 544xx)");
 
 const [command, rawEmail] = process.argv.slice(2);
 const email = rawEmail?.trim().toLowerCase();

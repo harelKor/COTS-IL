@@ -75,7 +75,7 @@ export async function SiteFooter() {
           )}
         </nav>
         <p className="border-t border-line pt-4 text-caption text-muted">
-          <Ltr className="font-semibold text-foreground">COTS-IL</Ltr>
+          <Ltr className="font-semibold text-foreground">BLUEHUB</Ltr>
           {business.legalName && <>, {business.legalName}</>}
           {business.companyNumber && (
             <>

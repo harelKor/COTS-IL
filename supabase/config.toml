@@ -249,11 +249,11 @@ otp_expiry = 3600
 # and a known one (magic_link), with the 6-digit code and a link that works in
 # any browser. Production uses the same file, pasted in the Supabase dashboard.
 [auth.email.template.confirmation]
-subject = "קוד הכניסה ל-COTS-IL: {{ .Token }}"
+subject = "קוד הכניסה ל-BLUEHUB: {{ .Token }}"
 content_path = "./supabase/templates/sign-in.html"
 
 [auth.email.template.magic_link]
-subject = "קוד הכניסה ל-COTS-IL: {{ .Token }}"
+subject = "קוד הכניסה ל-BLUEHUB: {{ .Token }}"
 content_path = "./supabase/templates/sign-in.html"
 
 # Uncomment to customize email template

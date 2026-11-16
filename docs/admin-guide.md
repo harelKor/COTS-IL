@@ -137,7 +137,7 @@ GitHub Actions מגבה את מסד הנתונים כל לילה (זרימת ה�
 1. **שרת דואר (SMTP) משלכם.** Authentication → Emails → SMTP Settings. השולח המובנה של Supabase שולח רק לכתובות של חברי הארגון ב-Supabase ומעט מיילים בשעה, כך שקבוצות חדשות לא יקבלו קוד. ספק מומלץ: Resend (או כל SMTP אחר). שם שולח: `COTS-IL`, כתובת שולח למשל `no-reply@<הדומיין שלכם>`.
 2. **דומיין שולח.** אצל ספק ה-SMTP מוסיפים את הדומיין ומעתיקים לרשומות ה-DNS את SPF, DKIM ו-DMARC שהוא נותן. בלי זה המיילים נוחתים בספאם.
 3. **תבניות המייל בעברית.** Authentication → Emails → Templates. בשתי התבניות **Confirm signup** ו-**Magic Link**:
-   - נושא: `קוד הכניסה ל-COTS-IL: {{ .Token }}`
+   - נושא: `קוד הכניסה ל-BLUEHUB: {{ .Token }}`
    - גוף: כל התוכן של `supabase/templates/sign-in.html` מהמאגר (מקומית הוא כבר מחובר דרך `supabase/config.toml`).
 4. **אורך הקוד ותוקפו.** Authentication → Providers → Email: ‏Email OTP Length = ‏6, ‏Email OTP Expiration = ‏3600 שניות. המסך מצפה ל-6 ספרות בדיוק.
 5. **כתובות חזרה.** Authentication → URL Configuration: ‏Site URL = `https://cots-il.vercel.app`, וב-Redirect URLs להוסיף `https://cots-il.vercel.app/auth/confirm**` (הכוכביות מאפשרות את `?next=` שמחזיר לדף ולסל). בלי זה הקישור במייל נשבר.
@@ -167,7 +167,7 @@ GitHub Actions מגבה את מסד הנתונים כל לילה (זרימת ה�
 3. **מפתח API:** ב-Resend, API Keys, Create API key עם הרשאת Sending access לדומיין הזה בלבד.
 4. **משתנים ב-Vercel** (צוות COTS-IL, פרויקט `cotsil`, Settings, Environment Variables, סביבת Production):
    - `RESEND_API_KEY` = המפתח (`re_…`), מסומן Sensitive;
-   - `EMAIL_FROM` = השולח, למשל `COTS-IL <orders@mail.<הדומיין שלכם>>` (חייב להיות בדומיין המאומת);
+   - `EMAIL_FROM` = השולח, למשל `BLUEHUB <orders@mail.<הדומיין שלכם>>` (חייב להיות בדומיין המאומת);
    - לוודא שגם `NEXT_PUBLIC_SITE_URL` ו-`QUOTE_LINK_SECRET` מוגדרים, אחרת הקישורים בהודעות לא יעבדו או לא יהיו אישיים.
 5. **פריסה מחדש:** משתנים חדשים נכנסים רק בפריסה הבאה: דוחפים קומיט ריק ל-`main`.
 6. **בדיקה:** שולחים בקשה מחשבון קבוצת בדיקה, ובודקים ב-Resend, Emails, שההודעות יצאו, וב-`audit_log` שיש שורות `email:request_received` עם `ok: true`.

@@ -7,7 +7,7 @@ import { getSettings } from "@/lib/settings";
  * The share card for WhatsApp and the like: home, catalog and shared carts. Latin only, so no font needs
  * loading: the site tagline shows on it when the admin wrote it in English (Hebrew letters can't be drawn here).
  */
-export const alt = "COTS-IL: FRC and FTC parts from every supplier, in one order";
+export const alt = "BLUEHUB: FRC and FTC parts from every supplier, in one order";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -52,7 +52,7 @@ export default async function OpengraphImage() {
           >
             C
           </div>
-          <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: -4, color: "#1D4ED8" }}>COTS-IL</div>
+          <div style={{ fontSize: 120, fontWeight: 700, letterSpacing: -4, color: "#1D4ED8" }}>BLUEHUB</div>
         </div>
         <div style={{ fontSize: 44, color: "#52658A", textAlign: "center", maxWidth: 1080 }}>{line}</div>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, maxWidth: 1080, fontSize: 30, fontWeight: 600 }}>

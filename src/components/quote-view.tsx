@@ -25,7 +25,7 @@ async function PrintHeader({ orderNumber, quote, team }: { orderNumber: number; 
     <div className="hidden flex-col gap-2 border-b border-line pb-4 print:flex">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-section font-semibold">{business.legalName ?? <Ltr>COTS-IL</Ltr>}</p>
+          <p className="text-section font-semibold">{business.legalName ?? <Ltr>BLUEHUB</Ltr>}</p>
           <p className="text-caption">
             {facts
               .filter(([, v]) => v)

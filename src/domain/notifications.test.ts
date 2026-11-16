@@ -76,7 +76,7 @@ describe("emailConfig", () => {
     expect(emailConfig({})).toBeNull();
     expect(emailConfig({ RESEND_API_KEY: "re_x" })).toBeNull();
     expect(emailConfig({ RESEND_API_KEY: " ", EMAIL_FROM: "a@b.c" })).toBeNull();
-    expect(emailConfig({ RESEND_API_KEY: "re_x", EMAIL_FROM: "COTS-IL <a@b.c>" })).toEqual({ apiKey: "re_x", from: "COTS-IL <a@b.c>" });
+    expect(emailConfig({ RESEND_API_KEY: "re_x", EMAIL_FROM: "BLUEHUB <a@b.c>" })).toEqual({ apiKey: "re_x", from: "BLUEHUB <a@b.c>" });
   });
 });
 

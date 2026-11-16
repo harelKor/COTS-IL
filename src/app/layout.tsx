@@ -35,7 +35,7 @@ const inter = Inter({
   preload: false,
 });
 
-const SITE_NAME = "COTS-IL";
+const SITE_NAME = "BLUEHUB";
 
 /** The description is the admin's tagline (תוכן האתר). */
 export async function generateMetadata(): Promise<Metadata> {
