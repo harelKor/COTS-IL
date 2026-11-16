@@ -240,8 +240,8 @@ async function OrganizationJsonLd() {
   const json = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: business.legalName ?? "COTS-IL",
-    alternateName: "COTS-IL",
+    name: business.legalName ?? "BLUEHUB",
+    alternateName: "BLUEHUB",
     url: SITE_URL,
     logo: `${SITE_URL}/icon-512.png`,
     ...(business.email ? { email: business.email } : {}),

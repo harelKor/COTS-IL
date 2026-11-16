@@ -5,7 +5,7 @@ describe("the home page's default words", () => {
   it("are the text the page had before it became editable", () => {
     expect(DEFAULT_HOME.mottoLine).toBe("ציוד FRC ו-FTC מכל הספקים,");
     expect(DEFAULT_HOME.mottoAccent).toBe("בהזמנה אחת");
-    expect(DEFAULT_HOME.whyHeading).toBe("למה דרך COTS-IL ולא ישירות מהספק");
+    expect(DEFAULT_HOME.whyHeading).toBe("למה דרך BLUEHUB ולא ישירות מהספק");
     expect(whyCards(DEFAULT_HOME, { markup: "1.6", vendors: 7 })).toEqual([
       { title: "הזמנה אחת לכל הספקים", text: "סל אחד מכל 7 הספקים, במקום 7 הזמנות נפרדות." },
       { title: "מחיר בשקלים", text: "מחיר הספק לפי השער היציג של בנק ישראל, כפול 1.6. בלי כרטיס אשראי בדולרים." },

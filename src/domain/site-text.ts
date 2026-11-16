@@ -1,6 +1,6 @@
 /**
  * The site's own words that the admin can edit (M6, תוכן האתר): the one-line tagline and the
- * home page's motto, sub-line and "למה COTS-IL" cards. The defaults are the text the code
+ * home page's motto, sub-line and "למה BLUEHUB" cards. The defaults are the text the code
  * carried before they became settings, so nothing changes until the admin edits it.
  */
 
@@ -32,7 +32,7 @@ export const DEFAULT_HOME: HomeText = {
   mottoLine: "ציוד FRC ו-FTC מכל הספקים,",
   mottoAccent: "בהזמנה אחת",
   sub: "כל החלקים הרשמיים, משלוח מרוכז ומק״טים מדויקים במקום אחד.",
-  whyHeading: "למה דרך COTS-IL ולא ישירות מהספק",
+  whyHeading: "למה דרך BLUEHUB ולא ישירות מהספק",
   why: [
     { title: "הזמנה אחת לכל הספקים", text: "סל אחד מכל {מספר ספקים} הספקים, במקום {מספר ספקים} הזמנות נפרדות." },
     { title: "מחיר בשקלים", text: "מחיר הספק לפי השער היציג של בנק ישראל, כפול {מכפיל}. בלי כרטיס אשראי בדולרים." },

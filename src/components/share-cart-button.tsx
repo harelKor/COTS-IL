@@ -19,7 +19,7 @@ export function ShareCartButton() {
     const touch = window.matchMedia("(pointer: coarse)").matches;
     if (touch && typeof navigator.share === "function") {
       try {
-        await navigator.share({ title: "סל ב-COTS-IL", url });
+        await navigator.share({ title: "סל ב-BLUEHUB", url });
         return;
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") return;

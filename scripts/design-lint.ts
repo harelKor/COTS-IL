@@ -64,8 +64,8 @@ function lintSource(file: string, source: string): Problem[] {
 
   for (const m of source.matchAll(/(?<![\w-])text-(?:\[(?:9|1[0-2])px\]|xs)(?![\w-])/g)) add(m.index, "text under 13px", m[0]);
   for (const m of source.matchAll(/(?<![\w-])font-(?:bold|extrabold|black)(?![\w-])/g)) {
-    // The wordmark "COTS-IL" is the one heavy-weight exception.
-    if (/COTS-IL|text-brand-gradient/.test(source.slice(m.index - 200, m.index + 200)) && m[0] === "font-extrabold") continue;
+    // The wordmark "BLUEHUB" is the one heavy-weight exception.
+    if (/BLUEHUB|text-brand-gradient/.test(source.slice(m.index - 200, m.index + 200)) && m[0] === "font-extrabold") continue;
     add(m.index, "font-bold (use font-semibold)", m[0]);
   }
   for (const m of source.matchAll(INTERACTIVE)) {

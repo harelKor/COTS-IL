@@ -27,7 +27,7 @@ async function main() {
     console.error("DATABASE_URL is not set; not recorded");
     return;
   }
-  if (/:543\d\d\//.test(url)) throw new Error("Refusing: port 543xx belongs to another project (COTS-IL local is 544xx)");
+  if (/:543\d\d\//.test(url)) throw new Error("Refusing: port 543xx belongs to another project (this project's local stack is 544xx)");
   const sql = postgres(url, { prepare: false, max: 1 });
   try {
     const detail = { source: "github", ...(message ? { error: message.slice(0, 300) } : {}), ...(process.env.GITHUB_RUN_ID ? { run: process.env.GITHUB_RUN_ID } : {}) };

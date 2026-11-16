@@ -74,7 +74,7 @@ function layout(b: Body): RenderedEmail {
 <html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(b.subject)}</title></head>
 <body style="margin:0;padding:0;background:${C.bg}">
 <div dir="rtl" style="max-width:560px;margin:0 auto;padding:24px 16px;font-family:-apple-system,'Segoe UI',Heebo,Arial,sans-serif;text-align:right;direction:rtl">
-<div style="margin-bottom:16px"><span style="display:inline-block;padding:6px 12px;border-radius:10px;background:${C.brand};color:#FFFFFF;font-weight:700;font-size:16px">${ltr("COTS-IL")}</span> <span style="font-size:13px;color:${C.muted}">${ltr("FRC / FTC")}</span></div>
+<div style="margin-bottom:16px"><span style="display:inline-block;padding:6px 12px;border-radius:10px;background:${C.brand};color:#FFFFFF;font-weight:700;font-size:16px">${ltr("BLUEHUB")}</span> <span style="font-size:13px;color:${C.muted}">${ltr("FRC / FTC")}</span></div>
 <div style="background:${C.surface};border:1px solid ${C.line};border-radius:18px;padding:24px">
 <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;color:${C.brandStrong}">${b.heading}</h1>
 ${b.paragraphs.map(p).join("\n")}
@@ -82,7 +82,7 @@ ${b.table ?? ""}
 ${button}
 ${(b.after ?? []).map((t) => `<p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:${C.muted}">${t}</p>`).join("\n")}
 </div>
-<p style="margin:16px 0 0;font-size:13px;color:${C.muted}">${ltr("COTS-IL")}, ${esc(ctx?.tagline ?? DEFAULT_TAGLINE)}.</p>
+<p style="margin:16px 0 0;font-size:13px;color:${C.muted}">${ltr("BLUEHUB")}, ${esc(ctx?.tagline ?? DEFAULT_TAGLINE)}.</p>
 </div></body></html>`;
   const text = [...b.textLines, ...(b.button ? [`${b.button.label}: ${b.button.url}`] : [])].join("\n\n");
   return { subject: b.subject, html, text };
@@ -259,11 +259,11 @@ function buildEmail<E extends NotifyEvent>(event: E, audience: Audience, data: E
     case "invite": {
       const x = d as EmailData["invite"];
       return layout({
-        subject: `הוזמנתם לחשבון ${x.teamName} ב-COTS-IL`,
+        subject: `הוזמנתם לחשבון ${x.teamName} ב-BLUEHUB`,
         heading: `הצטרפות ל${esc(x.teamName)}`,
-        paragraphs: ["הכתובת הזאת נוספה לחשבון הקבוצה ב-COTS-IL. אחרי ההצטרפות אפשר לבנות סל, לשלוח בקשות ולאשר הצעות.", `הקישור תקף ${inviteLasts(x.days ?? 14)}.`],
+        paragraphs: ["הכתובת הזאת נוספה לחשבון הקבוצה ב-BLUEHUB. אחרי ההצטרפות אפשר לבנות סל, לשלוח בקשות ולאשר הצעות.", `הקישור תקף ${inviteLasts(x.days ?? 14)}.`],
         button: { label: "הצטרפות לקבוצה", url: x.url },
-        textLines: [`הצטרפות לחשבון ${x.teamName} ב-COTS-IL: ${x.url}`],
+        textLines: [`הצטרפות לחשבון ${x.teamName} ב-BLUEHUB: ${x.url}`],
       });
     }
     case "link_requested": {
@@ -322,7 +322,7 @@ function buildEmail<E extends NotifyEvent>(event: E, audience: Audience, data: E
 /** The test email from /admin/settings/system: proves Resend and EMAIL_FROM work. */
 export function renderTestEmail(): RenderedEmail {
   return layout({
-    subject: "מייל בדיקה מ-COTS-IL",
+    subject: "מייל בדיקה מ-BLUEHUB",
     heading: "המייל עובד",
     paragraphs: ["זה מייל בדיקה מעמוד מערכת בהגדרות. אם הוא הגיע, הודעות לקבוצות ולמנהלים יוצאות כרגיל."],
     textLines: ["המייל עובד.", "זה מייל בדיקה מעמוד מערכת בהגדרות. אם הוא הגיע, הודעות לקבוצות ולמנהלים יוצאות כרגיל."],

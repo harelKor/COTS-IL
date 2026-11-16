@@ -38,7 +38,7 @@ async function BusinessForm() {
       <p className="text-callout text-muted">שדה ריק לא מופיע באתר. השינויים מופיעים באתר מיד, בלי פריסה.</p>
 
       <Group title="העסק" hint="בתחתית כל עמוד, בעמוד ״מי אנחנו״ ובהצעת המחיר המודפסת.">
-        <Field label="שם העסק הרשום" name="legalName" hint="למשל: קוטס ישראל בע״מ">
+        <Field label="שם העסק הרשום" name="legalName" hint="למשל: שם החברה בע״מ">
           <Input name="legalName" defaultValue={b.legalName ?? ""} />
         </Field>
         <Field label="ח.פ. או עוסק מורשה" name="companyNumber">

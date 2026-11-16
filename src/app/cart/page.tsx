@@ -16,7 +16,7 @@ export default function CartPage() {
       <div className="rounded-card bg-surface px-6 py-4">
         <CartPanel />
       </div>
-      <WhatsAppLink text="שאלה על הסל ב-COTS-IL" />
+      <WhatsAppLink text="שאלה על הסל ב-BLUEHUB" />
     </div>
   );
 }

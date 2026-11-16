@@ -108,7 +108,7 @@ describe("deliver", () => {
   it("has no Resend transport without both variables", () => {
     expect(resendTransport({})).toBeNull();
     expect(resendTransport({ RESEND_API_KEY: "re_x" })).toBeNull();
-    expect(resendTransport({ RESEND_API_KEY: "re_x", EMAIL_FROM: "COTS-IL <x@y.z>" })).toBeTypeOf("function");
+    expect(resendTransport({ RESEND_API_KEY: "re_x", EMAIL_FROM: "BLUEHUB <x@y.z>" })).toBeTypeOf("function");
   });
 });
 
@@ -149,7 +149,7 @@ describe("the admin's own wording (M6)", () => {
   });
 
   it("takes the tagline in the footer, and the days a join link lasts", () => {
-    expect(renderEmail("invite", "team", SAMPLES.invite, { tagline: "המשפט שלנו" }).html).toContain("COTS-IL</bdi>, המשפט שלנו.");
+    expect(renderEmail("invite", "team", SAMPLES.invite, { tagline: "המשפט שלנו" }).html).toContain("BLUEHUB</bdi>, המשפט שלנו.");
     expect(renderEmail("invite", "team", SAMPLES.invite).html).toContain("לשבועיים");
     expect(renderEmail("invite", "team", { ...SAMPLES.invite, days: 7 }).html).toContain("לשבוע.");
   });

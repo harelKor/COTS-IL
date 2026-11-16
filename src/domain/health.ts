@@ -183,7 +183,7 @@ export function githubCheck(t: TokenStatus, now: Date): HealthCheck {
     case "rejected":
       return t.status === 401
         ? { ...base, level: "red", line: "GitHub דוחה את המפתח: פג תוקפו או שבוטל. צרו מפתח חדש והחליפו את GITHUB_TOKEN ב-Vercel" }
-        : { ...base, level: "red", line: "למפתח אין הרשאת Actions למאגר COTS-IL. צרו מפתח עם Actions: Read and write" };
+        : { ...base, level: "red", line: "למפתח אין הרשאת Actions למאגר של האתר ב-GitHub. צרו מפתח עם Actions: Read and write" };
     case "valid": {
       if (!t.expiresAt) return { ...base, level: "ok", line: "תקין, בלי תאריך תפוגה" };
       const days = Math.floor((t.expiresAt.getTime() - now.getTime()) / DAY);
@@ -266,20 +266,20 @@ export function healthAlertEmail(checks: readonly HealthCheck[], siteUrl: string
   const red = checks.filter((c) => c.level === "red");
   const yellow = checks.filter((c) => c.level === "yellow");
   const href = (c: HealthCheck) => (c.href.startsWith("http") ? c.href : `${siteUrl}${c.href}`);
-  const subject = `COTS-IL: ${red.length === 1 ? "תקלה אחת" : `${red.length} תקלות`} באתר`;
+  const subject = `BLUEHUB: ${red.length === 1 ? "תקלה אחת" : `${red.length} תקלות`} באתר`;
   const item = (c: HealthCheck, color: string) =>
     `<li style="margin:0 0 12px"><strong style="color:${color}">${escapeHtml(c.label)}</strong>: ${escapeHtml(c.line)}${
       c.detail ? `<br><span dir="ltr" style="font-family:monospace;font-size:13px;color:#555">${escapeHtml(c.detail)}</span>` : ""
     }<br><a href="${escapeHtml(href(c))}">לתיקון</a></li>`;
   const html = `<div dir="rtl" style="font-family:-apple-system,'Segoe UI',Arial,sans-serif;font-size:16px;line-height:1.5;color:#111">
-<p>הבדיקה היומית של COTS-IL מצאה ${red.length === 1 ? "תקלה" : "תקלות"}:</p>
+<p>הבדיקה היומית של BLUEHUB מצאה ${red.length === 1 ? "תקלה" : "תקלות"}:</p>
 <ul style="padding-inline-start:20px">${red.map((c) => item(c, "#B00020")).join("")}</ul>
 ${yellow.length ? `<p>ועוד לבדוק:</p><ul style="padding-inline-start:20px">${yellow.map((c) => item(c, "#8A5300")).join("")}</ul>` : ""}
 <p>כל הבדיקות: <a href="${escapeHtml(`${siteUrl}/admin/settings/system`)}">ניהול › הגדרות › מערכת</a></p>
 </div>`;
   const line = (c: HealthCheck) => `- ${c.label}: ${c.line}${c.detail ? ` (${c.detail})` : ""}\n  ${href(c)}`;
   const text = [
-    "הבדיקה היומית של COTS-IL מצאה תקלות:",
+    "הבדיקה היומית של BLUEHUB מצאה תקלות:",
     ...red.map(line),
     ...(yellow.length ? ["", "ועוד לבדוק:", ...yellow.map(line)] : []),
     "",

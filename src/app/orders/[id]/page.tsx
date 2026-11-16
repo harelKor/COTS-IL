@@ -234,7 +234,7 @@ export default function OrderPage(props: PageProps<"/orders/[id]">) {
         <Order {...props} />
       </Suspense>
       <div className="mt-6">
-        <WhatsAppLink text="שאלה על הזמנה ב-COTS-IL" />
+        <WhatsAppLink text="שאלה על הזמנה ב-BLUEHUB" />
       </div>
     </>
   );

@@ -219,7 +219,7 @@ describe("healthAlertEmail", () => {
   it("lists the red lines with absolute links, escaped", () => {
     const checks = healthChecks(input({ admins: 2, suppliers: [supplier({ code: "x", name: "A<B>", lastSuccessAt: hoursAgo(50) })] }));
     const email = healthAlertEmail(checks, "https://cots-il.vercel.app");
-    expect(email.subject).toBe("COTS-IL: תקלה אחת באתר");
+    expect(email.subject).toBe("BLUEHUB: תקלה אחת באתר");
     expect(email.html).toContain("A&#60;B&#62;");
     expect(email.html).toContain("https://cots-il.vercel.app/admin/settings/suppliers");
     expect(email.text).toContain("סנכרון A<B>");

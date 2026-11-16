@@ -1,10 +1,10 @@
-# COTS-IL: FRC / FTC purchasing portal
+# BLUEHUB: FRC / FTC purchasing portal
 
 Teams build carts from AndyMark, WCP, CTRE and The Thrifty Bot (REV and goBILDA wait for a CSV import, see D7), and the Israeli supplier quotes, orders from each supplier, receives and delivers. See [PLAN.md](PLAN.md) for the full plan.
 
 Stack: Next.js 16 (App Router) · Supabase (Postgres, Auth, Storage) · Drizzle ORM · Tailwind (Hebrew RTL) · Vitest · Playwright.
 
-Live at https://cots-il.vercel.app, hosted on the Vercel team COTS-IL with the database on the Supabase project COTS-IL. Every push to `main` deploys production. Details, and what to work on next, are in [CLAUDE.md](CLAUDE.md).
+The site is called **BLUEHUB** (COTS-IL until Nov 16, 2026; the domain, the Vercel and Supabase projects and the repo keep the old name). Live at https://cots-il.vercel.app, hosted on the Vercel team COTS-IL with the database on the Supabase project COTS-IL. Every push to `main` deploys production. Details, and what to work on next, are in [CLAUDE.md](CLAUDE.md).
 
 ## Local setup
 
