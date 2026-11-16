@@ -2782,3 +2782,181 @@ dialog.sheet-full {
   opacity: 1;
   transform: none;
 }
+
+/* ---------- The FTC lane beside the home page's groups (page.tsx Browse, FtcPhoto, group-boxes.tsx) ---------- */
+
+/*
+ * Below 1024px: a short faded strip of the FTC robot over the heading and the cards (the photo's
+ * "-phone" copy, 665 x 380), never wider than 520px. Its fades are baked into the file; a soft
+ * ultramarine glow behind it melts it into the canvas.
+ */
+.ftc-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ftc-lane {
+  position: relative;
+  isolation: isolate;
+}
+.ftc-lane::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 6%;
+  background: radial-gradient(closest-side, rgb(0 24 224 / 0.3), rgb(0 20 190 / 0.1) 60%, transparent);
+  filter: blur(20px);
+  pointer-events: none;
+}
+.ftc-photo {
+  aspect-ratio: 665 / 380;
+  width: min(100%, 520px);
+  margin-inline: auto;
+}
+.ftc-photo > picture {
+  display: block;
+  height: 100%;
+}
+.ftc-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/*
+ * From 1024px: the lane on the physical left (grid areas follow the page's right-to-left order),
+ * about 29% of the row and at most 520px, the cards on the right. The lane is at least the photo's
+ * own height and grows with the cards; the photo fills its height from the top (the basket by the
+ * heading, the robot by the last row), at most 780px tall (520px wide), anchored to the window's
+ * side. When the cards are taller it runs a little wider than the lane, its baked right-hand fade
+ * under the cards' edge.
+ */
+@media (min-width: 1024px) {
+  .ftc-stage {
+    container-type: inline-size;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) min(29%, 520px);
+    grid-template-areas: "cards lane";
+    column-gap: 40px;
+    align-items: stretch;
+  }
+  .ftc-lane {
+    grid-area: lane;
+    min-height: calc(min(29cqw, 520px) * 1.5);
+  }
+  .ftc-lane::before {
+    inset: 6% -12% 4% -16%;
+    background: radial-gradient(closest-side, rgb(0 24 224 / 0.34), rgb(0 20 190 / 0.12) 58%, transparent);
+    filter: blur(32px);
+  }
+  .ftc-cards {
+    grid-area: cards;
+  }
+  .ftc-photo {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    margin: 0;
+    aspect-ratio: auto;
+  }
+  .ftc-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: auto;
+    height: min(100%, 780px);
+    max-width: none;
+    aspect-ratio: 665 / 998;
+  }
+}
+
+/*
+ * The group cards' photo fan, sized to its card (a container): the front photo about half the
+ * card's width, 80-172px, the two behind it 78% of that, tilted out to either side, so the fan
+ * fills a wide card and still fits a phone's half-width card.
+ */
+.fan-xl {
+  container-type: inline-size;
+}
+.fan-xl > span {
+  --f: clamp(80px, 56cqi, 172px);
+}
+.fan-xl-front {
+  width: var(--f);
+  height: var(--f);
+}
+.fan-xl-side {
+  width: calc(var(--f) * 0.78);
+  height: calc(var(--f) * 0.78);
+}
+.fan-xl-before {
+  translate: calc(var(--f) * -0.44) 8px;
+  rotate: -8deg;
+}
+.fan-xl-after {
+  translate: calc(var(--f) * 0.44) 8px;
+  rotate: 8deg;
+}
+
+/* The open group's card: a brighter outline and an ultramarine ring, while its flyout is open. */
+.home-group-card[aria-expanded="true"] {
+  border-color: var(--glass-line-hover);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.09),
+    0 0 0 2px color-mix(in srgb, var(--brand-fill) 55%, transparent),
+    0 14px 40px -12px color-mix(in srgb, var(--brand-fill) 60%, transparent);
+}
+
+/*
+ * The entrance (Reveal): as the section scrolls in, the photo fades and rises (850ms), then the
+ * cards follow 70ms apart. Only a section the script held back ("wait") ever starts hidden.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal="wait"] :is(.ftc-photo, .home-group) {
+    opacity: 0;
+  }
+  [data-reveal="in"] .ftc-photo {
+    animation: ftc-rise 850ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  [data-reveal="in"] .home-group {
+    animation: group-rise 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(260ms + var(--i, 0) * 70ms);
+  }
+}
+@keyframes ftc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes group-rise {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* By day: a paler glow on the pearl sky, and the open card's ring in the deep brand blue. */
+@supports (color: light-dark(#000, #fff)) {
+  .ftc-lane::before {
+    background: radial-gradient(closest-side, light-dark(rgb(0 20 190 / 0.12), rgb(0 24 224 / 0.3)), light-dark(rgb(0 20 190 / 0.04), rgb(0 20 190 / 0.1)) 60%, transparent);
+  }
+  @media (min-width: 1024px) {
+    .ftc-lane::before {
+      background: radial-gradient(closest-side, light-dark(rgb(0 20 190 / 0.14), rgb(0 24 224 / 0.34)), light-dark(rgb(0 20 190 / 0.05), rgb(0 20 190 / 0.12)) 58%, transparent);
+    }
+  }
+  .home-group-card[aria-expanded="true"] {
+    box-shadow:
+      inset 0 1px 0 0 light-dark(rgb(255 255 255 / 0.6), rgb(255 255 255 / 0.09)),
+      0 0 0 2px color-mix(in srgb, var(--brand-fill) 55%, transparent),
+      0 14px 40px -12px light-dark(rgb(0 20 190 / 0.3), rgb(0 24 224 / 0.6));
+  }
+}

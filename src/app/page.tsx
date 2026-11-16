@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Suspense, ViewTransition } from "react";
 import { GroupBoxes } from "@/components/group-boxes";
 import { VendorBoxes } from "@/components/vendor-boxes";
-import { ScenePhoto } from "@/components/home-scene";
+import { FtcPhoto, ScenePhoto } from "@/components/home-scene";
+import { Reveal } from "@/components/reveal";
 import { ScrollParallax } from "@/components/scroll-parallax";
 import { Ltr } from "@/components/ltr";
 import { Loading, TileGridSkeleton } from "@/components/skeleton";
@@ -126,19 +127,35 @@ async function Discover() {
   return <DiscoveryStrip cards={cards} pages={pages} vendor="" />;
 }
 
-/** The second way in: every category, across all vendors, under its group. */
+/**
+ * The second way in, right under the vendors: every category, across all vendors, under its group,
+ * as big cards beside an FTC robot at the high basket (so the scene runs barge on the left, reef on
+ * the right, FTC on the left). From 1024px the photo is a lane on the physical left (about 30%) and
+ * the heading and cards fill the rest; below that a short strip of the robot sits over the cards.
+ * As the section scrolls into view the photo rises in and the cards follow (Reveal, globals.css).
+ */
 async function Browse() {
   const { categories } = await getFacets();
   return (
-    <section aria-labelledby="browse-title">
-      <div className="mb-4 flex flex-col gap-1">
-        <h2 id="browse-title" className="flex items-center gap-2 text-section font-semibold">
-          <Bot size={20} strokeWidth={1.75} aria-hidden className="text-brand" />
-          לפי סוג מוצר, מכל הספקים
-        </h2>
-        <p className="text-caption text-muted">אותו חלק מכמה ספקים מופיע פעם אחת, עם ההצעה הזולה שבמלאי.</p>
-      </div>
-      <GroupBoxes categories={categories.map((c) => ({ ...c, href: catalogHref({ category: c.slug }) }))} />
+    <section aria-labelledby="browse-title" className="ftc-section scroll-mt-20">
+      <Reveal className="ftc-stage">
+        <div className="ftc-lane">
+          <FtcPhoto />
+        </div>
+        <div className="ftc-cards flex min-w-0 flex-col gap-4 lg:gap-5">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-4">
+              <h2 id="browse-title" className="flex shrink-0 items-center gap-2.5 text-section font-semibold tracking-tight lg:text-[24px]">
+                <Bot strokeWidth={1.75} aria-hidden className="size-5 text-brand lg:size-6" />
+                לפי סוג מוצר, מכל הספקים
+              </h2>
+              <span aria-hidden className="scene-rule h-px flex-1" />
+            </div>
+            <p className="text-caption text-muted">אותו חלק מכמה ספקים מופיע פעם אחת, עם ההצעה הזולה שבמלאי.</p>
+          </div>
+          <GroupBoxes categories={categories.map((c) => ({ ...c, href: catalogHref({ category: c.slug }) }))} />
+        </div>
+      </Reveal>
     </section>
   );
 }
@@ -256,8 +273,8 @@ export default function HomePage() {
       {/*
         One continuous competition photograph: an Orbit ultramarine midnight canvas (a pearl and ice
         sky in the light theme) from under the navbar to the footer, one field photo (three robots on
-        the barge) on the left at the top, a second (five robots and the reef) in the right lane lower
-        down, both as shot.
+        the barge) on the left at the top, a second (the reef) in the right lane lower down, both as
+        shot, then an FTC robot at the high basket on the left beside the groups.
       */}
       <div className="home-scene relative isolate flex flex-col gap-8">
         <div aria-hidden className="scene-canvas pointer-events-none absolute -z-20" />
@@ -291,24 +308,26 @@ export default function HomePage() {
           <Vendors />
         </Suspense>
 
-        {/* Clear of the lane photo's bumpers, which end level with the last vendor row. */}
-        <div className="mt-6 lg:mt-12">
+        {/* Clear of the reef lane above, so the two photos never crowd each other. */}
+        <div className="mt-6 lg:mt-24">
+          <Suspense
+            fallback={
+              <Loading>
+                <TileGridSkeleton />
+              </Loading>
+            }
+          >
+            <Browse />
+          </Suspense>
+        </div>
+
+        <div className="mt-2 lg:mt-8">
           <Suspense>
             <Discover />
           </Suspense>
         </div>
 
         <ValueStrip />
-
-        <Suspense
-          fallback={
-            <Loading>
-              <TileGridSkeleton />
-            </Loading>
-          }
-        >
-          <Browse />
-        </Suspense>
 
         <section>
           <h2 className="mb-4 text-section font-semibold">איך זה עובד</h2>

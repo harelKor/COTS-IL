@@ -14,12 +14,15 @@ const FAN_LARGE = [
   "z-10 size-16 translate-x-[30px] translate-y-2 rotate-[8deg] sm:size-[84px] sm:translate-x-[46px]",
 ];
 
+/** Larger still, and sized to its box (globals.css, `.fan-xl`): the home page's group cards. */
+const FAN_XL = ["z-20 fan-xl-front", "z-10 fan-xl-side fan-xl-before", "z-10 fan-xl-side fan-xl-after"];
+
 /** Up to three real product photos fanned out on studio tiles; the category's icon only when it has none. */
-export function PhotoFan({ slug, images, large = false }: { slug?: string; images: string[]; large?: boolean }) {
-  const fan = large ? FAN_LARGE : FAN;
+export function PhotoFan({ slug, images, large = false, xl = false }: { slug?: string; images: string[]; large?: boolean; xl?: boolean }) {
+  const fan = xl ? FAN_XL : large ? FAN_LARGE : FAN;
   if (images.length === 0) {
     return (
-      <span className={`tile-fade flex items-center justify-center rounded-2xl ${large ? "size-[108px]" : "size-[84px]"}`}>
+      <span className={`tile-fade flex items-center justify-center rounded-2xl ${xl ? "size-[132px]" : large ? "size-[108px]" : "size-[84px]"}`}>
         <CategoryIcon slug={slug ?? "other"} />
       </span>
     );
@@ -36,7 +39,7 @@ export function PhotoFan({ slug, images, large = false }: { slug?: string; image
           {/* Hot-linked from the supplier's CDN, like every catalog photo. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            {...shopifyImage(src, large ? 160 : 100)}
+            {...shopifyImage(src, xl ? 240 : large ? 160 : 100)}
             alt=""
             loading="lazy"
             referrerPolicy="no-referrer"

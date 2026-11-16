@@ -3,14 +3,17 @@
  * right under its anchor. An anchor on the right half of the window lines the panel up with its
  * right edge (the site reads right to left), one on the left half with its left edge, so the cards
  * at either end open toward the middle. It always stays 16px inside the window, and is never taller
- * than the room left under the anchor.
+ * than the room left under the anchor. `within` (an element's box) narrows that room further: the
+ * home page's group cards keep their flyout off the photo lane beside them.
  */
-export function placeUnder(anchor: HTMLElement, panel: HTMLElement, width: number) {
+export function placeUnder(anchor: HTMLElement, panel: HTMLElement, width: number, within?: DOMRect | null) {
   const vw = document.documentElement.clientWidth;
   const vh = window.innerHeight;
-  const w = Math.min(width, vw - 32);
+  const lo = Math.max(16, within?.left ?? 16);
+  const hi = Math.min(vw - 16, within?.right ?? vw - 16);
+  const w = Math.min(width, hi - lo);
   const r = anchor.getBoundingClientRect();
-  const left = Math.max(16, Math.min(r.left + r.width / 2 >= vw / 2 ? r.right - w : r.left, vw - 16 - w));
+  const left = Math.max(lo, Math.min(r.left + r.width / 2 >= vw / 2 ? r.right - w : r.left, hi - w));
   panel.style.width = `${w}px`;
   panel.style.top = `${Math.round(r.bottom)}px`;
   // In right-to-left the inline start is the window's right edge.

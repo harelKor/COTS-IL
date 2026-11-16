@@ -1,133 +1,114 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import Link from "next/link";
-import { Fragment, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
-import { groupCategories } from "@/domain/category-groups";
-import { shopifyImage } from "@/lib/images";
+import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { groupCategories, groupSpans } from "@/domain/category-groups";
+import { catalogHref } from "@/lib/catalog-filters";
+import { keepInView } from "./anchored-popover";
+import { CategoryFlyout, FlyoutList, InlineFlyout, useNarrow, type FlyoutItem } from "./category-flyout";
 import { PhotoFan } from "./category-showcase";
 import { useSiteFacts } from "./site-facts";
 import { countOf, PRODUCT } from "@/domain/plural";
 
 export type GroupTile = { slug: string; name: string; group: string; count: number; images: string[]; href: string };
 
-/** Columns of the group grid at each width; must match the grid classes below. */
-const COLUMNS = [
-  { query: "(min-width: 1024px)", cols: 5 },
-  { query: "(min-width: 640px)", cols: 3 },
-];
-
-function columns() {
-  return COLUMNS.find((c) => window.matchMedia(c.query).matches)?.cols ?? 2;
-}
-function onResize(notify: () => void) {
-  window.addEventListener("resize", notify);
-  return () => window.removeEventListener("resize", notify);
-}
-
-/** The opened group's categories: grows from nothing (250 ms) and scrolls just into view. */
-function Panel({ id, labelledBy, items }: { id: string; labelledBy: string; items: GroupTile[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setOpen(true));
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const timer = setTimeout(() => ref.current?.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" }), reduced ? 0 : 260);
-    return () => {
-      cancelAnimationFrame(frame);
-      clearTimeout(timer);
-    };
-  }, []);
-  return (
-    <div
-      ref={ref}
-      id={id}
-      role="region"
-      aria-labelledby={labelledBy}
-      className={`col-span-full grid transition-[grid-template-rows,opacity] duration-[250ms] ease-out motion-reduce:transition-none ${
-        open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-      }`}
-    >
-      <div className="overflow-hidden">
-        <ul className="grid grid-cols-2 gap-2 rounded-[22px] bg-subtle/70 p-2 sm:grid-cols-3 sm:gap-3 sm:p-3 lg:grid-cols-5">
-          {items.map((c) => (
-            <li key={c.slug}>
-              <Link
-                href={c.href}
-                className="group glow-outline flex h-full min-h-14 items-center gap-3 rounded-2xl p-2 transition-[translate] duration-200 ease-out hover:-translate-y-0.5"
-              >
-                <span className="tile-fade flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl p-1">
-                  {c.images[0] && (
-                    // Hot-linked from the supplier's CDN, like every catalog photo.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img {...shopifyImage(c.images[0], 48)} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-full object-contain mix-blend-multiply" />
-                  )}
-                </span>
-                <span className="flex min-w-0 flex-col">
-                  <span className="text-callout leading-snug font-semibold group-hover:text-brand">{c.name}</span>
-                  <span className="text-caption text-muted tabular-nums">{countOf(c.count, PRODUCT)}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
+/** A card's width on a desktop, out of the grid's six columns (groupSpans). */
+const SPAN = { 2: "lg:col-span-2", 3: "lg:col-span-3", 6: "lg:col-span-6" } as const;
 
 /**
- * The admin's groups (קטגוריות in the settings) as big photo boxes. Tapping one opens its categories in a full-width panel
- * under that row of the grid; one group at a time, tapping it again closes it.
+ * The home page's groups (the admin's, in the admin's order), as big photo cards beside the FTC
+ * photo: on a desktop the first two wide, half a row each, the rest a third each (groupSpans);
+ * three a row on a tablet, two on a phone. The same way in as the stores' group cards
+ * (store-groups.tsx): a card is a disclosure that opens the shared flyout of categories
+ * (CategoryFlyout), kept to the cards' side of the page so it never covers the photo; "הכל ב…" is
+ * the group, every other row a category, one click from its parts. On a phone the categories open
+ * in the page, under the tapped card's row, and the page keeps that card under the finger.
  */
 export function GroupBoxes({ categories }: { categories: GroupTile[] }) {
   const groups = groupCategories(categories, useSiteFacts().categoryGroups);
+  const spans = groupSpans(groups.length);
+  const narrow = useNarrow();
   const [openId, setOpenId] = useState<string | null>(null);
-  const cols = useSyncExternalStore(onResize, columns, () => 2);
-  const base = useId();
-  const openIndex = groups.findIndex((g) => g.id === openId);
-  // The panel goes after the last box of the opened box's row (or the last box).
-  const panelAfter = openIndex < 0 ? -1 : Math.min(groups.length - 1, Math.floor(openIndex / cols) * cols + cols - 1);
+  const tapped = useRef<{ el: HTMLElement; top: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const t = tapped.current;
+    tapped.current = null;
+    if (t) keepInView(t, openId ? document.getElementById(`home-group-${openId}-inline`) : null);
+  }, [openId]);
+
+  const itemsOf = (g: (typeof groups)[number]): FlyoutItem[] =>
+    g.items.map((c) => ({ slug: c.slug, name: c.name, count: c.count, image: c.images[0], href: c.href }));
+  const openIndex = narrow && openId ? groups.findIndex((g) => g.id === openId) : -1;
+  // Two a row on a phone; an odd last card takes the whole row. The panel goes after the open card's row.
+  const lastAlone = groups.length % 2 === 1;
+  const panelAfter = openIndex < 0 ? -1 : Math.min(openIndex - (openIndex % 2) + 1, groups.length - 1);
+  const open = groups[openIndex];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
-      {groups.map((g, i) => {
-        const open = g.id === openId;
-        const images = g.items.flatMap((c) => c.images.slice(0, 1)).slice(0, 3);
-        return (
-          <Fragment key={g.id}>
-            <button
-              type="button"
-              id={`${base}-${g.id}`}
-              aria-expanded={open}
-              aria-controls={open ? `${base}-panel` : undefined}
-              onClick={() => setOpenId(open ? null : g.id)}
-              className="group glow-box flex h-full flex-col gap-3 p-4 text-start transition-[translate] duration-200 ease-out hover:-translate-y-1 sm:p-5"
-            >
-              <span className="relative flex h-24 items-center justify-center">
-                <PhotoFan slug={g.items[0]?.slug} images={images} />
-              </span>
-              <span className="flex items-end justify-between gap-2">
-                <span className="flex min-w-0 flex-col items-start gap-1.5">
-                  <span className="text-body leading-snug font-semibold group-hover:text-brand">{g.name}</span>
-                  <span className="count-pill rounded-full bg-brand-soft/70 px-2.5 py-0.5 text-caption font-semibold text-brand tabular-nums">
-                    {countOf(g.count, PRODUCT)}
-                  </span>
-                </span>
-                <ChevronDown
-                  size={20}
-                  strokeWidth={1.75}
-                  aria-hidden
-                  className={`shrink-0 text-brand transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
+    <nav aria-label="קטגוריות לפי סוג מוצר">
+      <ul className="home-groups grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6 lg:gap-5">
+        {groups.map((g, i) => {
+          const wide = spans[i] >= 3;
+          const alone = lastAlone && i === groups.length - 1;
+          return (
+            <Fragment key={g.id}>
+              <li className={`home-group group flex ${SPAN[spans[i]]} ${alone ? "max-sm:col-span-2" : ""}`} style={{ "--i": i } as CSSProperties}>
+                <CategoryFlyout
+                  id={`home-group-${g.id}`}
+                  mode="button"
+                  within=".home-groups"
+                  className="flex w-full"
+                  href={catalogHref({ group: g.id })}
+                  label={g.name}
+                  allLabel={<>הכל ב{g.name}</>}
+                  allCount={g.count}
+                  items={itemsOf(g)}
+                  inline={
+                    narrow
+                      ? {
+                          expanded: openId === g.id,
+                          controls: `home-group-${g.id}-inline`,
+                          onToggle: (el) => {
+                            tapped.current = { el, top: el.getBoundingClientRect().top };
+                            setOpenId((id) => (id === g.id ? null : g.id));
+                          },
+                        }
+                      : undefined
+                  }
+                  triggerClassName="home-group-card glow-box flex w-full flex-col gap-4 p-4 text-start transition-[translate] duration-200 ease-out group-hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:p-5 lg:p-6"
+                  trigger={
+                    <>
+                      <span className={`fan-xl relative flex h-28 items-center justify-center sm:h-40 lg:h-48 ${wide ? "lg:h-52" : ""}`}>
+                        <PhotoFan slug={g.items[0]?.slug} images={g.items.flatMap((c) => c.images.slice(0, 1)).slice(0, 3)} xl />
+                      </span>
+                      <span className="flex items-end justify-between gap-2">
+                        <span className="flex min-w-0 flex-col items-start gap-2">
+                          <span className="text-body leading-snug font-semibold group-hover:text-brand sm:text-section lg:text-[22px]">{g.name}</span>
+                          <span className="count-pill rounded-full px-2.5 py-0.5 text-caption font-semibold whitespace-nowrap tabular-nums">{countOf(g.count, PRODUCT)}</span>
+                        </span>
+                        <ChevronDown
+                          size={20}
+                          strokeWidth={1.75}
+                          aria-hidden
+                          className="shrink-0 text-brand transition-transform duration-200 group-has-[[aria-expanded=true]]:rotate-180 motion-reduce:transition-none max-[399px]:hidden"
+                        />
+                      </span>
+                    </>
+                  }
                 />
-              </span>
-            </button>
-            {i === panelAfter && openIndex >= 0 && (
-              <Panel key={openId} id={`${base}-panel`} labelledBy={`${base}-${openId}`} items={groups[openIndex].items} />
-            )}
-          </Fragment>
-        );
-      })}
-    </div>
+              </li>
+              {i === panelAfter && open && (
+                <li key={`${open.id}-inline`} className="col-span-2 sm:hidden">
+                  <InlineFlyout id={`home-group-${open.id}-inline`} label={open.name} onClose={() => setOpenId(null)}>
+                    <FlyoutList href={catalogHref({ group: open.id })} allLabel={<>הכל ב{open.name}</>} allCount={open.count} items={itemsOf(open)} />
+                  </InlineFlyout>
+                </li>
+              )}
+            </Fragment>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }

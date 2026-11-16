@@ -128,3 +128,41 @@ export function ScenePhoto({ kind }: { kind: keyof typeof PHOTOS }) {
     </>
   );
 }
+
+/**
+ * The FTC photo beside the home page's groups (INTO THE DEEP 2025: a robot at the high basket, its
+ * slide and coiled cable; the red parts in the brand blue, the number plate plain, the people behind
+ * blurred, all baked by `npm run robot-photos`). From 1024px a tall lane on the physical left, the
+ * basket near the section's top and the robot near its bottom, at most 520px wide (the original is
+ * 665px). Below that a short strip of the robot over the cards. Night and day copies as above, its
+ * fades baked in; decorative, and its box has the photo's shape before it loads, so nothing shifts.
+ */
+export function FtcPhoto() {
+  return (
+    <div aria-hidden data-reveal-wait className="ftc-photo pointer-events-none relative">
+      {LOOKS.map((look) => (
+        <picture key={look.scheme} className={look.only}>
+          {(["avif", "webp"] as const).map((type) => (
+            <source
+              key={`lane-${type}`}
+              type={`image/${type}`}
+              media="(min-width: 1024px)"
+              srcSet={srcSet(`home-ftc-lane${look.tag}`, [440, 665], type)}
+              sizes="min(30vw, 520px)"
+            />
+          ))}
+          <source type="image/avif" srcSet={`/robots/home-ftc-lane-phone${look.tag}-665.avif`} />
+          <img
+            src={`/robots/home-ftc-lane-phone${look.tag}-665.webp`}
+            alt=""
+            width={665}
+            height={380}
+            decoding="async"
+            loading="lazy"
+            className="ftc-img"
+          />
+        </picture>
+      ))}
+    </div>
+  );
+}

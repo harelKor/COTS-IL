@@ -139,12 +139,47 @@ const NIGHT_LOOKS = {
       return (x, y) => fadeY(y) * fadeX(x);
     })(),
   }),
+  /**
+   * The FTC lane (home-ftc-lane.webp, 665 x 998, portrait): INTO THE DEEP 2025, a robot at the high
+   * basket with its tall silver slide and coiled cable, a referee and spectators behind. `prepFtc`
+   * has already recoloured it and blurred the people, so the look only grades and fades it. On a
+   * desktop its right edge melts into the group cards beside it, its top and bottom into the canvas.
+   */
+  "home-ftc-lane": (desktop) => ({
+    scale: 1,
+    filter: { brightness: 0.86, contrast: 1.06, saturate: 1 },
+    // The blurred stands toward the canvas's ultramarine.
+    tint: desktop ? ramp([[0, 0.5], [0.3, 0.3], [0.6, 0]]) : ramp([[0, 0.3], [0.5, 0]]),
+    shade: desktop
+      ? (x, y) => {
+          const top = ramp([[0, 0.55], [0.12, 0.25], [0.3, 0]])(y);
+          const floor = ramp([[0.86, 0], [1, 0.5]])(y);
+          return 1 - (1 - top) * (1 - floor);
+        }
+      : () => 0.08,
+    mask: desktop
+      ? (() => {
+          const fadeY = ramp([[0, 0], [0.07, 1], [0.86, 1], [0.99, 0]]);
+          const fadeX = ramp([[0, 0], [0.1, 1], [0.62, 1], [0.98, 0]]);
+          // The basket, slide and robot; the corners fall away.
+          const body = ellipse(0.72, 0.7, 0.42, 0.5, [[0.7, 1], [1, 0]]);
+          return (x, y) => fadeY(y) * fadeX(x) * body(x, y);
+        })()
+      : (() => {
+          // The phone strip (the robot, cropped): soft on every side.
+          const fadeY = ramp([[0, 0], [0.22, 1], [0.78, 1], [1, 0]]);
+          const fadeX = ramp([[0, 0], [0.16, 1], [0.84, 1], [1, 0]]);
+          return (x, y) => fadeY(y) * fadeX(x);
+        })(),
+  }),
 };
 const LOOKS = {
   night: NIGHT_LOOKS,
   day: {
     "home-field-wide": (desktop) => daylight(NIGHT_LOOKS["home-field-wide"](desktop), { brightness: 1.04, contrast: 1.02, saturate: 1.02 }),
     "home-reef-lane": () => daylight(NIGHT_LOOKS["home-reef-lane"](), { brightness: 0.97, contrast: 1.04, saturate: 1.02, grade: 0.16, shade: 0.3 }),
+    "home-ftc-lane": (desktop) =>
+      daylight(NIGHT_LOOKS["home-ftc-lane"](desktop), { brightness: 1.06, contrast: 1.02, saturate: 1, tint: 0.6, grade: 0.12, shade: 0.7 }),
   },
 };
 
@@ -212,7 +247,112 @@ function bake(rgb, width, height, look) {
   return out;
 }
 
-/** Each set of copies: its file-name suffix, its widths and whether it takes the desktop look. */
+/** Filled polygons ([x, y] points, in source pixels) as a 0-255 mask, feathered by a blur of `soft` px. */
+async function polygonMask(w, h, polygons, soft) {
+  const m = Buffer.alloc(w * h);
+  for (const poly of polygons) {
+    for (let y = 0; y < h; y++) {
+      const py = y + 0.5;
+      const xs = [];
+      for (let i = 0; i < poly.length; i++) {
+        const [x0, y0] = poly[i];
+        const [x1, y1] = poly[(i + 1) % poly.length];
+        if ((y0 <= py && y1 > py) || (y1 <= py && y0 > py)) xs.push(x0 + ((py - y0) * (x1 - x0)) / (y1 - y0));
+      }
+      xs.sort((a, b) => a - b);
+      for (let k = 0; k + 1 < xs.length; k += 2) {
+        for (let x = Math.max(0, Math.ceil(xs[k] - 0.5)); x < Math.min(w, xs[k + 1] - 0.5); x++) m[y * w + x] = 255;
+      }
+    }
+  }
+  if (!soft) return m;
+  return sharp(m, { raw: { width: w, height: h, channels: 1 } }).blur(soft).extractChannel(0).raw().toBuffer();
+}
+const blurred = (rgb, w, h, sigma) => sharp(rgb, { raw: { width: w, height: h, channels: 3 } }).blur(sigma).raw().toBuffer();
+
+/**
+ * The FTC photo before its look, in source pixels (665 x 998), from drawn regions rather than hue
+ * alone (hue alone would catch skin, the brown trousers and the orange-yellow samples):
+ * - sharp: the basket, its pole, the lower bin, the claw, cable and slide, and the robot and field
+ *   below the wall's rail. Everything else (the referee and spectators) is blurred, darkened and
+ *   flattened, so no face is recognisable and the referee's stripes go quiet.
+ * - red: the red basket pole and the floor tape turn brand blue (their red pixels only).
+ * - plate: the number plate becomes an even blue plate, its digits blurred into it.
+ * The yellow samples, green claw tips and yellow wheels sit outside `red` and keep their colours.
+ */
+const FTC = {
+  sharp: [
+    // The high basket with its samples, and the red cap on its pole.
+    [[72, 22], [258, 32], [254, 160], [94, 162]],
+    // The pole, red and silver, leaning right toward the floor.
+    [[102, 22], [145, 22], [176, 664], [120, 664]],
+    // The lower bin.
+    [[94, 352], [268, 352], [268, 484], [98, 484]],
+    // The claw at the top, a diagonal band; the referee's face behind it stays soft.
+    [[216, 0], [276, 0], [300, 38], [342, 42], [342, 64], [300, 74], [264, 92], [238, 72]],
+    // The coiled cable.
+    [[251, 66], [281, 66], [282, 646], [250, 646]],
+    // The slide, and its carriage near the floor.
+    [[296, 60], [312, 60], [312, 446], [296, 446]],
+    [[272, 446], [322, 446], [322, 640], [272, 640]],
+    // The robot, the field wall and the floor below the rail; the people behind the clear wall on the right stay soft.
+    [[24, 652], [160, 616], [665, 590], [665, 612], [630, 616], [630, 806], [665, 810], [665, 998], [24, 998]],
+  ],
+  red: [
+    [[98, 20], [152, 20], [152, 664], [114, 664]],
+    [[196, 862], [256, 862], [256, 900], [196, 900]],
+  ],
+  plate: [[[281, 736], [393, 736], [393, 798], [281, 798]]],
+};
+/** The brand blue the red parts take, a little lighter than --orbit-blue so it reads as blue on a dark robot. */
+const PART_BLUE = [0.05, 0.16, 0.95];
+
+async function prepFtc(rgb, w, h, theme) {
+  const [sharpM, redM, plateM, back, plateBlur] = await Promise.all([
+    polygonMask(w, h, FTC.sharp, 2.2),
+    polygonMask(w, h, FTC.red, 1.2),
+    polygonMask(w, h, FTC.plate, 1.5),
+    blurred(rgb, w, h, 9),
+    blurred(rgb, w, h, 7),
+  ]);
+  const out = Buffer.alloc(w * h * 3);
+  for (let p = 0; p < w * h; p++) {
+    const i = p * 3;
+    let c = [rgb[i] / 255, rgb[i + 1] / 255, rgb[i + 2] / 255];
+    const r = redM[p] / 255;
+    if (r > 0) {
+      const [R, G, B] = c;
+      const a = r * clamp((R - Math.max(G, B) * 1.25) / 0.25);
+      if (a > 0) {
+        const m = colorBlend(c.map((v) => clamp(v * 1.35)), PART_BLUE);
+        c = c.map((v, k) => (1 - a) * v + a * m[k]);
+      }
+    }
+    const pl = plateM[p] / 255;
+    if (pl > 0) {
+      // Darker toward its lower edge, like the lit plate it was.
+      const l = 0.11 + 0.06 * lum(plateBlur[i] / 255, plateBlur[i + 1] / 255, plateBlur[i + 2] / 255) - 0.03 * ((p / w - 736) / 62);
+      // Muted, so it reads as a painted plate rather than a lit screen.
+      const plate = colorBlend([l, l, l], PART_BLUE).map((v) => 0.55 * v + 0.45 * l);
+      c = c.map((v, k) => (1 - pl) * v + pl * plate[k]);
+    }
+    const s = sharpM[p] / 255;
+    if (s < 1) {
+      // The people: the blurred copy, its contrast halved, darker by night and washed toward the ice sky by day.
+      const flat = [back[i], back[i + 1], back[i + 2]].map((v, k) => {
+        const f = clamp(0.5 + (v / 255 - 0.5) * 0.45);
+        return theme === "day" ? 0.55 * f + 0.45 * ICE[k] : f * 0.55;
+      });
+      c = c.map((v, k) => s * v + (1 - s) * flat[k]);
+    }
+    out[i] = Math.round(c[0] * 255);
+    out[i + 1] = Math.round(c[1] * 255);
+    out[i + 2] = Math.round(c[2] * 255);
+  }
+  return out;
+}
+
+/** Each set of copies: its file-name suffix, its widths, whether it takes the desktop look, and a crop. */
 const PHOTOS = {
   "home-field-wide": {
     outputs: [
@@ -224,26 +364,50 @@ const PHOTOS = {
   },
   // Shown from 1024px only.
   "home-reef-lane": { outputs: [{ suffix: "", widths: [1000, 1500, 2000], desktop: true }] },
+  // 665 px is all there is (no larger copy; the page draws it at most 520 CSS px wide). No AI
+  // upscaler was at hand, so it isn't enlarged. The phone strip is the robot, cropped.
+  "home-ftc-lane": {
+    file: "public/home-ftc-lane.webp",
+    prep: prepFtc,
+    outputs: [
+      { suffix: "", widths: [440, 665], desktop: true },
+      { suffix: "-phone", widths: [665], desktop: false, crop: { left: 0, top: 560, width: 665, height: 380 } },
+    ],
+    quality: { avif: 64, webp: 86 },
+  },
 };
 
-/** Which copies to write: `night`, `day` or (no argument) both. */
-const only = process.argv[2];
+/** Which copies to write: `night`, `day` or `all`/nothing for both; a second argument names one photo. */
+const only = process.argv[2] && process.argv[2] !== "all" ? process.argv[2] : null;
 const themes = only ? [only] : ["night", "day"];
 if (!themes.every((t) => t in LOOKS)) throw new Error(`Unknown look "${only}": night or day`);
+const onePhoto = process.argv[3];
 
 mkdirSync("public/robots", { recursive: true });
-for (const [name, { outputs, quality }] of Object.entries(PHOTOS)) {
-  const source = sharp(`public/${name}.jpg`).rotate();
+for (const [name, { file, prep, outputs, quality }] of Object.entries(PHOTOS)) {
+  if (onePhoto && name !== onePhoto) continue;
+  const original = sharp(file ?? `public/${name}.jpg`).rotate();
+  const { width: full } = await original.metadata();
+  /** The photo before its look, per theme when it has a `prep` step. */
+  const prepped = new Map();
+  const sourceFor = async (theme) => {
+    if (!prep) return original;
+    if (!prepped.has(theme)) {
+      const { data, info } = await original.clone().removeAlpha().raw().toBuffer({ resolveWithObject: true });
+      prepped.set(theme, sharp(await prep(data, info.width, info.height, theme), { raw: { width: info.width, height: info.height, channels: 3 } }));
+    }
+    return prepped.get(theme);
+  };
   const out = `public/robots/${name}`;
-  const { width: full } = await source.metadata();
   const q = quality ?? { avif: 55, webp: 78 };
-  for (const [theme, { suffix, widths, desktop }] of themes.flatMap((t) => outputs.map((o) => [t, o]))) {
+  for (const [theme, { suffix, widths, desktop, crop }] of themes.flatMap((t) => outputs.map((o) => [t, o]))) {
     const look = LOOKS[theme][name](desktop);
+    const source = await sourceFor(theme);
     const tag = theme === "day" ? "-day" : "";
     for (const width of widths) {
-      const { data, info } = await source
-        .clone()
-        .resize({ width: Math.min(width, full ?? width), kernel: "lanczos3", withoutEnlargement: true })
+      const piped = crop ? source.clone().extract(crop) : source.clone();
+      const { data, info } = await piped
+        .resize({ width: Math.min(width, crop?.width ?? full ?? width), kernel: "lanczos3", withoutEnlargement: true })
         .removeAlpha()
         .raw()
         .toBuffer({ resolveWithObject: true });

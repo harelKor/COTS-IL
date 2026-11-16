@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CATEGORY_GROUPS, groupCategories, groupOf, moveId, newGroupId } from "./category-groups";
+import { DEFAULT_CATEGORY_GROUPS, groupCategories, groupOf, groupSpans, moveId, newGroupId } from "./category-groups";
 
 const ALL = ["bearings", "belts-chain", "drivetrain", "electronics", "fasteners", "gearboxes", "gears", "mechanisms", "motors", "other", "pneumatics", "sensors", "shafts", "structure", "tools", "wheels"];
 const GROUPS = DEFAULT_CATEGORY_GROUPS.map(({ id, name }) => ({ id, name }));
@@ -39,5 +39,23 @@ describe("category groups", () => {
   it("makes a unique id", () => {
     expect(newGroupId(["g2", "a"])).toBe("g3");
     expect(newGroupId(["g1"])).toBe("g2");
+  });
+});
+
+describe("groupSpans", () => {
+  it("lays out two wide cards, then thirds", () => {
+    expect(groupSpans(5)).toEqual([3, 3, 2, 2, 2]);
+    expect(groupSpans(8)).toEqual([3, 3, 2, 2, 2, 2, 2, 2]);
+  });
+  it("closes every row without a gap", () => {
+    expect(groupSpans(4)).toEqual([3, 3, 3, 3]);
+    expect(groupSpans(6)).toEqual([3, 3, 3, 3, 3, 3]);
+    expect(groupSpans(3)).toEqual([3, 3, 6]);
+    expect(groupSpans(7)).toEqual([3, 3, 2, 2, 2, 3, 3]);
+    for (let n = 1; n <= 12; n++) expect(groupSpans(n).reduce((a, b) => a + b, 0) % 6).toBe(0);
+  });
+  it("handles one or none", () => {
+    expect(groupSpans(1)).toEqual([6]);
+    expect(groupSpans(0)).toEqual([]);
   });
 });

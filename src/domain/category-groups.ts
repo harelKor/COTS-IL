@@ -46,3 +46,29 @@ export function newGroupId(taken: string[]): string {
   while (taken.includes(`g${n}`)) n++;
   return `g${n}`;
 }
+
+/**
+ * The home page's group cards on a desktop, by position in the admin's order: how many of a
+ * 6-column row each card spans. The first two are wide (half a row each), the next ones a third
+ * each; a row that can't fill with thirds closes with halves (two or four left) or one full-width
+ * card (one left), so no row ends with a gap whatever the number of groups.
+ */
+export function groupSpans(n: number): (2 | 3 | 6)[] {
+  if (n <= 0) return [];
+  if (n === 1) return [6];
+  const spans: (2 | 3 | 6)[] = [3, 3];
+  let left = n - 2;
+  while (left > 0) {
+    if (left === 1) {
+      spans.push(6);
+      left = 0;
+    } else if (left === 2 || left === 4) {
+      spans.push(3, 3);
+      left -= 2;
+    } else {
+      spans.push(2, 2, 2);
+      left -= 3;
+    }
+  }
+  return spans;
+}

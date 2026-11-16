@@ -76,6 +76,7 @@ export function CategoryFlyout({
   width = 560,
   onNavigate,
   inline,
+  within,
 }: {
   id: string;
   mode?: "link" | "button";
@@ -97,6 +98,8 @@ export function CategoryFlyout({
   onNavigate?: FlyoutNavigate;
   /** Phones: open in the page (see InlineDisclosure); the popover and the hover then stay off. */
   inline?: InlineDisclosure;
+  /** A CSS selector for an ancestor the panel must stay within, sideways (placeUnder). */
+  within?: string;
 }) {
   const anchor = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -149,7 +152,7 @@ export function CategoryFlyout({
       if (el.matches(":popover-open")) el.hidePopover();
     };
     const place = (e: Event) => {
-      if ((e as ToggleEvent).newState === "open" && anchor.current) placeUnder(anchor.current, el, width);
+      if ((e as ToggleEvent).newState === "open" && anchor.current) placeUnder(anchor.current, el, width, within ? anchor.current.closest(within)?.getBoundingClientRect() : null);
     };
     const onScroll = (e: Event) => {
       if (!el.contains(e.target as Node) && performance.now() > quietUntil.current) close();
@@ -181,7 +184,7 @@ export function CategoryFlyout({
       openRef.current = false;
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [width]);
+  }, [width, within]);
 
   // The panel sits inside the anchor in the DOM (only its box is in the top layer), so hovering the
   // panel counts as hovering the anchor: moving from one to the other never fires pointerleave.
