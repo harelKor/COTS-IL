@@ -11,7 +11,8 @@
 // - home-reef-lane.jpg (4:3, 2,000 px): the lane beside the vendor cards on a desktop. FIRST
 //   Championship 2025 (Reefscape): the reef, its purple coral branches holding white coral and teal
 //   algae, the stands behind, and robot 1690 right of it (x 49-75%). The page shows the photo's
-//   left 60% (globals.css), so the reef is the subject and the robot stands at the edge, partly cut off.
+//   left 60% (globals.css), so the reef is the subject and the robot stands at the edge, partly cut off;
+//   only its left edge is faded here; its top fades in CSS, in a straight line under the first vendor row.
 // This writes smaller AVIF and WebP copies (public/robots/<name>[-phone]-<width>.{avif,webp}).
 //
 // The night look is baked into those copies (Nov 14, 2026, for speed): the colour grade, the
@@ -124,25 +125,18 @@ const NIGHT_LOOKS = {
     tint: null,
     shade: (() => {
       // The stands behind the reef, darker toward the top; the reef itself stays bright.
-      const stands = ramp([[0, 0.9], [0.3, 0.55], [0.5, 0.35], [0.75, 0.15], [0.84, 0]]);
+      const stands = ramp([[0, 0.75], [0.2, 0.5], [0.5, 0.3], [0.75, 0.12], [0.84, 0]]);
       const reef = ellipse(0.26, 0.4, 0.27, 0.62, [[0.5, 1], [1, 0]]);
       return (x, y) => stands(y) * (1 - reef(x, y));
     })(),
     mask: (() => {
-      const fadeY = ramp([[0.1, 0], [0.28, 1], [0.97, 1], [1, 0]]);
+      // The top fade is in CSS (globals.css, .scene-photo-tall): one straight line under the first row.
+      const fadeY = ramp([[0.97, 1], [1, 0]]);
       // Under the vendor cards on the left.
-      const fadeX = ramp([[0, 0.2], [0.07, 1]]);
-      const lobes = union([
-        // The reef.
-        ellipse(0.32, 0.46, 0.27, 0.66, [[0.6, 1], [1, 0]]),
-        // The field behind it, toward the window's edge, and the reef's base.
-        ellipse(0.2, 0.3, 0.45, 0.6, [[0.3, 0.8], [1, 0]]),
-        ellipse(0.3, 0.1, 0.3, 0.92, [[0, 0.8], [1, 0]]),
-        // The robot's elevator and bumper, at the window's edge.
-        ellipse(0.12, 0.32, 0.62, 0.64, [[0.3, 0.9], [1, 0]]),
-        ellipse(0.18, 0.08, 0.58, 0.91, [[0.3, 0.9], [1, 0]]),
-      ]);
-      return (x, y) => fadeY(y) * fadeX(x) * lobes(x, y);
+      const fadeX = ramp([[0, 0], [0.12, 1]]);
+      // Nothing else: the photo stays whole to the window's right edge and the lane's bottom, so the
+      // robot at the edge shows as shot and no corner fades out.
+      return (x, y) => fadeY(y) * fadeX(x);
     })(),
   }),
 };

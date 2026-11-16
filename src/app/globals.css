@@ -1536,6 +1536,24 @@ html::-webkit-scrollbar {
   width: var(--photo-w);
 }
 /*
+ * Its top: one straight, even fade across the lane just under the first vendor row (the lane starts
+ * 48px below it), never up behind those cards. The box starts 40px above the lane and fades in over
+ * 100px; the photo, taller than the box, sits on its bottom (the lane's bottom) and is clipped above.
+ * A fixed mask on a box that never changes size, so scrolling only moves the image inside it.
+ */
+@media (min-width: 1024px) {
+  .scene-photo-tall {
+    top: -40px;
+    height: calc(100% + 40px + 0.015 * var(--photo-h));
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 100px);
+    mask-image: linear-gradient(to bottom, transparent, #000 100px);
+  }
+  .scene-photo-tall .scene-frame {
+    top: auto;
+    height: var(--photo-h);
+  }
+}
+/*
  * A small desktop: the cards wrap taller, so the photo is drawn larger to reach up to the first row,
  * cut at x 55% so the reef still clears the cards (the robot stays past the edge).
  */
