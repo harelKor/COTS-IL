@@ -1403,36 +1403,34 @@ html::-webkit-scrollbar {
 
 /*
  * The hero: short, so "מאיזה ספק קונים?" and the first vendor row start about half way down the
- * window. The Hebrew headline on the physical right; the field photo (3:2, as shot) on the physical
- * left: robots 1937, 2230 and 2630 hanging from the barge (photo x 7-88%, y 12-63%) with the reef
- * behind them, their bumpers just above the first row. The light truss (x 89-100%) fades out under
- * the headline's darker side.
+ * window. The Hebrew headline on the physical right; behind it, a window-wide backdrop (3:2, as
+ * shot): FIRST Championship Detroit 2019, an empty field shot low from the floor, its rockets and
+ * cargo ship on the physical left (photo x 8-60%), the driver stations (x 55-82%) under the
+ * headline's directional wash, the field's front edge at y ~72% just above the vendors heading, and
+ * the open floor below it feathering into the vendor section. The ceiling runs up under the header.
  */
 .scene-hero {
-  --photo-w: 170vw;
+  --photo-w: 150vw;
   --photo-h: calc(var(--photo-w) * 0.6667);
-  /* Phones: 1937, 2230 and the reef across the window (photo x 5-64%); 2630 runs off the right. */
-  --photo-x: calc(-0.05 * var(--photo-w));
-  /* The robots (y 12-63%) at the top of the hero, behind the motto. */
-  --photo-top: calc(-0.1 * var(--photo-h));
+  /* Phones: the rockets and cargo ship across the window; the driver stations run off the right. */
+  --photo-x: calc(-0.1 * var(--photo-w));
+  --photo-top: calc(100% + 46px - 0.72 * var(--photo-h));
   min-height: calc(52svh - 176px);
   justify-content: center;
 }
 @media (min-width: 640px) {
   .scene-hero {
-    --photo-w: 110vw;
-    --photo-x: calc(-0.04 * var(--photo-w));
-    /* The bumpers' bottom (y 63%) about 34px above the vendors heading's hairline (32px gap + 32px margin + half the heading). */
-    --photo-top: calc(100% + 46px - 0.63 * var(--photo-h));
+    --photo-w: 120vw;
+    --photo-x: calc(-0.08 * var(--photo-w));
   }
 }
 @media (min-width: 1024px) {
   .scene-hero {
-    /* All three robots left of the headline: the photo's x 88% about where the headline starts. */
-    --photo-w: min(68vw, 120vh);
-    --photo-x: calc(0.02 * var(--photo-w));
-    /* 32px gap + 72px margin + half the heading, less ~34px of air under the bumpers. */
-    --photo-top: calc(100% + 88px - 0.63 * var(--photo-h));
+    /* Window-wide, a touch wider so the field sits left of centre. */
+    --photo-w: 106vw;
+    --photo-x: calc(-0.04 * var(--photo-w));
+    /* The field's front edge (y 72%) about 34px above the vendors heading (32px gap + 72px margin + half the heading). */
+    --photo-top: calc(100% + 88px - 0.72 * var(--photo-h));
   }
 }
 .scene-photo-short,
@@ -1452,8 +1450,8 @@ html::-webkit-scrollbar {
   width: var(--photo-w);
 }
 .scene-photo-short .scene-img {
-  /* On a desktop, scroll pushes in a touch around the robots' bumpers (below). */
-  transform-origin: 45% 62%;
+  /* On a desktop, scroll pushes in a touch around the field (below). */
+  transform-origin: 32% 62%;
 }
 
 /*
@@ -1468,7 +1466,9 @@ html::-webkit-scrollbar {
   width: 100vw;
   filter: blur(44px);
 }
+/* The hero's photo fills the window, so it has no splashes: only the lower photo does. */
 .scene-splash-short {
+  display: none;
   background:
     radial-gradient(30% 8% at 38% 68%, rgb(0 24 224 / 0.5), transparent 72%),
     radial-gradient(22% 13% at 58% 52%, rgb(0 20 190 / 0.42), transparent 72%),
@@ -1485,13 +1485,20 @@ html::-webkit-scrollbar {
   align-items: flex-start;
   text-align: start;
 }
+/*
+ * Below a desktop the motto spans the window over the photo: a straight band (soft top and bottom
+ * edges, never an oval) keeps it crisp. From 1024px the photo's own directional wash does that.
+ */
 .scene-hero-lane::before {
   content: "";
   position: absolute;
   z-index: -1;
-  /* Within the page's width (wider would widen the page). */
-  inset: -14% 0;
-  background: radial-gradient(closest-side, rgb(2 4 22 / 0.74), rgb(2 4 22 / 0.42) 60%, transparent);
+  /* Window-wide, so it has no side edges (the page clips sideways overflow: html, overflow-x). */
+  top: -10%;
+  bottom: -10%;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  background: linear-gradient(to bottom, transparent, rgb(2 4 22 / 0.62) 22%, rgb(2 4 22 / 0.62) 78%, transparent);
   pointer-events: none;
 }
 @media (min-width: 1024px) {
@@ -1501,7 +1508,7 @@ html::-webkit-scrollbar {
     width: min(780px, 58%);
   }
   .scene-hero-lane::before {
-    inset: -20% -6%;
+    content: none;
   }
 }
 
@@ -1833,10 +1840,11 @@ html::-webkit-scrollbar {
       radial-gradient(16% 34% at 100% 72%, light-dark(rgb(67 56 202 / 0.2), transparent), transparent 72%);
   }
   .scene-hero-lane::before {
-    background: radial-gradient(
-      closest-side,
-      light-dark(rgb(246 247 255 / 0.82), rgb(2 4 22 / 0.74)),
-      light-dark(rgb(246 247 255 / 0.5), rgb(2 4 22 / 0.42)) 60%,
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      light-dark(rgb(246 247 255 / 0.8), rgb(2 4 22 / 0.62)) 22%,
+      light-dark(rgb(246 247 255 / 0.8), rgb(2 4 22 / 0.62)) 78%,
       transparent
     );
   }

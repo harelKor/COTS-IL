@@ -2,12 +2,23 @@
 //
 //   npm run robot-photos
 //
-// The home page shows the competition itself, field elements and several teams' robots, not one
-// team (owner's decision, Nov 16, 2026; the photos are the owner's to use). The originals sit in
-// public/ and are used whole, as shot: no cutout, no blur, never mirrored.
-// - home-field-wide.jpg (3:2, 2,000 px): the hero. Israeli District Championship 2025 (Reefscape):
-//   robots 1937, 2230 and 2630 hanging from the barge chains, the reef behind them, empty blue stands
-//   and a light truss on the right.
+// The home page shows the competition itself and field elements, never one team (owner's decision,
+// Nov 16, 2026). The originals sit in public/ and are used whole, as shot: no cutout, no blur,
+// never mirrored.
+// - hero-field.jpg (3:2, 2,400 px): the hero, a window-wide backdrop. FIRST Championship Detroit
+//   2019 (Destination: Deep Space), an empty field before matches, shot low from the floor: the
+//   rockets, cargo ship and driver stations on the left and centre (x 8-82%, front edge y ~72%), the
+//   open floor below, the hall's ceiling lights and empty stands above. No robots, no team numbers.
+//   Photo: Stilfehler, Wikimedia Commons, CC BY-SA 4.0
+//   (https://commons.wikimedia.org/wiki/File:FIRST_Championship_Detroit_2019_–_FRC_fields.jpg),
+//   cropped to 3:2. Its look has no ovals: straight top, bottom and left fades, and one directional
+//   wash over the top right, behind the headline (midnight by night, ice white by day).
+//   Two vetted alternates sit beside it; to swap, copy one over hero-field.jpg and run this again
+//   (the field's position, `--photo-*` in globals.css's .scene-hero, may need a nudge):
+//   hero-alt-1.jpg, Duluth regional 2011 (Logomotion), Wikimedia Commons, CC BY 2.0
+//   (https://commons.wikimedia.org/wiki/File:2011-03_FIRST_Robotics_regional,_Duluth,_MN_IMG_1953_(5883249086).jpg);
+//   hero-alt-2.jpg, Israel District Championship 2017 (Steamworks), Nitays, Wikimedia Commons,
+//   CC BY-SA 4.0 (https://commons.wikimedia.org/wiki/File:FIRST_Robotics_Competition_Israel_District_Championship_Field.jpg).
 // - home-reef-lane.jpg (4:3, 2,000 px): the lane beside the vendor cards on a desktop. FIRST
 //   Championship 2025 (Reefscape): the reef, its purple coral branches holding white coral and teal
 //   algae, the stands behind, and robot 1690 right of it (x 49-75%). The page shows the photo's
@@ -20,8 +31,8 @@
 // the canvas, as an alpha channel. The browser then draws a plain picture, with no CSS masks,
 // filters or blend modes to recompute while the page scrolls. `look()` below is the exact maths of
 // the CSS it replaced (sRGB, the W3C blend formulas); change the look here and run this again.
-// The hero has two looks: "-phone" (below 1024px) and the desktop one, which also darkens the
-// right side (the truss) behind the headline.
+// The hero has two looks: "-phone" (below 1024px) and the desktop one, whose directional wash
+// behind the headline is stronger.
 //
 // The light theme (LM3, Nov 15, 2026) has its own copies, "-day" (public/robots/<name>[-phone]-day-<width>):
 // the same photo, crop and soft mask, a brighter grade, a lighter ultramarine soft-light and
@@ -29,8 +40,8 @@
 // the photo melts into the pearl sky. `npm run robot-photos -- day` writes only those (`night`
 // only the night ones); home-scene.tsx shows one set or the other by the theme, in CSS.
 //
-// The desktop hero is drawn at most ~1,750 px wide (68vw, capped by the window's height), so the
-// 2,000 px originals are sharp enough as they are. If a photo is ever shown larger than its
+// The desktop hero is drawn window-wide (106vw, so at most ~1,700 px on the 1,600 px scene plus
+// margins); the 2,000 px copies cover that. If a photo is ever shown larger than its
 // original, an earlier version of this script (git log, "Real-ESRGAN") enlarged one 4x with
 // Real-ESRGAN x4plus (Qualcomm AI Hub's ONNX release, run locally in 128 px tiles) into a master.
 import sharp from "sharp";
@@ -53,12 +64,6 @@ const ellipse = (rx, ry, cx, cy, stops) => {
   const f = ramp(stops);
   return (x, y) => f(Math.hypot((x - cx) / rx, (y - cy) / ry));
 };
-/** Mask layers composited with `add` (source-over). */
-const union = (layers) => (x, y) => layers.reduce((a, l) => {
-  const b = l(x, y);
-  return a + b - a * b;
-}, 0);
-
 const NIGHT = [2 / 255, 4 / 255, 22 / 255]; // --orbit-night
 const BLUE = [0, 20 / 255, 190 / 255]; // --orbit-blue
 const ICE = [238 / 255, 242 / 255, 255 / 255]; // the day sky behind the photos (globals.css, .scene-canvas in light)
@@ -72,7 +77,7 @@ const daylight = (look, { brightness, contrast, saturate, tint = 0.85, grade = 0
   ...look,
   filter: { brightness, contrast, saturate },
   tint: look.tint && ((y) => tint * look.tint(y)),
-  shade: (x, y) => shade * look.shade(x, y),
+  shade: (x, y) => Math.min(1, shade * look.shade(x, y)),
   shadeTo: ICE,
   grade,
 });
@@ -89,34 +94,32 @@ const daylight = (look, { brightness, contrast, saturate, tint = 0.85, grade = 0
  * `daylight()` turns a look into its light-theme copy.
  */
 const NIGHT_LOOKS = {
-  "home-field-wide": (desktop) => ({
+  "hero-field": (desktop) => ({
     scale: 1,
-    filter: { brightness: 0.82, contrast: 1.06, saturate: 1.04 },
-    // The blue stands above the field, toward the canvas's ultramarine.
-    tint: ramp([[0, 0.6], [0.14, 0.4], [0.24, 0]]),
+    filter: { brightness: 0.84, contrast: 1.06, saturate: 1.04 },
+    // The hall's ceiling, toward the canvas's ultramarine.
+    tint: ramp([[0, 0.55], [0.2, 0.35], [0.36, 0]]),
     shade: (x, y) => {
-      // Midnight over the stands at the top and the empty carpet below the bumpers.
-      const top = ramp([[0, 0.75], [0.1, 0.45], [0.2, 0.1], [0.3, 0]])(y);
-      const floor = ramp([[0.62, 0], [0.74, 0.35], [0.9, 0.7]])(y);
+      // Midnight over the ceiling lights at the top (under the header) and a little on the far floor.
+      const top = ramp([[0, 0.8], [0.12, 0.55], [0.26, 0.18], [0.38, 0]])(y);
+      const floor = ramp([[0.74, 0], [0.9, 0.3], [1, 0.45]])(y);
       const down = 1 - (1 - top) * (1 - floor);
-      if (!desktop) return down;
-      // The truss on the right, under the headline.
-      const side = ramp([[0, 0.75], [0.14, 0.45], [0.3, 0]])(1 - x);
+      // One straight directional wash behind the text: strongest at the top right, none over the
+      // field on the left and the open floor at the bottom. Phones get a softer one (the motto spans
+      // the window there and keeps its band, globals.css).
+      const across = desktop
+        ? ramp([[0.34, 0], [0.5, 0.62], [0.62, 0.9], [1, 0.96]])(x)
+        : ramp([[0.3, 0], [0.7, 0.35], [1, 0.5]])(x);
+      const high = desktop ? ramp([[0, 1], [0.64, 1], [0.76, 0.3], [0.86, 0]])(y) : ramp([[0, 1], [0.6, 1], [0.74, 0.25], [0.82, 0]])(y);
+      const side = across * high;
       return 1 - (1 - down) * (1 - side);
     },
+    // Straight edge fades only (no ovals): the ceiling dissolves into the canvas at the top, the floor
+    // feathers into the vendor section at the bottom, a soft left edge; the right edge is the window's.
     mask: (() => {
-      const fadeY = ramp([[0.02, 0], [0.14, 1], [0.66, 1], [0.86, 0]]);
-      const fadeX = ramp([[0, 0], [0.06, 1], [0.86, 1], [1, 0]]);
-      const lobes = union([
-        // The three robots and the reef.
-        ellipse(0.5, 0.36, 0.48, 0.4, [[0.62, 1], [1, 0]]),
-        ellipse(0.22, 0.28, 0.2, 0.48, [[0.45, 1], [1, 0]]),
-        ellipse(0.22, 0.18, 0.76, 0.42, [[0.4, 1], [1, 0]]),
-        // Their shadows on the carpet, and the truss.
-        ellipse(0.3, 0.1, 0.4, 0.66, [[0, 0.7], [1, 0]]),
-        ellipse(0.16, 0.14, 0.86, 0.3, [[0, 0.5], [1, 0]]),
-      ]);
-      return (x, y) => fadeY(y) * fadeX(x) * lobes(x, y);
+      const fadeY = ramp([[0, 0], [0.12, 1], [0.76, 1], [0.97, 0]]);
+      const fadeX = desktop ? ramp([[0, 0], [0.05, 1]]) : ramp([[0, 0], [0.04, 1], [0.96, 1], [1, 0]]);
+      return (x, y) => fadeY(y) * fadeX(x);
     })(),
   }),
   "home-reef-lane": () => ({
@@ -143,7 +146,8 @@ const NIGHT_LOOKS = {
 const LOOKS = {
   night: NIGHT_LOOKS,
   day: {
-    "home-field-wide": (desktop) => daylight(NIGHT_LOOKS["home-field-wide"](desktop), { brightness: 1.04, contrast: 1.02, saturate: 1.02 }),
+    // By day the wash is ice white, so the text zone is clean pearl, never a grey veil over the photo.
+    "hero-field": (desktop) => daylight(NIGHT_LOOKS["hero-field"](desktop), { brightness: 1.06, contrast: 1.0, saturate: 1.02, grade: 0.08, shade: 1.08 }),
     "home-reef-lane": () => daylight(NIGHT_LOOKS["home-reef-lane"](), { brightness: 0.97, contrast: 1.04, saturate: 1.02, grade: 0.16, shade: 0.3 }),
   },
 };
@@ -214,7 +218,7 @@ function bake(rgb, width, height, look) {
 
 /** Each set of copies: its file-name suffix, its widths and whether it takes the desktop look. */
 const PHOTOS = {
-  "home-field-wide": {
+  "hero-field": {
     outputs: [
       // Phones and tablets: never more than 1,400 px.
       { suffix: "-phone", widths: [800, 1400], desktop: false },
@@ -232,7 +236,9 @@ const themes = only ? [only] : ["night", "day"];
 if (!themes.every((t) => t in LOOKS)) throw new Error(`Unknown look "${only}": night or day`);
 
 mkdirSync("public/robots", { recursive: true });
-for (const [name, { outputs, quality }] of Object.entries(PHOTOS)) {
+// A second argument limits it to one photo (`npm run robot-photos -- "" hero-field`).
+const pick = process.argv[3];
+for (const [name, { outputs, quality }] of Object.entries(PHOTOS).filter(([n]) => !pick || n === pick)) {
   const source = sharp(`public/${name}.jpg`).rotate();
   const out = `public/robots/${name}`;
   const { width: full } = await source.metadata();

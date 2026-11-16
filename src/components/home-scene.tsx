@@ -1,14 +1,14 @@
 import { preload } from "react-dom";
 
 /**
- * Two competition photos behind the home page, whole and sharp: the competition itself, field
- * elements and several teams' robots (no cutout, no blur and never mirrored, so the team numbers
- * read naturally). globals.css ("The home page as one competition photograph") places them, laid
+ * Two competition photos behind the home page, whole and sharp: the competition itself and its
+ * field elements (no cutout, no blur and never mirrored, so any text reads naturally). globals.css ("The home page as one competition photograph") places them, laid
  * out the way Hebrew reads (headline on the right); their night look and soft edges are baked into
  * the files (`npm run robot-photos`), so the browser only draws a picture:
- * - "short" (3:2, `home-field-wide`): the hero. Israeli District Championship 2025 (Reefscape),
- *   robots 1937, 2230 and 2630 hanging from the barge chains with the reef behind them, on the
- *   physical left; the truss on the photo's right fades out under the headline. Phones and tablets
+ * - "short" (3:2, `hero-field`): the hero, a window-wide backdrop. FIRST Championship Detroit 2019,
+ *   an empty Deep Space field shot low from the floor: the field on the physical left, the open floor
+ *   running right under the hero and feathering into the vendors, a directional wash (baked in) over
+ *   the top right behind the headline. Team-neutral: no robots, no team numbers. Phones and tablets
  *   get their own copies, at most 1,400 px wide.
  * - "tall" (4:3, `home-reef-lane`): in the open physical-right lane beside the lower vendor cards
  *   on a desktop, the 2025 Reefscape reef with its coral and algae filling it; the robot beside it
@@ -21,8 +21,8 @@ type Source = { name: string; widths: readonly number[]; sizes: string; media?: 
 const PHOTOS: Record<"short" | "tall", { sources: Source[]; width: number; height: number }> = {
   short: {
     sources: [
-      { name: "home-field-wide", widths: [1000, 1500, 2000], sizes: "68vw", media: "(min-width: 1024px)" },
-      { name: "home-field-wide-phone", widths: [800, 1400], sizes: "(min-width: 640px) 110vw, 170vw" },
+      { name: "hero-field", widths: [1000, 1500, 2000], sizes: "106vw", media: "(min-width: 1024px)" },
+      { name: "hero-field-phone", widths: [800, 1400], sizes: "(min-width: 640px) 120vw, 150vw" },
     ],
     // The <img> fallback (the phone copy at 1,400 px).
     width: 1400,
