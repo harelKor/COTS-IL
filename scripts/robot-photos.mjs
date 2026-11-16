@@ -11,7 +11,7 @@
 // - home-reef-lane.jpg (4:3, 2,000 px): the lane beside the vendor cards on a desktop. FIRST
 //   Championship 2025 (Reefscape): the reef, its purple coral branches holding white coral and teal
 //   algae, the stands behind, and robot 1690 right of it (x 49-75%). The page shows the photo's
-//   left 62% (globals.css), so the reef is the subject and the robot stands at the edge, partly cut off.
+//   left 60% (globals.css), so the reef is the subject and the robot stands at the edge, partly cut off.
 // This writes smaller AVIF and WebP copies (public/robots/<name>[-phone]-<width>.{avif,webp}).
 //
 // The night look is baked into those copies (Nov 14, 2026, for speed): the colour grade, the

@@ -1507,9 +1507,9 @@ html::-webkit-scrollbar {
 
 /*
  * Below the first row, on a desktop: the reef (2025 Reefscape, 4:3, as shot; photo x 3-50%, y 32-100%),
- * its purple coral branches, white coral and teal algae filling the open physical-right lane (~46%)
+ * its purple coral branches, white coral and teal algae filling the open physical-right lane (~42%)
  * beside the 2×2 grid, its left end at the cards' edge. The window's right edge cuts the photo at
- * x 62%, so the robot beside the reef (x 49-75%) stands at the edge, partly out of the picture.
+ * x 60%, so the robot beside the reef (x 49-75%) stands at the edge, partly out of the picture.
  */
 .scene-lane {
   --photo-w: min(84vw, 150vh);
@@ -1529,11 +1529,21 @@ html::-webkit-scrollbar {
 }
 /*
  * Its look (the grade, the stands dimmed behind the reef, the soft edges) is baked into the files
- * too, for the photo drawn at 106%. The photo's x 62% (62.7% once scaled) on the window's right edge.
+ * too, for the photo drawn at 106%. The photo's x 60% (60.6% once scaled) on the window's right edge.
  */
 .scene-photo-tall .scene-frame {
-  left: calc(100vw - 0.627 * var(--photo-w));
+  left: calc(100vw - var(--photo-cut, 0.606) * var(--photo-w));
   width: var(--photo-w);
+}
+/*
+ * A small desktop: the cards wrap taller, so the photo is drawn larger to reach up to the first row,
+ * cut at x 55% so the reef still clears the cards (the robot stays past the edge).
+ */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .scene-lane {
+    --photo-w: min(100vw, 150vh);
+    --photo-cut: 0.553;
+  }
 }
 .scene-photo-tall .scene-img {
   transform: scale(1.06);
@@ -1613,7 +1623,7 @@ html::-webkit-scrollbar {
     --photo-top: calc(100% - 0.985 * var(--photo-h));
   }
   /*
-   * The remaining vendors on the left; the physical right ~46% stays open for the photo. The lane
+   * The remaining vendors on the left; the physical right ~42% stays open for the photo. The lane
    * starts 48px under the first row and its grid is most of the reef's height, so the coral clears
    * the first row while the reef's base still ends level with the last row.
    */
@@ -1622,13 +1632,13 @@ html::-webkit-scrollbar {
   }
   .scene-lane-cards {
     margin-right: auto;
-    width: 54%;
+    width: 58%;
   }
   .scene-lane-cards > ul {
-    min-height: calc(0.6 * var(--photo-h));
+    min-height: calc(0.55 * var(--photo-h));
     /* A roomier gap between the two rows; the rest of the spare height is shared by the rows. */
     grid-auto-rows: 1fr;
-    row-gap: 48px;
+    row-gap: 32px;
   }
 }
 
