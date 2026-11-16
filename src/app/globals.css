@@ -1509,10 +1509,10 @@ html::-webkit-scrollbar {
  * Below the first row, on a desktop: the reef (2025 Reefscape, 4:3, as shot; photo x 3-50%, y 32-100%),
  * its purple coral branches, white coral and teal algae filling the open physical-right lane (~46%)
  * beside the 2×2 grid, its left end at the cards' edge. The window's right edge cuts the photo at
- * x 66%, so the robot beside the reef (x 49-75%) stands at the edge, partly out of the picture.
+ * x 62%, so the robot beside the reef (x 49-75%) stands at the edge, partly out of the picture.
  */
 .scene-lane {
-  --photo-w: min(72vw, 128vh);
+  --photo-w: min(84vw, 150vh);
   --photo-h: calc(var(--photo-w) * 0.751);
 }
 /* Below a desktop the lower vendors are one column: no photo between them (it's lazy, so it isn't fetched). */
@@ -1529,10 +1529,10 @@ html::-webkit-scrollbar {
 }
 /*
  * Its look (the grade, the stands dimmed behind the reef, the soft edges) is baked into the files
- * too, for the photo drawn at 106%. The photo's x 66% (67% once scaled) on the window's right edge.
+ * too, for the photo drawn at 106%. The photo's x 62% (62.7% once scaled) on the window's right edge.
  */
 .scene-photo-tall .scene-frame {
-  left: calc(100vw - 0.67 * var(--photo-w));
+  left: calc(100vw - 0.627 * var(--photo-w));
   width: var(--photo-w);
 }
 .scene-photo-tall .scene-img {

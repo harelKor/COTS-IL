@@ -29,7 +29,7 @@ const PHOTOS: Record<"short" | "tall", { sources: Source[]; width: number; heigh
     height: 934,
   },
   tall: {
-    sources: [{ name: "home-reef-lane", widths: [1000, 1500, 2000], sizes: "72vw" }],
+    sources: [{ name: "home-reef-lane", widths: [1000, 1500, 2000], sizes: "84vw" }],
     width: 1500,
     height: 1127,
   },
