@@ -13,7 +13,7 @@ import { preload } from "react-dom";
  *   was graded. Phones and tablets get their own copies, at most 1,400 px wide.
  * - "tall" (4:3, `home-reef-lane`): in the open physical-right lane beside the lower vendor cards
  *   on a desktop, the 2025 Reefscape reef with its coral and algae filling it; the robot beside it
- *   stands at the window's edge, partly cut off. Not shown below 1024px.
+ *   stands at the window's edge, about half of it in view. Not shown below 1024px.
  * Each has a daylight copy ("-day") for the light theme, the same photo with white fades (LM3).
  * Decorative, hidden from assistive tech, and absolutely placed, so nothing shifts as they load.
  * On a desktop they move a little as the page scrolls (globals.css, ScrollParallax).
@@ -22,7 +22,7 @@ type Source = { name: string; widths: readonly number[]; sizes: string; media?: 
 const PHOTOS: Record<"short" | "tall", { sources: Source[]; width: number; height: number }> = {
   short: {
     sources: [
-      { name: "home-rebuilt-tower", widths: [1000, 1500, 2000, 2600], sizes: "min(70vw, 96vh, 1300px)", media: "(min-width: 1024px)" },
+      { name: "home-rebuilt-tower", widths: [1000, 1500, 2000, 2600], sizes: "min(70vw, 1300px)", media: "(min-width: 1024px)" },
       { name: "home-rebuilt-tower-phone", widths: [800, 1400], sizes: "(min-width: 640px) 110vw, 180vw" },
     ],
     // The <img> fallback (the phone copy at 1,400 px).
@@ -132,10 +132,11 @@ export function ScenePhoto({ kind }: { kind: keyof typeof PHOTOS }) {
 
 /**
  * The FTC photo beside the home page's groups (INTO THE DEEP 2025: a robot at the high basket, its
- * slide and coiled cable; the red parts in the brand blue, the number plate plain, the people behind
- * blurred, all baked by `npm run robot-photos`). From 1024px a tall lane on the physical left, the
- * basket near the section's top and the robot near its bottom, at most 520px wide (the original is
- * 665px). Below that a short strip of the robot over the cards. Night and day copies as above, its
+ * slide and coiled cable; the red parts in the brand blue, the number plate dark metal, the people behind
+ * blurred, all baked by `npm run robot-photos`). From 1024px a tall lane on the physical left, flush
+ * with the window's edge (the photo is padded on its left and top by mirroring, blurred and shaded
+ * to the canvas), the basket near the section's top and the robot near its bottom. Below that a
+ * short strip of the robot over the cards. Night and day copies as above, its
  * fades baked in; decorative, and its box has the photo's shape before it loads, so nothing shifts.
  */
 export function FtcPhoto() {
@@ -148,8 +149,8 @@ export function FtcPhoto() {
               key={`lane-${type}`}
               type={`image/${type}`}
               media="(min-width: 1024px)"
-              srcSet={srcSet(`home-ftc-lane${look.tag}`, [440, 665], type)}
-              sizes="min(30vw, 520px)"
+              srcSet={srcSet(`home-ftc-lane${look.tag}`, [640, 965], type)}
+              sizes="min(44vw, 790px)"
             />
           ))}
           <source type="image/avif" srcSet={`/robots/home-ftc-lane-phone${look.tag}-665.avif`} />

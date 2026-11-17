@@ -17,9 +17,10 @@
 //   ships; this script only grades, masks and resizes it.
 // - home-reef-lane.jpg (4:3, 2,000 px): the lane beside the vendor cards on a desktop. FIRST
 //   Championship 2025 (Reefscape): the reef, its purple coral branches holding white coral and teal
-//   algae, the stands behind, and robot 1690 right of it (x 49-75%). The page shows the photo's
-//   left 60% (globals.css), so the reef is the subject and the robot stands at the edge, partly cut off;
-//   only its left edge is faded here; its top fades in CSS, in a straight line under the first vendor row.
+//   algae, the stands behind, and robot 1690 right of it (x 49-79%). The page shows the photo's
+//   left 65% (globals.css), so the reef is the subject and about half the robot shows at the edge;
+//   only its left edge is faded here; its top and bottom fade in CSS (a straight line under the first
+//   vendor row, and a feather at the lane's bottom).
 // This writes smaller AVIF and WebP copies (public/robots/<name>[-phone]-<width>.{avif,webp}).
 //
 // The night look is baked into those copies (Nov 14, 2026, for speed): the colour grade, the
@@ -112,17 +113,28 @@ const NIGHT_LOOKS = {
       const stands = ramp([[0.62, 0], [0.74, 0.3], [1, 0.55]])(x);
       const both = 1 - (1 - down) * (1 - stands);
       if (!desktop) return both;
-      // On a desktop the stands sit under the headline: darker still.
-      const side = ramp([[0.66, 0], [0.8, 0.4], [1, 0.7]])(x);
+      // On a desktop the stands run under the headline: a little darker, never a wall (the
+      // readability wash behind the words is in CSS, .scene-hero-lane::before).
+      const side = ramp([[0.7, 0], [0.86, 0.22], [1, 0.4]])(x);
       return 1 - (1 - both) * (1 - side);
     },
-    mask: (() => {
-      // A wide, soft feather all round, so the field feels open; the tower and the whole arc stay solid.
-      const fadeY = ramp([[0, 0], [0.09, 1], [0.74, 1], [0.93, 0]]);
-      const fadeX = ramp([[0, 0], [0.12, 1], [0.8, 1], [1, 0]]);
-      const field = ellipse(0.64, 0.6, 0.5, 0.46, [[0.56, 1], [1, 0]]);
-      return (x, y) => fadeY(y) * fadeX(x) * field(x, y);
-    })(),
+    mask: desktop
+      ? (() => {
+          // A desktop: the photo runs about 70% of the window, so its right side fades gradually,
+          // from the stands' edge to nothing, softly under the subtitle and the telemetry. The
+          // bottom fade is gentle here: CSS (.scene-photo-short) feathers it out above the vendors.
+          const fadeY = ramp([[0, 0], [0.07, 1], [0.8, 1], [0.99, 0]]);
+          const fadeX = ramp([[0, 0], [0.1, 1], [0.56, 1], [0.72, 0.72], [0.86, 0.32], [1, 0]]);
+          const field = ellipse(0.78, 0.74, 0.46, 0.42, [[0.62, 1], [1, 0]]);
+          return (x, y) => fadeY(y) * fadeX(x) * field(x, y);
+        })()
+      : (() => {
+          // Phones and tablets: a wide, soft feather all round; the tower and the whole arc stay solid.
+          const fadeY = ramp([[0, 0], [0.09, 1], [0.74, 1], [0.93, 0]]);
+          const fadeX = ramp([[0, 0], [0.12, 1], [0.8, 1], [1, 0]]);
+          const field = ellipse(0.64, 0.6, 0.5, 0.46, [[0.56, 1], [1, 0]]);
+          return (x, y) => fadeY(y) * fadeX(x) * field(x, y);
+        })(),
   }),
   "home-reef-lane": () => ({
     scale: 1.06,
@@ -145,38 +157,49 @@ const NIGHT_LOOKS = {
     })(),
   }),
   /**
-   * The FTC lane (home-ftc-lane.webp, 665 x 998, portrait): INTO THE DEEP 2025, a robot at the high
-   * basket with its tall silver slide and coiled cable, a referee and spectators behind. `prepFtc`
-   * has already recoloured it and blurred the people, so the look only grades and fades it. On a
-   * desktop its right edge melts into the group cards beside it, its top and bottom into the canvas.
+   * The FTC lane (home-ftc-lane.webp, 665 x 998, portrait, padded to 965 x 1088 by `prepFtc`; the
+   * original is x 0.31-1, y 0.083-1 of that): INTO THE DEEP 2025, a robot at the high basket with its
+   * tall silver slide and coiled cable, a referee and spectators behind. `prepFtc` has recoloured it
+   * and blurred the people, so the look only grades and fades it. On a desktop it runs to the
+   * window's left edge (the mirrored pad, shaded down to the canvas there, so it ends seamlessly at
+   * any width) and feathers out at the top, at its right under the group cards and at the bottom.
    */
-  "home-ftc-lane": (desktop) => ({
-    scale: 1,
-    filter: { brightness: 0.86, contrast: 1.06, saturate: 1 },
-    // The blurred stands toward the canvas's ultramarine.
-    tint: ((down) => (x, y) => down(y))(desktop ? ramp([[0, 0.5], [0.3, 0.3], [0.6, 0]]) : ramp([[0, 0.3], [0.5, 0]])),
-    shade: desktop
-      ? (x, y) => {
-          const top = ramp([[0, 0.55], [0.12, 0.25], [0.3, 0]])(y);
-          const floor = ramp([[0.86, 0], [1, 0.5]])(y);
-          return 1 - (1 - top) * (1 - floor);
-        }
-      : () => 0.08,
-    mask: desktop
-      ? (() => {
-          const fadeY = ramp([[0, 0], [0.07, 1], [0.86, 1], [0.99, 0]]);
-          const fadeX = ramp([[0, 0], [0.1, 1], [0.62, 1], [0.98, 0]]);
-          // The basket, slide and robot; the corners fall away.
-          const body = ellipse(0.72, 0.7, 0.42, 0.5, [[0.7, 1], [1, 0]]);
-          return (x, y) => fadeY(y) * fadeX(x) * body(x, y);
-        })()
-      : (() => {
-          // The phone strip (the robot, cropped): soft on every side.
-          const fadeY = ramp([[0, 0], [0.22, 1], [0.78, 1], [1, 0]]);
-          const fadeX = ramp([[0, 0], [0.16, 1], [0.84, 1], [1, 0]]);
-          return (x, y) => fadeY(y) * fadeX(x);
-        })(),
-  }),
+  "home-ftc-lane": (desktop) => {
+    // The basket and its samples, kept warm (bake's `spare`).
+    const basket = desktop ? ellipse(0.11, 0.07, 0.48, 0.17, [[0.7, 1], [1, 0]]) : () => 0;
+    return {
+      scale: 1,
+      filter: { brightness: 0.86, contrast: 1.06, saturate: 1 },
+      spare: basket,
+      // The blurred stands toward the canvas's ultramarine.
+      tint: ((down) => (x, y) => down(y))(desktop ? ramp([[0, 0.5], [0.36, 0.3], [0.64, 0]]) : ramp([[0, 0.3], [0.5, 0]])),
+      shade: desktop
+        ? (x, y) => {
+            const topS = ramp([[0, 0.6], [0.09, 0.4], [0.2, 0.15], [0.36, 0]])(y);
+            const floor = ramp([[0.87, 0], [1, 0.5]])(y);
+            // The mirrored pad, down to the canvas toward the window's edge.
+            const pad = ramp([[0, 0.92], [0.12, 0.72], [0.26, 0.4], [0.36, 0.12], [0.44, 0]])(x);
+            return 1 - (1 - topS) * (1 - floor) * (1 - pad);
+          }
+        : () => 0.08,
+      mask: desktop
+        ? (() => {
+            const fadeY = ramp([[0, 0], [0.075, 1], [0.87, 1], [0.99, 0]]);
+            // No fade on the left: it meets the window's edge. Its far end only, for the widest windows.
+            const fadeX = ramp([[0, 0], [0.04, 1], [0.72, 1], [0.86, 0.5], [0.985, 0]]);
+            // The lower right corner, under the last card, rounds off.
+            const round = ramp([[0.8, 1], [1.1, 0]]);
+            const corner = (x, y) => round(Math.hypot(Math.max(0, x - 0.38) / 0.62, Math.max(0, y - 0.66) / 0.36));
+            return (x, y) => fadeY(y) * fadeX(x) * corner(x, y);
+          })()
+        : (() => {
+            // The phone strip (the robot, cropped): soft on every side.
+            const fadeY = ramp([[0, 0], [0.22, 1], [0.78, 1], [1, 0]]);
+            const fadeX = ramp([[0, 0], [0.16, 1], [0.84, 1], [1, 0]]);
+            return (x, y) => fadeY(y) * fadeX(x);
+          })(),
+    };
+  },
 };
 const LOOKS = {
   night: NIGHT_LOOKS,
@@ -241,8 +264,10 @@ function bake(rgb, width, height, look) {
         ];
       }
       if (look.tint) {
-        // The yellow balls keep their colour (`spareYellow`).
-        const yellow = look.spareYellow ? clamp((Math.min(c[0], c[1]) - c[2] - 0.18) / 0.2) : 0;
+        // The yellow balls keep their colour (`spareYellow`), and warm pixels inside `spare`'s region
+        // (the FTC basket's samples).
+        let yellow = look.spareYellow ? clamp((Math.min(c[0], c[1]) - c[2] - 0.18) / 0.2) : 0;
+        if (look.spare) yellow = Math.max(yellow, look.spare(fx, fy) * clamp((c[0] - c[2] - 0.08) / 0.18));
         const a = look.tint(fx, fy) * (1 - yellow);
         if (a > 0) {
           const m = colorBlend(c, BLUE);
@@ -250,6 +275,7 @@ function bake(rgb, width, height, look) {
         }
       }
       let sh = look.shade(fx, fy);
+      if (look.spare) sh *= 1 - 0.7 * look.spare(fx, fy);
       if (look.shadeDark) sh *= 1 - 0.8 * lum(...c);
       const to = look.shadeTo ?? NIGHT;
       if (sh > 0) c = c.map((v, k) => (1 - sh) * v + sh * to[k]);
@@ -288,15 +314,24 @@ async function polygonMask(w, h, polygons, soft) {
 const blurred = (rgb, w, h, sigma) => sharp(rgb, { raw: { width: w, height: h, channels: 3 } }).blur(sigma).raw().toBuffer();
 
 /**
- * The FTC photo before its look, in source pixels (665 x 998), from drawn regions rather than hue
- * alone (hue alone would catch skin, the brown trousers and the orange-yellow samples):
+ * The FTC photo before its look (source 665 x 998). It is first padded, by mirroring, 300 px on the
+ * left and 90 px on top (FTC_PAD), so on a desktop the lane can run to the window's left edge and the
+ * basket has room above it; the pad lies outside `sharp`, so it comes out blurred like the rest of
+ * the background, and the look shades it to the canvas. Drawn regions, in source pixels, rather than
+ * hue alone (hue alone would catch skin, the brown trousers and the orange-yellow samples):
  * - sharp: the basket, its pole, the lower bin, the claw, cable and slide, and the robot and field
  *   below the wall's rail. Everything else (the referee and spectators) is blurred, darkened and
  *   flattened, so no face is recognisable and the referee's stripes go quiet.
- * - red: the red basket pole and the floor tape turn brand blue (their red pixels only).
- * - plate: the number plate becomes an even blue plate, its digits blurred into it.
- * The yellow samples, green claw tips and yellow wheels sit outside `red` and keep their colours.
+ * - red: the red basket pole and the floor tape turn brand blue: their red pixels only (never the
+ *   orange samples in the basket), the hue swapped and the value kept, so the pole keeps its
+ *   highlights and shadows.
+ * - plate: the number plate's digits are gone; it becomes dark smoked metal like the chassis around
+ *   it, lit a little at its top edge and shadowed below, with a fine brushed grain. The LED strip
+ *   under it stays as shot.
+ * The yellow samples, green claw tips and yellow wheels sit outside `red` and keep their colours;
+ * the look spares the samples from its ultramarine (`spare`).
  */
+const FTC_PAD = { left: 300, top: 90 };
 const FTC = {
   sharp: [
     // The high basket with its samples, and the red cap on its pole.
@@ -313,25 +348,34 @@ const FTC = {
     [[296, 60], [312, 60], [312, 446], [296, 446]],
     [[272, 446], [322, 446], [322, 640], [272, 640]],
     // The robot, the field wall and the floor below the rail; the people behind the clear wall on the right stay soft.
-    [[24, 652], [160, 616], [665, 590], [665, 612], [630, 616], [630, 806], [665, 810], [665, 998], [24, 998]],
+    [[0, 660], [160, 616], [665, 590], [665, 612], [630, 616], [630, 806], [665, 810], [665, 998], [0, 998]],
   ],
   red: [
     [[98, 20], [152, 20], [152, 664], [114, 664]],
     [[196, 862], [256, 862], [256, 900], [196, 900]],
   ],
-  plate: [[[281, 736], [393, 736], [393, 798], [281, 798]]],
+  plate: [[[282, 737], [392, 737], [392, 798], [282, 798]]],
 };
-/** The brand blue the red parts take, a little lighter than --orbit-blue so it reads as blue on a dark robot. */
-const PART_BLUE = [0.05, 0.16, 0.95];
+/** Brand blue's hue (#0014BE, 234 degrees) as a hue swap: how much of the chroma goes to green. */
+const BLUE_HUE_G = (240 - 234) / 60;
 
-async function prepFtc(rgb, w, h, theme) {
-  const [sharpM, redM, plateM, back, plateBlur] = await Promise.all([
-    polygonMask(w, h, FTC.sharp, 2.2),
-    polygonMask(w, h, FTC.red, 1.2),
-    polygonMask(w, h, FTC.plate, 1.5),
+async function prepFtc(rgb0, w0, h0, theme) {
+  const { left, top } = FTC_PAD;
+  const w = w0 + left;
+  const h = h0 + top;
+  const rgb = await sharp(rgb0, { raw: { width: w0, height: h0, channels: 3 } })
+    .extend({ left, top, extendWith: "mirror" })
+    .raw()
+    .toBuffer();
+  const shift = (polys) => polys.map((poly) => poly.map(([x, y]) => [x + left, y + top]));
+  const [sharpM, redM, plateM, back] = await Promise.all([
+    polygonMask(w, h, shift(FTC.sharp), 2.2),
+    polygonMask(w, h, shift(FTC.red), 1.2),
+    polygonMask(w, h, shift(FTC.plate), 1.2),
     blurred(rgb, w, h, 9),
-    blurred(rgb, w, h, 7),
   ]);
+  const [px0, py0] = [FTC.plate[0][0][0] + left, FTC.plate[0][0][1] + top];
+  const [px1, py1] = [FTC.plate[0][2][0] + left, FTC.plate[0][2][1] + top];
   const out = Buffer.alloc(w * h * 3);
   for (let p = 0; p < w * h; p++) {
     const i = p * 3;
@@ -339,21 +383,35 @@ async function prepFtc(rgb, w, h, theme) {
     const r = redM[p] / 255;
     if (r > 0) {
       const [R, G, B] = c;
-      const a = r * clamp((R - Math.max(G, B) * 1.25) / 0.25);
+      // Red, not orange: the samples behind the basket's plastic keep their colour.
+      const a = r * clamp((R - Math.max(G, B) * 1.25) / 0.25) * clamp((0.62 - G / Math.max(R, 1e-3)) / 0.2);
       if (a > 0) {
-        const m = colorBlend(c.map((v) => clamp(v * 1.35)), PART_BLUE);
-        c = c.map((v, k) => (1 - a) * v + a * m[k]);
+        // The same value (the brightest channel) and 80% of the chroma, at brand blue's hue.
+        const v = R;
+        const ch = 0.8 * (R - Math.min(G, B));
+        const blue = [v - ch, v - ch + BLUE_HUE_G * ch, v];
+        // A touch brighter, so a dark blue keeps about the red's lightness.
+        const lift = 1 + 0.25 * (1 - v);
+        c = c.map((x, k) => (1 - a) * x + a * clamp(blue[k] * lift));
       }
     }
     const pl = plateM[p] / 255;
     if (pl > 0) {
-      // Darker toward its lower edge, like the lit plate it was.
-      const l = 0.11 + 0.06 * lum(plateBlur[i] / 255, plateBlur[i + 1] / 255, plateBlur[i + 2] / 255) - 0.03 * ((p / w - 736) / 62);
-      // Muted, so it reads as a painted plate rather than a lit screen.
-      const plate = colorBlend([l, l, l], PART_BLUE).map((v) => 0.55 * v + 0.45 * l);
-      c = c.map((v, k) => (1 - pl) * v + pl * plate[k]);
+      const x = p % w;
+      const y = Math.floor(p / w);
+      const u = (x - px0) / (px1 - px0);
+      const t = (y - py0) / (py1 - py0);
+      // Smoked metal: dark like the chassis, a lit top edge, shadowed toward the bottom and the
+      // sides, and a fine horizontal grain (fixed, so every run bakes the same plate).
+      const grain = 0.012 * Math.sin(y * 2.7 + Math.sin(x * 0.37) * 0.8) + 0.008 * Math.sin(x * 0.11 + y * 0.9);
+      const edge = Math.min(u, 1 - u, t, 1 - t);
+      const bevel = edge < 0.035 ? -0.025 : 0;
+      const l = clamp(0.085 + 0.05 * clamp(1 - t * 2.2) - 0.03 * t + 0.015 * Math.sin(Math.PI * u) + grain + bevel);
+      const metal = [l * 0.96, l * 0.98, l * 1.08];
+      c = c.map((v, k) => (1 - pl) * v + pl * metal[k]);
     }
-    const s = sharpM[p] / 255;
+    // Sharp eases in over the original's first 160 px, so the wall meets the blurred pad without a seam.
+    const s = (sharpM[p] / 255) * clamp((p % w - left) / 160) ** 0.8;
     if (s < 1) {
       // The people: the blurred copy, its contrast halved, darker by night and washed toward the ice sky by day.
       const flat = [back[i], back[i + 1], back[i + 2]].map((v, k) => {
@@ -366,7 +424,7 @@ async function prepFtc(rgb, w, h, theme) {
     out[i + 1] = Math.round(c[1] * 255);
     out[i + 2] = Math.round(c[2] * 255);
   }
-  return out;
+  return { data: out, width: w, height: h };
 }
 
 /** Each set of copies: its file-name suffix, its widths, whether it takes the desktop look, and a crop. */
@@ -381,14 +439,15 @@ const PHOTOS = {
   },
   // Shown from 1024px only.
   "home-reef-lane": { outputs: [{ suffix: "", widths: [1000, 1500, 2000], desktop: true }] },
-  // 665 px is all there is (no larger copy; the page draws it at most 520 CSS px wide). No AI
-  // upscaler was at hand, so it isn't enlarged. The phone strip is the robot, cropped.
+  // 665 px is all there is, 965 once padded (FTC_PAD); the page draws the padded photo at most
+  // ~780 CSS px wide, the original part of it ~540. No AI upscaler was at hand, so it isn't
+  // enlarged. The phone strip is the robot, cropped (in padded pixels).
   "home-ftc-lane": {
     file: "public/home-ftc-lane.webp",
     prep: prepFtc,
     outputs: [
-      { suffix: "", widths: [440, 665], desktop: true },
-      { suffix: "-phone", widths: [665], desktop: false, crop: { left: 0, top: 560, width: 665, height: 380 } },
+      { suffix: "", widths: [640, 965], desktop: true },
+      { suffix: "-phone", widths: [665], desktop: false, crop: { left: 300, top: 650, width: 665, height: 380 } },
     ],
     quality: { avif: 64, webp: 86 },
   },
@@ -404,14 +463,14 @@ mkdirSync("public/robots", { recursive: true });
 for (const [name, { file, prep, outputs, quality }] of Object.entries(PHOTOS)) {
   if (onePhoto && name !== onePhoto) continue;
   const original = sharp(file ?? `public/${name}.jpg`).rotate();
-  const { width: full } = await original.metadata();
-  /** The photo before its look, per theme when it has a `prep` step. */
+  /** The photo before its look, per theme when it has a `prep` step (which may pad it), and its width. */
   const prepped = new Map();
   const sourceFor = async (theme) => {
-    if (!prep) return original;
+    if (!prep) return { source: original, full: (await original.metadata()).width };
     if (!prepped.has(theme)) {
       const { data, info } = await original.clone().removeAlpha().raw().toBuffer({ resolveWithObject: true });
-      prepped.set(theme, sharp(await prep(data, info.width, info.height, theme), { raw: { width: info.width, height: info.height, channels: 3 } }));
+      const done = await prep(data, info.width, info.height, theme);
+      prepped.set(theme, { source: sharp(done.data, { raw: { width: done.width, height: done.height, channels: 3 } }), full: done.width });
     }
     return prepped.get(theme);
   };
@@ -419,7 +478,7 @@ for (const [name, { file, prep, outputs, quality }] of Object.entries(PHOTOS)) {
   const q = quality ?? { avif: 55, webp: 78 };
   for (const [theme, { suffix, widths, desktop, crop }] of themes.flatMap((t) => outputs.map((o) => [t, o]))) {
     const look = LOOKS[theme][name](desktop);
-    const source = await sourceFor(theme);
+    const { source, full } = await sourceFor(theme);
     const tag = theme === "day" ? "-day" : "";
     for (const width of widths) {
       const piped = crop ? source.clone().extract(crop) : source.clone();

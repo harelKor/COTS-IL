@@ -1433,12 +1433,28 @@ html::-webkit-scrollbar {
 @media (min-width: 1024px) {
   .scene-hero {
     /*
-     * The tower and arc in the left ~40% of the window, the stands under the headline. The photo's
-     * height is capped by the window's (the hero is short), so the arc's peak stays below the header.
+     * About 70% of the window wide (at most 1,300px, so the 2,600px copy stays sharp on a 2x
+     * screen): the tower and arc on the left, the stands running on under the headline, the
+     * subtitle and the telemetry as the photo fades out (baked). The arc's peak 24px below the
+     * hero's top, so the whole arc shows with a little air above it.
      */
-    --photo-w: min(70vw, 96vh, 1300px);
-    --at-x: calc(50vw - 0.5 * var(--scene-w, 100vw) + 0.22 * var(--scene-w, 100vw));
-    --at-y: 8px;
+    --photo-w: min(70vw, 1300px);
+    --at-x: calc(50vw - 0.5 * var(--scene-w, 100vw) + 0.25 * var(--scene-w, 100vw));
+    --at-y: 24px;
+  }
+  /*
+   * Its bottom: the box ends 140px under the hero (about 30px above the vendors heading) and
+   * feathers out over its last 340px, whatever the window's height, so the carpet melts away under
+   * the telemetry and never reaches the heading. The photo sits at the box's top, clipped below.
+   */
+  .scene-hero > .scene-photo-short {
+    height: calc(100% - var(--photo-top) + 140px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 340px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 340px), transparent);
+  }
+  .scene-hero > .scene-photo-short .scene-frame {
+    bottom: auto;
+    height: var(--photo-h);
   }
 }
 .scene-photo-short,
@@ -1514,8 +1530,9 @@ html::-webkit-scrollbar {
 /*
  * Below the first row, on a desktop: the reef (2025 Reefscape, 4:3, as shot; photo x 3-50%, y 32-100%),
  * its purple coral branches, white coral and teal algae filling the open physical-right lane (~42%)
- * beside the 2×2 grid, its left end at the cards' edge. The window's right edge cuts the photo at
- * x 60%, so the robot beside the reef (x 49-75%) stands at the edge, partly out of the picture.
+ * beside the 2×2 grid, its left end tucked behind the cards. The window's right edge cuts the photo
+ * at x 65%, so about half of robot 1690 (x 49-79%) shows: its chassis, the upper scoring arm and
+ * about half the elevator's width (the owner's OK, Nov 17, 2026).
  */
 .scene-lane {
   --photo-w: min(84vw, 150vh);
@@ -1535,24 +1552,26 @@ html::-webkit-scrollbar {
 }
 /*
  * Its look (the grade, the stands dimmed behind the reef, the soft edges) is baked into the files
- * too, for the photo drawn at 106%. The photo's x 60% (60.6% once scaled) on the window's right edge.
+ * too, for the photo drawn at 106%. The photo's x 65% (66% once scaled) on the window's right edge.
  */
 .scene-photo-tall .scene-frame {
-  left: calc(100vw - var(--photo-cut, 0.606) * var(--photo-w));
+  left: calc(100vw - var(--photo-cut, 0.66) * var(--photo-w));
   width: var(--photo-w);
 }
 /*
  * Its top: one straight, even fade across the lane just under the first vendor row (the lane starts
  * 48px below it), never up behind those cards. The box starts 40px above the lane and fades in over
  * 100px; the photo, taller than the box, sits on its bottom (the lane's bottom) and is clipped above.
- * A fixed mask on a box that never changes size, so scrolling only moves the image inside it.
+ * Its bottom feathers out over the last 160px, so the photo melts into the canvas rather than
+ * stopping on a line. A fixed mask on a box that never changes size, so scrolling only moves the
+ * image inside it.
  */
 @media (min-width: 1024px) {
   .scene-photo-tall {
     top: -40px;
     height: calc(100% + 40px + 0.015 * var(--photo-h));
-    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 100px);
-    mask-image: linear-gradient(to bottom, transparent, #000 100px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 100px, #000 calc(100% - 160px), transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 100px, #000 calc(100% - 160px), transparent);
   }
   .scene-photo-tall .scene-frame {
     top: auto;
@@ -1561,12 +1580,12 @@ html::-webkit-scrollbar {
 }
 /*
  * A small desktop: the cards wrap taller, so the photo is drawn larger to reach up to the first row,
- * cut at x 55% so the reef still clears the cards (the robot stays past the edge).
+ * cut at x 60% so the reef still tucks behind the cards (less of the robot shows).
  */
 @media (min-width: 1024px) and (max-width: 1279px) {
   .scene-lane {
     --photo-w: min(100vw, 150vh);
-    --photo-cut: 0.553;
+    --photo-cut: 0.6;
   }
 }
 .scene-photo-tall .scene-img {
@@ -2847,7 +2866,8 @@ dialog.sheet-full {
   }
   .ftc-lane {
     grid-area: lane;
-    min-height: calc(min(29cqw, 520px) * 1.5);
+    /* The photo's own height (below). */
+    min-height: calc((min(29cqw, 520px) + 24px) * 1.636);
   }
   .ftc-lane::before {
     inset: 6% -12% 4% -16%;
@@ -2864,14 +2884,20 @@ dialog.sheet-full {
     margin: 0;
     aspect-ratio: auto;
   }
+  /*
+   * The padded photo (965 x 1088): its original part (665 px) spans the lane and 24px of the gap,
+   * where its baked right-hand fade runs under the cards' edge; the mirrored pad reaches on to the
+   * window's left edge (html clips anything past it), shaded down to the canvas, so the lane is
+   * flush with the window. The basket has the pad's 90px of air above it.
+   */
   .ftc-img {
     position: absolute;
     top: 0;
-    left: 0;
-    width: auto;
-    height: min(100%, 780px);
+    right: -24px;
+    width: calc((min(29cqw, 520px) + 24px) * 1.4511);
+    height: auto;
     max-width: none;
-    aspect-ratio: 665 / 998;
+    aspect-ratio: 965 / 1088;
   }
 }
 

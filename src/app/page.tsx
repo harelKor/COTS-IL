@@ -308,8 +308,8 @@ export default function HomePage() {
           <Vendors />
         </Suspense>
 
-        {/* Clear of the reef lane above, so the two photos never crowd each other. */}
-        <div className="mt-6 lg:mt-24">
+        {/* Close under the reef lane: its photo feathers out above, on the other side from the FTC lane. */}
+        <div className="lg:mt-2">
           <Suspense
             fallback={
               <Loading>
