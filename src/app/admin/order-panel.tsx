@@ -28,7 +28,7 @@ import { confirmDelivery, createDelivery, unconfirmDelivery } from "./deliveries
 import { ApproveLinks } from "./orders/[id]/approve-links";
 import { QuoteEditor, type EditorLine } from "./orders/[id]/quote-editor";
 import { LineTools, OrderMenu, ReopenOrder } from "./orders/[id]/order-actions";
-import { getOrderHistory, getOrderLinks, getSurplus, listTeamsForMove, previewCancel } from "@/lib/order-corrections";
+import { getOrderHistory, getOrderLinks, getSurplus, listTeamsForMove, previewCancel, previewDelete } from "@/lib/order-corrections";
 import { createShipment } from "./logistics/actions";
 import { addLinesToDraft, sendDraft, sendVendorBatch } from "./purchasing/actions";
 
@@ -644,11 +644,12 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
   if (!detail) return <Alert>ההזמנה לא נמצאה.</Alert>;
   const stored = detail.order.status;
   const finished = stored === "rejected" || stored === "cancelled";
-  const [lock, links, cancel, teams] = await Promise.all([
+  const [lock, links, cancel, teams, deleteWarnings] = await Promise.all([
     orderSupplierLock(db, orderId),
     getOrderLinks(db, orderId),
     canAdminCancel(stored) ? previewCancel(orderId) : null,
     listTeamsForMove(),
+    previewDelete(orderId),
   ]);
 
   return (
@@ -665,7 +666,8 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
             cancelWarnings={cancel?.warnings ?? []}
             cancelBlocked={cancel?.blocked ?? null}
             teams={links.onDeliveryNotes === 0 ? teams.filter((t) => t.id !== detail.team.id) : []}
-            deletable={links.onSupplierOrders === 0}
+            orderNumber={detail.order.number}
+            deleteWarnings={deleteWarnings}
           />
         </div>
       </Section>

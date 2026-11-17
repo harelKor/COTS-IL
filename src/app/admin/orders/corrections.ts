@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db";
@@ -11,22 +11,24 @@ import {
   canEditLines,
   canReopen,
   cancelPlan,
-  deleteBlocker,
   moveBlocker,
   reopenTarget,
   replaceBlocker,
   replacementNeedsApproval,
 } from "@/domain/order-corrections";
+import { deletePlan, deleteSnapshot } from "@/domain/order-delete";
 import type { OrderStatus } from "@/domain/orders";
 import { priceIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { emailEnabled, notifyLater, notifyQuoteReady } from "@/lib/notify";
-import { getCancelLines, getOrderLinks } from "@/lib/order-corrections";
+import { getCancelLines, getDeleteFacts, getOrderLinks } from "@/lib/order-corrections";
 import { currentQuote, insertQuoteVersion, type Tx } from "@/lib/quote-versions";
 import { priceContext } from "@/lib/settings";
 
 const {
   auditLog,
+  deliveries,
+  deliveryItems,
   poAllocations,
   poLines,
   products,
@@ -261,36 +263,89 @@ export async function moveOrder(_prev: ActionState, formData: FormData): Promise
 }
 
 /**
- * Deletes an order nothing outside it points at (no supplier order, so no shipment or
- * delivery either): test data. Its items, quotes and approvals go with it; the audit log
- * keeps a copy, with the reason.
+ * Deletes an order for good, at any stage (the admin only): the order, its lines, quote
+ * versions (their /q links then 404), approvals, and its history and email rows. What points
+ * at it from outside is untied by deletePlan (src/domain/order-delete.ts): units on draft or
+ * cancelled supplier orders come off them, units on supplier orders marked ordered stay there
+ * for no team (the purchasing totals don't change), undelivered stock is freed, delivered
+ * units stay counted as taken, and delivery notes lose its units (an empty note goes). The
+ * audit log keeps one row with the order's number, team and a summary.
  */
 export async function deleteOrder(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const admin = await requireAdmin();
   const orderId = z.uuid().safeParse(formData.get("orderId"));
-  const reason = reasonSchema.safeParse(formData.get("reason"));
   if (!orderId.success) return { error: "ההזמנה לא נמצאה" };
-  if (!reason.success) return { error: "נא לכתוב למה מוחקים (למשל: הזמנת ניסיון)" };
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 1000) || null;
 
   const result = await db.transaction(async (tx): Promise<ActionState> => {
     const order = await lockOrder(tx, orderId.data);
     if (!order) return { error: "ההזמנה לא נמצאה" };
-    const links = await getOrderLinks(tx, order.id);
-    const blocked = deleteBlocker({ onSupplierOrders: links.onSupplierOrders, status: order.status });
-    if (blocked) return { error: blocked };
-
+    const [team] = await tx.select().from(teams).where(eq(teams.id, order.teamId));
     const items = await tx.select().from(teamOrderItems).where(eq(teamOrderItems.orderId, order.id));
     const quoteRows = await tx.select().from(quotes).where(eq(quotes.orderId, order.id));
+    const itemIds = items.map((i) => i.id);
+
+    const facts = await getDeleteFacts(tx, order.id);
+    const plan = deletePlan(facts.shares, facts.stock);
+
+    // Supplier orders: off drafts and cancelled ones; a draft line left with no units goes too.
+    for (const share of plan.removeShares) {
+      await tx.delete(poAllocations).where(and(eq(poAllocations.poLineId, share.poLineId), eq(poAllocations.orderItemId, share.orderItemId)));
+    }
+    const draftLines = [...new Set(plan.removeShares.filter((s) => s.poStatus === "draft").map((s) => s.poLineId))];
+    if (draftLines.length) {
+      await tx
+        .delete(poLines)
+        .where(and(inArray(poLines.id, draftLines), sql`NOT EXISTS (SELECT 1 FROM po_allocations a WHERE a.po_line_id = po_lines.id)`));
+    }
+    // Bought units stay on their supplier order, for no team.
+    if (itemIds.length) await tx.update(poAllocations).set({ orderItemId: null }).where(inArray(poAllocations.orderItemId, itemIds));
+
+    // Delivery notes lose the order's units; a note left empty is deleted.
+    const stockIds = facts.stock.map((s) => s.id);
+    const noteItems = stockIds.length
+      ? await tx.delete(deliveryItems).where(inArray(deliveryItems.allocationId, stockIds)).returning({ deliveryId: deliveryItems.deliveryId })
+      : [];
+    const touchedNotes = [...new Set(noteItems.map((n) => n.deliveryId))];
+    const emptyNotes = touchedNotes.length
+      ? await tx
+          .delete(deliveries)
+          .where(and(inArray(deliveries.id, touchedNotes), sql`NOT EXISTS (SELECT 1 FROM delivery_items di WHERE di.delivery_id = deliveries.id)`))
+          .returning({ id: deliveries.id, number: deliveries.number })
+      : [];
+    // Received stock: undelivered units are free again, delivered ones stay taken, for no team.
+    if (plan.removeStock.length) await tx.delete(stockAllocations).where(inArray(stockAllocations.id, plan.removeStock));
+    for (const keep of plan.keepStock) {
+      await tx.update(stockAllocations).set({ qty: keep.qty, orderItemId: null }).where(eq(stockAllocations.id, keep.id));
+    }
+
+    // Its history and email records, then the order (lines, quotes, quote lines and approvals cascade).
+    const quoteIds = quoteRows.map((q) => q.id);
+    await tx
+      .delete(auditLog)
+      .where(
+        or(
+          and(eq(auditLog.entity, "team_order"), eq(auditLog.entityId, order.id)),
+          quoteIds.length ? and(eq(auditLog.entity, "quote"), inArray(auditLog.entityId, quoteIds)) : undefined,
+          emptyNotes.length ? and(eq(auditLog.entity, "delivery"), inArray(auditLog.entityId, emptyNotes.map((n) => n.id))) : undefined,
+        ),
+      );
     await tx.delete(teamOrders).where(eq(teamOrders.id, order.id));
+
+    const label = team ? teamDisplay(team) : order.teamId;
     await tx.insert(auditLog).values({
       actorId: admin.id,
       entity: "team_order",
       entityId: order.id,
       action: "delete",
-      before: { order, items, quotes: quoteRows },
-      after: { reason: reason.data },
+      before: {
+        ...deleteSnapshot({ order, team: label, items, quotes: quoteRows, plan }),
+        deliveryNotesDeleted: emptyNotes.map((n) => n.number),
+        items: items.map((i) => ({ supplier: i.supplierCode, sku: i.supplierSku, title: i.title, qty: i.qty, unitPriceIls: i.unitPriceIls })),
+      },
+      after: { reason },
     });
-    return { ok: `הזמנה ${order.number} נמחקה.` };
+    return { ok: `הזמנה ${order.number} של ${label} נמחקה.` };
   });
 
   if (!result.error) refresh(orderId.data);

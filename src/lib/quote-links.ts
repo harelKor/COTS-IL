@@ -69,7 +69,9 @@ export async function readApproveLink(token: string) {
     const signed = readSignedQuoteLinkToken(token, secret());
     const [old] = signed ? await db.select({ orderId: quotes.orderId }).from(quotes).where(eq(quotes.id, signed.quoteId)) : [];
     const [order] = old ? await db.select().from(teamOrders).where(eq(teamOrders.id, old.orderId)) : [];
-    if (!signed || !order) return { ok: false as const, reason: "הקישור אינו תקף." };
+    if (!signed) return { ok: false as const, reason: "הקישור אינו תקף." };
+    // A genuine link to a quote that no longer exists: its order was deleted.
+    if (!order) return { ok: false as const, gone: true as const, reason: "הקישור אינו תקף." };
     return {
       ok: false as const,
       expired: true as const,
@@ -79,7 +81,8 @@ export async function readApproveLink(token: string) {
     };
   }
   const [quote] = await db.select().from(quotes).where(eq(quotes.id, claims.quoteId));
-  if (!quote) return { ok: false as const, reason: "ההצעה לא נמצאה." };
+  // The order was deleted (with its quotes): the link 404s.
+  if (!quote) return { ok: false as const, gone: true as const, reason: "ההצעה לא נמצאה." };
   const [order] = await db.select().from(teamOrders).where(eq(teamOrders.id, quote.orderId));
   const [team] = await db.select().from(teams).where(eq(teams.id, order.teamId));
   const [member] = await db

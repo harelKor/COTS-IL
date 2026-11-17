@@ -121,7 +121,8 @@ export async function getOrderLogistics(orderId: string) {
 
   const lines = await db
     .select({
-      orderItemId: poAllocations.orderItemId,
+      // Filtered to this order's items below, so never null.
+      orderItemId: sql<string>`${poAllocations.orderItemId}`,
       qty: poAllocations.qty,
       poLineId: poLines.id,
       poId: supplierPos.id,
@@ -179,7 +180,8 @@ export async function getOrderLogistics(orderId: string) {
   const ready = await db
     .select({
       allocationId: stockAllocations.id,
-      orderItemId: stockAllocations.orderItemId,
+      // Filtered to this order's items below, so never null.
+      orderItemId: sql<string>`${stockAllocations.orderItemId}`,
       qty: stockAllocations.qty,
       onNotes: sql<number>`(SELECT coalesce(sum(qty), 0)::int FROM ${deliveryItems} WHERE ${deliveryItems.allocationId} = ${stockAllocations.id})`,
       location: receiptLines.location,

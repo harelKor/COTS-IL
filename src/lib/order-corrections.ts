@@ -2,6 +2,7 @@ import "server-only";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { cancelPlan, type CancelLine } from "@/domain/order-corrections";
+import { deletePlan, type DeletePoShare, type DeleteStockShare, type PoStatus } from "@/domain/order-delete";
 import { teamDisplay } from "@/domain/display";
 import { describeHistory } from "@/domain/order-history";
 
@@ -61,6 +62,38 @@ export async function getOrderLinks(reader: Reader, orderId: string) {
         JOIN team_order_items i ON i.id = sa.order_item_id WHERE i.order_id = ${orderId}) AS on_delivery_notes
   `);
   return { onSupplierOrders: row?.on_supplier_orders ?? 0, onDeliveryNotes: row?.on_delivery_notes ?? 0 };
+}
+
+/** What points at an order's lines from outside it, for deleting it (deletePlan in src/domain/order-delete.ts). */
+export async function getDeleteFacts(reader: Reader, orderId: string): Promise<{ shares: DeletePoShare[]; stock: DeleteStockShare[] }> {
+  const shares = await reader.execute<{ po_line_id: string; order_item_id: string; qty: number; po_status: PoStatus; po_number: number }>(sql`
+    SELECT a.po_line_id, a.order_item_id, a.qty, p.status AS po_status, p.number AS po_number
+    FROM po_allocations a
+    JOIN po_lines l ON l.id = a.po_line_id
+    JOIN supplier_pos p ON p.id = l.po_id
+    JOIN team_order_items i ON i.id = a.order_item_id
+    WHERE i.order_id = ${orderId}
+  `);
+  const stock = await reader.execute<{ id: string; qty: number; delivered: number; prepared: number }>(sql`
+    SELECT sa.id, sa.qty,
+      (SELECT coalesce(sum(di.qty), 0)::int FROM delivery_items di JOIN deliveries d ON d.id = di.delivery_id
+        WHERE di.allocation_id = sa.id AND d.status = 'delivered') AS delivered,
+      (SELECT coalesce(sum(di.qty), 0)::int FROM delivery_items di JOIN deliveries d ON d.id = di.delivery_id
+        WHERE di.allocation_id = sa.id AND d.status = 'prepared') AS prepared
+    FROM stock_allocations sa
+    JOIN team_order_items i ON i.id = sa.order_item_id
+    WHERE i.order_id = ${orderId}
+  `);
+  return {
+    shares: shares.rows.map((r) => ({ poLineId: r.po_line_id, orderItemId: r.order_item_id, qty: r.qty, poStatus: r.po_status, poNumber: r.po_number })),
+    stock: stock.rows,
+  };
+}
+
+/** What deleting would do, for the warnings on the delete confirm. */
+export async function previewDelete(orderId: string) {
+  const facts = await getDeleteFacts(db, orderId);
+  return deletePlan(facts.shares, facts.stock).warnings;
 }
 
 export type HistoryRow = { id: number; at: Date; actor: string | null; text: string };

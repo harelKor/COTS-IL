@@ -570,19 +570,25 @@ export const poLines = pgTable(
   (t) => [unique("po_lines_po_variant_key").on(t.poId, t.variantId)],
 );
 
-/** Which team's order line each purchased unit is for. A line's quantity is the sum of these. */
+/**
+ * Which team's order line each purchased unit is for. A line's quantity is the sum of these.
+ * `orderItemId` is null for units bought for an order that was since deleted: they stay on
+ * the supplier order, for no team, so its quantities and costs don't change.
+ */
 export const poAllocations = pgTable(
   "po_allocations",
   {
+    id: uuid("id").primaryKey().defaultRandom(),
     poLineId: uuid("po_line_id")
       .notNull()
       .references(() => poLines.id, { onDelete: "cascade" }),
-    orderItemId: uuid("order_item_id")
-      .notNull()
-      .references(() => teamOrderItems.id),
+    orderItemId: uuid("order_item_id").references(() => teamOrderItems.id),
     qty: integer("qty").notNull(),
   },
-  (t) => [primaryKey({ columns: [t.poLineId, t.orderItemId] }), index("po_allocations_order_item_id_idx").on(t.orderItemId)],
+  (t) => [
+    unique("po_allocations_line_item_key").on(t.poLineId, t.orderItemId),
+    index("po_allocations_order_item_id_idx").on(t.orderItemId),
+  ],
 );
 
 /** One physical shipment from a supplier. A supplier order can arrive in several. */
@@ -672,7 +678,10 @@ export const receiptLines = pgTable(
   (t) => [index("receipt_lines_receipt_id_idx").on(t.receiptId), index("receipt_lines_po_line_id_idx").on(t.poLineId)],
 );
 
-/** Which team gets which received units. Only undamaged units can be allocated. */
+/**
+ * Which team gets which received units. Only undamaged units can be allocated. `orderItemId`
+ * is null for units delivered on an order that was since deleted: they left the warehouse.
+ */
 export const stockAllocations = pgTable(
   "stock_allocations",
   {
@@ -680,9 +689,7 @@ export const stockAllocations = pgTable(
     receiptLineId: uuid("receipt_line_id")
       .notNull()
       .references(() => receiptLines.id, { onDelete: "cascade" }),
-    orderItemId: uuid("order_item_id")
-      .notNull()
-      .references(() => teamOrderItems.id),
+    orderItemId: uuid("order_item_id").references(() => teamOrderItems.id),
     qty: integer("qty").notNull(),
   },
   (t) => [

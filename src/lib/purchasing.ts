@@ -114,7 +114,16 @@ export async function getPo(id: string) {
     .where(eq(supplierPos.id, id));
   if (!row) return null;
 
-  const lines = await db.select().from(poLines).where(eq(poLines.poId, id)).orderBy(asc(poLines.title));
+  const lines = await db
+    .select({
+      line: poLines,
+      // Units bought for an order that was since deleted: still on the line, for no team. Spelled
+      // out: in a one-table select drizzle writes ${poLines.id} as a bare "id", which here is a.id.
+      unassigned: sql<number>`(SELECT coalesce(sum(a.qty), 0)::int FROM po_allocations a WHERE a.po_line_id = po_lines.id AND a.order_item_id IS NULL)`,
+    })
+    .from(poLines)
+    .where(eq(poLines.poId, id))
+    .orderBy(asc(poLines.title));
 
   const allocations = await db
     .select({
@@ -137,9 +146,9 @@ export async function getPo(id: string) {
 
   return {
     ...row,
-    lines: lines.map((line) => {
+    lines: lines.map(({ line, unassigned }) => {
       const shares = allocations.filter((a) => a.poLineId === line.id);
-      return { ...line, allocations: shares, qty: shares.reduce((sum, a) => sum + a.qty, 0) };
+      return { ...line, allocations: shares, unassigned, qty: shares.reduce((sum, a) => sum + a.qty, 0) + unassigned };
     }),
   };
 }

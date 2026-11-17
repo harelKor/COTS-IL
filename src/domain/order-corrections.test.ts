@@ -4,7 +4,6 @@ import {
   canEditLines,
   canReopen,
   cancelPlan,
-  deleteBlocker,
   moveBlocker,
   reopenTarget,
   replaceBlocker,
@@ -100,16 +99,6 @@ describe("cancelPlan", () => {
   it("is blocked while units sit on an unconfirmed delivery note", () => {
     const plan = cancelPlan([line({ ordered: 2, shipped: 2, received: 2, prepared: 2 })]);
     expect(plan.blocked).toContain("קודם צריך לבטל את התעודה");
-  });
-});
-
-describe("deleteBlocker", () => {
-  it("deletes an order no supplier order points at, in any status", () => {
-    for (const status of ALL) expect(deleteBlocker({ onSupplierOrders: 0, status })).toBeNull();
-  });
-
-  it("refuses once a line was on a supplier order, even a cancelled one", () => {
-    expect(deleteBlocker({ onSupplierOrders: 1, status: "cancelled" })).toContain("אפשר לבטל");
   });
 });
 

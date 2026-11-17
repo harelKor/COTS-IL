@@ -1,6 +1,7 @@
 import { WhatsAppLink } from "@/components/whatsapp-link";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Loading, PageSkeleton } from "@/components/skeleton";
@@ -30,6 +31,7 @@ async function Approval({ params }: PageProps<"/q/[token]">) {
   const link = await readApproveLink(token);
 
   if (!link.ok) {
+    if ("gone" in link && link.gone) notFound();
     // Approved or rejected from this link a moment ago: keep the Undo on screen for its 30 s.
     const quoteId = "quoteId" in link ? link.quoteId : undefined;
     const decided = await recentDecision("quote", quoteId);

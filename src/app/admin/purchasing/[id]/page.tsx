@@ -165,6 +165,12 @@ async function Po({ params }: PageProps<"/admin/purchasing/[id]">) {
                   </Link>
                 );
               })}
+              {line.unassigned > 0 && (
+                <span className="inline-flex min-h-11 items-center gap-1 rounded-full bg-subtle px-3 text-caption font-medium text-muted">
+                  <Ltr>{`×${line.unassigned}`}</Ltr>
+                  <span>ללא קבוצה (ההזמנה נמחקה), עודף מלאי</span>
+                </span>
+              )}
               {line.allocations.some((a) => a.orderStatus === "submitted" || a.orderStatus === "quote_sent" || a.orderStatus === "approved") && (
                 <PoLineUnavailable poLineId={line.id} label={line.supplierSku ?? line.title} unavailable={line.allocations.some((a) => a.unavailable)} />
               )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Ellipsis, Search } from "lucide-react";
 import type { ActionState } from "@/components/action-form";
 import { Alert, Button, StatusTag } from "@/components/form";
@@ -110,18 +111,49 @@ function MoveForm({ orderId, teams }: { orderId: string; teams: { id: string; la
   );
 }
 
-function DeleteForm({ orderId }: { orderId: string }) {
-  const [state, action, pending] = useActionState(deleteOrder, {} as ActionState);
-  if (state.ok) return <p role="status" className="text-caption text-success">{state.ok}</p>;
-  return (
-    <form action={action} className="flex flex-col gap-2">
-      {state.error && <Alert>{state.error}</Alert>}
-      <p className="text-caption text-muted">להזמנות ניסיון בלבד: ההזמנה, ההצעות והאישורים נמחקים. עותק נשמר ביומן הפעולות.</p>
-      <input type="hidden" name="orderId" value={orderId} />
-      <input name="reason" aria-label="סיבת המחיקה" placeholder="סיבת המחיקה (למשל: הזמנת ניסיון)" required minLength={2} maxLength={1000} className={inputClass} />
-      <button disabled={pending} className={`${menuButton} text-danger`}>
-        {pending ? "מוחק…" : "מחיקת ההזמנה"}
+/**
+ * Deleting for good, at any stage. It can't be taken back, so this is the one place with a
+ * confirm step: it names the order and says what happens to its supplier orders and stock.
+ */
+function DeleteOrder({ orderId, orderNumber, warnings }: { orderId: string; orderNumber: number; warnings: string[] }) {
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [state, action, pending] = useActionState(async (prev: ActionState, data: FormData) => {
+    const result = await deleteOrder(prev, data);
+    if (result.ok) {
+      showToast(result.ok);
+      router.replace("/admin");
+    }
+    return result;
+  }, {} as ActionState);
+  if (!confirming)
+    return (
+      <button type="button" onClick={() => setConfirming(true)} className={`${menuButton} text-danger`}>
+        מחיקת ההזמנה
       </button>
+    );
+  return (
+    <form action={action} className="flex flex-col gap-2 rounded-xl bg-danger/5 p-3 ring-1 ring-danger/30 ring-inset">
+      {state.error && <Alert>{state.error}</Alert>}
+      <p className="text-sm font-semibold text-danger">למחוק את הזמנה {orderNumber} לצמיתות?</p>
+      <p className="text-caption">ההזמנה, השורות, ההצעות והקישורים לאישור, ההיסטוריה וההתראות שלה יימחקו. אי אפשר לבטל את זה. ביומן הפעולות נשמר רק סיכום.</p>
+      {warnings.length > 0 && (
+        <ul className="flex list-disc flex-col gap-1 ps-5 text-caption text-warning">
+          {warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
+      )}
+      <input type="hidden" name="orderId" value={orderId} />
+      <input name="reason" aria-label="סיבת המחיקה (לא חובה)" placeholder="סיבת המחיקה (לא חובה)" maxLength={1000} className={inputClass} />
+      <div className="flex flex-wrap gap-2">
+        <button disabled={pending} className={`${menuButton} bg-danger text-white hover:bg-danger`}>
+          {pending ? "מוחק…" : "מחיקה לצמיתות"}
+        </button>
+        <button type="button" disabled={pending} onClick={() => setConfirming(false)} className={menuButton}>
+          ביטול
+        </button>
+      </div>
     </form>
   );
 }
@@ -137,7 +169,8 @@ export function OrderMenu(props: {
   cancelWarnings: string[];
   cancelBlocked: string | null;
   teams: { id: string; label: string }[];
-  deletable: boolean;
+  orderNumber: number;
+  deleteWarnings: string[];
 }) {
   return (
     <details className="group relative self-end">
@@ -160,11 +193,9 @@ export function OrderMenu(props: {
             <MoveForm orderId={props.orderId} teams={props.teams} />
           </Group>
         )}
-        {props.deletable && (
-          <Group title="מחיקת ההזמנה">
-            <DeleteForm orderId={props.orderId} />
-          </Group>
-        )}
+        <Group title="מחיקה לצמיתות">
+          <DeleteOrder orderId={props.orderId} orderNumber={props.orderNumber} warnings={props.deleteWarnings} />
+        </Group>
       </div>
     </details>
   );

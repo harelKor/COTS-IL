@@ -3,7 +3,7 @@ import { UNIT, countOf } from "./plural";
 
 /**
  * The admin's corrections to an order (M2): cancel at any stage, reopen, move to another
- * team, delete test data, a part that's no longer sold, and a new quote version after lines
+ * team, delete it (src/domain/order-delete.ts), a part that's no longer sold, and a new quote version after lines
  * were ordered. The server actions in src/app/admin/orders/corrections.ts read these rules.
  */
 
@@ -100,12 +100,6 @@ export function cancelPlan(lines: CancelLine[]): CancelPlan {
 
 const units = (n: number) => countOf(n, UNIT);
 const agree = (n: number, one: string, many: string) => (n === 1 ? one : many);
-
-/** An order can be deleted only while nothing outside it points at it: test data. */
-export function deleteBlocker(facts: { onSupplierOrders: number; status: OrderStatus }): string | null {
-  if (facts.onSupplierOrders > 0) return "יש להזמנה שורות בהזמנת ספק, ולכן אי אפשר למחוק אותה. אפשר לבטל אותה.";
-  return null;
-}
 
 /** Moving an order to another team: not onto itself, and not once its units are on a delivery note (the note belongs to a team). */
 export function moveBlocker(facts: { fromTeamId: string; toTeamId: string; onDeliveryNotes: number }): string | null {

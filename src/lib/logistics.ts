@@ -144,7 +144,8 @@ export async function getShares(poLineIds: string[], reader: Pick<typeof db, "se
   return reader
     .select({
       poLineId: poAllocations.poLineId,
-      orderItemId: poAllocations.orderItemId,
+      // From the join, so never null (units of a deleted order have no item and no share).
+      orderItemId: teamOrderItems.id,
       share: poAllocations.qty,
       orderNumber: teamOrders.number,
       teamProgram: teams.program,

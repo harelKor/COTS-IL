@@ -16,7 +16,6 @@ const {
   auditLog,
   deliveryItems,
   importCosts,
-  poAllocations,
   poLines,
   receiptLines,
   receipts,
@@ -55,9 +54,11 @@ export async function createShipment(_prev: ActionState, formData: FormData): Pr
     const lines = await tx
       .select({
         id: poLines.id,
-        ordered: sql<number>`(SELECT coalesce(sum(qty), 0)::int FROM ${poAllocations} WHERE ${poAllocations.poLineId} = ${poLines.id})`,
-        shipped: sql<number>`(SELECT coalesce(sum(qty), 0)::int FROM ${shipmentItems} WHERE ${shipmentItems.poLineId} = ${poLines.id})`,
-        damaged: sql<number>`(SELECT coalesce(sum(qty_damaged), 0)::int FROM ${receiptLines} WHERE ${receiptLines.poLineId} = ${poLines.id})`,
+        // Spelled out: in a one-table select drizzle writes ${poLines.id} as a bare "id", which a
+        // subquery reads as its own table's id (po_allocations and receipt_lines have one).
+        ordered: sql<number>`(SELECT coalesce(sum(a.qty), 0)::int FROM po_allocations a WHERE a.po_line_id = po_lines.id)`,
+        shipped: sql<number>`(SELECT coalesce(sum(si.qty), 0)::int FROM shipment_items si WHERE si.po_line_id = po_lines.id)`,
+        damaged: sql<number>`(SELECT coalesce(sum(rl.qty_damaged), 0)::int FROM receipt_lines rl WHERE rl.po_line_id = po_lines.id)`,
       })
       .from(poLines)
       .where(eq(poLines.poId, poId));
@@ -445,9 +446,12 @@ export async function editReceiptLine(_prev: ActionState, formData: FormData): P
       .where(eq(stockAllocations.receiptLineId, line.id))
       .for("update", { of: stockAllocations });
     const shares = await getShares([line.poLineId], tx);
+    // Units delivered on an order that was since deleted belong to no team, but they still take room.
+    const kept = held.filter((h) => h.orderItemId === null).reduce((n, h) => n + h.qty, 0);
+    const teamHeld = held.flatMap((h) => (h.orderItemId === null ? [] : [{ ...h, orderItemId: h.orderItemId }]));
     const next = rebalanceAllocations(
-      received - damaged,
-      held,
+      received - damaged - kept,
+      teamHeld,
       shares.map((s) => ({ orderItemId: s.orderItemId, open: s.share - s.allocated })),
     );
     if ("error" in next) return { error: next.error };
@@ -460,7 +464,7 @@ export async function editReceiptLine(_prev: ActionState, formData: FormData): P
     } else {
       await tx.update(receiptLines).set({ qtyReceived: received, qtyDamaged: damaged, location: location || null }).where(eq(receiptLines.id, line.id));
       for (const row of next) {
-        const existing = held.find((h) => h.orderItemId === row.orderItemId);
+        const existing = teamHeld.find((h) => h.orderItemId === row.orderItemId);
         if (existing && row.qty === 0) await tx.delete(stockAllocations).where(eq(stockAllocations.id, existing.id));
         else if (existing && row.qty !== existing.qty) await tx.update(stockAllocations).set({ qty: row.qty }).where(eq(stockAllocations.id, existing.id));
         else if (!existing && row.qty > 0) await tx.insert(stockAllocations).values({ receiptLineId: line.id, orderItemId: row.orderItemId, qty: row.qty });
