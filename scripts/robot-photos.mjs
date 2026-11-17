@@ -5,16 +5,13 @@
 // The home page shows the competition itself, field elements and several teams' robots, not one
 // team (owner's decision, Nov 16, 2026; the photos are the owner's to use). The originals sit in
 // public/ and are used whole, as shot: no cutout, no blur, never mirrored.
-// - home-rebuilt-tower.jpg (3:2, 3,000 px): the hero. FRC 2026 REBUILT: the blue alliance tower
-//   (x 46-66%, y 14-68%) with an arc of yellow balls flying over it (x 33-58%, its peak at y 16%),
-//   balls across the grey carpet, the packed stands on the right (x 60-100%) and the red alliance
-//   side on the left. The 1,497 px original was enlarged 4x with Real-ESRGAN x4plus (Qualcomm AI
-//   Hub's ONNX release, run locally in blended 128 px tiles), mixed 80/20 with a plain Lanczos
-//   enlargement to keep the carpet's grain, and brought to 3,000 px; then made team-neutral by hand
-//   (Nov 16, 2026): the "4744" bumper digits, the scoreboards and banner numbers and the sponsor
-//   logos filled from their surroundings, the stands, referees and spectators blurred and darkened
-//   so no face reads, the drivers' yellow shirts softened and the reds cooled. That master is what
-//   ships; this script only grades, masks and resizes it.
+// - home-rebuilt-hub-arc.jpg (2.36:1, 3,000 x 1,273): the hero. FRC 2026 REBUILT: a blue robot on
+//   the left (x 11-25%, y 66-82%) firing a motion-blurred orange arc of balls (its peak at y 20%)
+//   into the hub (x 31-49%) with its AprilTags and REBUILT sign, balls across the grey carpet, the
+//   empty field and dark blue stands on the right half. The 1,584 px original was enlarged 4x with
+//   Real-ESRGAN x4plus (Qualcomm AI Hub's ONNX release, run locally in blended 128 px tiles), mixed
+//   80/20 with a plain Lanczos enlargement to keep the carpet's grain, and brought to 3,000 px
+//   (Nov 17, 2026). Otherwise as shot; this script only grades, masks and resizes it.
 // - home-reef-lane.jpg (4:3, 2,000 px): the lane beside the vendor cards on a desktop. FIRST
 //   Championship 2025 (Reefscape): the reef, its purple coral branches holding white coral and teal
 //   algae, the stands behind, and robot 1690 right of it (x 49-79%). The page shows the photo's
@@ -29,8 +26,8 @@
 // the canvas, as an alpha channel. The browser then draws a plain picture, with no CSS masks,
 // filters or blend modes to recompute while the page scrolls. `look()` below is the exact maths of
 // the CSS it replaced (sRGB, the W3C blend formulas); change the look here and run this again.
-// The hero has two looks: "-phone" (below 1024px) and the desktop one, which also darkens the
-// right side (the truss) behind the headline.
+// The hero has two looks: "-phone" (below 1024px), soft all round, and the desktop one, which only
+// feathers its ends and darkens the right side (the empty field and stands) a little.
 //
 // The light theme (LM3, Nov 15, 2026) has its own copies, "-day" (public/robots/<name>[-phone]-day-<width>):
 // the same photo, crop and soft mask, a brighter grade, a lighter ultramarine soft-light and
@@ -38,8 +35,8 @@
 // the photo melts into the pearl sky. `npm run robot-photos -- day` writes only those (`night`
 // only the night ones); home-scene.tsx shows one set or the other by the theme, in CSS.
 //
-// The desktop hero is drawn at most ~1,300 CSS px wide (globals.css, .scene-hero), so the
-// 2,600 px copy covers a 2x screen; the lane's 2,000 px original is shown smaller than that.
+// The desktop hero is drawn up to 112% of the window wide (globals.css, .scene-hero), so it gets
+// copies up to the master's 3,000 px; the lane's 2,000 px original is shown smaller than that.
 import sharp from "sharp";
 import { mkdirSync } from "node:fs";
 
@@ -94,47 +91,38 @@ const daylight = (look, { brightness, contrast, saturate, tint = 0.85, grade = 0
  * `daylight()` turns a look into its light-theme copy.
  */
 const NIGHT_LOOKS = {
-  "home-rebuilt-tower": (desktop) => ({
+  "home-rebuilt-hub-arc": (desktop) => ({
     scale: 1,
+    // The orange arc and the balls on the carpet keep their colour.
     spareYellow: true,
-    filter: { brightness: 0.86, contrast: 1.06, saturate: 1.04 },
-    // Ultramarine over the stands (their red shirts) and, lighter, over the red alliance side.
-    tint: (x, y) => {
-      const stands = ramp([[0.58, 0], [0.68, 0.7]])(x) * ramp([[0.5, 1], [0.6, 0]])(y);
-      const red = ramp([[0.3, 0.45], [0.42, 0]])(x) * ramp([[0.3, 0], [0.4, 1], [0.62, 1], [0.7, 0]])(y);
-      const ceiling = ramp([[0, 0.5], [0.1, 0.25], [0.14, 0]])(y);
-      return Math.max(stands, red, ceiling);
-    },
+    filter: { brightness: 0.9, contrast: 1.05, saturate: 1.02 },
+    // A little ultramarine over the stands behind the field (their maroon shirts), none on the field.
+    tint: (x, y) => ramp([[0.3, 0.4], [0.5, 0.25], [0.6, 0]])(y),
     shade: (x, y) => {
-      // Midnight over the arena's ceiling and the empty carpet at the bottom.
-      const top = ramp([[0, 0.7], [0.08, 0.4], [0.14, 0.08], [0.2, 0]])(y);
-      const floor = ramp([[0.72, 0], [0.86, 0.35], [1, 0.7]])(y);
+      // Midnight over the top rows of the stands and the carpet's near edge at the bottom.
+      const top = ramp([[0, 0.45], [0.12, 0.18], [0.24, 0]])(y);
+      const floor = ramp([[0.86, 0], [1, 0.35]])(y);
       const down = 1 - (1 - top) * (1 - floor);
-      // The stands, dimmer toward the right.
-      const stands = ramp([[0.62, 0], [0.74, 0.3], [1, 0.55]])(x);
-      const both = 1 - (1 - down) * (1 - stands);
-      if (!desktop) return both;
-      // On a desktop the stands run under the headline: a little darker, never a wall (the
-      // readability wash behind the words is in CSS, .scene-hero-lane::before).
-      const side = ramp([[0.7, 0], [0.86, 0.22], [1, 0.4]])(x);
-      return 1 - (1 - both) * (1 - side);
+      if (!desktop) return down;
+      // On a desktop the empty field and the blue stands run on under the headline: a touch darker
+      // there, never a wall (the blur and dim behind the words are in CSS, .scene-hero-lane::before).
+      const side = ramp([[0.56, 0], [0.75, 0.18], [1, 0.3]])(x);
+      return 1 - (1 - down) * (1 - side);
     },
     mask: desktop
       ? (() => {
-          // A desktop: the photo runs about 70% of the window, so its right side fades gradually,
-          // from the stands' edge to nothing, softly under the subtitle and the telemetry. The
-          // bottom fade is gentle here: CSS (.scene-photo-short) feathers it out above the vendors.
-          const fadeY = ramp([[0, 0], [0.07, 1], [0.8, 1], [0.99, 0]]);
-          const fadeX = ramp([[0, 0], [0.1, 1], [0.56, 1], [0.72, 0.72], [0.86, 0.32], [1, 0]]);
-          const field = ellipse(0.78, 0.74, 0.46, 0.42, [[0.62, 1], [1, 0]]);
-          return (x, y) => fadeY(y) * fadeX(x) * field(x, y);
+          // A desktop: no long fade, only a short feather at the photo's ends. The bottom feather is
+          // in CSS (.scene-photo-short), so the carpet melts away above the vendors heading at any height.
+          const fadeY = ramp([[0, 0], [0.05, 1]]);
+          // Its right end, past the headline on a wide window, melts into the canvas.
+          const fadeX = ramp([[0, 0], [0.03, 1], [0.8, 1], [1, 0]]);
+          return (x, y) => fadeY(y) * fadeX(x);
         })()
       : (() => {
-          // Phones and tablets: a wide, soft feather all round; the tower and the whole arc stay solid.
-          const fadeY = ramp([[0, 0], [0.09, 1], [0.74, 1], [0.93, 0]]);
-          const fadeX = ramp([[0, 0], [0.12, 1], [0.8, 1], [1, 0]]);
-          const field = ellipse(0.64, 0.6, 0.5, 0.46, [[0.56, 1], [1, 0]]);
-          return (x, y) => fadeY(y) * fadeX(x) * field(x, y);
+          // Phones and tablets: a soft feather all round; the robot, the arc and the hub stay solid.
+          const fadeY = ramp([[0, 0], [0.08, 1], [0.8, 1], [0.97, 0]]);
+          const fadeX = ramp([[0, 0], [0.06, 1], [0.86, 1], [1, 0]]);
+          return (x, y) => fadeY(y) * fadeX(x);
         })(),
   }),
   "home-reef-lane": () => ({
@@ -207,16 +195,21 @@ const NIGHT_LOOKS = {
 const LOOKS = {
   night: NIGHT_LOOKS,
   day: {
-    "home-rebuilt-tower": (desktop) =>
-      daylight(NIGHT_LOOKS["home-rebuilt-tower"](desktop), {
-        brightness: 1.06,
+    "home-rebuilt-hub-arc": (desktop) =>
+      daylight(NIGHT_LOOKS["home-rebuilt-hub-arc"](desktop), {
+        brightness: 1.08,
         contrast: 1.02,
         saturate: 1.04,
+        // Stronger ultramarine over the stands than by night, so their maroon shirts don't show as
+        // pink patches once the stands lift toward pearl.
+        tint: 2.2,
+        // The dark stands lift toward pearl, most of all on the right, under the headline; the lit
+        // field, the robot, the hub and the orange arc keep their colour (`shadeDark`).
         lift: (x, y) => {
-          const ceiling = ramp([[0, 0.92], [0.2, 0.72], [0.4, 0.4], [0.56, 0]])(y);
-          const stands = ramp([[0.6, 0], [0.72, 0.6], [1, 0.9]])(x) * ramp([[0.5, 1], [0.62, 0]])(y);
-          const floor = ramp([[0.74, 0], [0.9, 0.6], [1, 0.85]])(y);
-          return Math.max(ceiling, stands, floor);
+          const stands = ramp([[0, 0.9], [0.3, 0.75], [0.5, 0.45], [0.62, 0]])(y);
+          const right = ramp([[0.5, 0], [0.7, 0.55], [1, 0.75]])(x) * ramp([[0.55, 1], [0.8, 0.4]])(y);
+          const floor = ramp([[0.86, 0], [1, 0.6]])(y);
+          return Math.max(stands, right, floor);
         },
       }),
     "home-reef-lane": () => daylight(NIGHT_LOOKS["home-reef-lane"](), { brightness: 0.97, contrast: 1.04, saturate: 1.02, grade: 0.16, shade: 0.3 }),
@@ -432,11 +425,11 @@ async function prepFtc(rgb0, w0, h0, theme) {
 
 /** Each set of copies: its file-name suffix, its widths, whether it takes the desktop look, and a crop. */
 const PHOTOS = {
-  "home-rebuilt-tower": {
+  "home-rebuilt-hub-arc": {
     outputs: [
-      // Phones and tablets: never more than 1,400 px.
-      { suffix: "-phone", widths: [800, 1400], desktop: false },
-      { suffix: "", widths: [1000, 1500, 2000, 2600], desktop: true },
+      // Phones and tablets: the photo is drawn 2.4 windows wide there, so up to 2,000 px.
+      { suffix: "-phone", widths: [1000, 2000], desktop: false },
+      { suffix: "", widths: [1200, 1800, 2400, 3000], desktop: true },
     ],
     quality: { avif: 62, webp: 84 },
   },

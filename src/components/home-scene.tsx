@@ -6,11 +6,11 @@ import { preload } from "react-dom";
  * read naturally). globals.css ("The home page as one competition photograph") places them, laid
  * out the way Hebrew reads (headline on the right); their night look and soft edges are baked into
  * the files (`npm run robot-photos`), so the browser only draws a picture:
- * - "short" (3:2, `home-rebuilt-tower`): the hero. FRC 2026 REBUILT: the blue alliance tower with
- *   an arc of yellow balls flying over it, on the physical left, the whole arc in view at every
- *   width; the blurred, darkened stands on the photo's right fade out under the headline. Made
- *   team-neutral (no team numbers, sponsor logos or faces) and enlarged with Real-ESRGAN before it
- *   was graded. Phones and tablets get their own copies, at most 1,400 px wide.
+ * - "short" (2.36:1, `home-rebuilt-hub-arc`): the hero. FRC 2026 REBUILT: a blue robot firing an
+ *   orange arc of balls into the hub with its REBUILT sign, large, the robot at the window's left
+ *   edge and the arc's peak just under the header; the empty field and the dark stands on the
+ *   photo's right run on under the headline, which has its own blur and dim. Enlarged with
+ *   Real-ESRGAN before it was graded. Phones and tablets get their own copies, softer at the edges.
  * - "tall" (4:3, `home-reef-lane`): in the open physical-right lane beside the lower vendor cards
  *   on a desktop, the 2025 Reefscape reef with its coral and algae filling it; the robot beside it
  *   stands at the window's edge, about half of it in view. Not shown below 1024px.
@@ -22,12 +22,12 @@ type Source = { name: string; widths: readonly number[]; sizes: string; media?: 
 const PHOTOS: Record<"short" | "tall", { sources: Source[]; width: number; height: number }> = {
   short: {
     sources: [
-      { name: "home-rebuilt-tower", widths: [1000, 1500, 2000, 2600], sizes: "min(70vw, 1300px)", media: "(min-width: 1024px)" },
-      { name: "home-rebuilt-tower-phone", widths: [800, 1400], sizes: "(min-width: 640px) 110vw, 180vw" },
+      { name: "home-rebuilt-hub-arc", widths: [1200, 1800, 2400, 3000], sizes: "min(100vw, 155vh, 3000px)", media: "(min-width: 1024px)" },
+      { name: "home-rebuilt-hub-arc-phone", widths: [1000, 2000], sizes: "(min-width: 640px) 150vw, 240vw" },
     ],
-    // The <img> fallback (the phone copy at 1,400 px).
-    width: 1400,
-    height: 933,
+    // The <img> fallback (the phone copy at 2,000 px).
+    width: 2000,
+    height: 849,
   },
   tall: {
     sources: [{ name: "home-reef-lane", widths: [1000, 1500, 2000], sizes: "(max-width: 1279px) 100vw, 84vw" }],
