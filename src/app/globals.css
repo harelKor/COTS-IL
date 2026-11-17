@@ -1531,8 +1531,9 @@ html::-webkit-scrollbar {
  * Below the first row, on a desktop: the reef (2025 Reefscape, 4:3, as shot; photo x 3-50%, y 32-100%),
  * its purple coral branches, white coral and teal algae filling the open physical-right lane (~42%)
  * beside the 2×2 grid, its left end tucked behind the cards. The window's right edge cuts the photo
- * at x 65%, so about half of robot 1690 (x 49-79%) shows: its chassis, the upper scoring arm and
- * about half the elevator's width (the owner's OK, Nov 17, 2026).
+ * at x 69%, so the reef's left half tucks behind the cards and about half of robot 1690 (x 49-79%)
+ * shows on the right: its chassis, the upper scoring arm and the elevator (the owner's OK, Nov 17,
+ * 2026). The bake keeps the robot out of the stands' darker shade.
  */
 .scene-lane {
   --photo-w: min(84vw, 150vh);
@@ -1552,17 +1553,17 @@ html::-webkit-scrollbar {
 }
 /*
  * Its look (the grade, the stands dimmed behind the reef, the soft edges) is baked into the files
- * too, for the photo drawn at 106%. The photo's x 65% (66% once scaled) on the window's right edge.
+ * too, for the photo drawn at 106%. The photo's x 69% (70% once scaled) on the window's right edge.
  */
 .scene-photo-tall .scene-frame {
-  left: calc(100vw - var(--photo-cut, 0.66) * var(--photo-w));
+  left: calc(100vw - var(--photo-cut, 0.70) * var(--photo-w));
   width: var(--photo-w);
 }
 /*
  * Its top: one straight, even fade across the lane just under the first vendor row (the lane starts
  * 48px below it), never up behind those cards. The box starts 40px above the lane and fades in over
  * 100px; the photo, taller than the box, sits on its bottom (the lane's bottom) and is clipped above.
- * Its bottom feathers out over the last 160px, so the photo melts into the canvas rather than
+ * Its bottom feathers out over the last 110px (the robot's bumper stays above it), so the photo melts into the canvas rather than
  * stopping on a line. A fixed mask on a box that never changes size, so scrolling only moves the
  * image inside it.
  */
@@ -1570,8 +1571,8 @@ html::-webkit-scrollbar {
   .scene-photo-tall {
     top: -40px;
     height: calc(100% + 40px + 0.015 * var(--photo-h));
-    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 100px, #000 calc(100% - 160px), transparent);
-    mask-image: linear-gradient(to bottom, transparent, #000 100px, #000 calc(100% - 160px), transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 100px, #000 calc(100% - 110px), transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 100px, #000 calc(100% - 110px), transparent);
   }
   .scene-photo-tall .scene-frame {
     top: auto;
@@ -1580,12 +1581,12 @@ html::-webkit-scrollbar {
 }
 /*
  * A small desktop: the cards wrap taller, so the photo is drawn larger to reach up to the first row,
- * cut at x 60% so the reef still tucks behind the cards (less of the robot shows).
+ * cut at x 64% so the reef still tucks behind the cards and the robot's chassis and elevator show.
  */
 @media (min-width: 1024px) and (max-width: 1279px) {
   .scene-lane {
     --photo-w: min(100vw, 150vh);
-    --photo-cut: 0.6;
+    --photo-cut: 0.645;
   }
 }
 .scene-photo-tall .scene-img {

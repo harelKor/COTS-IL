@@ -18,7 +18,8 @@
 // - home-reef-lane.jpg (4:3, 2,000 px): the lane beside the vendor cards on a desktop. FIRST
 //   Championship 2025 (Reefscape): the reef, its purple coral branches holding white coral and teal
 //   algae, the stands behind, and robot 1690 right of it (x 49-79%). The page shows the photo's
-//   left 65% (globals.css), so the reef is the subject and about half the robot shows at the edge;
+//   left 69% (globals.css), so the reef and about half the robot (its chassis, upper arm and
+//   elevator) share the lane, the robot at the window's edge;
 //   only its left edge is faded here; its top and bottom fade in CSS (a straight line under the first
 //   vendor row, and a feather at the lane's bottom).
 // This writes smaller AVIF and WebP copies (public/robots/<name>[-phone]-<width>.{avif,webp}).
@@ -141,10 +142,12 @@ const NIGHT_LOOKS = {
     filter: { brightness: 0.92, contrast: 1.05, saturate: 1 },
     tint: null,
     shade: (() => {
-      // The stands behind the reef, darker toward the top; the reef itself stays bright.
+      // The stands behind the reef, darker toward the top; the reef and robot 1690 (its elevator,
+      // upper arm and chassis, x 49-79%) stay bright.
       const stands = ramp([[0, 0.75], [0.2, 0.5], [0.5, 0.3], [0.75, 0.12], [0.84, 0]]);
       const reef = ellipse(0.26, 0.4, 0.27, 0.62, [[0.5, 1], [1, 0]]);
-      return (x, y) => stands(y) * (1 - reef(x, y));
+      const robot = ellipse(0.17, 0.34, 0.65, 0.64, [[0.6, 1], [1, 0]]);
+      return (x, y) => stands(y) * (1 - Math.max(reef(x, y), robot(x, y)));
     })(),
     mask: (() => {
       // The top fade is in CSS (globals.css, .scene-photo-tall): one straight line under the first row.
