@@ -143,15 +143,16 @@ async function Browse() {
           <FtcPhoto />
         </div>
         <div className="ftc-cards flex min-w-0 flex-col gap-4 lg:gap-5">
-          <div className="flex flex-col gap-1.5">
+          {/* A section title, a step up from the vendors heading, so the groups read as their own part of the page. */}
+          <div className="flex flex-col gap-2 pt-2 lg:pt-4">
             <div className="flex items-center gap-4">
-              <h2 id="browse-title" className="flex shrink-0 items-center gap-2.5 text-section font-semibold tracking-tight lg:text-[24px]">
-                <Bot strokeWidth={1.75} aria-hidden className="size-5 text-brand lg:size-6" />
+              <h2 id="browse-title" className="flex shrink-0 items-center gap-3 text-[22px] leading-tight font-semibold tracking-[-0.02em] sm:text-title lg:text-[32px]">
+                <Bot strokeWidth={1.75} aria-hidden className="size-6 text-brand lg:size-8" />
                 לפי סוג מוצר, מכל הספקים
               </h2>
               <span aria-hidden className="scene-rule h-px flex-1" />
             </div>
-            <p className="text-caption text-muted">אותו חלק מכמה ספקים מופיע פעם אחת, עם ההצעה הזולה שבמלאי.</p>
+            <p className="text-callout text-muted">אותו חלק מכמה ספקים מופיע פעם אחת, עם ההצעה הזולה שבמלאי.</p>
           </div>
           <GroupBoxes categories={categories.map((c) => ({ ...c, href: catalogHref({ category: c.slug }) }))} />
         </div>
