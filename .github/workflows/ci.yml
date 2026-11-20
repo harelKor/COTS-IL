@@ -19,6 +19,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run design-lint
+      # The build prerenders catalog pages, which read the database: an empty local one from the
+      # migrations (Postgres only, on 54422 as in supabase/config.toml) is enough.
+      - run: npx supabase db start
       - run: npx drizzle-kit check
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54422/postgres
