@@ -47,7 +47,17 @@ function searchText(product: NormalizedProduct, supplierName: string) {
 /** Database errors carry the whole query and its values, so keep only the reason. */
 export function describeError(error: unknown): string {
   if (!(error instanceof Error)) return String(error);
-  return error.cause instanceof Error ? error.cause.message : error.message;
+  // Node's "fetch failed" keeps the reason in `cause`, which can itself have an empty message
+  // (an AggregateError from a refused or reset connection): fall back to its code, then to the outer message.
+  const parts = [error.message];
+  let cause: unknown = error.cause;
+  while (cause instanceof Error) {
+    const code = (cause as Error & { code?: string }).code;
+    const inner = cause instanceof AggregateError ? cause.errors.map((e) => describeError(e)).join("; ") : "";
+    parts.push(cause.message || inner || code || cause.name);
+    cause = cause.cause;
+  }
+  return parts.filter(Boolean).join(": ") || error.name;
 }
 
 /** The latest stored USD→ILS rate, or null when none has ever been stored. */

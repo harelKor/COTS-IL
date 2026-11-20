@@ -101,6 +101,17 @@ describe("bestSellerHandles", () => {
     ]);
   });
 
+  it("reads the products' JSON when the grid is drawn in the browser (AndyMark)", () => {
+    const json = (grid: string[]) => nav + `<script>${JSON.stringify(grid.map((handle) => ({ handle })))}</script>` + footer;
+    expect(bestSellerHandles(json(["wheel", "bumper", "hex", "belt", "gear", "wheel"]), json(["belt", "bumper", "gear", "hex", "wheel"]))).toEqual([
+      "wheel",
+      "bumper",
+      "hex",
+      "belt",
+      "gear",
+    ]);
+  });
+
   it("finds nothing when the store gave the same page both times", () => {
     expect(bestSellerHandles(page(["a", "b"]), page(["a", "b"]))).toEqual([]);
   });

@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../db/schema";
 import { parseCtreSection, parseWcpSection, type StockReading } from "../domain/backorder";
+import { describeError } from "./sync";
 
 type Db = PostgresJsDatabase<typeof schema>;
 type Supplier = typeof schema.suppliers.$inferSelect;
@@ -28,7 +29,15 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function fetchText(url: string): Promise<string | null> {
   for (let attempt = 1; ; attempt++) {
-    const response = await fetch(url, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(30_000) });
+    let response: Response;
+    try {
+      response = await fetch(url, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(30_000) });
+    } catch (error) {
+      // A dropped connection or a timeout ("fetch failed") is as passing as a 5xx: wait and try again.
+      if (attempt >= MAX_ATTEMPTS) throw error;
+      await sleep(2 ** attempt * 5000);
+      continue;
+    }
     if (response.ok) return response.text();
     if (response.status === 404) return null;
     const retryable = response.status === 429 || response.status >= 500;
@@ -90,7 +99,7 @@ export async function checkShipsLater(db: Db, supplier: Supplier, budget = DEFAU
       html = await fetchText(`${supplier.baseUrl}/products/${encodeURIComponent(product.handle)}?section_id=${section}`);
     } catch (error) {
       // Still limited after backing off: stop here and keep what was read; the rest waits for tomorrow.
-      console.warn(`${supplier.code} stock check stopped after ${checked}: ${error instanceof Error ? error.message : error}`);
+      console.warn(`${supplier.code} stock check stopped after ${checked}: ${describeError(error)}`);
       break;
     }
     const now = new Date();

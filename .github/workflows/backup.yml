@@ -27,7 +27,7 @@ jobs:
           test "$(stat -c %s backup.dump)" -gt 10000 || { echo "Backup is suspiciously small"; exit 1; }
           gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" \
             --symmetric --cipher-algo AES256 --output backup.dump.gpg backup.dump
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: backup-${{ github.run_id }}
           path: backup.dump.gpg

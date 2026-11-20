@@ -123,7 +123,20 @@ export function pickDiscovery(families: FamilySignals[], exclude: Iterable<strin
  * at the start (the menu) and at the end (the footer) is dropped, and what's left is the grid.
  */
 export function bestSellerHandles(bestSellingHtml: string, titleSortedHtml: string): string[] {
-  const handles = (html: string) => [...html.matchAll(/\/products\/([a-z0-9][a-z0-9-]*)/gi)].map((m) => m[1].toLowerCase());
+  const links = diffHandles(LINK_HANDLE, bestSellingHtml, titleSortedHtml);
+  if (links.length >= 5) return links;
+  // A store whose grid is drawn in the browser (AndyMark) has no product links in the page, only
+  // its products' data as JSON ("handle":"…"), in the same order.
+  const json = diffHandles(JSON_HANDLE, bestSellingHtml, titleSortedHtml);
+  return json.length > links.length ? json : links;
+}
+
+const LINK_HANDLE = /\/products\/([a-z0-9][a-z0-9-]*)/gi;
+const JSON_HANDLE = /"handle":"([a-z0-9][a-z0-9-]*)"/gi;
+
+/** The handles where the two pages differ (the grid), without the menu and footer they share. */
+function diffHandles(pattern: RegExp, bestSellingHtml: string, titleSortedHtml: string): string[] {
+  const handles = (html: string) => [...html.matchAll(pattern)].map((m) => m[1].toLowerCase());
   const a = handles(bestSellingHtml);
   const b = handles(titleSortedHtml);
   let start = 0;
