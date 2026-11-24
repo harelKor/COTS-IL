@@ -9,7 +9,7 @@ import { newClientBody, parseBilling, parseCheque } from "@/domain/morning";
 import { morningStepsSchema } from "@/domain/settings";
 import { requireAdmin } from "@/lib/auth";
 import { createMorningClient, getMorningClient, morningConfig, testMorningConnection } from "@/lib/morning";
-import { issueDocument, issueResultText, morningStepOn, prepareCredit, prepareQuoteDocument, prepareReceipt } from "@/lib/morning-documents";
+import { issueDocument, issueResultText, morningStepOn, prepareCredit, prepareQuoteDocument, prepareReceipt, syncOrderDeals } from "@/lib/morning-documents";
 import { currentSettings, writeSettings } from "@/lib/settings-write";
 
 /**
@@ -127,8 +127,22 @@ export async function issueCredit(_prev: ActionState, formData: FormData): Promi
   if (!prepared.ok) return { error: prepared.error };
   const r = await issueDocument(prepared.id);
   const [row] = await db.select({ orderId: billingDocuments.orderId, teamId: billingDocuments.teamId }).from(billingDocuments).where(eq(billingDocuments.id, prepared.id));
+  // A credit can open the order's חשבון עסקה again in Morning: a stopped order closes it once more.
+  if (r.ok && row?.orderId) await syncOrderDeals(row.orderId, admin.id);
   refreshOrder(row?.orderId ?? null, row?.teamId);
   return r.ok ? { ok: issueResultText(r) } : { error: issueResultText(r) };
+}
+
+/** "סגירת חשבון עסקה": the order's חשבון עסקה follows the order now (when the automatic step failed). */
+export async function syncDeals(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  if (!morningConfig()) return OFF;
+  const orderId = z.uuid().safeParse(formData.get("orderId"));
+  if (!orderId.success) return { error: "ההזמנה לא נמצאה" };
+  const r = await syncOrderDeals(orderId.data, admin.id);
+  refreshOrder(orderId.data);
+  if (r.error) return { error: `חשבונית ירוקה: ${r.error}` };
+  return { ok: r.changed ? "חשבון העסקה עודכן בחשבונית ירוקה" : "חשבון העסקה כבר במצב הנכון בחשבונית ירוקה" };
 }
 
 async function setClient(adminId: string, teamId: string, clientId: string | null, action: string) {

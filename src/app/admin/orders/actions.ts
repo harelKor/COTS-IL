@@ -9,7 +9,7 @@ import { validateRevision } from "@/domain/order-corrections";
 import { requireAdmin } from "@/lib/auth";
 import { emailEnabled, notifyLater, notifyQuoteReady } from "@/lib/notify";
 import { orderSupplierLock } from "@/lib/purchasing";
-import { quoteDocumentLater } from "@/lib/morning-documents";
+import { quoteDocumentLater, syncOrderDealsLater } from "@/lib/morning-documents";
 import { currentQuote, insertQuoteVersion } from "@/lib/quote-versions";
 
 const { auditLog, quotes, teamOrderItems, teamOrders } = schema;
@@ -121,6 +121,7 @@ export async function rejectOrder(_prev: QuoteFormState, formData: FormData): Pr
     return { sent: true };
   });
 
+  if (result.sent) syncOrderDealsLater(orderId, admin.id);
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/admin", "layout");

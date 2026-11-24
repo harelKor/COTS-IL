@@ -4,6 +4,7 @@ import {
   clientSuggestions,
   creditPayload,
   creditRemaining,
+  dealAction,
   deleteBlockedByDocuments,
   docRef,
   findByRef,
@@ -224,5 +225,17 @@ describe("parseBilling", () => {
     expect(validIsraeliTaxId("000000018")).toBe(true);
     expect(validIsraeliTaxId("580000001")).toBe(false);
     expect(validIsraeliTaxId("12345")).toBe(true);
+  });
+});
+
+describe("dealAction", () => {
+  it("closes an open deal of a stopped order, and opens a hand-closed one when the order is back", () => {
+    expect(dealAction("cancelled", 0)).toBe("close");
+    expect(dealAction("rejected", 0)).toBe("close");
+    expect(dealAction("cancelled", 1)).toBeNull();
+    expect(dealAction("cancelled", 2)).toBeNull();
+    expect(dealAction("approved", 2)).toBe("open");
+    expect(dealAction("approved", 0)).toBeNull();
+    expect(dealAction("approved", 1)).toBeNull();
   });
 });

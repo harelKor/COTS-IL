@@ -7,7 +7,7 @@ import { formatIls } from "@/domain/pricing";
 import { morningConfig } from "@/lib/morning";
 import { orderDocuments, stuckDocumentIds, toIssuedDocs } from "@/lib/morning-documents";
 import { getSettings } from "@/lib/settings";
-import { issueQuoteDocument, retryDocument } from "./actions";
+import { issueQuoteDocument, retryDocument, syncDeals } from "./actions";
 import { CreditForm, MorningButton } from "./morning-forms";
 
 type QuoteRef = { id: string; version: number; status: string; morningQuoteNo: string | null; morningDealNo: string | null };
@@ -18,7 +18,7 @@ type QuoteRef = { id: string; version: number; status: string; morningQuoteNo: s
  * הצעת מחיר / חשבון עסקה buttons when the automatic step was off or failed. Hidden while
  * Morning has no keys and the order has no documents.
  */
-export async function OrderDocuments({ orderId, quotes }: { orderId: string; quotes: QuoteRef[] }) {
+export async function OrderDocuments({ orderId, quotes, orderStatus }: { orderId: string; quotes: QuoteRef[]; orderStatus: string }) {
   const cfg = morningConfig();
   const [docs, stuckIds] = await Promise.all([orderDocuments(orderId), stuckDocumentIds(orderId)]);
   if (!cfg && docs.length === 0) return null;
@@ -83,6 +83,10 @@ export async function OrderDocuments({ orderId, quotes }: { orderId: string; quo
             );
           })}
         </ul>
+      )}
+      {cfg && (orderStatus === "cancelled" || orderStatus === "rejected") && docs.some((d) => d.kind === "deal" && d.status === "issued") && (
+        // The site closes it by itself on cancel; this is for when that call failed.
+        <MorningButton action={syncDeals} fields={{ orderId }} label="סגירת חשבון העסקה בחשבונית ירוקה" variant="ghost" />
       )}
       {(canQuote || canDeal) && (
         <div className="flex flex-wrap gap-2">

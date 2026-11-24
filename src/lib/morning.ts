@@ -184,3 +184,14 @@ export async function createMorningDocument(payload: unknown): Promise<CreatedDo
 export async function morningDownloadLinks(morningId: string): Promise<{ he?: string; en?: string; origin?: string }> {
   return morningCall("GET", `/documents/${encodeURIComponent(morningId)}/download/links`);
 }
+
+/** A document's current status (DOC_STATUS in src/domain/morning.ts). */
+export async function morningDocumentStatus(morningId: string): Promise<number> {
+  const d = await morningCall<{ status: number }>("GET", `/documents/${encodeURIComponent(morningId)}`);
+  return d.status;
+}
+
+/** Closes an open document by hand, or opens again one closed by hand (POST /documents/{id}/close | open). */
+export async function setMorningDocumentOpen(morningId: string, open: boolean): Promise<void> {
+  await morningCall("POST", `/documents/${encodeURIComponent(morningId)}/${open ? "open" : "close"}`, undefined, { retry: false });
+}

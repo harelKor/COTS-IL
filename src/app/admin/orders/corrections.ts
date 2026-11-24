@@ -24,7 +24,7 @@ import { priceIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { emailEnabled, notifyLater, notifyQuoteReady } from "@/lib/notify";
 import { getCancelLines, getDeleteFacts, getOrderLinks } from "@/lib/order-corrections";
-import { orderDocuments, quoteDocumentLater, toIssuedDocs } from "@/lib/morning-documents";
+import { orderDocuments, quoteDocumentLater, syncOrderDealsLater, toIssuedDocs } from "@/lib/morning-documents";
 import { livePayments } from "@/lib/payments";
 import { currentQuote, insertQuoteVersion, type Tx } from "@/lib/quote-versions";
 import { priceContext } from "@/lib/settings";
@@ -161,7 +161,11 @@ export async function adminCancelOrder(_prev: CancelResult, formData: FormData):
     return { ok: "ההזמנה בוטלה.", warnings: plan.warnings };
   });
 
-  if (!result.error) refresh(orderId.data);
+  if (!result.error) {
+    refresh(orderId.data);
+    // P3: its חשבון עסקה in Morning follows (closed on cancel, opened again on reopen).
+    syncOrderDealsLater(orderId.data, admin.id);
+  }
   return result;
 }
 
@@ -228,7 +232,11 @@ export async function reopenOrder(_prev: ActionState, formData: FormData): Promi
     return { ok: "ההזמנה נפתחה מחדש." };
   });
 
-  if (!result.error) refresh(orderId.data);
+  if (!result.error) {
+    refresh(orderId.data);
+    // P3: its חשבון עסקה in Morning follows (closed on cancel, opened again on reopen).
+    syncOrderDealsLater(orderId.data, admin.id);
+  }
   return result;
 }
 

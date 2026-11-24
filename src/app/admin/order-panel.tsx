@@ -719,7 +719,7 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
       )}
       {status === "quote_sent" && <Links orderId={orderId} />}
       <Payment detail={detail} />
-      <OrderDocuments orderId={orderId} quotes={detail.quotes} />
+      <OrderDocuments orderId={orderId} quotes={detail.quotes} orderStatus={stored} />
       {stored === "approved" && <Logistics detail={detail} status={status} />}
       {(isFinished(status) || finished) && <Summary detail={detail} />}
       <History orderId={orderId} />

@@ -128,6 +128,8 @@ function documentLine(action: string, after: Obj): string | null {
   const kind = str(after.kind);
   const label = kind && kind in KIND_LABEL ? KIND_LABEL[kind as MorningKind] : "מסמך";
   if (action === "issue") return `הפקת ${label}${str(after.number) ? ` ${str(after.number)}` : ""} בחשבונית ירוקה`;
+  if (action === "close") return `סגירת ${label}${str(after.number) ? ` ${str(after.number)}` : ""} בחשבונית ירוקה`;
+  if (action === "open") return `פתיחה מחדש של ${label}${str(after.number) ? ` ${str(after.number)}` : ""} בחשבונית ירוקה`;
   if (action === "fail") return `הפקת ${label} בחשבונית ירוקה נכשלה${str(after.error) ? `: ${str(after.error)}` : ""}`;
   return null;
 }

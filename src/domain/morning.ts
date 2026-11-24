@@ -422,3 +422,19 @@ export function parseBilling(form: { billingName?: unknown; billingTaxId?: unkno
   if (address.length > 200) return { ok: false, error: "הכתובת ארוכה מדי" };
   return { ok: true, value: { billingName: name || null, billingTaxId: tax || null, billingEmail: email || null, billingAddress: address || null } };
 }
+
+/** Morning's document statuses (GET /documents/{id}): 0 open, 1 closed by Morning, 2 closed by hand, 3 cancelling, 4 cancelled. */
+export const DOC_STATUS = { open: 0, closed: 1, closedByHand: 2, cancelling: 3, cancelled: 4 } as const;
+
+/**
+ * What a חשבון עסקה needs when its order stops or comes back: a cancelled or rejected order
+ * closes an open one (a credit note can reopen it, so this runs after a credit too); a reopened
+ * order opens again one that was closed by hand. Morning closes it by itself when it's paid
+ * (status 1), and that is left alone.
+ */
+export function dealAction(orderStatus: string, morningStatus: number): "close" | "open" | null {
+  const stopped = orderStatus === "cancelled" || orderStatus === "rejected";
+  if (stopped && morningStatus === DOC_STATUS.open) return "close";
+  if (!stopped && morningStatus === DOC_STATUS.closedByHand) return "open";
+  return null;
+}

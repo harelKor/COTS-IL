@@ -12,6 +12,7 @@ import {
   clientSuggestions,
   creditPayload,
   creditRemaining,
+  dealAction,
   docRef,
   findByRef,
   nameWords,
@@ -34,7 +35,9 @@ import {
   createMorningDocument,
   findMorningClients,
   morningConfig,
+  morningDocumentStatus,
   recordMorning,
+  setMorningDocumentOpen,
   searchMorningDocuments,
   type CreatedDocument,
 } from "./morning";
@@ -388,6 +391,46 @@ export function dealDocumentLater(quoteId: string, actorId: string) {
     const id = await prepareQuoteDocument(quoteId, "deal", actorId);
     if (id) await issueDocument(id);
     refresh(q.orderId);
+  });
+}
+
+/**
+ * Brings the order's חשבון עסקה in Morning in line with the order (dealAction): closed by hand when
+ * the order is cancelled or rejected, open again when it comes back. Reads each one's status first,
+ * so it can run any number of times. Returns what changed, or the first error.
+ */
+export async function syncOrderDeals(orderId: string, actorId: string | null): Promise<{ changed: number; error: string | null }> {
+  const cfg = morningConfig();
+  if (!cfg) return { changed: 0, error: null };
+  const [order] = await db.select({ status: teamOrders.status }).from(teamOrders).where(eq(teamOrders.id, orderId));
+  if (!order) return { changed: 0, error: null };
+  const deals = await db
+    .select()
+    .from(billingDocuments)
+    .where(and(eq(billingDocuments.orderId, orderId), eq(billingDocuments.kind, "deal"), eq(billingDocuments.status, "issued"), eq(billingDocuments.env, cfg.env)));
+  let changed = 0;
+  for (const deal of deals) {
+    try {
+      const action = dealAction(order.status, await morningDocumentStatus(deal.morningId!));
+      if (!action) continue;
+      await setMorningDocumentOpen(deal.morningId!, action === "open");
+      changed++;
+      await db.insert(auditLog).values({ actorId, entity: "billing_document", entityId: deal.id, action, after: { orderId, kind: "deal", number: deal.number } });
+      await recordMorning(true, { action: `deal_${action}`, number: deal.number });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "שגיאה";
+      await recordMorning(false, { action: "deal_sync", number: deal.number, error: message.slice(0, 300) });
+      return { changed, error: message };
+    }
+  }
+  return { changed, error: null };
+}
+
+/** After a cancel, a reject or a reopen: the order's חשבון עסקה follows, after the response. */
+export function syncOrderDealsLater(orderId: string, actorId: string | null) {
+  morningLater(async () => {
+    await syncOrderDeals(orderId, actorId);
+    refresh(orderId);
   });
 }
 

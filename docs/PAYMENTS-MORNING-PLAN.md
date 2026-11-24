@@ -82,7 +82,8 @@ What exists:
   - quote sent (`sendQuote`, and a replaced part's new version) → הצעת מחיר (10), after the response;
   - quote approved → חשבון עסקה (300), once the team's 30-second undo window closes and the approval stands;
   - "רישום תשלום" with the box "הפקת חשבונית מס/קבלה בחשבונית ירוקה" (ticked) → 320 in the same action, linked to the order's 300 (repeats its lines when the payment is the whole deal, else one line "תשלום עבור הזמנה N"); a cheque asks for bank, branch and account (Morning refuses a cheque without them); "אחר" has no Morning type and is left to the admin;
-  - "הפקת זיכוי" on an issued 320 → 330 for all or part of what is left, with a reason; `linkType: "cancel"` when it credits the whole document.
+  - "הפקת זיכוי" on an issued 320 → 330 for all or part of what is left, with a reason; `linkType: "cancel"` when it credits the whole document;
+  - order cancelled or rejected → its open 300 is closed in Morning (reopened with the order).
 - **Numbers on both paths:** an issued document fills `quotes.morning_quote_no` / `morning_deal_no` and `payments.morning_doc_no` (+ `document_id`) when they are empty. A number typed by hand means the step is skipped (it was issued in Morning already).
 - **Order card:** "מסמכים" with each document, its PDF, "ניסיון חוזר" on a failed or stuck one, "הפקת זיכוי", and "הפקת הצעת מחיר" / "הפקת חשבון עסקה" when a step was off or failed; "הפקת חשבונית מס/קבלה" on a payment without one.
 - **Guards:** an order isn't deleted while a document is pending or a 320 has no full credit note (`deleteBlockedByDocuments`); an order with documents doesn't move to another team.
@@ -117,7 +118,7 @@ Sandbox documents used: 4 (plus one client).
 
 Found on the way:
 - Morning keeps no `transactionId` on a bank transfer, so the bank reference now goes into the receipt's remarks ("אסמכתא …").
-- After the credit note, חשבון עסקה 40001 still shows as open in Morning (it was issued while the business was פטור; whether a credited 320 reopens the 300 is unclear). A cancelled order's 300 may need closing by hand in Morning (or a later "סגירת חשבון עסקה" using `POST /documents/{id}/close`).
+- After the credit note, חשבון עסקה 40001 still showed as open in Morning. So now (`syncOrderDeals`, `dealAction`): cancelling or rejecting an order closes its open 300 by hand (`POST /documents/{id}/close`, status 0 → 2), after the response; a credit note on a stopped order closes it again (a credit can reopen it); reopening the order opens a hand-closed 300 again (`/open`, 2 → 0). Each call reads the status first, so it is safe to repeat, and the order card has "סגירת חשבון העסקה בחשבונית ירוקה" for a call that failed. Checked on the sandbox on order 1153: the button closed 40001, reopening the order opened it, cancelling closed it again (no documents used).
 - Morning checks an Israeli tax id's check digit (error 1111); the billing form now checks it too.
 
 ### P2: Connecting Morning, size S–M
