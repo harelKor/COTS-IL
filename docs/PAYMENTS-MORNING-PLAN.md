@@ -7,7 +7,30 @@ This replaces I1 in `docs/AUDIT-2026-11-17-PLAN.md`. The goals:
 
 It works without Morning too. Phase P1 alone (recording payments by hand) is useful on its own. Morning then removes the double entry.
 
-## Decisions the owner makes first (P0)
+## Decided (Nov 24, 2026)
+
+- **D1, VAT:** the business is an **עוסק מורשה**. Option A: **site prices include VAT (18%)**.
+  - Every ₪ price on the site is the final price, worded "כולל מע״מ".
+  - Quotes, orders and Morning documents split it out: net = gross ÷ 1.18, with a "מע״מ 18%" line. This matches how the admin already quotes in Morning (quote 434: ₪15,800 total).
+  - The VAT rate is a setting (`pricing.vatRate`, 0.18), so a future rate change is one edit.
+  - Old order items keep their own snapshot.
+  - The multiplier is now VAT-inclusive. Keeping the old margin means about 1.6 × 1.18 ≈ 1.89. That is the admin's choice in `/admin/settings/pricing`; no code sets it.
+  - The CLAUDE.md rule "never say a price includes VAT" is replaced by this.
+- **D2, Morning plan:** "כלים למפתחים" exists in the account, so the API is available. Webhooks are not needed without card payments.
+- **D3, card payments:** **no** for now. Morning's card payments cost ₪29 a month plus per-payment fees. Teams pay by bank transfer or school payment, and the admin records it. **P4 is skipped**; it can be added later unchanged.
+- **D4, clients:** the admin already has the teams as Morning clients (סטימפאנק רעננה, צעירים בירוחם, DRC דבורה, …). Each team is linked once to its existing client: a suggested match by name, and the admin confirms. A new team gets a new client.
+- **D5, documents:** the site follows today's manual flow.
+
+  | Event on the site | Morning document |
+  |---|---|
+  | Quote sent | הצעת מחיר (type 10) |
+  | Quote approved | חשבון עסקה (type 300) |
+  | Payment recorded | חשבונית מס/קבלה (type 320), linked to the 300 so it closes |
+  | Refund or cancellation after an invoice | חשבונית זיכוי (type 330) |
+
+  Each step can be turned off in the Morning settings card.
+
+## Decisions the owner makes first (P0), the original questions
 
 | # | Question | Why it matters |
 |---|---|---|
