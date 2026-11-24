@@ -102,6 +102,16 @@ Confirmed on the sandbox (Nov 24, 2026; Morning's OpenAPI file is at `https://de
 - **Errors:** `{errorCode, errorMessage}` in Hebrew (e.g. 2403 "סוג מסמך לא נשלח או אינו נתמך עבור סוג עסק זה", 2443 "נא למלא את פרטי הצ׳ק בשורת התקבול").
 - **The sandbox business "test" was created as עוסק פטור** (`exemption: true`): 0% VAT, and 320/330 are refused for that business type. See "Sandbox run" below.
 
+### Sandbox run (Nov 24, 2026)
+
+On the local stack against the sandbox, order 1153 (team Orbit FRC 1690):
+- billing details saved; the first הצעת מחיר failed with Morning's own message ("מספר עוסק / ח.פ אינו תקין", a tax id with a wrong check digit; the form now checks it), and "ניסיון חוזר" looked the reference up, created the Morning client, linked it to the team and issued **הצעת מחיר 300**, its number filled into the quote;
+- the team approved; 30 seconds later **חשבון עסקה 40001** was issued by itself, linked to the same client;
+- both documents carry "BLUEHUB, הזמנה 1153. סימוכין BH-…" in their remarks; the team's `/orders/<id>` lists them, and the PDF link returns Morning's PDF;
+- "רישום תשלום" with the box ticked recorded the payment and wrote the 320 row (linked to the 300, repeating its lines). Morning refused it: the sandbox business is an עוסק פטור (error 2403). It waits as "לא הופק" with "ניסיון חוזר".
+
+Still to run: once the sandbox business "test" is an עוסק מורשה (Morning › הגדרות › פרטי העסק), "ניסיון חוזר" on that 320, then cancel the order and "הפקת זיכוי" (330). Sandbox documents used so far: 2.
+
 ### P2: Connecting Morning, size S–M
 
 - **Keys:**
