@@ -294,8 +294,9 @@ async function upsertProducts(tx: Tx, supplier: Supplier, products: NormalizedPr
             options: excluded("options"),
             position: excluded("position"),
             grams: excluded("grams"),
-            // The admin's price wins (S15), so the history doesn't flip back and forth each night.
-            priceUsd: sql`coalesce((SELECT o.price_usd FROM variant_overrides o WHERE o.variant_id = ${schema.variants.id}), excluded.price_usd)`,
+            // The admin's price wins (S15), and the supplier's discount stays off (variants.discount, applyDiscounts),
+            // so the history doesn't flip back and forth each night.
+            priceUsd: sql`coalesce((SELECT o.price_usd FROM variant_overrides o WHERE o.variant_id = ${schema.variants.id}), round(excluded.price_usd * (1 - coalesce(${schema.variants.discount}, 0)), 2))`,
             supplierPriceUsd: excluded("supplier_price_usd"),
             compareAtUsd: excluded("compare_at_usd"),
             // The admin's availability wins too, for the same reason; SKU and options are laid over by the regroup.

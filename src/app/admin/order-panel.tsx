@@ -94,6 +94,7 @@ async function editorLines(detail: Detail): Promise<EditorLine[]> {
       productUrl: item.productUrl,
       requestedQty: item.qty,
       requestedPrice: item.unitPriceIls,
+      discountLabel: item.discountLabel,
       qty: line?.qty ?? item.qty,
       unitPriceIls: line?.unitPriceIls ?? item.unitPriceIls,
       changeReason: line?.changeReason ?? "",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatIls, hasUsdPrice, priceIls, resolveMarkup, roundIls, vatLabel, vatSplit, type PriceContext, type PricingRuleSet } from "./pricing";
+import { commonDiscount, discountedUsd, discountLabels, formatIls, hasUsdPrice, partDiscount, priceIls, resolveDiscount, resolveMarkup, roundIls, vatLabel, vatSplit, type PriceContext, type PricingRuleSet } from "./pricing";
 
 const at = (rate: number, more: Partial<PriceContext> = {}): PriceContext => ({ rate, markup: 1.6, roundTo: 1, minIls: null, ...more });
 
@@ -99,5 +99,52 @@ describe("formatIls with agorot", () => {
     expect(formatIls(2410.17, { agorot: true })).toContain("2,410.17");
     expect(formatIls(2410, { agorot: true })).not.toContain(".");
     expect(formatIls(2410.4)).not.toContain(".");
+  });
+});
+
+describe("supplier discounts", () => {
+  const gobilda = { supplier: "gobilda", percent: 25, label: "הנחת FTC", enabled: true, excludeTypes: ["MERCH"], excludeSkus: ["3122-0002-0001"] };
+
+  it("gives goBILDA's parts 25% and leaves other suppliers alone", () => {
+    expect(resolveDiscount([gobilda], { supplierCode: "gobilda", productType: "Hub Mount Gears", sku: "2305-0014-0040" })).toBe(0.25);
+    expect(resolveDiscount([gobilda], { supplierCode: "rev", productType: "Hub Mount Gears", sku: "REV-41-1300" })).toBeNull();
+  });
+
+  it("leaves out excluded subcategories and SKUs, in any case or spacing", () => {
+    expect(resolveDiscount([gobilda], { supplierCode: "gobilda", productType: " merch ", sku: "x" })).toBeNull();
+    expect(resolveDiscount([gobilda], { supplierCode: "gobilda", productType: "Cameras", sku: "3122-0002-0001" })).toBeNull();
+    expect(resolveDiscount([gobilda], { supplierCode: "gobilda", productType: "Cameras", sku: "3122-0001-0001" })).toBe(0.25);
+  });
+
+  it("gives none to a part priced by hand, a custom part or a rule that's off", () => {
+    expect(resolveDiscount([gobilda], { supplierCode: "gobilda", priceOverridden: true })).toBeNull();
+    expect(resolveDiscount([gobilda], { supplierCode: "gobilda", custom: true })).toBeNull();
+    expect(resolveDiscount([{ ...gobilda, enabled: false }], { supplierCode: "gobilda" })).toBeNull();
+    expect(resolveDiscount([{ ...gobilda, percent: 12.5 }], { supplierCode: "gobilda" })).toBe(0.125);
+  });
+
+  it("takes the discount off the USD price to the cent, before the multiplier", () => {
+    expect(discountedUsd(19.99, 0.25)).toBe(14.99);
+    expect(discountedUsd(100, null)).toBe(100);
+    // $100 at 3.5 × 1.6: ₪560 before, ₪420 after.
+    expect(priceIls(discountedUsd(100, 0.25), at(3.5))).toBe(420);
+  });
+
+  it("shows the tag and the struck price only when the discount applied and the price is lower", () => {
+    const ctx = at(3.5, { discountLabels: discountLabels([gobilda]) });
+    const part = { supplierCode: "gobilda", discount: "0.250", supplierPriceUsd: "100.00", markup: "1.600", fixedIls: null };
+    expect(partDiscount(part, ctx, 420)).toEqual({ label: "הנחת FTC", beforeIls: 560 });
+    expect(partDiscount({ ...part, discount: null }, ctx, 560)).toBeNull();
+    expect(partDiscount({ ...part, fixedIls: "300" }, ctx, 300)).toBeNull();
+    expect(partDiscount(part, ctx, null)).toBeNull();
+    // A rule switched off since the regroup: no tag.
+    expect(partDiscount(part, at(3.5), 420)).toBeNull();
+  });
+
+  it("puts one tag on a choice only when every priced part has it", () => {
+    const d = (beforeIls: number) => ({ label: "הנחת FTC", beforeIls });
+    expect(commonDiscount([{ priceIls: 30, discount: d(40) }, { priceIls: 60, discount: d(80) }, { priceIls: null, discount: null }])).toEqual(d(40));
+    expect(commonDiscount([{ priceIls: 30, discount: d(40) }, { priceIls: 60, discount: null }])).toBeNull();
+    expect(commonDiscount([])).toBeNull();
   });
 });

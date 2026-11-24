@@ -4,7 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { businessFromForm, pricingSettingsSchema, ROUND_STEPS } from "@/domain/settings";
+import { businessFromForm, pricingSettingsSchema, ROUND_STEPS, supplierDiscountSchema } from "@/domain/settings";
 import { requireAdmin } from "@/lib/auth";
 import { regroupNow } from "@/lib/regroup";
 import { currentSettings, writeSettings } from "@/lib/settings-write";
@@ -77,6 +77,8 @@ export async function savePricing(_: SettingsResult | null, formData: FormData):
     roundTo,
     minIls: minIls === "" ? null : minIls,
     rateOverride: rate === "" ? null : before.pricing.rateOverride?.rate === rate ? before.pricing.rateOverride : { rate, setAt: new Date().toISOString() },
+    // Kept: the suppliers' discounts have their own form (saveDiscount).
+    discounts: before.pricing.discounts,
   });
   await writeSettings(viewer.id, "update_pricing", before, { ...before, pricing });
   await repriceCatalog();
@@ -91,6 +93,29 @@ export async function clearRateOverride(): Promise<SettingsResult> {
   await writeSettings(viewer.id, "clear_rate_override", before, { ...before, pricing: { ...before.pricing, rateOverride: null } });
   await repriceCatalog();
   return { ok: true, message: "חזרה לשער בנק ישראל" };
+}
+
+/** One name per line (or comma), blanks dropped, no repeats. */
+const lines = (v: FormDataEntryValue | null) => [...new Set(String(v ?? "").split(/[\n,]/).map((x) => x.trim()).filter(Boolean))];
+
+/** Adds or changes one supplier's discount (pricing.discounts), then reprices the catalog. */
+export async function saveDiscount(_: SettingsResult | null, formData: FormData): Promise<SettingsResult> {
+  const viewer = await requireAdmin();
+  const codes = (await db.select({ code: schema.suppliers.code }).from(schema.suppliers)).map((s) => s.code);
+  const parsed = supplierDiscountSchema.safeParse({
+    supplier: String(formData.get("supplier") ?? ""),
+    percent: Number(formData.get("percent")),
+    label: String(formData.get("label") ?? ""),
+    enabled: formData.get("enabled") === "on",
+    excludeTypes: lines(formData.get("excludeTypes")),
+    excludeSkus: lines(formData.get("excludeSkus")),
+  });
+  if (!parsed.success || !codes.includes(parsed.data.supplier)) return { ok: false, error: "בחרו ספק, אחוז בין 1 ל-90 ותווית" };
+  const before = await currentSettings();
+  const others = before.pricing.discounts.filter((d) => d.supplier !== parsed.data.supplier);
+  await writeSettings(viewer.id, "update_discount", before, { ...before, pricing: { ...before.pricing, discounts: [...others, parsed.data] } });
+  await repriceCatalog();
+  return { ok: true, message: parsed.data.enabled ? "ההנחה נשמרה והמחירים עודכנו" : "ההנחה כבויה והמחירים עודכנו" };
 }
 
 const ruleInput = z.object({

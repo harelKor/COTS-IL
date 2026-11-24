@@ -21,7 +21,7 @@ import { DocTiles } from "@/components/doc-tiles";
 import { JumpBar } from "@/components/jump-bar";
 import { ProductDescription } from "@/components/product-description";
 import { SectionHeading } from "@/components/section-heading";
-import { formatIls, priceIls, type PriceContext } from "@/domain/pricing";
+import { formatIls, partDiscount, priceIls, type PriceContext } from "@/domain/pricing";
 import { getCategoryPicks, getCompanions, getFacets, getFamily, getVendorPopular, getVendors, type FamilyVariant } from "@/lib/catalog";
 import { priceContext } from "@/lib/settings";
 import { getStaleSupplierCodes } from "@/lib/health";
@@ -196,12 +196,15 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
   const { rateDate } = rate;
 
   const { family } = result;
-  const viewVariants: ViewVariant[] = byOffer(result.variants, rate).map((v) => ({
+  const viewVariants: ViewVariant[] = byOffer(result.variants, rate).map((v) => {
+    // A vendor too long without a successful sync (M1): "ייבדק בהצעה" instead of an old price that looks current.
+    const price = stale.includes(v.supplierCode) ? null : priceIls(v.priceUsd, rate, v.markup, v.fixedIls);
+    return {
     id: v.id,
     sku: v.sku,
     options: v.familyOptions,
-    // A vendor too long without a successful sync (M1): "ייבדק בהצעה" instead of an old price that looks current.
-    priceIls: stale.includes(v.supplierCode) ? null : priceIls(v.priceUsd, rate, v.markup, v.fixedIls),
+    priceIls: price,
+    discount: partDiscount(v, rate, price),
     markup: Number(v.markup ?? rate.markup),
     available: v.available,
     shipsLater: v.shipsLater,
@@ -212,7 +215,8 @@ async function FamilyBody({ slug, children }: { slug: string; children: React.Re
     productUrl: v.productUrl,
     image: v.image,
     specs: result.specs[v.id] ?? [],
-  }));
+    };
+  });
   // Our copy of the supplier's description: no sales talk; its spec tables join the spec section.
   const description = cleanDescription(family.descriptionHtml);
   // One spec table: the options and the variants' specs (summarized until the choice settles them), then the description's.

@@ -23,6 +23,8 @@ export type PriceContext = {
   roundTo: number;
   /** No price below this; null for none. */
   minIls: number | null;
+  /** Supplier code → the tag its discount shows ("הנחת FTC"), for the suppliers with a discount on (pricing.discounts). */
+  discountLabels?: Readonly<Record<string, string>>;
 };
 
 /** True when a USD price is a real, positive number, i.e. the part can be priced and ordered. */
@@ -134,4 +136,80 @@ export function formatMarkup(markup: number): string {
 /** The multipliers in use, as the price explanation says them: "1.6", or "1.4 עד 1.6" when rules differ. */
 export function markupText([low, high]: readonly [number, number]): string {
   return low === high ? formatMarkup(low) : `${formatMarkup(low)} עד ${formatMarkup(high)}`;
+}
+
+/**
+ * A supplier's discount (pricing.discounts in the settings), such as goBILDA's 25% for FIRST
+ * teams, which the admin gets when buying. It comes off the supplier's USD price before the
+ * multiplier, so the margin stays the same and every price, cart and order item reads the
+ * lower USD price. The exclusions are the supplier's own subcategory (products.product_type,
+ * e.g. goBILDA's "MERCH") and SKUs.
+ */
+export type SupplierDiscount = {
+  supplier: string;
+  /** Whole percent, 25 for 25%. */
+  percent: number;
+  label: string;
+  enabled: boolean;
+  excludeTypes: readonly string[];
+  excludeSkus: readonly string[];
+};
+
+const norm = (s: string) => s.trim().toLowerCase();
+
+/**
+ * The discount on one part as a fraction (0.25), or null. None for a part the admin priced by
+ * hand (a USD override or a custom part), an excluded subcategory or SKU, or a rule that's off.
+ */
+export function resolveDiscount(
+  rules: readonly SupplierDiscount[],
+  part: { supplierCode: string; productType?: string | null; sku?: string | null; priceOverridden?: boolean; custom?: boolean },
+): number | null {
+  if (part.priceOverridden || part.custom) return null;
+  const rule = rules.find((r) => r.enabled && r.supplier === part.supplierCode);
+  if (!rule || !(rule.percent > 0 && rule.percent < 100)) return null;
+  if (part.productType && rule.excludeTypes.some((t) => norm(t) === norm(part.productType!))) return null;
+  if (part.sku && rule.excludeSkus.some((s) => norm(s) === norm(part.sku!))) return null;
+  return Math.round(rule.percent * 10) / 1000;
+}
+
+/** The supplier's USD price less the discount, to the cent: what the admin pays. */
+export function discountedUsd(usd: number, discount: number | null | undefined): number {
+  if (!discount || !(discount > 0 && discount < 1)) return usd;
+  return Math.round(usd * (1 - discount) * 100) / 100;
+}
+
+/** Supplier code → tag, for the rules that are on (PriceContext.discountLabels). */
+export function discountLabels(rules: readonly SupplierDiscount[]): Record<string, string> {
+  return Object.fromEntries(rules.filter((r) => r.enabled && r.percent > 0).map((r) => [r.supplier, r.label]));
+}
+
+/** What a price shows beside it when the supplier's discount applied: the tag and the struck price. */
+export type PriceDiscount = { label: string; beforeIls: number };
+
+/**
+ * The tag and the price before the discount for one part, or null when none applies or it
+ * wouldn't show: a fixed ₪ price (S16c) is the admin's own, and a struck price must be higher.
+ */
+export function partDiscount(
+  part: { supplierCode: string; discount?: string | number | null; supplierPriceUsd?: string | number | null; markup?: string | number | null; fixedIls?: string | number | null },
+  ctx: PriceContext,
+  priceIlsNow: number | null,
+): PriceDiscount | null {
+  if (!part.discount || !(Number(part.discount) > 0) || priceIlsNow === null) return null;
+  if (part.fixedIls !== null && part.fixedIls !== undefined && Number(part.fixedIls) > 0) return null;
+  const label = ctx.discountLabels?.[part.supplierCode];
+  if (!label) return null;
+  const beforeIls = priceIls(part.supplierPriceUsd, ctx, part.markup);
+  return beforeIls !== null && beforeIls > priceIlsNow ? { label, beforeIls } : null;
+}
+
+/**
+ * The tag and the lowest struck price for a choice of parts not settled yet (a product page
+ * before every option is chosen, a card): only when every priced part has the discount.
+ */
+export function commonDiscount(parts: readonly { priceIls: number | null; discount: PriceDiscount | null }[]): PriceDiscount | null {
+  const priced = parts.filter((p) => p.priceIls !== null);
+  if (priced.length === 0 || !priced.every((p) => p.discount)) return null;
+  return { label: priced[0].discount!.label, beforeIls: Math.min(...priced.map((p) => p.discount!.beforeIls)) };
 }

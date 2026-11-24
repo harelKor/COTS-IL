@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { maxMerge } from "@/domain/cart";
 import { hasAuthCookie } from "@/domain/session-cookie";
+import type { PriceDiscount } from "@/domain/pricing";
 
 /**
  * What the viewer can do with a cart. "guest" keeps one in the browser until
@@ -22,6 +23,8 @@ export type CartSheetLine = {
   supplierCode?: string;
   qty: number;
   unitPriceIls: number | null;
+  /** The supplier's discount on one unit (הנחת FTC): the tag and the price before it. */
+  discount?: PriceDiscount | null;
   /** False once the part left the catalog or lost its price: the line blocks the send until removed. Unknown (a guest's line) counts as true. */
   orderable?: boolean;
   /** The supplier's yes/no and when it was checked (ISO). Not sold out doesn't block the send. */

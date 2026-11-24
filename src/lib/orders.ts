@@ -9,7 +9,7 @@ import { getOrderDeliveries } from "@/lib/logistics";
 import { getOrderLines } from "@/lib/order-status";
 import type { CartSheetLine } from "@/components/cart-store";
 import { isOrderable } from "@/domain/cart";
-import { priceIls, type PriceContext } from "@/domain/pricing";
+import { partDiscount, priceIls, type PriceContext } from "@/domain/pricing";
 import { productHref } from "@/lib/catalog-links";
 import { undoOpen } from "@/domain/quote-view";
 
@@ -26,6 +26,8 @@ export async function getCart(teamId: string, variantIds?: string[]) {
       supplierSku: variants.supplierSku,
       options: variants.options,
       priceUsd: variants.priceUsd,
+      supplierPriceUsd: variants.supplierPriceUsd,
+      discount: variants.discount,
       markup: variants.markup,
       fixedIls: variants.fixedIls,
       available: variants.available,
@@ -53,7 +55,9 @@ export type CartLine = Awaited<ReturnType<typeof getCart>>[number];
 /** A cart line as the cart sheet shows it (CartSheetLine in src/components/cart-store.ts). */
 export const toSheetLine =
   (ctx: PriceContext) =>
-  (l: CartLine): CartSheetLine => ({
+  (l: CartLine): CartSheetLine => {
+    const unitPriceIls = priceIls(l.priceUsd, ctx, l.markup, l.fixedIls);
+    return {
     variantId: l.variantId,
     title: l.title,
     options: l.options.map((o) => o.value).join(" / "),
@@ -63,13 +67,15 @@ export const toSheetLine =
     supplierName: l.supplierName,
     supplierCode: l.supplierCode,
     qty: l.qty,
-    unitPriceIls: priceIls(l.priceUsd, ctx, l.markup, l.fixedIls),
+    unitPriceIls,
+    discount: partDiscount(l, ctx, unitPriceIls),
     orderable: isOrderable({ variantMissing: l.variantMissing, productMissing: l.productMissing, productStatus: l.productStatus, priceUsd: l.priceUsd }),
     available: l.available,
     shipsLater: l.shipsLater,
     shipsLaterEta: l.shipsLaterEta,
     checkedAt: l.checkedAt.toISOString(),
-  });
+    };
+  };
 
 export async function cartCount(teamId: string) {
   const [{ count }] = await db

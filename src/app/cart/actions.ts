@@ -8,7 +8,7 @@ import { db, schema } from "@/db";
 import { MAX_SHARED_LINES, type SharedLine } from "@/domain/cart-share";
 import { cartChanges, cartFingerprint, isOrderable, maxMerge, type CartChange } from "@/domain/cart";
 import { reorderLines } from "@/domain/quote-view";
-import { priceIls } from "@/domain/pricing";
+import { partDiscount, priceIls } from "@/domain/pricing";
 import { getViewer, orderingTeam, orderingTeams, TEAM_COOKIE, type Viewer } from "@/lib/auth";
 import { notifyLater, notifyRequest } from "@/lib/notify";
 import { cookies } from "next/headers";
@@ -129,6 +129,8 @@ export async function quickAdd(variantId: string, count: number): Promise<LineRe
         supplierSku: variants.supplierSku,
         options: variants.options,
         priceUsd: variants.priceUsd,
+        supplierPriceUsd: variants.supplierPriceUsd,
+        discount: variants.discount,
         markup: variants.markup,
         fixedIls: variants.fixedIls,
         available: variants.available,
@@ -244,6 +246,8 @@ async function createOrder(
         supplierSku: variants.supplierSku,
         options: variants.options,
         priceUsd: variants.priceUsd,
+        supplierPriceUsd: variants.supplierPriceUsd,
+        discount: variants.discount,
         markup: variants.markup,
         fixedIls: variants.fixedIls,
         variantMissing: variants.missingSince,
@@ -287,7 +291,11 @@ async function createOrder(
       .returning();
 
     await tx.insert(teamOrderItems).values(
-      lines.map((l) => ({
+      lines.map((l) => {
+        const unitPriceIls = priceIls(l.priceUsd, rate, l.markup, l.fixedIls)!;
+        // The supplier's discount, kept with the line so its quote shows the tag and the struck price.
+        const discount = partDiscount(l, rate, unitPriceIls);
+        return {
         orderId: order.id,
         variantId: l.variantId,
         qty: l.qty,
@@ -302,9 +310,12 @@ async function createOrder(
         // A fixed ₪ price (S16c) is kept as the multiplier it works out to at today's rate.
         multiplier: l.fixedIls ? (Number(l.fixedIls) / (Number(l.priceUsd) * rate.rate)).toFixed(3) : String(Number(l.markup ?? rate.markup)),
         usdIlsRate: String(rate.rate),
-        unitPriceIls: priceIls(l.priceUsd, rate, l.markup, l.fixedIls)!,
+        unitPriceIls,
+        listPriceIls: discount?.beforeIls ?? null,
+        discountLabel: discount?.label ?? null,
         pricedAt: now,
-      })),
+        };
+      }),
     );
 
     await tx.delete(cartItems).where(eq(cartItems.teamId, team.id));

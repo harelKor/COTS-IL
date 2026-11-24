@@ -12,7 +12,7 @@ import { optionLabel } from "@/domain/families/sort";
 import { arrivalShort, arrivalText } from "@/domain/lead-time";
 import { offerReason, rankOffers } from "@/domain/offers";
 import { dedupePhotos, followPhoto, ownPhoto } from "@/domain/gallery";
-import { formatIls, VAT_INCLUDED } from "@/domain/pricing";
+import { commonDiscount, formatIls, VAT_INCLUDED, type PriceDiscount } from "@/domain/pricing";
 import { useSiteFacts } from "./site-facts";
 import { RequestPart } from "./zero-results";
 import { availabilityStatus, isFresh, useNow } from "./availability";
@@ -23,6 +23,7 @@ import { ProductGallery } from "./product-gallery";
 import { publishChoice } from "./spec-table";
 import { canEditCart, useCart } from "./cart-store";
 import { vendorHref, vendorTheme } from "@/domain/vendors";
+import { DiscountNote } from "./discount-note";
 import { Ltr } from "./ltr";
 import { VendorMark } from "./vendor-mark";
 import { OptionCombobox } from "./option-combobox";
@@ -34,6 +35,8 @@ export type ViewVariant = {
   sku: string | null;
   options: Record<string, string>;
   priceIls: number | null;
+  /** The supplier's discount on it (הנחת FTC): the tag and the price before it; null for none. */
+  discount: PriceDiscount | null;
   /** The multiplier behind priceIls, for "איך נקבע המחיר?". */
   markup: number;
   available: boolean | null;
@@ -320,6 +323,7 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
         supplierName: chosen.supplierName,
         supplierCode: chosen.supplierCode,
         unitPriceIls: chosen.priceIls,
+        discount: chosen.discount,
         available: chosen.available,
         shipsLater: chosen.shipsLater,
         shipsLaterEta: chosen.shipsLaterEta,
@@ -344,6 +348,8 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
         ? formatIls(range.min)
         : `${formatIls(range.min)} – ${formatIls(range.max)}`
       : "ייבדק בהצעה";
+  // The supplier's discount beside the price: the chosen part's, or while choosing, when every part left has it.
+  const discount = chosen ? (price === null ? null : chosen.discount) : range ? commonDiscount(picked.candidates) : null;
   // While choosing, what's left: all of it in stock, some of it, or the best one's status.
   const best = chosen ?? rankOffers(picked.candidates, leadTimes)[0] ?? null;
   const bestStatus = best ? availabilityText(best) : null;
@@ -571,6 +577,7 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
               </span>
               {(price !== null || (!chosen && range)) && <span className="text-caption text-muted">{VAT_INCLUDED}</span>}
             </span>
+            <DiscountNote discount={discount} className="basis-full" />
             {price !== null && lineQty > 1 && <span className="text-callout text-muted">סה״כ: {formatIls(price * lineQty)}</span>}
           </div>
           {availability && (
@@ -610,6 +617,7 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
                       <span className="flex min-h-6 items-center text-body font-semibold">
                         {!sells ? <span className="text-caption font-normal text-muted">לא נמכר בבחירה הזו</span> : priceLine ?? <span className="text-caption font-normal text-muted">ייבדק בהצעה</span>}
                       </span>
+                      {sells && priceLine && <DiscountNote discount={offer ? offer.discount : commonDiscount(picked.candidates.filter((v) => v.supplierCode === code))} />}
                       <span className="flex min-h-5 items-center gap-1.5 text-caption text-muted">
                         {status && (
                           <>
@@ -715,7 +723,10 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
           }`}
         >
           <div className="flex items-center justify-between gap-3">
-            <span className="text-callout font-semibold">{priceText}</span>
+            <span className="flex flex-wrap items-center gap-x-2 text-callout font-semibold">
+              {priceText}
+              <DiscountNote discount={discount} />
+            </span>
             {cartCount > 0 && (
               <button
                 type="button"

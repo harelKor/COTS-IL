@@ -20,7 +20,7 @@ import { deletePlan, deleteSnapshot } from "@/domain/order-delete";
 import { deleteBlockedByDocuments, moveBlockedByDocuments } from "@/domain/morning";
 import { deleteBlockedByPayments } from "@/domain/payments";
 import type { OrderStatus } from "@/domain/orders";
-import { priceIls } from "@/domain/pricing";
+import { partDiscount, priceIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { emailEnabled, notifyLater, notifyQuoteReady } from "@/lib/notify";
 import { getCancelLines, getDeleteFacts, getOrderLinks } from "@/lib/order-corrections";
@@ -527,6 +527,8 @@ export async function replaceItem(itemId: string, variantId: string): Promise<{ 
         supplierSku: variants.supplierSku,
         options: variants.options,
         priceUsd: variants.priceUsd,
+        supplierPriceUsd: variants.supplierPriceUsd,
+        discount: variants.discount,
         markup: variants.markup,
         fixedIls: variants.fixedIls,
         title: products.title,
@@ -549,6 +551,7 @@ export async function replaceItem(itemId: string, variantId: string): Promise<{ 
     if (blocked || newPrice === null) return { error: blocked ?? "לפריט שנבחר אין מחיר בקטלוג" };
 
     const released = await releaseFromDrafts(tx, [item.id]);
+    const discount = partDiscount(part, ctx, newPrice);
     const snapshot = {
       variantId: ids.data.variantId,
       supplierCode: part.supplierCode,
@@ -562,6 +565,8 @@ export async function replaceItem(itemId: string, variantId: string): Promise<{ 
       multiplier: part.fixedIls ? (Number(part.fixedIls) / (Number(part.priceUsd) * ctx.rate)).toFixed(3) : String(Number(part.markup ?? ctx.markup)),
       usdIlsRate: String(ctx.rate),
       unitPriceIls: newPrice,
+      listPriceIls: discount?.beforeIls ?? null,
+      discountLabel: discount?.label ?? null,
       pricedAt: new Date(),
       unavailableAt: null,
     };

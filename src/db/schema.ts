@@ -246,6 +246,12 @@ export const variants = pgTable(
     compareAtUsd: numeric("compare_at_usd", { precision: 10, scale: 2 }),
     /** The multiplier its price uses, resolved from pricing_rules by each regroup (S16a, resolveMarkup); null until then, which means the global one. */
     markup: numeric("markup", { precision: 6, scale: 3 }),
+    /**
+     * The supplier's discount on this part as a fraction (0.25), from the admin's rule
+     * (pricing.discounts, resolveDiscount) written by each regroup; null for none. When set,
+     * priceUsd is supplierPriceUsd less it: what the admin pays, so every price reads it.
+     */
+    discount: numeric("discount", { precision: 4, scale: 3 }),
     available: boolean("available"),
     /** Orderable but none on hand: the supplier ships it later (בהזמנה מראש). Only from the stock check; never a quantity. */
     shipsLater: boolean("ships_later").notNull().default(false),
@@ -480,6 +486,10 @@ export const teamOrderItems = pgTable(
     /** The USD→ILS rate behind unitPriceIls. Null on orders sent before the rate was applied (Nov 2026). */
     usdIlsRate: numeric("usd_ils_rate", { precision: 10, scale: 4 }),
     unitPriceIls: integer("unit_price_ils").notNull(),
+    /** The ₪ price before the supplier's discount (variants.discount) when one applied, for the struck price; else null. */
+    listPriceIls: integer("list_price_ils"),
+    /** The discount's tag when one applied ("הנחת FTC"); else null. */
+    discountLabel: text("discount_label"),
     pricedAt: timestamp("priced_at", { withTimezone: true }).notNull(),
     /** The admin marked the part "לא זמין" (no longer sold, M2); cleared when it's replaced. */
     unavailableAt: timestamp("unavailable_at", { withTimezone: true }),

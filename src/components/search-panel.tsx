@@ -113,6 +113,8 @@ function asCard(r: SearchResult): CardFamily {
     supplierCodes: r.supplierCodes,
     minPriceIls: r.priceIls,
     maxPriceIls: r.maxPriceIls,
+    // The quick search doesn't read the supplier's discount; the price is already the discounted one.
+    discount: null,
     available: r.available,
     shipsLater: r.shipsLater,
     checkedAt: r.checkedAt,

@@ -11,6 +11,7 @@ import { packText } from "@/domain/pack-size";
 import { countOf, OPTION } from "@/domain/plural";
 import { formatIls } from "@/domain/pricing";
 import { availabilityStatus, isFresh, useNow } from "./availability";
+import { DiscountNote } from "./discount-note";
 import { Ils } from "./ils";
 import type { FamilyVariants } from "@/app/api/family/[id]/variants/route";
 import type { CardFamily, CardVariant } from "@/lib/catalog";
@@ -36,6 +37,7 @@ function lineFor(family: CardFamily, v: CardVariant): AddableLine {
     href: familyHref(family.slug, v.id),
     supplierName: v.supplierName,
     unitPriceIls: v.priceIls,
+    discount: v.discount,
   };
 }
 
@@ -234,6 +236,9 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
         <Ils amount={family.minPriceIls} />
       </span>
     );
+  // The supplier's discount (הנחת FTC): the chosen part's, else the card's when every offer has it.
+  const discount = current ? (current.priceIls != null ? current.discount : null) : family.minPriceIls === null ? null : family.discount;
+  const discountNote = <DiscountNote discount={discount} />;
   // "חבילה של 10" by the price, when the title states the pack (P2-6).
   const pack = family.packSize ? <span className="text-caption font-normal whitespace-nowrap text-muted">{packText(family.packSize)}</span> : null;
   // When it reaches Israel, from the vendors' lead times (hidden while any is empty). Not for a sold-out
@@ -363,6 +368,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
           <div className="flex min-w-0 flex-1 flex-col">
             <Ltr className="line-clamp-2 text-start text-callout font-medium">{family.title}</Ltr>
             <span className="text-callout font-semibold">{price}</span>
+            {discountNote}
           </div>
           <button
             type="button"
@@ -425,12 +431,14 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
             {/* Under the title on a phone; its own column from 640px. */}
             <span className="flex flex-wrap items-baseline gap-x-2 text-callout font-semibold tabular-nums sm:hidden">
               {price}
+              {discountNote}
               {pack}
             </span>
           </Link>
           {specs.length > 0 && <SpecColumns specs={specs} />}
-          <span className="hidden w-28 shrink-0 flex-col items-end text-callout font-semibold tabular-nums sm:flex">
+          <span className="hidden w-28 shrink-0 flex-col items-end gap-0.5 text-callout font-semibold tabular-nums sm:flex">
             {price}
+            {discountNote}
             {pack}
           </span>
           <div className="flex shrink-0 justify-end sm:w-28">{action}</div>
@@ -500,6 +508,7 @@ export function FamilyCard({ family, preset = {}, layout = "grid", eager = false
       <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
         <div className="flex min-w-0 flex-col">
           <span className={`leading-tight font-semibold text-foreground tabular-nums ${isRange ? "text-callout sm:text-body" : "text-[1.125rem] sm:text-section"}`}>{price}</span>
+          {discountNote}
           {pack}
         </div>
         {action && <div className="ms-auto">{action}</div>}

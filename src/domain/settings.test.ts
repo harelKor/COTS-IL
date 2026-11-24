@@ -11,7 +11,7 @@ describe("parseSettings", () => {
   it("starts with nothing known and the 1.6 multiplier", () => {
     expect(DEFAULT_SETTINGS.business.legalName).toBeNull();
     expect(DEFAULT_SETTINGS.business.leadTimes).toEqual({});
-    expect(DEFAULT_SETTINGS.pricing).toEqual({ markup: 1.6, rateOverride: null, roundTo: 1, minIls: null, vatRate: 0.18 });
+    expect(DEFAULT_SETTINGS.pricing).toMatchObject({ markup: 1.6, rateOverride: null, roundTo: 1, minIls: null, vatRate: 0.18 });
     expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
   });
 
@@ -94,5 +94,19 @@ describe("content settings added in M6", () => {
     expect(s.content.emails.adminsOff).toEqual(["u1"]);
     expect(s.content.emails.inviteDays).toBe(7);
     expect(parseSettings({ content: { emails: { inviteDays: 0 } } }).content).toEqual(DEFAULT_SETTINGS.content);
+  });
+});
+
+describe("supplier discounts in the settings", () => {
+  it("starts with goBILDA's 25% FIRST team discount, merch left out", () => {
+    const [d] = parseSettings({}).pricing.discounts;
+    expect(d).toMatchObject({ supplier: "gobilda", percent: 25, label: "הנחת FTC", enabled: true });
+    expect(d.excludeTypes).toContain("MERCH");
+  });
+
+  it("keeps the admin's rules, including none at all", () => {
+    expect(parseSettings({ pricing: { discounts: [] } }).pricing.discounts).toEqual([]);
+    const off = parseSettings({ pricing: { discounts: [{ supplier: "gobilda", percent: 20, enabled: false }] } }).pricing.discounts[0];
+    expect(off).toMatchObject({ percent: 20, enabled: false, label: "הנחת FTC", excludeTypes: [] });
   });
 });

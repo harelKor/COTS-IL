@@ -4,7 +4,7 @@ import * as schema from "../db/schema";
 import { applyProductOverrides, familyPinRank, type ProductOverride } from "../domain/catalog-overrides";
 import { listUsd } from "../domain/part-editor";
 import { categoryPhotos } from "../domain/catalog-rank";
-import { resolveMarkup, type PricingRuleSet } from "../domain/pricing";
+import { resolveDiscount, resolveMarkup, type PricingRuleSet } from "../domain/pricing";
 import { parseSettings } from "../domain/settings";
 import { groupFamilies, type FamilyDraft, type GroupProduct } from "../domain/families/group";
 import { isRealDescription } from "../lib/description";
@@ -38,6 +38,7 @@ export async function regroupCatalog(tx: Tx): Promise<RegroupCounts> {
   const now = new Date();
   const { products, variants, suppliers, categories } = schema;
 
+  await applyDiscounts(tx);
   await applyOverrides(tx);
   await applyPricingRules(tx);
   const overrides = await loadOverrides(tx);
@@ -198,7 +199,8 @@ export async function applyOverrides(tx: Tx): Promise<void> {
   await tx.execute(sql`
     WITH target AS (
       SELECT v.id,
-             coalesce(o.price_usd, v.supplier_price_usd) AS price,
+             -- The supplier's discount (variants.discount, applyDiscounts) comes off its price: what the admin pays.
+             coalesce(o.price_usd, round(v.supplier_price_usd * (1 - coalesce(v.discount, 0)), 2)) AS price,
              o.fixed_ils AS fixed,
              CASE WHEN o.sku IS NOT NULL THEN nullif(o.sku, '') ELSE v.store_sku END AS sku,
              coalesce(o.options, v.store_options, v.options) AS options,
@@ -231,6 +233,50 @@ async function loadRate(tx: Tx): Promise<number> {
     .orderBy(desc(schema.exchangeRates.rateDate))
     .limit(1);
   return latest ? Number(latest.rate) : 0;
+}
+
+/**
+ * Writes each variant's supplier discount (variants.discount) from the admin's rules
+ * (pricing.discounts, resolveDiscount), before applyOverrides takes it off the price. Only
+ * changed rows are written, so a regroup with no change writes nothing.
+ */
+export async function applyDiscounts(tx: Tx): Promise<void> {
+  const [row] = await tx.select({ data: schema.siteSettings.data }).from(schema.siteSettings).where(eq(schema.siteSettings.id, 1));
+  const rules = parseSettings(row?.data).pricing.discounts;
+  const rows = await tx
+    .select({
+      id: schema.variants.id,
+      supplierCode: schema.suppliers.code,
+      productType: schema.products.productType,
+      sku: schema.variants.storeSku,
+      fallbackSku: schema.variants.supplierSku,
+      source: schema.products.source,
+      overridePrice: schema.variantOverrides.priceUsd,
+      discount: schema.variants.discount,
+    })
+    .from(schema.variants)
+    .innerJoin(schema.products, eq(schema.products.id, schema.variants.productId))
+    .innerJoin(schema.suppliers, eq(schema.suppliers.id, schema.variants.supplierId))
+    .leftJoin(schema.variantOverrides, eq(schema.variantOverrides.variantId, schema.variants.id));
+  const byValue = new Map<string, string[]>();
+  for (const r of rows) {
+    const d = resolveDiscount(rules, {
+      supplierCode: r.supplierCode,
+      productType: r.productType,
+      sku: r.sku ?? r.fallbackSku,
+      priceOverridden: r.overridePrice !== null,
+      custom: r.source === "custom",
+    });
+    const value = d === null ? "none" : d.toFixed(3);
+    const current = r.discount === null ? "none" : Number(r.discount).toFixed(3);
+    if (value === current) continue;
+    byValue.set(value, [...(byValue.get(value) ?? []), r.id]);
+  }
+  for (const [value, ids] of byValue)
+    for (const batch of chunks(ids, 1000))
+      await tx.execute(
+        sql`UPDATE variants SET discount = ${value === "none" ? null : value} WHERE id IN (${sql.join(batch.map((id) => sql`${id}::uuid`), sql`, `)})`,
+      );
 }
 
 /** The admin's multipliers (S16a): the global one from site_settings, the rest from pricing_rules. */

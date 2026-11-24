@@ -23,6 +23,7 @@ import { cartSnapshot, cartTotals, markBlocked, replaceLines, setMergeSkipped, u
 import { Ltr } from "./ltr";
 import { QtyStepper } from "./qty-stepper";
 import { showToast } from "./toast";
+import { DiscountNote } from "./discount-note";
 import { formatAddress, missingAddressParts, parseAddress, type AddressParts } from "@/domain/display";
 import { track } from "@vercel/analytics";
 
@@ -140,6 +141,7 @@ function SwipeLine({ line, now, onNavigate, onRemove }: { line: CartSheetLine; n
                 <span className="flex flex-col items-end text-callout font-semibold tabular-nums">
                   {line.unitPriceIls === null ? <span className="text-caption font-normal text-muted">אין מחיר</span> : formatIls(line.unitPriceIls * line.qty)}
                   {line.unitPriceIls !== null && line.qty > 1 && <span className="text-caption font-normal text-muted">{formatIls(line.unitPriceIls)} ליח׳</span>}
+                  {line.unitPriceIls !== null && line.discount && <DiscountNote discount={{ ...line.discount, beforeIls: line.discount.beforeIls * line.qty }} />}
                 </span>
               </div>
             </>

@@ -9,7 +9,7 @@ import { sortValue } from "@/domain/specs/units";
 import { keySpecColumns, keySpecKeys, keySpecsOf, type KeySpec, type SpecValue } from "@/domain/key-specs";
 import { packSize } from "@/domain/pack-size";
 import type { CompanionRule } from "@/domain/families/companions";
-import { priceIls } from "@/domain/pricing";
+import { partDiscount, priceIls, type PriceDiscount } from "@/domain/pricing";
 import { interleave, pageCount, pickDiscovery, rankPopular, wrappedPage, type FamilySignals } from "@/domain/popular";
 import { groupOf } from "@/domain/category-groups";
 import { allStale, isStale, someStale } from "@/domain/stale-price";
@@ -237,6 +237,8 @@ export type CardVariant = {
   supplierName: string;
   supplierCode: string;
   image: string | null;
+  /** The supplier's discount on it (הנחת FTC): the tag and the price before it; null for none. */
+  discount: PriceDiscount | null;
 };
 
 /**
@@ -253,6 +255,8 @@ export type CardFamily = {
   supplierCodes: string[];
   minPriceIls: number | null;
   maxPriceIls: number | null;
+  /** Every offer on the card has the supplier's discount: its tag and the lowest price before it. */
+  discount: PriceDiscount | null;
   available: boolean | null;
   /** Every available offer ships later (בהזמנה מראש). */
   shipsLater: boolean;
@@ -322,6 +326,8 @@ async function variantsOf(familyIds: string[], rate: PriceContext, supplierCodes
       sku: variants.supplierSku,
       options: variants.familyOptions,
       priceUsd: variants.priceUsd,
+      supplierPriceUsd: variants.supplierPriceUsd,
+      discount: variants.discount,
       markup: variants.markup,
       fixedIls: variants.fixedIls,
       available: variants.available,
@@ -345,10 +351,13 @@ async function variantsOf(familyIds: string[], rate: PriceContext, supplierCodes
       ),
     )
     .orderBy(sql`${variants.available} IS TRUE DESC`, asc(variants.priceUsd));
-  return rows.map((v) => ({
-    familyId: v.familyId!,
-    variant: { id: v.id, sku: v.sku, options: v.options, priceIls: isStale(v.supplierCode, stale) ? null : priceIls(v.priceUsd, rate, v.markup, v.fixedIls), available: v.available, shipsLater: v.shipsLater, shipsLaterEta: v.shipsLaterEta, supplierName: v.supplierName, supplierCode: v.supplierCode, image: v.image } satisfies CardVariant,
-  }));
+  return rows.map((v) => {
+    const price = isStale(v.supplierCode, stale) ? null : priceIls(v.priceUsd, rate, v.markup, v.fixedIls);
+    return {
+      familyId: v.familyId!,
+      variant: { id: v.id, sku: v.sku, options: v.options, priceIls: price, available: v.available, shipsLater: v.shipsLater, shipsLaterEta: v.shipsLaterEta, supplierName: v.supplierName, supplierCode: v.supplierCode, image: v.image, discount: partDiscount(v, rate, price) } satisfies CardVariant,
+    };
+  });
 }
 
 /** A card's variants, for its option chips. Cached: the catalog changes once a day. */
@@ -357,6 +366,18 @@ export async function getCardVariants(familyId: string): Promise<CardVariant[]> 
   catalogCache();
   const rate = await priceContext();
   return (await variantsOf([familyId], rate)).map((r) => r.variant);
+}
+
+/** A card's tag and struck "from" price: only when every offer on it has the supplier's discount. */
+function cardDiscount(
+  s: { allDiscounted: boolean; fullMin: string | null; discountSupplier: string | null } | undefined,
+  minIls: number | null,
+  rate: PriceContext,
+): PriceDiscount | null {
+  if (!s?.allDiscounted || !s.discountSupplier || minIls === null) return null;
+  const label = rate.discountLabels?.[s.discountSupplier];
+  const beforeIls = priceIls(s.fullMin, rate, 1);
+  return label && beforeIls !== null && beforeIls > minIls ? { label, beforeIls } : null;
 }
 
 /**
@@ -374,6 +395,9 @@ async function toCards(rows: CardRow[], supplierCodes?: string[]): Promise<CardF
   const fresh = stale.length > 0 ? sql`${suppliers.code} NOT IN (${sql.join(stale.map((c) => sql`${c}`), sql`, `)})` : sql`true`;
   // A fixed ₪ price (S16c) ÷ the rate, so × the rate gives it back (listUsd in src/domain/part-editor.ts).
   const list = sql`CASE WHEN ${variants.fixedIls} > 0 THEN ${variants.fixedIls} / ${rate.rate} ELSE ${variants.priceUsd} * coalesce(${variants.markup}, 1) END`;
+  // The same before the supplier's discount, and whether every offer has one (the card's tag and struck price).
+  const discounted = sql`(${variants.discount} IS NOT NULL AND ${variants.fixedIls} IS NULL)`;
+  const fullList = sql`CASE WHEN ${discounted} THEN ${variants.supplierPriceUsd} * coalesce(${variants.markup}, 1) ELSE ${list} END`;
   // Per family: how many option sets can be ordered, and the best offer.
   const shapeQuery = db
     .select({
@@ -384,6 +408,9 @@ async function toCards(rows: CardRow[], supplierCodes?: string[]): Promise<CardF
       maxList: sql<string | null>`max(${list})`,
       freshMin: sql<string | null>`min(${list}) FILTER (WHERE ${fresh})`,
       freshMax: sql<string | null>`max(${list}) FILTER (WHERE ${fresh})`,
+      allDiscounted: sql<boolean>`coalesce(bool_and(${discounted}) FILTER (WHERE ${fresh}), false)`,
+      fullMin: sql<string | null>`min(${fullList}) FILTER (WHERE ${fresh})`,
+      discountSupplier: sql<string | null>`min(${suppliers.code}) FILTER (WHERE ${discounted})`,
       available: sql<boolean | null>`bool_or(${variants.available})`,
       shipsLater: sql<boolean>`coalesce(bool_and(${variants.shipsLater}) FILTER (WHERE ${variants.available} IS TRUE), false)`,
     })
@@ -427,6 +454,7 @@ async function toCards(rows: CardRow[], supplierCodes?: string[]): Promise<CardF
       supplierCodes: codes,
       minPriceIls: priceIls(minUsd, rate, 1),
       maxPriceIls: priceIls(maxUsd, rate, 1),
+      discount: cardDiscount(s, priceIls(minUsd, rate, 1), rate),
       available: only ? (s?.available ?? null) : r.available,
       shipsLater: only ? (s?.shipsLater ?? false) : r.shipsLater,
       checkedAt: r.lastSeenAt.toISOString(),
@@ -896,6 +924,8 @@ async function familyShared(slug: string) {
       familyOptions: variants.familyOptions,
       options: variants.options,
       priceUsd: variants.priceUsd,
+      supplierPriceUsd: variants.supplierPriceUsd,
+      discount: variants.discount,
       markup: variants.markup,
       fixedIls: variants.fixedIls,
       available: variants.available,

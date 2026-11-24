@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { ImageOff, RefreshCw } from "lucide-react";
-import { Alert, Field, Input } from "@/components/form";
+import { Alert, Field, Input, StatusTag } from "@/components/form";
 import { Availability } from "@/components/availability";
 import { ItemDescription } from "@/components/orders";
 import { formatIls, VAT_INCLUDED, vatLabel, vatSplit } from "@/domain/pricing";
@@ -20,6 +20,8 @@ export type EditorLine = {
   image: string | null;
   requestedQty: number;
   requestedPrice: number;
+  /** The supplier's discount on the requested price ("הנחת FTC"), so the admin checks it in the supplier's cart. */
+  discountLabel: string | null;
   qty: number;
   unitPriceIls: number;
   changeReason: string;
@@ -118,6 +120,7 @@ export function QuoteEditor(props: {
                     <span className="text-muted">
                       ביקשו: {line.requestedQty} × {formatIls(line.requestedPrice)}
                     </span>
+                    {line.discountLabel && <StatusTag tone="success">{line.discountLabel}</StatusTag>}
                     {line.checkedAt && <Availability available={line.liveAvailable} checkedAt={line.checkedAt} />}
                     <a href={line.productUrl} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">
                       עמוד הספק

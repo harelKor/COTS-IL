@@ -1,8 +1,10 @@
 import { lineLabel, lineStatus, type LineFacts } from "@/domain/order-status";
-import { formatIls, VAT_INCLUDED, vatLabel, vatSplit } from "@/domain/pricing";
+import { formatIls, VAT_INCLUDED, vatLabel, vatSplit, type PriceDiscount } from "@/domain/pricing";
 import { diffQuoteLines, quoteTotals, type QuoteLine } from "@/domain/orders";
 import { supplierSections } from "@/domain/cart";
 import { Ltr } from "./ltr";
+import { DiscountNote } from "./discount-note";
+import { StatusTag } from "./form";
 
 const dateTime = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
@@ -23,6 +25,9 @@ export type OrderItem = {
   options: { name: string; value: string }[];
   qty: number;
   unitPriceIls: number;
+  /** The ₪ price before the supplier's discount and its tag ("הנחת FTC"), when one applied at submit. */
+  listPriceIls?: number | null;
+  discountLabel?: string | null;
   /** The admin marked the part "לא זמין" (M2). */
   unavailableAt?: Date | null;
 };
@@ -44,6 +49,12 @@ export function ItemDescription({ item }: { item: Pick<OrderItem, "title" | "sup
       </div>
     </div>
   );
+}
+
+/** The supplier's discount on a line at this unit price: the tag, and the struck price while it's still higher. */
+function itemDiscount(item: Pick<OrderItem, "listPriceIls" | "discountLabel">, unitPriceIls: number): PriceDiscount | null {
+  if (!item.discountLabel || !item.listPriceIls || item.listPriceIls <= unitPriceIls) return null;
+  return { label: item.discountLabel, beforeIls: item.listPriceIls };
 }
 
 /** A vendor's section in an order table: the vendor's name across the row. */
@@ -92,7 +103,10 @@ export function RequestTable({ items }: { items: OrderItem[] }) {
                   <ItemDescription item={item} />
                 </td>
                 <td className="p-3">{item.qty}</td>
-                <td className="whitespace-nowrap p-3">{formatIls(item.unitPriceIls)}</td>
+                <td className="p-3">
+                  <span className="whitespace-nowrap">{formatIls(item.unitPriceIls)}</span>
+                  <DiscountNote discount={itemDiscount(item, item.unitPriceIls)} className="mt-1 flex" />
+                </td>
                 <td className="whitespace-nowrap p-3">{formatIls(item.qty * item.unitPriceIls)}</td>
               </tr>
             ))}
@@ -190,11 +204,18 @@ export function QuoteTable({
                   {qtyBefore !== undefined && <s className="me-1 text-caption text-muted">{qtyBefore}</s>}
                   <span className={qtyBefore !== undefined ? "font-semibold text-warning" : ""}>{line.qty === 0 ? "הוסר" : line.qty}</span>
                 </td>
-                <td className="whitespace-nowrap p-3">
-                  {priceBefore !== undefined && <s className="me-1 text-caption text-muted">{formatIls(priceBefore)}</s>}
-                  <span className={priceBefore !== undefined ? "font-semibold text-warning" : ""}>
-                    {formatIls(line.unitPriceIls)}
+                <td className="p-3">
+                  <span className="whitespace-nowrap">
+                    {priceBefore !== undefined && <s className="me-1 text-caption text-muted">{formatIls(priceBefore)}</s>}
+                    <span className={priceBefore !== undefined ? "font-semibold text-warning" : ""}>{formatIls(line.unitPriceIls)}</span>
                   </span>
+                  {/* The struck price is the admin's change when there is one; the discount's then shows as its tag only. */}
+                  {line.qty > 0 &&
+                    (priceBefore === undefined ? (
+                      <DiscountNote discount={itemDiscount(item, line.unitPriceIls)} className="mt-1 flex" />
+                    ) : (
+                      item.discountLabel && <StatusTag tone="success" className="mt-1">{item.discountLabel}</StatusTag>
+                    ))}
                 </td>
                 <td className="whitespace-nowrap p-3">{line.qty === 0 ? "" : formatIls(line.qty * line.unitPriceIls)}</td>
               </tr>

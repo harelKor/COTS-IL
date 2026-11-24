@@ -3,7 +3,7 @@ import { DEFAULT_CATEGORY_GROUPS } from "./category-groups";
 import { DEFAULT_SEARCH_EXAMPLES } from "./content";
 import { DEFAULT_PAGES, INFO_PAGES } from "./info-text";
 import { REMINDER_AFTER_DAYS } from "./notifications";
-import { DEFAULT_MARKUP, DEFAULT_VAT_RATE } from "./pricing";
+import { DEFAULT_MARKUP, DEFAULT_VAT_RATE, type SupplierDiscount } from "./pricing";
 import { DEFAULT_HOME, DEFAULT_TAGLINE, WHY_CARD_COUNT } from "./site-text";
 import { INVITE_DAYS } from "./teams";
 
@@ -67,6 +67,26 @@ export type Business = z.infer<typeof businessSchema>;
 /** Rounding steps the admin can pick: whole shekels, or the nearest 5 or 10. */
 export const ROUND_STEPS = [1, 5, 10] as const;
 
+const listOfNames = z.array(z.string().trim().min(1).max(120)).max(200).default([]);
+
+export const supplierDiscountSchema = z.object({
+  /** The supplier's code ("gobilda"). */
+  supplier: z.string().trim().min(1).max(40),
+  percent: z.number().min(1).max(90),
+  /** The tag beside a discounted price. */
+  label: z.string().trim().min(1).max(30).default("הנחת FTC"),
+  enabled: z.boolean().default(true),
+  /** The supplier's own subcategories left out (products.product_type, e.g. "MERCH"). */
+  excludeTypes: listOfNames,
+  /** SKUs left out. */
+  excludeSkus: listOfNames,
+});
+
+/** goBILDA's FIRST team discount (Nov 24, 2026): merch and the Limelight 3A (3122-0002-0001, a third-party camera) left out. */
+export const DEFAULT_DISCOUNTS: readonly SupplierDiscount[] = [
+  { supplier: "gobilda", percent: 25, label: "הנחת FTC", enabled: true, excludeTypes: ["MERCH"], excludeSkus: ["3122-0002-0001"] },
+];
+
 export const pricingSettingsSchema = z.object({
   /** The global multiplier: ILS = USD × rate × markup, VAT included (1.6 until the admin changes it). */
   markup: z.number().min(1).max(5).default(DEFAULT_MARKUP),
@@ -84,6 +104,13 @@ export const pricingSettingsSchema = z.object({
    * to quotes sent after it, never to old ones.
    */
   vatRate: z.number().min(0).max(0.5).default(DEFAULT_VAT_RATE),
+  /**
+   * Suppliers' discounts the admin gets when buying (SupplierDiscount in src/domain/pricing.ts):
+   * off the USD price before the multiplier, with a tag beside the price. goBILDA gives FIRST
+   * teams 25% on "nearly every product" (gobilda.com/ftc, Nov 24, 2026) and publishes no
+   * exclusion list; merch and the third-party Limelight 3A camera are left out to start.
+   */
+  discounts: z.array(supplierDiscountSchema).max(20).default(() => DEFAULT_DISCOUNTS.map((d) => ({ ...d, excludeTypes: [...d.excludeTypes], excludeSkus: [...d.excludeSkus] }))),
 });
 export type PricingSettings = z.infer<typeof pricingSettingsSchema>;
 

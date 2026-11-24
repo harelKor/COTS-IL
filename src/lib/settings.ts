@@ -2,7 +2,7 @@ import "server-only";
 import { asc, eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { db, schema } from "@/db";
-import type { PriceContext } from "@/domain/pricing";
+import { discountLabels, type PriceContext } from "@/domain/pricing";
 import { parseSettings, type Business, type Settings } from "@/domain/settings";
 import { getUsdIlsRate } from "./fx";
 import { SEARCH_CATEGORIES } from "./search-examples";
@@ -59,6 +59,7 @@ export async function priceContext(): Promise<Pricing> {
     markup: pricing.markup,
     roundTo: pricing.roundTo,
     minIls: pricing.minIls,
+    discountLabels: discountLabels(pricing.discounts),
     boiRate: rate,
     rateDate,
     manualRate: !!manual,
