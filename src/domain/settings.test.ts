@@ -11,7 +11,7 @@ describe("parseSettings", () => {
   it("starts with nothing known and the 1.6 multiplier", () => {
     expect(DEFAULT_SETTINGS.business.legalName).toBeNull();
     expect(DEFAULT_SETTINGS.business.leadTimes).toEqual({});
-    expect(DEFAULT_SETTINGS.pricing).toEqual({ markup: 1.6, rateOverride: null, roundTo: 1, minIls: null });
+    expect(DEFAULT_SETTINGS.pricing).toEqual({ markup: 1.6, rateOverride: null, roundTo: 1, minIls: null, vatRate: 0.18 });
     expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
   });
 

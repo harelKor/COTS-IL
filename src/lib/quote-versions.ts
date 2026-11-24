@@ -2,6 +2,7 @@ import "server-only";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { OrderStatus } from "@/domain/orders";
+import { getSettings } from "./settings";
 
 const { auditLog, quoteLines, quotes, teamOrders } = schema;
 
@@ -55,9 +56,11 @@ export async function insertQuoteVersion(
     .where(and(eq(quotes.orderId, v.orderId), inArray(quotes.status, ["sent", "approved"])));
 
   const version = (previous?.version ?? 0) + 1;
+  // The VAT its prices include, as of today (D1): the quote keeps it even if the rate changes later.
+  const vatRate = String((await getSettings()).pricing.vatRate);
   const [quote] = await tx
     .insert(quotes)
-    .values({ orderId: v.orderId, version, shippingIls: v.shippingIls, notes: v.notes, sentBy: v.adminId })
+    .values({ orderId: v.orderId, version, shippingIls: v.shippingIls, vatRate, notes: v.notes, sentBy: v.adminId })
     .returning();
   await tx.insert(quoteLines).values(
     v.lines.map((l) => ({ quoteId: quote.id, itemId: l.itemId, qty: l.qty, unitPriceIls: l.unitPriceIls, changeReason: l.changeReason || null })),
@@ -70,7 +73,7 @@ export async function insertQuoteVersion(
     entityId: quote.id,
     action: "send",
     before: { orderStatus: v.orderStatus },
-    after: { version, shippingIls: v.shippingIls, lines: v.lines, revision: v.revision || undefined, cause: v.cause },
+    after: { version, shippingIls: v.shippingIls, vatRate: Number(vatRate), lines: v.lines, revision: v.revision || undefined, cause: v.cause },
   });
   return { quoteId: quote.id, version };
 }

@@ -45,6 +45,7 @@ describe("deleting", () => {
   it("deletes only a team with no orders and no deliveries", () => {
     expect(canDeleteTeam({ orders: 0, deliveries: 0 })).toBe(true);
     expect(canDeleteTeam({ orders: 1, deliveries: 0 })).toBe(false);
+    expect(canDeleteTeam({ orders: 0, deliveries: 0, payments: 1 })).toBe(false);
     expect(canDeleteTeam({ orders: 0, deliveries: 1 })).toBe(false);
   });
   it("never deletes an admin, or a user who sent a request or approved a quote", () => {

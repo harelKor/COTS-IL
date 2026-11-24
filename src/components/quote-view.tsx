@@ -11,7 +11,7 @@ import { getBusiness } from "@/lib/settings";
 const day = new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "numeric", year: "numeric", timeZone: "Asia/Jerusalem" });
 export const formatShortDate = (d: Date) => day.format(d);
 
-type Quote = { id: string; version: number; sentAt: Date; shippingIls: number; notes: string | null; lines: (QuotedLine & { quoteId?: string })[] };
+type Quote = { id: string; version: number; sentAt: Date; shippingIls: number; vatRate?: string | null; notes: string | null; lines: (QuotedLine & { quoteId?: string })[] };
 
 /** The business's details, shown on the printed quote only. Every value is hidden while null. */
 async function PrintHeader({ orderNumber, quote, team }: { orderNumber: number; quote: Quote; team: Parameters<typeof TeamName>[0]["team"] }) {

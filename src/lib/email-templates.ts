@@ -100,7 +100,7 @@ function linesTable(lines: EmailLine[], totalIls: number | null) {
   const total =
     totalIls === null
       ? ""
-      : `<tr><td colspan="2" style="padding:10px 0;border-top:1px solid ${C.line};font-size:15px;font-weight:600">סה״כ לפי מחירי הקטלוג</td><td style="padding:10px 0;border-top:1px solid ${C.line};font-size:15px;font-weight:600;text-align:left;white-space:nowrap">${esc(formatIls(totalIls))}</td></tr>`;
+      : `<tr><td colspan="2" style="padding:10px 0;border-top:1px solid ${C.line};font-size:15px;font-weight:600">סה״כ לפי מחירי הקטלוג, כולל מע״מ</td><td style="padding:10px 0;border-top:1px solid ${C.line};font-size:15px;font-weight:600;text-align:left;white-space:nowrap">${esc(formatIls(totalIls))}</td></tr>`;
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 4px;border-collapse:collapse;background:${C.tile};border-radius:12px">${rows}${total}</table>`;
 }
 
@@ -172,7 +172,7 @@ function buildEmail<E extends NotifyEvent>(event: E, audience: Audience, data: E
         paragraphs: [`בקשה ${ltr(x.orderNumber)} של ${esc(x.teamName)} התקבלה. ${eta}`],
         table: linesTable(x.lines, x.totalIls),
         button: { label: "צפייה בבקשה", url: x.orderUrl },
-        after: ["המחירים לפי הקטלוג ביום השליחה. המשלוח יתומחר בהצעה."],
+        after: ["המחירים לפי הקטלוג ביום השליחה, כולל מע״מ. המשלוח יתומחר בהצעה."],
         textLines: [`בקשה ${x.orderNumber} של ${x.teamName} התקבלה.`, ...x.lines.map((l) => `${l.title}${l.sku ? ` (${l.sku})` : ""} × ${l.qty}`), `סה״כ ${formatIls(x.totalIls)}`],
       });
     }
@@ -210,10 +210,10 @@ function buildEmail<E extends NotifyEvent>(event: E, audience: Audience, data: E
       return layout({
         subject: `הצעת המחיר להזמנה ${x.orderNumber} מוכנה`,
         heading: "הצעת המחיר מוכנה",
-        paragraphs: [`הצעת המחיר להזמנה ${ltr(x.orderNumber)} של ${esc(x.teamName)}: ${esc(formatIls(x.totalIls))}, כולל משלוח.`],
+        paragraphs: [`הצעת המחיר להזמנה ${ltr(x.orderNumber)} של ${esc(x.teamName)}: ${esc(formatIls(x.totalIls))}, כולל משלוח ומע״מ.`],
         button: x.approveUrl ? { label: "צפייה ואישור", url: x.approveUrl } : { label: "צפייה בהצעה", url: x.orderUrl },
         after: x.approveUrl ? [`הקישור אישי, בתוקף ${ltr(x.linkDays)} ימים, ופותח את ההצעה לפני אישור. אפשר גם לאשר או לדחות מעמוד ההזמנה באתר.`] : [],
-        textLines: [`הצעת המחיר להזמנה ${x.orderNumber} של ${x.teamName}: ${formatIls(x.totalIls)}, כולל משלוח.`],
+        textLines: [`הצעת המחיר להזמנה ${x.orderNumber} של ${x.teamName}: ${formatIls(x.totalIls)}, כולל משלוח ומע״מ.`],
       });
     }
     case "quote_approved": {

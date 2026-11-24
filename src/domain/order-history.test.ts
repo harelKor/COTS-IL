@@ -42,3 +42,11 @@ describe("describeHistory", () => {
     expect(d("supplier_po", "create")).toBeNull();
   });
 });
+
+describe("payment history lines", () => {
+  it("says a payment was recorded or voided, with the amount, method and reason", () => {
+    expect(describeHistory({ entity: "payment", action: "record", before: null, after: { amountIls: 1250, method: "transfer" } })).toMatch(/^רישום תשלום .*1,250.*, העברה בנקאית$/);
+    expect(describeHistory({ entity: "payment", action: "void", before: { amountIls: "99.50", method: "cash" }, after: { reason: "נרשם פעמיים" } })).toMatch(/^ביטול תשלום .*99\.50.*: נרשם פעמיים$/);
+    expect(describeHistory({ entity: "payment", action: "other", before: null, after: null })).toBeNull();
+  });
+});

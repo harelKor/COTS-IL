@@ -36,8 +36,9 @@ export function nextStatus(status: TeamStatus, change: StatusChange): TeamStatus
 }
 
 /** Orders and deliveries keep a team's history: a team with any of them is merged or suspended, never deleted. */
-export function canDeleteTeam(counts: { orders: number; deliveries: number }): boolean {
-  return counts.orders === 0 && counts.deliveries === 0;
+export function canDeleteTeam(counts: { orders: number; deliveries: number; payments?: number }): boolean {
+  // A payment is never deleted (P1), and it points at its team.
+  return counts.orders === 0 && counts.deliveries === 0 && (counts.payments ?? 0) === 0;
 }
 
 /**

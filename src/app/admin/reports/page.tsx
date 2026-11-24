@@ -13,6 +13,7 @@ import {
   periodPresets,
   profitSummary,
   purchaseCost,
+  salesRevenue,
 } from "@/domain/reports";
 import { requireAdmin } from "@/lib/auth";
 import { getImportCosts, getPurchases, getSales, parsePeriod } from "@/lib/reports";
@@ -59,7 +60,8 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
 
   const [sales, purchases, costs] = await Promise.all([getSales(period), getPurchases(period), getImportCosts(period)]);
 
-  const revenueIls = sales.reduce((sum, s) => sum + s.subtotalIls + s.shippingIls, 0);
+  const revenue = salesRevenue(sales);
+  const revenueIls = revenue.netIls;
   const purchase = purchaseCost(sales, overrideRate);
   const quotePairs = sales.map((s) => ({
     start: s.submittedAt,
@@ -137,7 +139,11 @@ async function Reports({ searchParams }: PageProps<"/admin/reports">) {
           <ExportLink type="profit" query={suffix} />
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat label="מכירות" value={formatIls(revenueIls)} note={`${sales.length} הזמנות מאושרות`} />
+          <Stat
+            label="מכירות לפני מע״מ"
+            value={formatIls(revenueIls)}
+            note={revenue.vatIls > 0 ? `${sales.length} הזמנות מאושרות, ${formatIls(revenue.grossIls)} כולל מע״מ ${formatIls(revenue.vatIls)}` : `${sales.length} הזמנות מאושרות`}
+          />
           <Stat label="רכש מהספקים" value={usd.format(purchase.usd)} />
           <Stat
             label="רכש בשקלים"

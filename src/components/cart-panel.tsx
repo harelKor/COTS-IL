@@ -15,7 +15,7 @@ import { withPendingCart } from "@/domain/cart-share";
 import { checkedAgo } from "@/domain/checked-ago";
 import { arrivalShort } from "@/domain/lead-time";
 import { parseTeamNumber } from "@/domain/teams";
-import { formatIls } from "@/domain/pricing";
+import { formatIls, VAT_INCLUDED } from "@/domain/pricing";
 import { useSiteFacts } from "./site-facts";
 import { useNow } from "./availability";
 import { flushCartWrites, removeNow, restoreLine } from "./cart-actions";
@@ -796,7 +796,7 @@ export function CartPanel({ onNavigate, onContinue }: { onNavigate?: () => void;
           {formatIls(totalIls)}
         </span>
       </span>
-      <span className="text-caption text-muted">משלוח: יתומחר בהצעה</span>
+      <span className="text-caption text-muted">{VAT_INCLUDED}, משלוח: יתומחר בהצעה</span>
     </span>
   );
 

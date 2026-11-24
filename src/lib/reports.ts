@@ -62,6 +62,7 @@ export async function getSales(period: ReportPeriod) {
       ),
       subtotalIls: sql<number>`(SELECT coalesce(sum(l.qty * l.unit_price_ils), 0)::int FROM ${quoteLines} l WHERE l.quote_id = ${quotes.id})`,
       shippingIls: quotes.shippingIls,
+      vatRate: quotes.vatRate,
       quotedUnits: sql<number>`(SELECT coalesce(sum(l.qty), 0)::int FROM ${quoteLines} l WHERE l.quote_id = ${quotes.id})`,
       boughtUnits: sql<number>`(
         SELECT coalesce(sum(a.qty), 0)::int FROM ${poAllocations} a

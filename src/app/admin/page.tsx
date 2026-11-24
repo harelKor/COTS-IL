@@ -9,6 +9,8 @@ import { OrderStatusTag, TONE_BOX } from "@/components/order-status-tag";
 import { isFinished, ORDER_STEPS, statusLabel, type OrderStatusKey } from "@/domain/order-status";
 import { countOf, ITEM, units } from "@/domain/plural";
 import { formatIls } from "@/domain/pricing";
+import { isUnpaid } from "@/domain/payments";
+import { MoneyTag } from "./payments/payment-list";
 import { requireAdmin } from "@/lib/auth";
 import { countByStatus, getOrderSummaries, type AdminOrderSummary } from "@/lib/admin-orders";
 import { Loading, PageSkeleton } from "@/components/skeleton";
@@ -19,7 +21,7 @@ import { BULK_FORM, BulkOrdered, InboxSearch } from "./inbox-controls";
 
 export const metadata: Metadata = { title: "כל ההזמנות" };
 
-type Params = { status?: string; q?: string; open?: string; edit?: string; sort?: string };
+type Params = { status?: string; q?: string; open?: string; edit?: string; sort?: string; pay?: string };
 
 const OPEN_STATUSES = ORDER_STEPS.filter((s) => !isFinished(s));
 
@@ -65,7 +67,7 @@ function matches(order: AdminOrderSummary, q: string) {
   return String(order.number) === term || String(order.teamNumber).startsWith(term) || order.teamDisplay.toLowerCase().includes(term.toLowerCase());
 }
 
-function Filters({ params, counts, total }: { params: Params; counts: Record<OrderStatusKey, number>; total: number }) {
+function Filters({ params, counts, total, unpaid }: { params: Params; counts: Record<OrderStatusKey, number>; total: number; unpaid: { count: number; left: number } }) {
   const box = (active: boolean, style: { box: string; edge: string }) =>
     `flex min-h-20 flex-col justify-between rounded-[18px] border-2 p-3 ${style.box} ${active ? style.edge : "border-transparent"}`;
   return (
@@ -115,6 +117,17 @@ function Filters({ params, counts, total }: { params: Params; counts: Record<Ord
         })}
       </ul>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Link
+          href={href(params, { pay: params.pay ? undefined : "unpaid", open: undefined })}
+          scroll={false}
+          aria-current={params.pay ? "true" : undefined}
+          className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm whitespace-nowrap ${
+            params.pay ? "bg-warning/10 font-semibold text-warning ring-1 ring-warning/40 ring-inset" : "bg-subtle hover:bg-subtle-hover"
+          }`}
+        >
+          לא שולמו <span className="tabular-nums">({unpaid.count})</span>
+          {unpaid.left > 0 && <span className="tabular-nums text-muted">{formatIls(unpaid.left)}</span>}
+        </Link>
         <div className="min-w-0 flex-1">
           <InboxSearch q={params.q ?? ""} base={new URLSearchParams(clean({ ...params, q: undefined, open: undefined })).toString()} />
         </div>
@@ -151,7 +164,7 @@ function OrderCard({ order, params, now }: { order: AdminOrderSummary; params: P
     <OrderCardShell
       orderId={order.id}
       status={order.view.status}
-      version={`${order.itemCount}:${order.unitCount}:${order.totalIls}:${order.view.progress ?? ""}:${order.view.vendors ?? ""}`}
+      version={`${order.itemCount}:${order.unitCount}:${order.totalIls}:${order.view.progress ?? ""}:${order.view.vendors ?? ""}:${order.money.paid}`}
       edgeClass={style.edge}
       initialOpen={open}
       serverPanel={open ? <OrderPanel orderId={order.id} status={order.view.status} edit={params.edit === "1"} /> : null}
@@ -172,12 +185,16 @@ function OrderCard({ order, params, now }: { order: AdminOrderSummary; params: P
               הזמנה <Ltr>#{order.number}</Ltr>, <Ltr>{formatDay(order.submittedAt, new Date(now))}</Ltr>, {age(order.submittedAt, now)}
             </div>
           </div>
-          <OrderStatusTag status={order.view.status} audience="admin" />
+          <span className="flex flex-wrap items-center gap-1">
+            <OrderStatusTag status={order.view.status} audience="admin" />
+            <MoneyTag money={order.money} />
+          </span>
         </div>
       }
       meta={
         <span className="text-muted">
           {countOf(order.itemCount, ITEM, "compact")}, {units(order.unitCount)}, {formatIls(order.totalIls)}
+          {order.money.state === "partial" && <>, נותרו {formatIls(order.money.left, { agorot: true })}</>}
           {order.supplierNames.length > 0 && (
             <>
               , <Ltr>{order.supplierNames.join(", ")}</Ltr>
@@ -217,7 +234,14 @@ async function AllOrders({ searchParams }: { searchParams: Promise<Params> }) {
   // The open card stays in the list after its action moves it out of the filter.
   const keep = (o: AdminOrderSummary) => o.id === params.open || matches(o, q);
   let groups: { heading: string; orders: AdminOrderSummary[] }[];
-  if (doneTab) {
+  const owing = everything.filter((o) => isUnpaid(o.money));
+  if (params.pay) {
+    // P1 "לא שולמו": every order with money to collect, open or over, oldest first; the status box narrows it.
+    const inStatus = (o: AdminOrderSummary) =>
+      !params.status || o.view.status === params.status || (doneTab ? (doneTab.statuses as readonly OrderStatusKey[]).includes(o.view.status) : false);
+    const shown = owing.filter((o) => o.id === params.open || (inStatus(o) && matches(o, q)));
+    groups = shown.length ? [{ heading: "לא שולמו", orders: [...shown].sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime()) }] : [];
+  } else if (doneTab) {
     const done = everything.filter((o) => (doneTab.statuses as readonly OrderStatusKey[]).includes(o.view.status) && keep(o));
     groups = done.length ? [{ heading: doneTab.label, orders: [...done].reverse() }] : [];
   } else {
@@ -238,10 +262,10 @@ async function AllOrders({ searchParams }: { searchParams: Promise<Params> }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Filters params={params} counts={counts} total={all.length} />
+      <Filters params={params} counts={counts} total={all.length} unpaid={{ count: owing.length, left: owing.reduce((n, o) => n + o.money.left, 0) }} />
 
       {groups.length === 0 ? (
-        <p className="text-muted">{params.q ? "אין הזמנות שמתאימות לחיפוש." : doneTab ? doneTab.empty : params.status ? "אין הזמנות שמתאימות לסינון." : "אין הזמנות פתוחות."}</p>
+        <p className="text-muted">{params.pay ? "אין הזמנות שמחכות לתשלום." : params.q ? "אין הזמנות שמתאימות לחיפוש." : doneTab ? doneTab.empty : params.status ? "אין הזמנות שמתאימות לסינון." : "אין הזמנות פתוחות."}</p>
       ) : (
         groups.map((g) => (
           <section key={g.heading} className="flex flex-col gap-3" aria-label={g.heading}>

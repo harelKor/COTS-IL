@@ -110,7 +110,7 @@ async function PriceLine() {
   const { markupRange } = await getSiteFacts();
   return (
     <p className="text-center text-caption text-muted">
-      מחיר הספק בדולרים לפי השער היציג של בנק ישראל, כפול <bdi dir="ltr">{markupText(markupRange)}</bdi>. משלוח בישראל מתומחר בהצעת המחיר.
+      מחיר הספק בדולרים לפי השער היציג של בנק ישראל, כפול <bdi dir="ltr">{markupText(markupRange)}</bdi>, כולל מע״מ. משלוח בישראל מתומחר בהצעת המחיר.
     </p>
   );
 }

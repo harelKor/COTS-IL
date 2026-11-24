@@ -2,8 +2,8 @@ type Line = { qty: number; unitPriceIls: number; requestedQty: number; requested
 
 /**
  * The quote editor's totals above Send: subtotal, shipping, the total, and how far it
- * moved from what the team asked for (the request has no shipping). Prices carry no
- * VAT (user decision, Nov 10, 2026; prices are USD × rate × 1.6), so there is no VAT line.
+ * moved from what the team asked for (the request has no shipping). Prices include VAT
+ * (D1, Nov 24, 2026); the editor shows the VAT inside the total with vatSplit.
  */
 export function quoteSummary(lines: Line[], shippingIls: number | null) {
   const subtotal = lines.reduce((sum, l) => sum + safe(l.qty) * safe(l.unitPriceIls), 0);

@@ -6,6 +6,8 @@ import { teamDisplay } from "@/domain/display";
 import { ORDER_STATUS_KEYS, orderStatus, type LineFacts, type OrderStatusKey, type OrderView } from "@/domain/order-status";
 import { getOrderLines } from "@/lib/order-status";
 import type { OrderStatus } from "@/domain/orders";
+import type { OrderMoney } from "@/domain/payments";
+import { getMoneyByOrder } from "@/lib/payments";
 
 const {
   deliveries,
@@ -47,6 +49,8 @@ export type AdminOrderSummary = {
   supplierNames: string[];
   totalIls: number;
   view: OrderView;
+  /** P1: what the approved quote owes and what was paid on it. */
+  money: OrderMoney;
 };
 
 /** Every order card's summary fields, in the admin's order. Two queries for any number of orders. */
@@ -83,7 +87,7 @@ export async function getOrderSummaries(): Promise<AdminOrderSummary[]> {
     .orderBy(asc(teamOrders.submittedAt));
 
   const approved = rows.filter((r) => r.status === "approved").map((r) => r.id);
-  const lines = await getOrderLines(approved);
+  const [lines, money] = await Promise.all([getOrderLines(approved), getMoneyByOrder(rows.map((r) => r.id))]);
   const byOrder = new Map<string, typeof lines>();
   for (const l of lines) byOrder.set(l.orderId, [...(byOrder.get(l.orderId) ?? []), l]);
 
@@ -98,6 +102,7 @@ export async function getOrderSummaries(): Promise<AdminOrderSummary[]> {
       teamProgram,
       vendorsToOrder: [...vendors].map(([id, name]) => ({ id, name })),
       view: orderStatus(r.status, facts as LineFacts[]),
+      money: money.get(r.id)?.money ?? { owed: 0, paid: 0, left: 0, over: 0, state: "none" as const },
     };
   });
   return sortForAdmin(all);

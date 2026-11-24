@@ -17,11 +17,13 @@ import {
   replacementNeedsApproval,
 } from "@/domain/order-corrections";
 import { deletePlan, deleteSnapshot } from "@/domain/order-delete";
+import { deleteBlockedByPayments } from "@/domain/payments";
 import type { OrderStatus } from "@/domain/orders";
 import { priceIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { emailEnabled, notifyLater, notifyQuoteReady } from "@/lib/notify";
 import { getCancelLines, getDeleteFacts, getOrderLinks } from "@/lib/order-corrections";
+import { livePayments } from "@/lib/payments";
 import { currentQuote, insertQuoteVersion, type Tx } from "@/lib/quote-versions";
 import { priceContext } from "@/lib/settings";
 
@@ -247,6 +249,8 @@ export async function moveOrder(_prev: ActionState, formData: FormData): Promise
     if (blocked) return { error: blocked };
 
     await tx.update(teamOrders).set({ teamId }).where(eq(teamOrders.id, orderId));
+    // Its payments (voided ones too) follow it, so the balances stay with the team that owes.
+    await tx.update(schema.payments).set({ teamId }).where(eq(schema.payments.orderId, orderId));
     await tx.insert(auditLog).values({
       actorId: admin.id,
       entity: "team_order",
@@ -280,6 +284,9 @@ export async function deleteOrder(_prev: ActionState, formData: FormData): Promi
   const result = await db.transaction(async (tx): Promise<ActionState> => {
     const order = await lockOrder(tx, orderId.data);
     if (!order) return { error: "ההזמנה לא נמצאה" };
+    // P1: a payment has accounting meaning, so an order with live payments is never deleted.
+    const paid = deleteBlockedByPayments(await livePayments(order.id, tx));
+    if (paid) return { error: paid };
     const [team] = await tx.select().from(teams).where(eq(teams.id, order.teamId));
     const items = await tx.select().from(teamOrderItems).where(eq(teamOrderItems.orderId, order.id));
     const quoteRows = await tx.select().from(quotes).where(eq(quotes.orderId, order.id));

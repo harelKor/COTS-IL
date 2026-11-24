@@ -18,6 +18,7 @@ export function PricingForm({
   boiRate,
   rateDate,
   manualRate,
+  vatRate,
   rules,
   samples,
 }: {
@@ -25,6 +26,8 @@ export function PricingForm({
   boiRate: number;
   rateDate: string;
   manualRate: number | null;
+  /** pricing.vatRate, a fraction (0.18). */
+  vatRate: number;
   rules: Rule[];
   samples: Sample[];
 }) {
@@ -46,7 +49,7 @@ export function PricingForm({
   return (
     <SettingsForm action={savePricing} label="שמירה ועדכון המחירים" pendingLabel="מעדכן את המחירים בקטלוג…">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="מקדם כללי" name="markup" hint="מחיר בש״ח = מחיר הספק בדולרים × השער × המקדם. היום 1.6.">
+        <Field label="מקדם כללי" name="markup" hint="מחיר בש״ח = מחיר הספק בדולרים × השער × המקדם, כולל מע״מ. כדי לשמור על הרווח של 1.6 לפני מע״מ: בערך 1.89.">
           <Input name="markup" type="number" min={1} max={5} step={0.01} inputMode="decimal" dir="ltr" required value={markup} onChange={(e) => setMarkup(e.target.value)} />
         </Field>
         <Field
@@ -64,6 +67,9 @@ export function PricingForm({
               </option>
             ))}
           </Select>
+        </Field>
+        <Field label="מע״מ (%)" name="vat" hint="המחירים באתר כוללים מע״מ. הצעות מחיר מציגות ״מתוכו מע״מ״ לפי השיעור ביום השליחה; הצעות שכבר נשלחו לא משתנות.">
+          <Input name="vat" type="number" min={0} max={50} step={0.01} inputMode="decimal" dir="ltr" required defaultValue={Number((vatRate * 100).toFixed(2))} />
         </Field>
         <Field label="מחיר מינימלי (ש״ח)" name="minIls" hint="ריק = בלי מינימום. אף חלק לא יתומחר מתחת לסכום הזה.">
           <Input name="minIls" type="number" min={1} max={10000} inputMode="numeric" dir="ltr" value={minIls} onChange={(e) => setMinIls(e.target.value)} />

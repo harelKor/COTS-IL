@@ -18,6 +18,10 @@ import { canDeleteTeam, historyText, TEAM_STATUS } from "@/domain/team-admin";
 import { firstTeamUrl } from "@/domain/teams";
 import { requireAdmin } from "@/lib/auth";
 import { getOrderStages, listOrders } from "@/lib/orders";
+import { AGEING_BUCKETS, AGEING_LABEL, israelToday } from "@/domain/payments";
+import { getTeamBalance, listPayments } from "@/lib/payments";
+import { RecordPayment } from "../../payments/payment-forms";
+import { MoneyTag, PaymentList } from "../../payments/payment-list";
 import { reviewTeam } from "../../actions";
 import {
   addTeamEmail,
@@ -85,6 +89,8 @@ async function TeamPage({ params }: PageProps<"/admin/teams/[id]">) {
   const orders = await listOrders(team.id);
   const stages = await getOrderStages(orders);
   const [delivered] = await db.select({ n: count() }).from(deliveries).where(eq(deliveries.teamId, team.id));
+  const [money, payments] = await Promise.all([getTeamBalance(team.id), listPayments({ teamId: team.id })]);
+  const moneyByOrder = new Map(money.orders.map((o) => [o.orderId, o.money]));
   const otherTeams = await db
     .select({ id: teams.id, name: teams.name, program: teams.program, number: teams.number })
     .from(teams)
@@ -105,7 +111,7 @@ async function TeamPage({ params }: PageProps<"/admin/teams/[id]">) {
     .limit(100);
 
   const status = TEAM_STATUS[team.status];
-  const deletable = canDeleteTeam({ orders: orders.length, deliveries: delivered.n });
+  const deletable = canDeleteTeam({ orders: orders.length, deliveries: delivered.n, payments: payments.length });
   const lastEmail = members.length === 1;
 
   return (
@@ -288,6 +294,7 @@ async function TeamPage({ params }: PageProps<"/admin/teams/[id]">) {
                   <span className="flex items-center gap-3">
                     <span className="text-callout">{formatIls(o.quoteTotal ?? o.requestTotal)}</span>
                     <OrderStatusTag status={stages.get(o.id)!} audience="admin" pickup={o.deliveryMethod === "pickup"} />
+                    {moneyByOrder.get(o.id) && <MoneyTag money={moneyByOrder.get(o.id)!} />}
                   </span>
                 </Link>
               </li>
@@ -296,7 +303,34 @@ async function TeamPage({ params }: PageProps<"/admin/teams/[id]">) {
         )}
       </Section>
 
-      {/* M3: the team's payment status goes here, between its orders and the actions. */}
+      <Section
+        title="תשלומים ויתרה"
+        hint="היתרה היא מה שהקבוצה אישרה בהצעות פחות מה ששולם. תשלום על חשבון, או עודף בהזמנה אחת, מקוזז מההזמנה הוותיקה ביותר."
+      >
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="flex flex-col rounded-xl bg-subtle p-3">
+            <dt className="text-caption text-muted">{money.balance.balance < 0 ? "זכות לקבוצה" : "יתרה לתשלום"}</dt>
+            <dd className={`text-section font-semibold tabular-nums ${money.balance.balance > 0 ? "text-warning" : ""}`}>
+              {formatIls(Math.abs(money.balance.balance), { agorot: true })}
+            </dd>
+          </div>
+          {AGEING_BUCKETS.map((b) => (
+            <div key={b} className="flex flex-col rounded-xl bg-subtle p-3">
+              <dt className="text-caption text-muted">{AGEING_LABEL[b]} מהאישור</dt>
+              <dd className={`text-section font-semibold tabular-nums ${b === "60+" && money.balance.ageing[b] > 0 ? "text-danger" : ""}`}>
+                {formatIls(money.balance.ageing[b], { agorot: true })}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <p className="text-caption text-muted">
+          אושר בהצעות {formatIls(money.balance.owed, { agorot: true })}, שולם {formatIls(money.balance.paid, { agorot: true })}
+          {money.onAccount > 0 && <> (מתוכו {formatIls(money.onAccount, { agorot: true })} על חשבון)</>}.
+        </p>
+        <RecordPayment teamId={team.id} orderId={null} left={0} today={israelToday()} title={`${team.name}, תשלום על חשבון (לא להזמנה אחת)`} />
+        <h3 className="text-callout font-semibold">היסטוריית תשלומים</h3>
+        <PaymentList rows={payments} showOrder />
+      </Section>
 
       <Section title="השהיה" hint="קבוצה מושהית לא שולחת בקשות ולא מאשרת הצעות, אבל רואה את ההזמנות שלה.">
         {team.status === "active" || team.status === "pending" ? (

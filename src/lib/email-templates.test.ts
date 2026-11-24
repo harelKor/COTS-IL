@@ -67,10 +67,9 @@ describe("renderEmail", () => {
     expect(renderEmail("stage", "team", { ...SAMPLES.stage, stage: "arrived" }).subject).toBe(`הזמנה 1071 ${statusLabel("at_warehouse", "team")}`);
   });
 
-  it("never claims VAT", () => {
-    for (const [event, data] of Object.entries(SAMPLES)) {
-      expect(renderEmail(event as keyof EmailData, "team", data as never).html).not.toContain("מע״מ");
-    }
+  it("says the quote's total includes VAT (D1, Nov 24, 2026)", () => {
+    expect(renderEmail("quote_ready", "team", SAMPLES.quote_ready).html).toContain("כולל משלוח ומע״מ");
+    expect(renderEmail("request_received", "team", SAMPLES.request_received).html).toContain("כולל מע״מ");
   });
 });
 

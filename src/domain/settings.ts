@@ -3,7 +3,7 @@ import { DEFAULT_CATEGORY_GROUPS } from "./category-groups";
 import { DEFAULT_SEARCH_EXAMPLES } from "./content";
 import { DEFAULT_PAGES, INFO_PAGES } from "./info-text";
 import { REMINDER_AFTER_DAYS } from "./notifications";
-import { DEFAULT_MARKUP } from "./pricing";
+import { DEFAULT_MARKUP, DEFAULT_VAT_RATE } from "./pricing";
 import { DEFAULT_HOME, DEFAULT_TAGLINE, WHY_CARD_COUNT } from "./site-text";
 import { INVITE_DAYS } from "./teams";
 
@@ -68,7 +68,7 @@ export type Business = z.infer<typeof businessSchema>;
 export const ROUND_STEPS = [1, 5, 10] as const;
 
 export const pricingSettingsSchema = z.object({
-  /** The global multiplier: ILS = USD × rate × markup (1.6 until the admin changes it). */
+  /** The global multiplier: ILS = USD × rate × markup, VAT included (1.6 until the admin changes it). */
   markup: z.number().min(1).max(5).default(DEFAULT_MARKUP),
   /** A manual USD→ILS rate that replaces the Bank of Israel rate until cleared. */
   rateOverride: z
@@ -78,6 +78,12 @@ export const pricingSettingsSchema = z.object({
   roundTo: z.union(ROUND_STEPS.map((n) => z.literal(n))).default(1),
   /** No catalog price goes below this many shekels; null for none. */
   minIls: z.number().int().min(1).max(10000).nullable().default(null),
+  /**
+   * VAT, as a fraction (0.18). Site prices include it (D1, Nov 24, 2026); a quote snapshots
+   * the rate when it is sent (quotes.vat_rate) and shows "מתוכו מע״מ 18%". A change applies
+   * to quotes sent after it, never to old ones.
+   */
+  vatRate: z.number().min(0).max(0.5).default(DEFAULT_VAT_RATE),
 });
 export type PricingSettings = z.infer<typeof pricingSettingsSchema>;
 

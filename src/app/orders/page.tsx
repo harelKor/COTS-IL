@@ -5,8 +5,10 @@ import { Suspense } from "react";
 import { StageBadge } from "@/components/order-timeline";
 import { formatDateTime } from "@/components/orders";
 import { ReorderButton } from "@/components/reorder-button";
-import { Alert } from "@/components/form";
+import { Alert, StatusTag } from "@/components/form";
 import { formatIls } from "@/domain/pricing";
+import { teamMoneyLabel } from "@/domain/payments";
+import { getMoneyByOrder } from "@/lib/payments";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { getOrderStages, listOrders } from "@/lib/orders";
 import { Loading, PageSkeleton } from "@/components/skeleton";
@@ -24,7 +26,7 @@ async function Orders() {
 
   const suspended = team.status === "suspended";
   const orders = await listOrders(team.id);
-  const stages = await getOrderStages(orders);
+  const [stages, money] = await Promise.all([getOrderStages(orders), getMoneyByOrder(orders.map((o) => o.id))]);
   if (orders.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-line bg-surface p-8 text-center text-muted">
@@ -37,7 +39,10 @@ async function Orders() {
   }
 
   const { waiting, rest } = waitingFirst(orders, stages);
-  const row = (order: (typeof orders)[number]) => (
+  const row = (order: (typeof orders)[number]) => {
+    const pay = money.get(order.id);
+    const paid = pay ? teamMoneyLabel(pay.money) : null;
+    return (
     <li key={order.id} className="flex flex-wrap items-center gap-3 card-surface p-4">
       <Link href={`/orders/${order.id}`} className="flex min-h-11 min-w-0 flex-1 flex-wrap items-center justify-between gap-3 hover:text-brand">
         <div>
@@ -46,17 +51,23 @@ async function Orders() {
             <span className="ltr">{formatDateTime(order.submittedAt)}</span>, {order.lineCount} שורות
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <span className="text-end">
             <span className="block text-callout font-semibold">{formatIls(order.quoteTotal ?? order.requestTotal)}</span>
             <span className="block text-caption text-muted">{order.quoteTotal === null ? "הערכה, לפני הצעה" : "לפי ההצעה"}</span>
+            {paid && (
+              <span className="mt-1 block">
+                <StatusTag tone={paid.tone}>{paid.label}</StatusTag>
+              </span>
+            )}
           </span>
           <StageBadge stage={stages.get(order.id)!} pickup={order.deliveryMethod === "pickup"} />
         </div>
       </Link>
       {!suspended && <ReorderButton orderId={order.id} />}
     </li>
-  );
+    );
+  };
 
   return (
     <div className="flex flex-col gap-6">

@@ -315,6 +315,7 @@ export async function mergeTeams(_prev: ActionState, formData: FormData): Promis
       ).rowCount,
       orders: (await tx.update(teamOrders).set({ teamId: into }).where(eq(teamOrders.teamId, from)).returning({ id: teamOrders.id })).length,
       deliveries: (await tx.update(deliveries).set({ teamId: into }).where(eq(deliveries.teamId, from)).returning({ id: deliveries.id })).length,
+      payments: (await tx.update(schema.payments).set({ teamId: into }).where(eq(schema.payments.teamId, from)).returning({ id: schema.payments.id })).length,
     };
     await tx.update(teamInvitations).set({ teamId: into }).where(eq(teamInvitations.teamId, from));
     // A join request for the other team from someone already on it, or already asking it, isn't moved.
@@ -401,8 +402,9 @@ export async function deleteTeam(_prev: ActionState, formData: FormData): Promis
       if (!team) return { error: "הקבוצה כבר נמחקה" };
       const [orders] = await tx.select({ n: count() }).from(teamOrders).where(eq(teamOrders.teamId, team.id));
       const [delivered] = await tx.select({ n: count() }).from(deliveries).where(eq(deliveries.teamId, team.id));
-      if (!canDeleteTeam({ orders: orders.n, deliveries: delivered.n })) {
-        return { error: "לקבוצה יש הזמנות, אז היא לא נמחקת. אפשר להשהות אותה, או לאחד אותה לקבוצה אחרת." };
+      const [paid] = await tx.select({ n: count() }).from(schema.payments).where(eq(schema.payments.teamId, team.id));
+      if (!canDeleteTeam({ orders: orders.n, deliveries: delivered.n, payments: paid.n })) {
+        return { error: "לקבוצה יש הזמנות או תשלומים, אז היא לא נמחקת. אפשר להשהות אותה, או לאחד אותה לקבוצה אחרת." };
       }
       const members = await teamMembers(tx, team.id);
       const ids = members.map((m) => m.userId);

@@ -3,7 +3,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-import { Alert } from "@/components/form";
+import { Alert, StatusTag } from "@/components/form";
+import { PaymentTerms } from "@/components/payment-terms";
+import { teamMoneyLabel } from "@/domain/payments";
+import { getOrderMoney } from "@/lib/payments";
 import { formatDateTime, QuoteTable, RequestTable } from "@/components/orders";
 import { QuoteDecision } from "@/components/quote-decision";
 import { QuoteView } from "@/components/quote-view";
@@ -100,14 +103,16 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
   const stoppedAt = latest ? "quote_sent" : "awaiting_quote";
   const waitingForDecision = latest?.status === "sent" && canDecideQuote(order.status);
   const pickup = order.deliveryMethod === "pickup";
-  const [dates, decided, cancelled, changeRequest, lock] = await Promise.all([
+  const [dates, decided, cancelled, changeRequest, lock, pay] = await Promise.all([
     getStepDates(order.id, order.submittedAt),
     recentDecision("quote", latest?.id),
     recentDecision("team_order", order.id),
     waitingForDecision ? getChangeRequest(latest?.id) : null,
     // A new version after lines were bought (M2): only the Israeli supplier can cancel it now.
     canCancelOrder(order.status) ? orderSupplierLock(db, order.id) : null,
+    getOrderMoney(order.id),
   ]);
+  const paidLabel = pay ? teamMoneyLabel(pay.money) : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -186,6 +191,23 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           <h2 className="font-semibold">הבקשה שנשלחה</h2>
           <p className="text-sm text-muted">המחירים נשמרו ברגע השליחה. הספק הישראלי יבדוק אותם ויוסיף עלות משלוח.</p>
           <RequestTable items={items} />
+        </section>
+      )}
+
+      {pay && paidLabel && (
+        <section aria-labelledby="payment-title" className="card-surface flex flex-col gap-2 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="payment-title" className="font-semibold">
+              תשלום
+            </h2>
+            <StatusTag tone={paidLabel.tone}>{paidLabel.label}</StatusTag>
+          </div>
+          <p className="text-callout tabular-nums">
+            סה״כ לתשלום {formatIls(pay.money.owed, { agorot: true })}
+            {pay.money.paid > 0 && <>, שולם {formatIls(pay.money.paid, { agorot: true })}</>}
+            {pay.money.left > 0 && pay.money.paid > 0 && <>, נותרו {formatIls(pay.money.left, { agorot: true })}</>}
+          </p>
+          {pay.money.left > 0 && <PaymentTerms />}
         </section>
       )}
 

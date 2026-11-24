@@ -53,6 +53,8 @@ const pricingInput = z.object({
   roundTo: z.coerce.number().pipe(z.union(ROUND_STEPS.map((n) => z.literal(n)))),
   minIls: z.union([z.literal(""), z.coerce.number().int().min(1).max(10000)]),
   rate: z.union([z.literal(""), z.coerce.number().min(1).max(10)]),
+  /** Percent, e.g. 18. */
+  vat: z.coerce.number().min(0).max(50),
 });
 
 async function repriceCatalog() {
@@ -66,11 +68,12 @@ async function repriceCatalog() {
 export async function savePricing(_: SettingsResult | null, formData: FormData): Promise<SettingsResult> {
   const viewer = await requireAdmin();
   const parsed = pricingInput.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, error: "בדקו את המקדם (1 עד 5), השער (1 עד 10) והמחיר המינימלי" };
+  if (!parsed.success) return { ok: false, error: "בדקו את המקדם (1 עד 5), השער (1 עד 10), המע״מ (0 עד 50%) והמחיר המינימלי" };
   const before = await currentSettings();
-  const { markup, roundTo, minIls, rate } = parsed.data;
+  const { markup, roundTo, minIls, rate, vat } = parsed.data;
   const pricing = pricingSettingsSchema.parse({
     markup,
+    vatRate: Math.round(vat * 100) / 10000,
     roundTo,
     minIls: minIls === "" ? null : minIls,
     rateOverride: rate === "" ? null : before.pricing.rateOverride?.rate === rate ? before.pricing.rateOverride : { rate, setAt: new Date().toISOString() },

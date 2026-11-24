@@ -5,7 +5,7 @@ import { ActionForm } from "@/components/action-form";
 import { Alert, Button, Field, Input } from "@/components/form";
 import { Ltr } from "@/components/ltr";
 import { formatDay } from "@/domain/display";
-import { getBusiness } from "@/lib/settings";
+import { getBusiness, getSettings } from "@/lib/settings";
 import { ItemDescription, QuoteTable, formatDateTime } from "@/components/orders";
 import { groupBySupplier } from "@/domain/cart";
 import { LineStatusTag, ShipmentTag } from "@/components/order-status-tag";
@@ -30,6 +30,10 @@ import { QuoteEditor, type EditorLine } from "./orders/[id]/quote-editor";
 import { LineTools, OrderMenu, ReopenOrder } from "./orders/[id]/order-actions";
 import { getOrderHistory, getOrderLinks, getSurplus, listTeamsForMove, previewCancel, previewDelete } from "@/lib/order-corrections";
 import { createShipment } from "./logistics/actions";
+import { deleteBlockedByPayments, israelToday } from "@/domain/payments";
+import { getOrderMoney, listPayments } from "@/lib/payments";
+import { RecordPayment } from "./payments/payment-forms";
+import { MoneyFacts, MoneyTag, PaymentList } from "./payments/payment-list";
 import { addLinesToDraft, sendDraft, sendVendorBatch } from "./purchasing/actions";
 
 type Detail = NonNullable<Awaited<ReturnType<typeof getOrderForViewer>>>;
@@ -140,6 +144,7 @@ async function Editor({ detail, locked }: { detail: Detail; locked: "ordered" | 
       notes={latest?.notes ?? ""}
       version={(latest?.version ?? 0) + 1}
       paymentTerms={(await getBusiness()).paymentTerms}
+      vatRate={(await getSettings()).pricing.vatRate}
       locked={locked}
     />
   );
@@ -609,6 +614,29 @@ function LineAvailability({ detail }: { detail: Detail }) {
   );
 }
 
+/**
+ * P1: what the order owes and what was paid, "רישום תשלום" and each payment with its void.
+ * Shown once a quote was approved, or as soon as anything was paid (a stopped order stays
+ * visible while it has money on record).
+ */
+async function Payment({ detail }: { detail: Detail }) {
+  const orderId = detail.order.id;
+  const [row, payments] = await Promise.all([getOrderMoney(orderId), listPayments({ orderId })]);
+  if (!row || (row.approvedTotal === null && payments.length === 0)) return null;
+  const { money } = row;
+  return (
+    <Section title="תשלום">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <MoneyTag money={money} />
+        {money.state === "none" && <span className="text-sm text-muted">אין סכום לתשלום</span>}
+      </div>
+      <MoneyFacts money={money} />
+      <RecordPayment teamId={detail.team.id} orderId={orderId} left={money.left} today={israelToday()} title={`הזמנה ${detail.order.number}`} />
+      <PaymentList rows={payments} />
+    </Section>
+  );
+}
+
 /** Everything done to the order, from audit_log, newest first. */
 async function History({ orderId }: { orderId: string }) {
   const rows = await getOrderHistory(orderId);
@@ -644,12 +672,13 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
   if (!detail) return <Alert>ההזמנה לא נמצאה.</Alert>;
   const stored = detail.order.status;
   const finished = stored === "rejected" || stored === "cancelled";
-  const [lock, links, cancel, teams, deleteWarnings] = await Promise.all([
+  const [lock, links, cancel, teams, deleteWarnings, live] = await Promise.all([
     orderSupplierLock(db, orderId),
     getOrderLinks(db, orderId),
     canAdminCancel(stored) ? previewCancel(orderId) : null,
     listTeamsForMove(),
     previewDelete(orderId),
+    listPayments({ orderId }),
   ]);
 
   return (
@@ -668,6 +697,7 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
             teams={links.onDeliveryNotes === 0 ? teams.filter((t) => t.id !== detail.team.id) : []}
             orderNumber={detail.order.number}
             deleteWarnings={deleteWarnings}
+            deleteBlocked={deleteBlockedByPayments(live)}
           />
         </div>
       </Section>
@@ -683,6 +713,7 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
         <p className="text-sm text-muted">פריטים שכבר הוזמנו ממשיכים בדרכם. המעקב אחריהם חוזר לכרטיס אחרי שהקבוצה תאשר את הגרסה החדשה.</p>
       )}
       {status === "quote_sent" && <Links orderId={orderId} />}
+      <Payment detail={detail} />
       {stored === "approved" && <Logistics detail={detail} status={status} />}
       {(isFinished(status) || finished) && <Summary detail={detail} />}
       <History orderId={orderId} />

@@ -1,7 +1,10 @@
 /**
  * The price rule, the only price code (S16a): the ILS price is the supplier's USD
- * price × the USD→ILS rate × the multiplier, no VAT, rounded to whole shekels (or
- * the admin's step) and never below the admin's minimum.
+ * price × the USD→ILS rate × the multiplier, rounded to whole shekels (or the admin's
+ * step) and never below the admin's minimum. Since Nov 24, 2026 the business is an
+ * עוסק מורשה and every ₪ price on the site is final and includes VAT (D1 in
+ * docs/PAYMENTS-MORNING-PLAN.md): the multiplier is VAT-inclusive, and quotes split the
+ * VAT out with vatSplit at the rate snapshotted on the quote.
  * - The rate is the Bank of Israel rate the daily sync stores (src/lib/fx.ts), or the
  *   admin's manual rate while one is set.
  * - The multiplier is resolved per part by resolveMarkup: category > supplier > global
@@ -43,7 +46,7 @@ export function roundIls(value: number, ctx: Pick<PriceContext, "roundTo" | "min
 }
 
 /**
- * ILS price (USD × rate × multiplier, no VAT), or null when the item has no usable
+ * ILS price (USD × rate × multiplier, VAT included), or null when the item has no usable
  * price and can't be ordered. `markup` is the part's resolved multiplier
  * (variants.markup); without one the global multiplier applies. Pass 1 for a
  * family's list price (product_families.min_list_usd), which already includes it.
@@ -90,9 +93,37 @@ export function resolveMarkup(
 }
 
 const ils = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 0 });
+const ilsAgorot = new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export function formatIls(amount: number): string {
+/** Whole shekels, as every catalog and quote price is. Pass `agorot` for an amount that may have them (VAT, payments). */
+export function formatIls(amount: number, opts?: { agorot?: boolean }): string {
+  if (opts?.agorot && !Number.isInteger(Math.round(amount * 100) / 100)) return ilsAgorot.format(amount);
   return ils.format(amount);
+}
+
+/** The VAT rate until the admin changes it (pricing.vatRate in the settings): 18% since Jan 2025. */
+export const DEFAULT_VAT_RATE = 0.18;
+
+/** What every price explanation says about VAT: prices are final. */
+export const VAT_INCLUDED = "כולל מע״מ";
+
+/** "מע״מ 18%" for a rate of 0.18. */
+export function vatLabel(rate: number): string {
+  return `מע״מ ${Number((rate * 100).toFixed(2))}%`;
+}
+
+/** Shekels to whole agorot, so sums never drift (0.1 + 0.2). */
+export const toAgorot = (ils: number) => Math.round(ils * 100);
+
+/**
+ * A VAT-inclusive amount split into net and VAT, in shekels rounded to agorot, so that
+ * net + vat === gross exactly: net = gross ÷ (1 + rate), rounded, and VAT is the rest.
+ */
+export function vatSplit(grossIls: number, rate: number): { net: number; vat: number; gross: number } {
+  const gross = toAgorot(grossIls);
+  if (!(rate > 0)) return { net: gross / 100, vat: 0, gross: gross / 100 };
+  const net = Math.round(gross / (1 + rate));
+  return { net: net / 100, vat: (gross - net) / 100, gross: gross / 100 };
 }
 
 /** "1.6" → "1.6", 1.65 → "1.65": the multiplier as people write it. */

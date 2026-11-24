@@ -115,7 +115,7 @@ function MoveForm({ orderId, teams }: { orderId: string; teams: { id: string; la
  * Deleting for good, at any stage. It can't be taken back, so this is the one place with a
  * confirm step: it names the order and says what happens to its supplier orders and stock.
  */
-function DeleteOrder({ orderId, orderNumber, warnings }: { orderId: string; orderNumber: number; warnings: string[] }) {
+function DeleteOrder({ orderId, orderNumber, warnings, blocked }: { orderId: string; orderNumber: number; warnings: string[]; blocked: string | null }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [state, action, pending] = useActionState(async (prev: ActionState, data: FormData) => {
@@ -137,6 +137,7 @@ function DeleteOrder({ orderId, orderNumber, warnings }: { orderId: string; orde
       {state.error && <Alert>{state.error}</Alert>}
       <p className="text-sm font-semibold text-danger">למחוק את הזמנה {orderNumber} לצמיתות?</p>
       <p className="text-caption">ההזמנה, השורות, ההצעות והקישורים לאישור, ההיסטוריה וההתראות שלה יימחקו. אי אפשר לבטל את זה. ביומן הפעולות נשמר רק סיכום.</p>
+      {blocked && <p className="text-caption font-medium text-danger">{blocked}</p>}
       {warnings.length > 0 && (
         <ul className="flex list-disc flex-col gap-1 ps-5 text-caption text-warning">
           {warnings.map((w) => (
@@ -147,7 +148,7 @@ function DeleteOrder({ orderId, orderNumber, warnings }: { orderId: string; orde
       <input type="hidden" name="orderId" value={orderId} />
       <input name="reason" aria-label="סיבת המחיקה (לא חובה)" placeholder="סיבת המחיקה (לא חובה)" maxLength={1000} className={inputClass} />
       <div className="flex flex-wrap gap-2">
-        <button disabled={pending} className={`${menuButton} bg-danger text-white hover:bg-danger`}>
+        <button disabled={pending || !!blocked} className={`${menuButton} bg-danger text-white hover:bg-danger`}>
           {pending ? "מוחק…" : "מחיקה לצמיתות"}
         </button>
         <button type="button" disabled={pending} onClick={() => setConfirming(false)} className={menuButton}>
@@ -171,6 +172,8 @@ export function OrderMenu(props: {
   teams: { id: string; label: string }[];
   orderNumber: number;
   deleteWarnings: string[];
+  /** P1: set while the order has payments that aren't voided; deleting waits for them to be voided. */
+  deleteBlocked: string | null;
 }) {
   return (
     <details className="group relative self-end">
@@ -194,7 +197,7 @@ export function OrderMenu(props: {
           </Group>
         )}
         <Group title="מחיקה לצמיתות">
-          <DeleteOrder orderId={props.orderId} orderNumber={props.orderNumber} warnings={props.deleteWarnings} />
+          <DeleteOrder orderId={props.orderId} orderNumber={props.orderNumber} warnings={props.deleteWarnings} blocked={props.deleteBlocked} />
         </Group>
       </div>
     </details>

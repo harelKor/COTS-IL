@@ -1,5 +1,5 @@
 import { lineLabel, lineStatus, type LineFacts } from "@/domain/order-status";
-import { formatIls } from "@/domain/pricing";
+import { formatIls, VAT_INCLUDED, vatLabel, vatSplit } from "@/domain/pricing";
 import { diffQuoteLines, quoteTotals, type QuoteLine } from "@/domain/orders";
 import { supplierSections } from "@/domain/cart";
 import { Ltr } from "./ltr";
@@ -127,6 +127,8 @@ function ProgressNote({ progress, pickup }: { progress?: LineFacts; pickup: bool
 type QuoteView = {
   version: number;
   shippingIls: number;
+  /** The VAT its prices include (quotes.vat_rate); null on quotes sent before prices included VAT. */
+  vatRate?: string | number | null;
   notes: string | null;
   lines: (QuoteLine & { changeReason: string | null })[];
 };
@@ -149,6 +151,8 @@ export function QuoteTable({
   const changes = diffQuoteLines(previous?.lines ?? [], quote.lines);
   const totals = quoteTotals(quote.lines, quote.shippingIls);
   const shippingChanged = previous && previous.shippingIls !== quote.shippingIls;
+  const rate = quote.vatRate === null || quote.vatRate === undefined ? null : Number(quote.vatRate);
+  const vat = rate !== null && rate > 0 ? { rate, vat: vatSplit(totals.total, rate).vat } : null;
 
   return (
     <div className="overflow-x-auto card-surface">
@@ -217,10 +221,18 @@ export function QuoteTable({
           </tr>
           <tr className="border-t border-line font-semibold">
             <td className="p-3" colSpan={3}>
-              סה״כ לתשלום
+              סה״כ לתשלום{vat && <span className="font-normal text-muted">, {VAT_INCLUDED}</span>}
             </td>
             <td className="whitespace-nowrap p-3">{formatIls(totals.total)}</td>
           </tr>
+          {vat && (
+            <tr className="text-caption text-muted">
+              <td className="px-3 pb-3" colSpan={3}>
+                מתוכו {vatLabel(vat.rate)}
+              </td>
+              <td className="whitespace-nowrap px-3 pb-3">{formatIls(vat.vat, { agorot: true })}</td>
+            </tr>
+          )}
         </tfoot>
       </table>
     </div>

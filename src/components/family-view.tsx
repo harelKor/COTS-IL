@@ -12,7 +12,7 @@ import { optionLabel } from "@/domain/families/sort";
 import { arrivalShort, arrivalText } from "@/domain/lead-time";
 import { offerReason, rankOffers } from "@/domain/offers";
 import { dedupePhotos, followPhoto, ownPhoto } from "@/domain/gallery";
-import { formatIls } from "@/domain/pricing";
+import { formatIls, VAT_INCLUDED } from "@/domain/pricing";
 import { useSiteFacts } from "./site-facts";
 import { RequestPart } from "./zero-results";
 import { availabilityStatus, isFresh, useNow } from "./availability";
@@ -565,8 +565,11 @@ function FamilyPicker({ family, variants, rateDate, tableRows, docs, logos = {},
 
         <section ref={buyBox} data-buy-box aria-label="רכישה" className="card-surface flex flex-col gap-4 p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <span className="text-title font-semibold" aria-live="polite">
-              {priceText}
+            <span className="flex items-baseline gap-2">
+              <span className="text-title font-semibold" aria-live="polite">
+                {priceText}
+              </span>
+              {(price !== null || (!chosen && range)) && <span className="text-caption text-muted">{VAT_INCLUDED}</span>}
             </span>
             {price !== null && lineQty > 1 && <span className="text-callout text-muted">סה״כ: {formatIls(price * lineQty)}</span>}
           </div>

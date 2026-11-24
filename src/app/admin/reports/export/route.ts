@@ -2,7 +2,7 @@ import ExcelJS from "exceljs";
 import { teamDisplay } from "@/domain/display";
 import type { NextRequest } from "next/server";
 import { lineLabel, lineStatus } from "@/domain/order-status";
-import { profitSummary, purchaseCost } from "@/domain/reports";
+import { profitSummary, purchaseCost, salesRevenue } from "@/domain/reports";
 import { requireAdmin } from "@/lib/auth";
 import { getOrderLines } from "@/lib/order-status";
 import { getImportCosts, getPurchases, getSales, parsePeriod } from "@/lib/reports";
@@ -137,7 +137,8 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
     const rate = Number(params.rate);
     const overrideRate = Number.isFinite(rate) && rate > 0 ? rate : null;
     const [sales, costs] = await Promise.all([getSales(period), getImportCosts(period)]);
-    const revenueIls = sales.reduce((sum, s) => sum + s.subtotalIls + s.shippingIls, 0);
+    const revenue = salesRevenue(sales);
+    const revenueIls = revenue.netIls;
     const purchase = purchaseCost(sales, overrideRate);
     const p = profitSummary({
       revenueIls,
@@ -151,7 +152,9 @@ async function buildSheet(type: string, params: Record<string, string>): Promise
         { header: "סכום", width: 16 },
       ],
       rows: [
-        ["מכירות ₪", revenueIls],
+        ["מכירות כולל מע״מ ₪", revenue.grossIls],
+        ["מע״מ עסקאות ₪", revenue.vatIls],
+        ["מכירות לפני מע״מ ₪", revenueIls],
         ["רכש $", purchase.usd],
         ["שער דולר", overrideRate ?? "שער בנק ישראל ביום כל הזמנת ספק"],
         ["שער דולר ממוצע שהופעל", purchase.rate],

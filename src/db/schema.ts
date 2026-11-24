@@ -36,6 +36,8 @@ export const poStatus = pgEnum("po_status", ["draft", "ordered", "cancelled"]);
 export const importCostType = pgEnum("import_cost_type", ["customs", "freight", "broker", "vat"]);
 export const pricingScope = pgEnum("pricing_scope", ["supplier", "category"]);
 export const deliveryStatus = pgEnum("delivery_status", ["prepared", "delivered"]);
+/** How a team paid (P1): bank transfer, card, cheque (a school's), cash, or anything else. */
+export const paymentMethod = pgEnum("payment_method", ["transfer", "card", "cheque", "cash", "other"]);
 /** Where a product comes from: a store's sync, or the admin's "הוספת חלק" (S16c), which the sync never touches. */
 export const productSource = pgEnum("product_source", ["synced", "custom"]);
 
@@ -480,6 +482,11 @@ export const quotes = pgTable(
     version: integer("version").notNull(),
     status: quoteStatus("status").notNull().default("sent"),
     shippingIls: integer("shipping_ils").notNull(),
+    /**
+     * The VAT rate the quote's prices include (pricing.vatRate when it was sent, D1 Nov 24, 2026).
+     * Null on quotes sent before prices included VAT: they show no VAT line.
+     */
+    vatRate: numeric("vat_rate", { precision: 5, scale: 4 }),
     notes: text("notes"),
     rejectionReason: text("rejection_reason"),
     sentBy: uuid("sent_by")
@@ -504,6 +511,42 @@ export const quoteLines = pgTable(
     changeReason: text("change_reason"),
   },
   (t) => [primaryKey({ columns: [t.quoteId, t.itemId] })],
+);
+
+/**
+ * Money a team paid (P1, docs/PAYMENTS-MORNING-PLAN.md), recorded by the admin. Append-only:
+ * a mistake is voided with a reason, never deleted or edited, because a payment has
+ * accounting meaning. What an order owes and the team's balance are derived from these and
+ * the approved quote (src/domain/payments.ts), never stored. A deleted order (refused while it
+ * has payments that aren't voided) leaves its voided payments with no order.
+ */
+export const payments = pgTable(
+  "payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Null for a payment on account, not for one order. */
+    orderId: uuid("order_id").references(() => teamOrders.id, { onDelete: "set null" }),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id),
+    amountIls: numeric("amount_ils", { precision: 12, scale: 2 }).notNull(),
+    /** The day the money arrived (Israel time). */
+    paidAt: date("paid_at").notNull(),
+    method: paymentMethod("method").notNull(),
+    /** The bank reference or the cheque number. */
+    reference: text("reference"),
+    note: text("note"),
+    /** The Morning document for it (P3); null until then. */
+    documentId: uuid("document_id"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => profiles.id),
+    createdAt,
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => profiles.id),
+    voidReason: text("void_reason"),
+  },
+  (t) => [index("payments_order_id_idx").on(t.orderId), index("payments_team_id_idx").on(t.teamId)],
 );
 
 /** Proof of what was approved: who, when, and a hash of the quote's content. */

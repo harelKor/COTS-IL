@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { formatMarkup, markupText } from "@/domain/pricing";
+import { formatMarkup, markupText, VAT_INCLUDED } from "@/domain/pricing";
 import { useSiteFacts } from "./site-facts";
 
 /** "2026-11-10" → "10/11/2026". */
 const dayOf = (isoDate: string) => isoDate.split("-").reverse().join("/");
 
-/** How the ₪ price is made: USD at the Bank of Israel rate, × the multiplier, no VAT; shipping in the quote. */
+/** How the ₪ price is made: USD at the Bank of Israel rate, × the multiplier, VAT included; shipping in the quote. */
 function HowPriced({ rateDate, times }: { rateDate?: string; times: string }) {
   const { priceIncludes } = useSiteFacts();
   return (
@@ -20,8 +20,8 @@ function HowPriced({ rateDate, times }: { rateDate?: string; times: string }) {
       ) : (
         " (מתעדכן כל יום)"
       )}
-      , כפול <bdi dir="ltr">{times}</bdi>
-      {priceIncludes ? `, כולל ${priceIncludes}` : ""}. משלוח בישראל מתומחר בהצעת המחיר.{" "}
+      , כפול <bdi dir="ltr">{times}</bdi>. המחיר סופי, {VAT_INCLUDED}
+      {priceIncludes ? ` ו${priceIncludes}` : ""}. משלוח בישראל מתומחר בהצעת המחיר.{" "}
       <Link href="/shipping" className="text-brand underline-offset-2 hover:underline">
         משלוח וזמני אספקה
       </Link>
@@ -31,7 +31,7 @@ function HowPriced({ rateDate, times }: { rateDate?: string; times: string }) {
 
 /**
  * At the point of decision (product Add, cart footer): adding and sending cost
- * nothing, and how the ₪ price is made (USD × rate × the multiplier, no VAT). `markup` is the
+ * nothing, and how the ₪ price is made (USD × rate × the multiplier, VAT included). `markup` is the
  * chosen part's; without one it's the admin's range ("1.4 עד 1.6") or the one multiplier.
  * `inline` puts the "not binding" line and "איך נקבע המחיר?" on one row, for the cart's compact footer.
  */

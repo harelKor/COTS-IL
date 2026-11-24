@@ -5,7 +5,7 @@ import { ImageOff, RefreshCw } from "lucide-react";
 import { Alert, Field, Input } from "@/components/form";
 import { Availability } from "@/components/availability";
 import { ItemDescription } from "@/components/orders";
-import { formatIls } from "@/domain/pricing";
+import { formatIls, VAT_INCLUDED, vatLabel, vatSplit } from "@/domain/pricing";
 import { quoteSummary } from "@/domain/quote-summary";
 import { shopifyImage } from "@/lib/images";
 import { sendQuote, type QuoteFormState } from "../actions";
@@ -65,6 +65,8 @@ export function QuoteEditor(props: {
   version: number;
   /** From the admin's settings (פרטי העסק); null hides the line. */
   paymentTerms: string | null;
+  /** pricing.vatRate: the quote snapshots it when sent, and its prices include it. */
+  vatRate: number;
   /**
    * Lines already on supplier orders (M2): "ordered" once one was marked ordered, "draft" while
    * only on drafts. Quantities then stay as they were; prices and shipping can still change,
@@ -170,8 +172,14 @@ export function QuoteEditor(props: {
         <dd className="text-end tabular-nums">{formatIls(summary.subtotal)}</dd>
         <dt>משלוח</dt>
         <dd className="text-end tabular-nums">{shipping === "" ? "עוד לא מולא" : formatIls(summary.shipping)}</dd>
-        <dt className="font-semibold">סה״כ לתשלום</dt>
+        <dt className="font-semibold">סה״כ לתשלום, {VAT_INCLUDED}</dt>
         <dd className="text-end font-semibold tabular-nums">{formatIls(summary.total)}</dd>
+        {props.vatRate > 0 && (
+          <>
+            <dt className="text-muted">מתוכו {vatLabel(props.vatRate)}</dt>
+            <dd className="text-end tabular-nums text-muted">{formatIls(vatSplit(summary.total, props.vatRate).vat, { agorot: true })}</dd>
+          </>
+        )}
         <dt className="text-muted">לעומת הבקשה ({formatIls(summary.requested)}, בלי משלוח)</dt>
         <dd className={`text-end tabular-nums ${summary.difference > 0 ? "text-warning" : "text-muted"}`}>{signed(summary.difference)}</dd>
       </dl>

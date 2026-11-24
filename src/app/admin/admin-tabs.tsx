@@ -8,6 +8,7 @@ const TABS = [
   { href: "/admin", label: "כל ההזמנות", count: "orders" },
   { href: "/admin/purchasing", label: "הזמנות ספקים", count: "vendor" },
   { href: "/admin/deliveries", label: "מסירות" },
+  { href: "/admin/balances", label: "יתרות" },
   { href: "/admin/reports", label: "דוחות" },
   { href: "/admin/teams", label: "קבוצות" },
   { href: "/admin/requests", label: "בקשות חלקים" },

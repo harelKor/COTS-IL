@@ -53,6 +53,7 @@ async function Pricing() {
           boiRate={ctx.boiRate}
           rateDate={ctx.rateDate}
           manualRate={settings.pricing.rateOverride?.rate ?? null}
+          vatRate={settings.pricing.vatRate}
           rules={rules}
           samples={sampleRows}
         />

@@ -44,6 +44,8 @@ It works without Morning too. Phase P1 alone (recording payments by hand) is use
 
 ### P1: Payments and balances (no Morning needed), size M
 
+**Done (Nov 24, 2026).** Built as below, plus: owed is the latest quote version the team approved (a re-quote doesn't change it until approved again); `payments` is guarded by a trigger (no delete, no edit except voiding); a payment follows its order when the order moves or the team is merged; a team with payments isn't deleted; each quote snapshots the VAT rate (`quotes.vat_rate`). The bookkeeper's CSV is on `/admin/balances`.
+
 - **Schema:** a `payments` table with:
   - `id`, `order_id` (nullable, for a payment on account), `team_id`;
   - `amount_ils`, `paid_at`, `method` (`transfer | card | cheque | cash | other`);

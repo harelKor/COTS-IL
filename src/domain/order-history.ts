@@ -1,5 +1,7 @@
 import { statusLabel, type OrderStatusKey } from "./order-status";
 import type { OrderStatus } from "./orders";
+import { METHOD_LABEL, type PaymentMethod } from "./payments";
+import { formatIls } from "./pricing";
 
 /**
  * The order card's history (M2): each audit_log row about the order, its quotes and its
@@ -110,5 +112,17 @@ export function describeHistory(entry: HistoryEntry): string | null {
   if (entry.entity === "team_order") return orderLine(entry.action, before, after);
   if (entry.entity === "quote") return quoteLine(entry.action, before, after);
   if (entry.entity === "delivery") return deliveryLine(entry.action, before, after);
+  if (entry.entity === "payment") return paymentLine(entry.action, before, after);
+  return null;
+}
+
+/** P1: a payment recorded or voided ("רישום תשלום ₪1,250, העברה בנקאית"). */
+function paymentLine(action: string, before: Obj, after: Obj): string | null {
+  const row = action === "void" ? before : after;
+  const amount = typeof row.amountIls === "number" || typeof row.amountIls === "string" ? Number(row.amountIls) : null;
+  const money = amount === null ? "" : ` ${formatIls(amount, { agorot: true })}`;
+  const method = typeof row.method === "string" && row.method in METHOD_LABEL ? `, ${METHOD_LABEL[row.method as PaymentMethod]}` : "";
+  if (action === "record") return `רישום תשלום${money}${method}`;
+  if (action === "void") return withReason(`ביטול תשלום${money}`, after.reason);
   return null;
 }

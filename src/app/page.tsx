@@ -167,7 +167,7 @@ async function ValueStrip() {
   const items = [
     // What is true without any business facts: the supplier's dollar price at the Bank of Israel
     // rate (the multiplier is stated once, under "מחיר בשקלים" below), shipping priced in the quote.
-    business.priceIncludes ? `מחיר בש״ח כולל ${business.priceIncludes}` : "מחיר בש״ח לפי השער היציג, משלוח בהצעת המחיר",
+    business.priceIncludes ? `מחיר בש״ח כולל מע״מ ו${business.priceIncludes}` : "מחיר בש״ח כולל מע״מ, משלוח בהצעת המחיר",
     "הצעת מחיר בלי התחייבות",
     business.pickupAddress ? "איסוף או משלוח בישראל" : "מסירה בישראל",
   ];

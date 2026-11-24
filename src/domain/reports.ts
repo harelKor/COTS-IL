@@ -1,8 +1,27 @@
+import { vatSplit } from "./pricing";
+
 export type ImportCost = { amountIls: number; vatReclaimable: boolean };
 
 /**
- * Profit = revenue − purchases − import costs. Sale prices carry no VAT (user
- * decision, Nov 11, 2026), so revenue is used as it is. Reclaimable import VAT
+ * Sales in the period, with the VAT they include taken out. Prices include VAT since Nov 24,
+ * 2026 (D1): each quote's own rate (quotes.vat_rate) splits it; a quote from before then has
+ * none, so its total is all revenue.
+ */
+export function salesRevenue(sales: { subtotalIls: number; shippingIls: number; vatRate: string | number | null }[]) {
+  let gross = 0;
+  let vat = 0;
+  for (const s of sales) {
+    const total = s.subtotalIls + s.shippingIls;
+    gross += total;
+    vat += s.vatRate === null ? 0 : vatSplit(total, Number(s.vatRate)).vat;
+  }
+  vat = Math.round(vat * 100) / 100;
+  return { grossIls: gross, vatIls: vat, netIls: Math.round((gross - vat) * 100) / 100 };
+}
+
+/**
+ * Profit = revenue − purchases − import costs, where revenue is net of the VAT the
+ * sale prices include (salesRevenue). Reclaimable import VAT
  * comes back from the tax authority, so it isn't a cost (spec §8, AT-10).
  * Purchases arrive in shekels already, converted by `purchaseCost`.
  */

@@ -7,6 +7,7 @@ import {
   periodPresets,
   profitSummary,
   purchaseCost,
+  salesRevenue,
 } from "./reports";
 
 describe("profitSummary", () => {
@@ -158,5 +159,15 @@ describe("isAvailabilityFresh", () => {
   it("trusts recent checks only", () => {
     expect(isAvailabilityFresh(new Date("2026-01-08T00:00:00Z"), now)).toBe(true);
     expect(isAvailabilityFresh(new Date("2026-01-06T00:00:00Z"), now)).toBe(false);
+  });
+});
+
+describe("salesRevenue", () => {
+  it("takes out the VAT each quote's prices include, and none from quotes before VAT", () => {
+    const r = salesRevenue([
+      { subtotalIls: 15000, shippingIls: 800, vatRate: "0.1800" },
+      { subtotalIls: 1000, shippingIls: 0, vatRate: null },
+    ]);
+    expect(r).toEqual({ grossIls: 16800, vatIls: 2410.17, netIls: 14389.83 });
   });
 });

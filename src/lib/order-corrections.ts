@@ -133,6 +133,8 @@ export async function getOrderHistory(orderId: string): Promise<HistoryRow[]> {
         and(eq(auditLog.entity, "team_order"), eq(auditLog.entityId, orderId)),
         quoteIds.length ? and(eq(auditLog.entity, "quote"), inArray(auditLog.entityId, quoteIds)) : undefined,
         deliveryIds.length ? and(eq(auditLog.entity, "delivery"), inArray(auditLog.entityId, deliveryIds)) : undefined,
+        // P1: its payments recorded and voided.
+        and(eq(auditLog.entity, "payment"), sql`${auditLog.after} ->> 'orderId' = ${orderId}`),
       ),
     )
     .orderBy(desc(auditLog.at), desc(auditLog.id))
