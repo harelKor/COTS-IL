@@ -386,6 +386,20 @@ export function morningErrorText(status: number, body: unknown): string {
   return msg ? `${msg} (${status}${b.errorCode ? `/${b.errorCode}` : ""})` : `חשבונית ירוקה החזירה ${status}`;
 }
 
+/**
+ * Israel's check digit for a 9-digit ID, עוסק or ח.פ. / עמותה number (Morning refuses a wrong one,
+ * error 1111). Shorter numbers (a school's סמל מוסד) have none and pass.
+ */
+export function validIsraeliTaxId(digits: string): boolean {
+  if (!/^\d+$/.test(digits)) return false;
+  if (digits.length !== 9) return true;
+  const sum = [...digits].reduce((acc, ch, i) => {
+    const n = Number(ch) * ((i % 2) + 1);
+    return acc + (n > 9 ? n - 9 : n);
+  }, 0);
+  return sum % 10 === 0;
+}
+
 export type BillingDetails = { billingName: string | null; billingTaxId: string | null; billingEmail: string | null; billingAddress: string | null };
 
 /**
@@ -401,6 +415,7 @@ export function parseBilling(form: { billingName?: unknown; billingTaxId?: unkno
   if (name.length > 120) return { ok: false, error: "השם לחשבונית ארוך מדי" };
   const tax = taxRaw.replace(/[\s-]/g, "");
   if (tax && !/^\d{5,12}$/.test(tax)) return { ok: false, error: "מספר עוסק, עמותה או מוסד הוא 5 עד 12 ספרות" };
+  if (tax && !validIsraeliTaxId(tax)) return { ok: false, error: "המספר לא תקין: ספרת הביקורת לא מתאימה" };
   if (email && (email.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return { ok: false, error: "כתובת המייל לחשבוניות לא תקינה" };
   if (address.length > 200) return { ok: false, error: "הכתובת ארוכה מדי" };
   return { ok: true, value: { billingName: name || null, billingTaxId: tax || null, billingEmail: email || null, billingAddress: address || null } };

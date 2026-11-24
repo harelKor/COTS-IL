@@ -14,6 +14,7 @@ import {
   nameWords,
   newClientBody,
   parseBilling,
+  validIsraeliTaxId,
   parseCheque,
   quoteIncome,
   quotePayload,
@@ -205,9 +206,9 @@ describe("morningErrorText", () => {
 
 describe("parseBilling", () => {
   it("keeps what was typed, empty as null", () => {
-    expect(parseBilling({ billingName: "  עמותת  סטימפאנק ", billingTaxId: "58-123-4567", billingEmail: "Pay@Example.com", billingAddress: "" })).toEqual({
+    expect(parseBilling({ billingName: "  עמותת  סטימפאנק ", billingTaxId: "58-123-4564", billingEmail: "Pay@Example.com", billingAddress: "" })).toEqual({
       ok: true,
-      value: { billingName: "עמותת סטימפאנק", billingTaxId: "581234567", billingEmail: "pay@example.com", billingAddress: null },
+      value: { billingName: "עמותת סטימפאנק", billingTaxId: "581234564", billingEmail: "pay@example.com", billingAddress: null },
     });
     expect(parseBilling({})).toEqual({ ok: true, value: { billingName: null, billingTaxId: null, billingEmail: null, billingAddress: null } });
   });
@@ -215,5 +216,12 @@ describe("parseBilling", () => {
     expect(parseBilling({ billingTaxId: "12a" }).ok).toBe(false);
     expect(parseBilling({ billingTaxId: "1234" }).ok).toBe(false);
     expect(parseBilling({ billingEmail: "nope" }).ok).toBe(false);
+    expect(parseBilling({ billingTaxId: "580000001" }).ok).toBe(false);
+    expect(parseBilling({ billingTaxId: "123456" }).ok).toBe(true);
+  });
+  it("checks Israel's 9-digit check digit", () => {
+    expect(validIsraeliTaxId("000000018")).toBe(true);
+    expect(validIsraeliTaxId("580000001")).toBe(false);
+    expect(validIsraeliTaxId("12345")).toBe(true);
   });
 });

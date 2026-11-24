@@ -304,7 +304,8 @@ export async function issueDocument(rowId: string): Promise<IssueResult> {
       and(
         eq(billingDocuments.id, rowId),
         inArray(billingDocuments.status, ["pending", "failed"]),
-        sql`(${billingDocuments.attemptAt} IS NULL OR ${billingDocuments.attemptAt} < now() - make_interval(secs => ${CLAIM_SECONDS}))`,
+        // A failed row is free at once; a pending one only once its attempt is old (that attempt died).
+        sql`(${billingDocuments.status} = 'failed' OR ${billingDocuments.attemptAt} IS NULL OR ${billingDocuments.attemptAt} < now() - make_interval(secs => ${CLAIM_SECONDS}))`,
       ),
     )
     .returning();
