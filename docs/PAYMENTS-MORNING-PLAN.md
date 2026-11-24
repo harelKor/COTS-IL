@@ -108,9 +108,17 @@ On the local stack against the sandbox, order 1153 (team Orbit FRC 1690):
 - billing details saved; the first הצעת מחיר failed with Morning's own message ("מספר עוסק / ח.פ אינו תקין", a tax id with a wrong check digit; the form now checks it), and "ניסיון חוזר" looked the reference up, created the Morning client, linked it to the team and issued **הצעת מחיר 300**, its number filled into the quote;
 - the team approved; 30 seconds later **חשבון עסקה 40001** was issued by itself, linked to the same client;
 - both documents carry "BLUEHUB, הזמנה 1153. סימוכין BH-…" in their remarks; the team's `/orders/<id>` lists them, and the PDF link returns Morning's PDF;
-- "רישום תשלום" with the box ticked recorded the payment and wrote the 320 row (linked to the 300, repeating its lines). Morning refused it: the sandbox business is an עוסק פטור (error 2403). It waits as "לא הופק" with "ניסיון חוזר".
+- "רישום תשלום" with the box ticked recorded the payment and wrote the 320 row (linked to the 300, repeating its lines). Morning refused it while the sandbox business was an עוסק פטור (error 2403), and it waited as "לא הופק";
+- the owner switched the sandbox business "test" to עוסק מורשה in Morning; "ניסיון חוזר" then issued **חשבונית מס/קבלה 60001**: ₪104 with VAT ₪15.87 split out (18%, prices VAT-inclusive as D1), linked to 40001; the payment got its number and document link;
+- the order was cancelled, and "הפקת זיכוי" for the whole amount issued **חשבונית זיכוי 70001** (₪104, VAT ₪15.86), which Morning shows as cancelling 60001 (status "מבטל" / "מבוטל");
+- the team's `/orders/<id>` lists all four with their PDFs; the order history has each issue and failure.
 
-Still to run: once the sandbox business "test" is an עוסק מורשה (Morning › הגדרות › פרטי העסק), "ניסיון חוזר" on that 320, then cancel the order and "הפקת זיכוי" (330). Sandbox documents used so far: 2.
+Sandbox documents used: 4 (plus one client).
+
+Found on the way:
+- Morning keeps no `transactionId` on a bank transfer, so the bank reference now goes into the receipt's remarks ("אסמכתא …").
+- After the credit note, חשבון עסקה 40001 still shows as open in Morning (it was issued while the business was פטור; whether a credited 320 reopens the 300 is unclear). A cancelled order's 300 may need closing by hand in Morning (or a later "סגירת חשבון עסקה" using `POST /documents/{id}/close`).
+- Morning checks an Israeli tax id's check digit (error 1111); the billing form now checks it too.
 
 ### P2: Connecting Morning, size S–M
 

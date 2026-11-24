@@ -83,8 +83,8 @@ export function docRef(rowId: string): string {
 }
 
 /** "BLUEHUB, הזמנה 1042. סימוכין BH-…": every document traceable to its order and row. */
-export function remarksFor(orderNumber: number | null, ref: string): string {
-  return `BLUEHUB${orderNumber ? `, הזמנה ${orderNumber}` : ""}. סימוכין ${ref}`;
+export function remarksFor(orderNumber: number | null, ref: string, reference?: string | null): string {
+  return `BLUEHUB${orderNumber ? `, הזמנה ${orderNumber}` : ""}${reference ? `, אסמכתא ${reference}` : ""}. סימוכין ${ref}`;
 }
 
 /** The document a retry looks for: the one whose remarks carry the row's reference. */
@@ -247,6 +247,8 @@ export function receiptPayload(input: {
     amount: incomeTotal(income),
     payload: {
       ...base("invoice_receipt", input.orderNumber, input.ref, description),
+      // Morning keeps no transactionId on a bank transfer (checked on the sandbox): the bank reference rides in the remarks.
+      remarks: remarksFor(input.orderNumber, input.ref, input.method === "cheque" ? null : input.reference && clip(input.reference, 60)),
       income,
       payment: [payment],
       ...(input.deal ? { linkedDocumentIds: [input.deal.morningId], linkType: "link" as const } : {}),

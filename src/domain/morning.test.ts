@@ -50,6 +50,7 @@ describe("references", () => {
     const remarks = remarksFor(1042, docRef(ID));
     expect(remarks).toBe("BLUEHUB, הזמנה 1042. סימוכין BH-1A2B3C4D5E6F");
     expect(remarksFor(null, "BH-X")).toBe("BLUEHUB. סימוכין BH-X");
+    expect(findByRef([{ remarks: remarksFor(7, "BH-X", "TX 1") }], "BH-X")).not.toBeNull();
     expect(findByRef([{ id: "1", remarks: "other" }, { id: "2", remarks }], docRef(ID))?.id).toBe("2");
     expect(findByRef([{ id: "1", remarks: null }], docRef(ID))).toBeNull();
   });
@@ -94,7 +95,7 @@ describe("receipts", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.amount).toBe(332.5);
-    expect(r.payload).toMatchObject({ type: 320, linkedDocumentIds: ["deal-1"], linkType: "link", income: deal.income });
+    expect(r.payload).toMatchObject({ type: 320, linkedDocumentIds: ["deal-1"], linkType: "link", income: deal.income, remarks: "BLUEHUB, הזמנה 1042, אסמכתא TX-9. סימוכין BH-2" });
     expect(r.payload.payment).toEqual([{ date: "2026-11-24", type: 4, price: 332.5, currency: "ILS", transactionId: "TX-9" }]);
   });
   it("is one line for a part payment, or for a payment on account", () => {
@@ -102,7 +103,7 @@ describe("receipts", () => {
     expect(r.ok && r.payload.income).toEqual([{ description: "תשלום עבור הזמנה 1042", quantity: 1, price: 100, currency: "ILS", vatType: 1 }]);
     expect(r.ok && r.payload.payment?.[0]).toEqual({ date: "2026-11-24", type: 1, price: 100, currency: "ILS" });
     const onAccount = receiptPayload({ ...base, orderNumber: null, deal: null, amount: 50, method: "card" });
-    expect(onAccount.ok && onAccount.payload).toMatchObject({ description: "תשלום על חשבון", remarks: "BLUEHUB. סימוכין BH-2" });
+    expect(onAccount.ok && onAccount.payload).toMatchObject({ description: "תשלום על חשבון", remarks: "BLUEHUB, אסמכתא TX-9. סימוכין BH-2" });
     expect(onAccount.ok && onAccount.payload.linkedDocumentIds).toBeUndefined();
   });
   it("needs a cheque's bank details, and leaves 'other' to the admin", () => {
