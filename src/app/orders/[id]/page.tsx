@@ -6,7 +6,8 @@ import { Suspense, type ReactNode } from "react";
 import { Alert, StatusTag } from "@/components/form";
 import { PaymentTerms } from "@/components/payment-terms";
 import { teamMoneyLabel } from "@/domain/payments";
-import { getOrderMoney } from "@/lib/payments";
+import { getOrderMoney, listPayments } from "@/lib/payments";
+import { documentsLine, morningQuoteNumbers } from "@/domain/morning-numbers";
 import { formatDateTime, QuoteTable, RequestTable } from "@/components/orders";
 import { QuoteDecision } from "@/components/quote-decision";
 import { QuoteView } from "@/components/quote-view";
@@ -103,7 +104,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
   const stoppedAt = latest ? "quote_sent" : "awaiting_quote";
   const waitingForDecision = latest?.status === "sent" && canDecideQuote(order.status);
   const pickup = order.deliveryMethod === "pickup";
-  const [dates, decided, cancelled, changeRequest, lock, pay] = await Promise.all([
+  const [dates, decided, cancelled, changeRequest, lock, pay, paymentRows] = await Promise.all([
     getStepDates(order.id, order.submittedAt),
     recentDecision("quote", latest?.id),
     recentDecision("team_order", order.id),
@@ -111,7 +112,10 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
     // A new version after lines were bought (M2): only the Israeli supplier can cancel it now.
     canCancelOrder(order.status) ? orderSupplierLock(db, order.id) : null,
     getOrderMoney(order.id),
+    listPayments({ orderId: order.id }),
   ]);
+  // Morning document numbers the admin typed in (no links: the owner's Morning plan has no API).
+  const documents = documentsLine({ ...morningQuoteNumbers(quotes), receipts: paymentRows.filter((p) => !p.voidedAt).map((p) => p.morningDocNo) });
   const paidLabel = pay ? teamMoneyLabel(pay.money) : null;
 
   return (
@@ -209,6 +213,13 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
           </p>
           {pay.money.left > 0 && <PaymentTerms />}
         </section>
+      )}
+
+      {documents && (
+        <p className="card-surface px-4 py-3 text-callout">
+          <span className="text-muted">מסמכים: </span>
+          {documents}
+        </p>
       )}
 
       {deliveries.length > 0 && (

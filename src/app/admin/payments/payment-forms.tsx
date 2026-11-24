@@ -8,7 +8,7 @@ import { Alert, Button, Field, Input, Select } from "@/components/form";
 import { showToast } from "@/components/toast";
 import { METHOD_LABEL, PAYMENT_METHODS, defaultAmount } from "@/domain/payments";
 import { formatIls } from "@/domain/pricing";
-import { recordPayment, voidPayment } from "./actions";
+import { recordPayment, setPaymentDocNo, setQuoteMorningNumbers, voidPayment } from "./actions";
 
 /**
  * "רישום תשלום": a side sheet (a bottom sheet on phones) with the amount set to what is left,
@@ -96,9 +96,14 @@ export function RecordPayment({
               </Select>
             </Field>
           </div>
-          <Field label="אסמכתא" name={`reference-${opening}`} hint="מספר העברה בבנק או מספר צ׳ק, לא חובה">
-            <Input id={`reference-${opening}`} name="reference" dir="ltr" maxLength={100} autoComplete="off" />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="אסמכתא" name={`reference-${opening}`} hint="מספר העברה בבנק או מספר צ׳ק, לא חובה">
+              <Input id={`reference-${opening}`} name="reference" dir="ltr" maxLength={100} autoComplete="off" />
+            </Field>
+            <Field label="מס׳ חשבונית מס/קבלה" name={`morningDocNo-${opening}`} hint="מחשבונית ירוקה, לא חובה; אפשר גם אחר כך">
+              <Input id={`morningDocNo-${opening}`} name="morningDocNo" inputMode="numeric" dir="ltr" maxLength={20} autoComplete="off" />
+            </Field>
+          </div>
           <Field label="הערה" name={`note-${opening}`}>
             <Input id={`note-${opening}`} name="note" maxLength={500} autoComplete="off" />
           </Field>
@@ -153,5 +158,118 @@ export function VoidPayment({ paymentId, label }: { paymentId: string; label: st
         </Button>
       </div>
     </form>
+  );
+}
+
+type NumberField = { name: string; label: string; value: string | null };
+
+/**
+ * Morning numbers typed by hand, shown as one line with "עריכה" that turns it into small
+ * fields in place. Digits only, checked on the server; an empty field clears the number.
+ */
+function InlineNumbers({
+  title,
+  hidden,
+  fields,
+  save,
+}: {
+  title: string;
+  hidden: Record<string, string>;
+  fields: NumberField[];
+  save: (prev: ActionState, data: FormData) => Promise<ActionState>;
+}) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [state, action, pending] = useActionState(async (prev: ActionState, data: FormData) => {
+    const result = await save(prev, data);
+    if (result.ok) {
+      setEditing(false);
+      showToast(result.ok);
+      router.refresh();
+    }
+    return result;
+  }, {} as ActionState);
+  const shown = fields.filter((f) => f.value);
+  if (!editing)
+    return (
+      <div className="flex flex-wrap items-center gap-x-2 text-sm">
+        <span className="text-muted">{title}:</span>
+        {shown.length ? (
+          shown.map((f, i) => (
+            <span key={f.name}>
+              {f.label}{" "}
+              <bdi dir="ltr" className="tabular-nums">
+                {f.value}
+              </bdi>
+              {i < shown.length - 1 ? "," : ""}
+            </span>
+          ))
+        ) : (
+          <span className="text-muted">עוד לא הוזן</span>
+        )}
+        <button type="button" onClick={() => setEditing(true)} className="min-h-11 px-2 text-brand hover:underline" aria-label={`עריכת ${title}`}>
+          עריכה
+        </button>
+      </div>
+    );
+  return (
+    <form action={action} className="flex w-full flex-col gap-2 rounded-xl bg-subtle p-3">
+      <span className="text-sm font-medium">{title}</span>
+      {state.error && <Alert>{state.error}</Alert>}
+      {Object.entries(hidden).map(([k, v]) => (
+        <input key={k} type="hidden" name={k} value={v} />
+      ))}
+      <div className="flex flex-wrap gap-3">
+        {fields.map((f) => (
+          <label key={f.name} className="flex min-w-40 flex-1 flex-col gap-1 text-caption">
+            {f.label}
+            <input
+              name={f.name}
+              defaultValue={f.value ?? ""}
+              inputMode="numeric"
+              dir="ltr"
+              maxLength={20}
+              autoComplete="off"
+              className="h-11 rounded-xl border border-line bg-surface px-3 text-base"
+            />
+          </label>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="secondary" disabled={pending}>
+          {pending ? "שומר…" : "שמירה"}
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setEditing(false)} disabled={pending}>
+          ביטול
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** The order card's "חשבונית ירוקה" row under the quote: its הצעת מחיר and חשבון עסקה numbers. */
+export function QuoteMorningNumbers({ quoteId, quoteNo, dealNo }: { quoteId: string; quoteNo: string | null; dealNo: string | null }) {
+  return (
+    <InlineNumbers
+      title="חשבונית ירוקה"
+      hidden={{ quoteId }}
+      fields={[
+        { name: "morningQuoteNo", label: "הצעת מחיר", value: quoteNo },
+        { name: "morningDealNo", label: "חשבון עסקה", value: dealNo },
+      ]}
+      save={setQuoteMorningNumbers}
+    />
+  );
+}
+
+/** A payment's חשבונית מס/קבלה number, added or corrected after it was recorded. */
+export function PaymentDocNo({ paymentId, docNo }: { paymentId: string; docNo: string | null }) {
+  return (
+    <InlineNumbers
+      title="חשבונית ירוקה"
+      hidden={{ paymentId }}
+      fields={[{ name: "morningDocNo", label: "חשבונית מס/קבלה", value: docNo }]}
+      save={setPaymentDocNo}
+    />
   );
 }

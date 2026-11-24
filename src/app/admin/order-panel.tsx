@@ -32,7 +32,7 @@ import { getOrderHistory, getOrderLinks, getSurplus, listTeamsForMove, previewCa
 import { createShipment } from "./logistics/actions";
 import { deleteBlockedByPayments, israelToday } from "@/domain/payments";
 import { getOrderMoney, listPayments } from "@/lib/payments";
-import { RecordPayment } from "./payments/payment-forms";
+import { QuoteMorningNumbers, RecordPayment } from "./payments/payment-forms";
 import { MoneyFacts, MoneyTag, PaymentList } from "./payments/payment-list";
 import { addLinesToDraft, sendDraft, sendVendorBatch } from "./purchasing/actions";
 
@@ -159,6 +159,7 @@ function LockedQuote({ detail, orderId, lock }: { detail: Detail; orderId: strin
   return (
     <Section title={`הצעה גרסה ${latest.version}, נשלחה ${formatDateTime(latest.sentAt)}`}>
       <QuoteTable items={detail.items} quote={latest} previous={older[0]} />
+      <QuoteMorningNumbers quoteId={latest.id} quoteNo={latest.morningQuoteNo} dealNo={latest.morningDealNo} />
       {lock && (
         <p className="text-sm text-muted">
           {lock === "ordered" ? "חלק מהפריטים כבר הוזמנו מהספק" : "חלק מהפריטים כבר בטיוטת הזמנת ספק"}: אפשר לשנות מחירים ומשלוח, לא כמויות. גרסה חדשה

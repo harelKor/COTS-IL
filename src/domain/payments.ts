@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { OrderStatus } from "./orders";
+import { parseMorningNo } from "./morning-numbers";
 import { formatIls, toAgorot } from "./pricing";
 
 /**
@@ -202,10 +203,15 @@ export const paymentInput = z.object({
   reference: optionalText(100),
   note: optionalText(500),
 });
-export type PaymentInput = z.infer<typeof paymentInput>;
+export type PaymentInput = z.infer<typeof paymentInput> & {
+  /** The חשבונית מס/קבלה number in Morning, typed by hand; null when not yet issued. */
+  morningDocNo: string | null;
+};
 
 /** The sheet's fields, checked: Hebrew errors, a date no later than tomorrow (Israel time). */
 export function parsePayment(form: Record<string, unknown>, now = new Date()): { ok: true; value: PaymentInput } | { ok: false; error: string } {
+  const docNo = parseMorningNo(form.morningDocNo);
+  if (!docNo.ok) return docNo;
   const parsed = paymentInput.safeParse({
     teamId: form.teamId ?? "",
     orderId: form.orderId ?? "",
@@ -229,7 +235,7 @@ export function parsePayment(form: Record<string, unknown>, now = new Date()): {
   }
   const tomorrow = israelToday(new Date(now.getTime() + DAY));
   if (parsed.data.paidAt > tomorrow) return { ok: false, error: "תאריך התשלום עוד לא הגיע" };
-  return { ok: true, value: parsed.data };
+  return { ok: true, value: { ...parsed.data, morningDocNo: docNo.value } };
 }
 
 export const voidInput = z.object({
@@ -245,7 +251,11 @@ export type PaymentExportRow = {
   amountIls: string | number;
   method: PaymentMethod;
   reference: string | null;
+  /** The חשבונית מס/קבלה number typed from Morning. */
   documentNumber: string | null;
+  /** The order's הצעת מחיר and חשבון עסקה numbers in Morning, when typed. */
+  morningQuoteNo: string | null;
+  morningDealNo: string | null;
   note: string | null;
   voidedAt: Date | string | null;
   voidReason: string | null;
@@ -256,7 +266,20 @@ const csvCell = (v: string | number | null) => {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-export const PAYMENTS_CSV_HEADER = ["תאריך", "קבוצה", "הזמנה", "סכום ₪", "אמצעי תשלום", "אסמכתא", "מספר מסמך", "הערה", "בוטל", "סיבת ביטול"];
+export const PAYMENTS_CSV_HEADER = [
+  "תאריך",
+  "קבוצה",
+  "הזמנה",
+  "סכום ₪",
+  "אמצעי תשלום",
+  "אסמכתא",
+  "מס׳ חשבונית מס/קבלה",
+  "מס׳ הצעת מחיר",
+  "מס׳ חשבון עסקה",
+  "הערה",
+  "בוטל",
+  "סיבת ביטול",
+];
 
 /**
  * The payments CSV: date, team, order, amount, method, reference and document number, then
@@ -272,6 +295,8 @@ export function paymentsCsv(rows: PaymentExportRow[]): string {
     METHOD_LABEL[r.method],
     r.reference,
     r.documentNumber,
+    r.morningQuoteNo,
+    r.morningDealNo,
     r.note,
     r.voidedAt ? "כן" : "",
     r.voidReason,

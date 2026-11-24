@@ -1,5 +1,6 @@
 import { statusLabel, type OrderStatusKey } from "./order-status";
 import type { OrderStatus } from "./orders";
+import { documentsLine } from "./morning-numbers";
 import { METHOD_LABEL, type PaymentMethod } from "./payments";
 import { formatIls } from "./pricing";
 
@@ -77,6 +78,10 @@ function quoteLine(action: string, before: Obj, after: Obj): string | null {
       return withReason(`בקשת שינוי${v}`, after.reason);
     case "undo":
       return before.status === "approved" ? "ביטול אישור ההצעה" : "ביטול דחיית ההצעה";
+    case "morning_numbers": {
+      const line = documentsLine({ quoteNo: str(after.morningQuoteNo), dealNo: str(after.morningDealNo), receipts: [] });
+      return line ? `מספרים בחשבונית ירוקה: ${line}` : "מחיקת המספרים בחשבונית ירוקה";
+    }
     default:
       return null;
   }
@@ -124,5 +129,6 @@ function paymentLine(action: string, before: Obj, after: Obj): string | null {
   const method = typeof row.method === "string" && row.method in METHOD_LABEL ? `, ${METHOD_LABEL[row.method as PaymentMethod]}` : "";
   if (action === "record") return `רישום תשלום${money}${method}`;
   if (action === "void") return withReason(`ביטול תשלום${money}`, after.reason);
+  if (action === "morning_doc_no") return str(after.morningDocNo) ? `חשבונית מס/קבלה ${str(after.morningDocNo)} בחשבונית ירוקה` : "מחיקת מספר החשבונית";
   return null;
 }

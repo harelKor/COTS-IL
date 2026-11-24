@@ -5,7 +5,7 @@ import { formatDay } from "@/domain/display";
 import { METHOD_LABEL, MONEY_ADMIN, type OrderMoney, type PaymentMethod } from "@/domain/payments";
 import { formatIls } from "@/domain/pricing";
 import type { PaymentRow } from "@/lib/payments";
-import { VoidPayment } from "./payment-forms";
+import { PaymentDocNo, VoidPayment } from "./payment-forms";
 
 /** The order's money state as a small square tag; nothing while nothing is owed or paid. */
 export function MoneyTag({ money }: { money: Pick<OrderMoney, "state"> }) {
@@ -65,6 +65,15 @@ export function PaymentList({ rows, showOrder = false }: { rows: PaymentRow[]; s
               </span>
               {!p.voidedAt && <VoidPayment paymentId={p.id} label={label} />}
             </div>
+            {p.voidedAt ? (
+              p.morningDocNo && (
+                <span className="text-caption text-muted">
+                  חשבונית מס/קבלה <Ltr>{p.morningDocNo}</Ltr>
+                </span>
+              )
+            ) : (
+              <PaymentDocNo paymentId={p.id} docNo={p.morningDocNo} />
+            )}
             <span className="text-caption text-muted">
               נרשם על ידי <bdi>{p.createdBy}</bdi>
               {p.note && <>, {p.note}</>}

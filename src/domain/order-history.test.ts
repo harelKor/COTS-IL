@@ -48,5 +48,9 @@ describe("payment history lines", () => {
     expect(describeHistory({ entity: "payment", action: "record", before: null, after: { amountIls: 1250, method: "transfer" } })).toMatch(/^רישום תשלום .*1,250.*, העברה בנקאית$/);
     expect(describeHistory({ entity: "payment", action: "void", before: { amountIls: "99.50", method: "cash" }, after: { reason: "נרשם פעמיים" } })).toMatch(/^ביטול תשלום .*99\.50.*: נרשם פעמיים$/);
     expect(describeHistory({ entity: "payment", action: "other", before: null, after: null })).toBeNull();
+    expect(describeHistory({ entity: "payment", action: "morning_doc_no", before: null, after: { morningDocNo: "1023" } })).toBe("חשבונית מס/קבלה 1023 בחשבונית ירוקה");
+    expect(describeHistory({ entity: "quote", action: "morning_numbers", before: null, after: { morningQuoteNo: "434", morningDealNo: null } })).toBe(
+      "מספרים בחשבונית ירוקה: הצעת מחיר 434",
+    );
   });
 });

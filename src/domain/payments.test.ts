@@ -164,7 +164,7 @@ describe("parsePayment", () => {
 
   it("reads the sheet: a payment on account, a comma in the amount, trimmed text", () => {
     const r = parsePayment(base, now);
-    expect(r).toEqual({ ok: true, value: { teamId: base.teamId, orderId: null, amount: 1250.5, paidAt: "2026-11-24", method: "transfer", reference: "12345", note: null } });
+    expect(r).toEqual({ ok: true, value: { teamId: base.teamId, orderId: null, amount: 1250.5, paidAt: "2026-11-24", method: "transfer", reference: "12345", note: null, morningDocNo: null } });
   });
 
   it("refuses a zero, negative or too precise amount", () => {
@@ -178,6 +178,12 @@ describe("parsePayment", () => {
     expect(parsePayment({ ...base, paidAt: "2026-12-30" }, now)).toEqual({ ok: false, error: "תאריך התשלום עוד לא הגיע" });
     expect(parsePayment({ ...base, method: "bitcoin" }, now)).toEqual({ ok: false, error: "בחרו אמצעי תשלום" });
     expect(parsePayment({ ...base, paidAt: "24/11/2026" }, now)).toEqual({ ok: false, error: "תאריך לא תקין" });
+  });
+
+  it("takes the Morning receipt number, digits only", () => {
+    const r = parsePayment({ ...base, morningDocNo: " 1023 " }, now);
+    expect(r.ok && r.value.morningDocNo).toBe("1023");
+    expect(parsePayment({ ...base, morningDocNo: "10a3" }, now)).toEqual({ ok: false, error: "מספר מסמך בחשבונית ירוקה הוא ספרות בלבד" });
   });
 
   it("takes an order id", () => {
@@ -203,13 +209,14 @@ describe("defaultAmount", () => {
 describe("paymentsCsv", () => {
   it("has the bookkeeper's columns, a BOM, quoted cells and voided rows marked", () => {
     const csv = paymentsCsv([
-      { paidAt: "2026-11-20", team: 'אורביט, "1690"', orderNumber: 1071, amountIls: "1250.5", method: "transfer", reference: "A1", documentNumber: null, note: null, voidedAt: null, voidReason: null },
-      { paidAt: "2026-11-21", team: "צעירים", orderNumber: null, amountIls: 100, method: "cheque", reference: null, documentNumber: null, note: "מקדמה", voidedAt: new Date(), voidReason: "נרשם פעמיים" },
+      { paidAt: "2026-11-20", team: 'אורביט, "1690"', orderNumber: 1071, amountIls: "1250.5", method: "transfer", reference: "A1", documentNumber: "1023", morningQuoteNo: "434", morningDealNo: "40100", note: null, voidedAt: null, voidReason: null },
+      { paidAt: "2026-11-21", team: "צעירים", orderNumber: null, amountIls: 100, method: "cheque", reference: null, documentNumber: null, morningQuoteNo: null, morningDealNo: null, note: "מקדמה", voidedAt: new Date(), voidReason: "נרשם פעמיים" },
     ]);
-    expect(csv.startsWith("﻿תאריך,קבוצה,הזמנה,סכום ₪,אמצעי תשלום,אסמכתא,מספר מסמך,הערה,בוטל,סיבת ביטול\r\n")).toBe(true);
-    expect(csv).toContain('2026-11-20,"אורביט, ""1690""",1071,1250.50,העברה בנקאית,A1,,,,\r\n');
-    expect(csv).toContain("2026-11-21,צעירים,,100.00,צ׳ק,,,מקדמה,כן,נרשם פעמיים\r\n");
+    expect(csv.startsWith("﻿תאריך,קבוצה,הזמנה,סכום ₪,אמצעי תשלום,אסמכתא,מס׳ חשבונית מס/קבלה,מס׳ הצעת מחיר,מס׳ חשבון עסקה,הערה,בוטל,סיבת ביטול\r\n")).toBe(true);
+    expect(csv).toContain('2026-11-20,"אורביט, ""1690""",1071,1250.50,העברה בנקאית,A1,1023,434,40100,,,\r\n');
+    expect(csv).toContain("2026-11-21,צעירים,,100.00,צ׳ק,,,,,מקדמה,כן,נרשם פעמיים\r\n");
   });
+
 });
 
 describe("deleteBlockedByPayments", () => {

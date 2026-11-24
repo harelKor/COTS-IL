@@ -97,6 +97,7 @@ export async function listPayments(filter: { orderId: string } | { teamId: strin
       paidAt: payments.paidAt,
       method: payments.method,
       reference: payments.reference,
+      morningDocNo: payments.morningDocNo,
       note: payments.note,
       createdAt: payments.createdAt,
       createdBy: sql<string>`coalesce(${profiles.fullName}, ${profiles.email})`,
@@ -170,6 +171,10 @@ export async function getPaymentsExport(period: { from?: string; to?: string }):
       amountIls: payments.amountIls,
       method: payments.method,
       reference: payments.reference,
+      morningDocNo: payments.morningDocNo,
+      // The order's Morning numbers, from the newest quote version that has each.
+      morningQuoteNo: sql<string | null>`(SELECT q.morning_quote_no FROM quotes q WHERE q.order_id = ${payments.orderId} AND q.morning_quote_no IS NOT NULL ORDER BY q.version DESC LIMIT 1)`,
+      morningDealNo: sql<string | null>`(SELECT q.morning_deal_no FROM quotes q WHERE q.order_id = ${payments.orderId} AND q.morning_deal_no IS NOT NULL ORDER BY q.version DESC LIMIT 1)`,
       note: payments.note,
       voidedAt: payments.voidedAt,
       voidReason: payments.voidReason,
@@ -191,8 +196,10 @@ export async function getPaymentsExport(period: { from?: string; to?: string }):
     amountIls: r.amountIls,
     method: r.method as PaymentMethod,
     reference: r.reference,
-    // P3 fills it from billing_documents.
-    documentNumber: null,
+    // Typed by hand from Morning; P3 fills it from billing_documents.
+    documentNumber: r.morningDocNo,
+    morningQuoteNo: r.morningQuoteNo,
+    morningDealNo: r.morningDealNo,
     note: r.note,
     voidedAt: r.voidedAt,
     voidReason: r.voidReason,

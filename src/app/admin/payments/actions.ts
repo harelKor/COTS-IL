@@ -1,9 +1,11 @@
 "use server";
 
 import { and, eq, isNull } from "drizzle-orm";
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/db";
 import type { ActionState } from "@/components/action-form";
+import { parseMorningNo } from "@/domain/morning-numbers";
 import { parsePayment, voidInput } from "@/domain/payments";
 import { formatIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
@@ -14,7 +16,7 @@ import { requireAdmin } from "@/lib/auth";
  * row under entity "payment" that outlives the order.
  */
 
-const { auditLog, payments, teamOrders, teams } = schema;
+const { auditLog, payments, quotes, teamOrders, teams } = schema;
 
 function refresh(orderId: string | null, teamId: string) {
   revalidatePath("/admin");
@@ -52,6 +54,7 @@ export async function recordPayment(_prev: ActionState, formData: FormData): Pro
         method: p.method,
         reference: p.reference,
         note: p.note,
+        morningDocNo: p.morningDocNo,
         createdBy: admin.id,
       })
       .returning();
@@ -60,7 +63,7 @@ export async function recordPayment(_prev: ActionState, formData: FormData): Pro
       entity: "payment",
       entityId: row.id,
       action: "record",
-      after: { orderId: row.orderId, teamId, amountIls: p.amount, paidAt: p.paidAt, method: p.method, reference: p.reference, note: p.note },
+      after: { orderId: row.orderId, teamId, amountIls: p.amount, paidAt: p.paidAt, method: p.method, reference: p.reference, note: p.note, morningDocNo: p.morningDocNo },
     });
     return { ok: `נרשם תשלום של ${formatIls(p.amount, { agorot: true })}`, teamId };
   });
@@ -95,4 +98,66 @@ export async function voidPayment(_prev: ActionState, formData: FormData): Promi
   if (!result) return { error: "התשלום כבר בוטל או לא נמצא" };
   refresh(result.orderId, result.teamId);
   return { ok: "התשלום בוטל" };
+}
+
+/**
+ * The חשבונית מס/קבלה number typed from Morning, set or corrected later: the one thing on a
+ * payment that may change (the DB trigger allows it).
+ */
+export async function setPaymentDocNo(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const paymentId = z.uuid().safeParse(formData.get("paymentId"));
+  if (!paymentId.success) return { error: "התשלום לא נמצא" };
+  const docNo = parseMorningNo(formData.get("morningDocNo"));
+  if (!docNo.ok) return { error: docNo.error };
+
+  const row = await db.transaction(async (tx) => {
+    const [before] = await tx.select().from(payments).where(eq(payments.id, paymentId.data)).for("update");
+    if (!before) return null;
+    if (before.morningDocNo === docNo.value) return before;
+    const [after] = await tx.update(payments).set({ morningDocNo: docNo.value }).where(eq(payments.id, before.id)).returning();
+    await tx.insert(auditLog).values({
+      actorId: admin.id,
+      entity: "payment",
+      entityId: before.id,
+      action: "morning_doc_no",
+      before: { orderId: before.orderId, morningDocNo: before.morningDocNo },
+      after: { orderId: before.orderId, morningDocNo: docNo.value },
+    });
+    return after;
+  });
+  if (!row) return { error: "התשלום לא נמצא" };
+  refresh(row.orderId, row.teamId);
+  return { ok: docNo.value ? "מספר החשבונית נשמר" : "מספר החשבונית נמחק" };
+}
+
+/** The order's הצעת מחיר and חשבון עסקה numbers from Morning, on one quote version. */
+export async function setQuoteMorningNumbers(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const admin = await requireAdmin();
+  const quoteId = z.uuid().safeParse(formData.get("quoteId"));
+  if (!quoteId.success) return { error: "ההצעה לא נמצאה" };
+  const quoteNo = parseMorningNo(formData.get("morningQuoteNo"));
+  if (!quoteNo.ok) return { error: quoteNo.error };
+  const dealNo = parseMorningNo(formData.get("morningDealNo"));
+  if (!dealNo.ok) return { error: dealNo.error };
+
+  const row = await db.transaction(async (tx) => {
+    const [before] = await tx.select().from(quotes).where(eq(quotes.id, quoteId.data)).for("update");
+    if (!before) return null;
+    if (before.morningQuoteNo === quoteNo.value && before.morningDealNo === dealNo.value) return before;
+    const [after] = await tx.update(quotes).set({ morningQuoteNo: quoteNo.value, morningDealNo: dealNo.value }).where(eq(quotes.id, before.id)).returning();
+    await tx.insert(auditLog).values({
+      actorId: admin.id,
+      entity: "quote",
+      entityId: before.id,
+      action: "morning_numbers",
+      before: { morningQuoteNo: before.morningQuoteNo, morningDealNo: before.morningDealNo },
+      after: { morningQuoteNo: quoteNo.value, morningDealNo: dealNo.value },
+    });
+    return after;
+  });
+  if (!row) return { error: "ההצעה לא נמצאה" };
+  const [order] = await db.select({ teamId: teamOrders.teamId }).from(teamOrders).where(eq(teamOrders.id, row.orderId));
+  refresh(row.orderId, order?.teamId ?? "");
+  return { ok: "המספרים נשמרו" };
 }

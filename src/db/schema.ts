@@ -487,6 +487,10 @@ export const quotes = pgTable(
      * Null on quotes sent before prices included VAT: they show no VAT line.
      */
     vatRate: numeric("vat_rate", { precision: 5, scale: 4 }),
+    /** The admin's הצעת מחיר number in Morning (חשבונית ירוקה), typed by hand: digits only, null until typed. */
+    morningQuoteNo: text("morning_quote_no"),
+    /** The חשבון עסקה number in Morning for this version, typed by hand. */
+    morningDealNo: text("morning_deal_no"),
     notes: text("notes"),
     rejectionReason: text("rejection_reason"),
     sentBy: uuid("sent_by")
@@ -538,6 +542,8 @@ export const payments = pgTable(
     note: text("note"),
     /** The Morning document for it (P3); null until then. */
     documentId: uuid("document_id"),
+    /** The חשבונית מס/קבלה number the admin issued in Morning by hand: digits only. The one field that may change later. */
+    morningDocNo: text("morning_doc_no"),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => profiles.id),
