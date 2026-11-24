@@ -9,6 +9,7 @@ import { validateRevision } from "@/domain/order-corrections";
 import { requireAdmin } from "@/lib/auth";
 import { emailEnabled, notifyLater, notifyQuoteReady } from "@/lib/notify";
 import { orderSupplierLock } from "@/lib/purchasing";
+import { quoteDocumentLater } from "@/lib/morning-documents";
 import { currentQuote, insertQuoteVersion } from "@/lib/quote-versions";
 
 const { auditLog, quotes, teamOrderItems, teamOrders } = schema;
@@ -17,6 +18,8 @@ export type QuoteFormState = {
   error?: string;
   lineErrors?: Record<string, string>;
   sent?: boolean;
+  /** The new version, for its הצעת מחיר in Morning. */
+  quoteId?: string;
   /** After a quote: whether the team is being emailed, so the editor says what was sent. */
   emailed?: boolean;
 };
@@ -60,7 +63,7 @@ export async function sendQuote(_prev: QuoteFormState, formData: FormData): Prom
     if (Object.keys(lineErrors).length > 0) return { error: "יש שורות שצריך לתקן", lineErrors };
     if (lines.every((l) => l.qty === 0)) return { error: "אי אפשר לשלוח הצעה בלי פריטים. אפשר לדחות את ההזמנה." };
 
-    await insertQuoteVersion(tx, {
+    const { quoteId } = await insertQuoteVersion(tx, {
       orderId,
       adminId: admin.id,
       orderStatus: order.status,
@@ -69,12 +72,14 @@ export async function sendQuote(_prev: QuoteFormState, formData: FormData): Prom
       lines,
       revision: !!lock,
     });
-    return { sent: true };
+    return { sent: true, quoteId };
   });
 
   if (result.sent) {
     const emailed = emailEnabled();
     if (emailed) notifyLater(() => notifyQuoteReady(orderId));
+    // P3: its הצעת מחיר in Morning, after the response (nothing happens without Morning keys).
+    if (result.quoteId) quoteDocumentLater(result.quoteId, admin.id);
     result.emailed = emailed;
     revalidatePath(`/admin/orders/${orderId}`);
     revalidatePath(`/orders/${orderId}`);

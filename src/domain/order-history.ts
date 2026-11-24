@@ -2,6 +2,7 @@ import { statusLabel, type OrderStatusKey } from "./order-status";
 import type { OrderStatus } from "./orders";
 import { documentsLine } from "./morning-numbers";
 import { METHOD_LABEL, type PaymentMethod } from "./payments";
+import { KIND_LABEL, type MorningKind } from "./morning";
 import { formatIls } from "./pricing";
 
 /**
@@ -118,6 +119,16 @@ export function describeHistory(entry: HistoryEntry): string | null {
   if (entry.entity === "quote") return quoteLine(entry.action, before, after);
   if (entry.entity === "delivery") return deliveryLine(entry.action, before, after);
   if (entry.entity === "payment") return paymentLine(entry.action, before, after);
+  if (entry.entity === "billing_document") return documentLine(entry.action, after);
+  return null;
+}
+
+/** P3: a Morning document issued or failed ("הפקת חשבון עסקה 40100 בחשבונית ירוקה"). */
+function documentLine(action: string, after: Obj): string | null {
+  const kind = str(after.kind);
+  const label = kind && kind in KIND_LABEL ? KIND_LABEL[kind as MorningKind] : "מסמך";
+  if (action === "issue") return `הפקת ${label}${str(after.number) ? ` ${str(after.number)}` : ""} בחשבונית ירוקה`;
+  if (action === "fail") return `הפקת ${label} בחשבונית ירוקה נכשלה${str(after.error) ? `: ${str(after.error)}` : ""}`;
   return null;
 }
 

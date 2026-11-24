@@ -58,7 +58,16 @@ export type HealthInput = {
   emails: { on: boolean; sent7d: number; failed7d: number; lastFailed: boolean };
   github: TokenStatus;
   admins: number;
+  /**
+   * P2: Morning (חשבונית ירוקה). Left out while it has no keys, so the list stays as it was;
+   * otherwise its setup and its latest call (job_runs, job "morning").
+   */
+  morning?: MorningHealth;
 };
+
+export type MorningHealth =
+  | { state: "invalid"; reason: string }
+  | { state: "on"; env: "sandbox" | "production"; lastRun: { ok: boolean; at: Date; error: string | null } | null };
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -89,6 +98,7 @@ export const HEALTH_LINKS = {
   email: "/admin/settings/system#email",
   github: "https://github.com/settings/personal-access-tokens",
   admins: "/admin/settings/admins",
+  morning: "/admin/settings/system#morning",
 } as const;
 
 const dateFmt = new Intl.DateTimeFormat("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric", year: "numeric" });
@@ -201,6 +211,16 @@ export function adminsCheck(count: number): HealthCheck {
   return { ...base, level: "ok", line: `${count} מנהלים` };
 }
 
+/** Red when the setup is broken or the latest call to Morning failed (a document didn't issue, the key was refused). */
+export function morningCheck(m: MorningHealth, now: Date): HealthCheck {
+  const base = { key: "morning", label: "חשבונית ירוקה", href: HEALTH_LINKS.morning };
+  if (m.state === "invalid") return { ...base, level: "red", line: `ההגדרה ב-Vercel לא שלמה: ${m.reason}` };
+  const env = m.env === "sandbox" ? " (חשבון בדיקה)" : "";
+  if (!m.lastRun) return { ...base, level: "yellow", line: `מחוברת${env}, עוד לא נבדקה. לחצו ״בדיקת חיבור״` };
+  if (!m.lastRun.ok) return { ...base, level: "red", line: `הפעולה האחרונה נכשלה ${ago(m.lastRun.at, now)}${env}`, ...(m.lastRun.error ? { detail: m.lastRun.error } : {}) };
+  return { ...base, level: "ok", line: `תקינה${env}, הפעולה האחרונה ${ago(m.lastRun.at, now)}` };
+}
+
 const RANK: Record<Level, number> = { red: 0, yellow: 1, ok: 2 };
 
 /** Every check, red first, then yellow, then ok; within a level, in the order below. */
@@ -213,6 +233,7 @@ export function healthChecks(input: HealthInput): HealthCheck[] {
     emailCheck(input.emails),
     githubCheck(input.github, now),
     adminsCheck(input.admins),
+    ...(input.morning ? [morningCheck(input.morning, now)] : []),
   ];
   return checks.map((c, i) => ({ c, i })).sort((a, b) => RANK[a.c.level] - RANK[b.c.level] || a.i - b.i).map(({ c }) => c);
 }

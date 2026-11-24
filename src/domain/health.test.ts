@@ -15,6 +15,7 @@ import {
   worstLevel,
   type HealthInput,
   type SupplierSync,
+  morningCheck,
 } from "./health";
 
 const now = new Date("2026-11-14T08:00:00Z");
@@ -223,5 +224,16 @@ describe("healthAlertEmail", () => {
     expect(email.html).toContain("A&#60;B&#62;");
     expect(email.html).toContain("https://cots-il.vercel.app/admin/settings/suppliers");
     expect(email.text).toContain("סנכרון A<B>");
+  });
+});
+
+describe("morningCheck (P2)", () => {
+  const now = new Date("2026-11-24T12:00:00Z");
+  it("is red for half a setup or a failed call, yellow before the first test, ok after a good call", () => {
+    expect(morningCheck({ state: "invalid", reason: "חסר MORNING_API_SECRET" }, now)).toMatchObject({ key: "morning", level: "red" });
+    expect(morningCheck({ state: "on", env: "sandbox", lastRun: null }, now).level).toBe("yellow");
+    const failed = morningCheck({ state: "on", env: "production", lastRun: { ok: false, at: now, error: "Invalid client credentials (401)" } }, now);
+    expect(failed).toMatchObject({ level: "red", detail: "Invalid client credentials (401)" });
+    expect(morningCheck({ state: "on", env: "production", lastRun: { ok: true, at: now, error: null } }, now).level).toBe("ok");
   });
 });

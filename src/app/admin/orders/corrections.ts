@@ -17,12 +17,14 @@ import {
   replacementNeedsApproval,
 } from "@/domain/order-corrections";
 import { deletePlan, deleteSnapshot } from "@/domain/order-delete";
+import { deleteBlockedByDocuments, moveBlockedByDocuments } from "@/domain/morning";
 import { deleteBlockedByPayments } from "@/domain/payments";
 import type { OrderStatus } from "@/domain/orders";
 import { priceIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
 import { emailEnabled, notifyLater, notifyQuoteReady } from "@/lib/notify";
 import { getCancelLines, getDeleteFacts, getOrderLinks } from "@/lib/order-corrections";
+import { orderDocuments, quoteDocumentLater, toIssuedDocs } from "@/lib/morning-documents";
 import { livePayments } from "@/lib/payments";
 import { currentQuote, insertQuoteVersion, type Tx } from "@/lib/quote-versions";
 import { priceContext } from "@/lib/settings";
@@ -247,6 +249,9 @@ export async function moveOrder(_prev: ActionState, formData: FormData): Promise
     const links = await getOrderLinks(tx, orderId);
     const blocked = moveBlocker({ fromTeamId: order.teamId, toTeamId: teamId, onDeliveryNotes: links.onDeliveryNotes });
     if (blocked) return { error: blocked };
+    // P3: documents in Morning are made out to the team's client, so the order stays with it.
+    const documented = moveBlockedByDocuments(await orderDocuments(orderId, tx));
+    if (documented) return { error: documented };
 
     await tx.update(teamOrders).set({ teamId }).where(eq(teamOrders.id, orderId));
     // Its payments (voided ones too) follow it, so the balances stay with the team that owes.
@@ -287,6 +292,9 @@ export async function deleteOrder(_prev: ActionState, formData: FormData): Promi
     // P1: a payment has accounting meaning, so an order with live payments is never deleted.
     const paid = deleteBlockedByPayments(await livePayments(order.id, tx));
     if (paid) return { error: paid };
+    // P3: nor while a tax document it issued has no full credit note.
+    const documented = deleteBlockedByDocuments(toIssuedDocs(await orderDocuments(order.id, tx)));
+    if (documented) return { error: documented };
     const [team] = await tx.select().from(teams).where(eq(teams.id, order.teamId));
     const items = await tx.select().from(teamOrderItems).where(eq(teamOrderItems.orderId, order.id));
     const quoteRows = await tx.select().from(quotes).where(eq(quotes.orderId, order.id));
@@ -498,7 +506,7 @@ export async function replaceItem(itemId: string, variantId: string): Promise<{ 
   if (!ids.success) return { error: "הבקשה לא תקינה" };
   const ctx = await priceContext();
 
-  const result = await db.transaction(async (tx): Promise<{ error: string } | { orderId: string; version?: number }> => {
+  const result = await db.transaction(async (tx): Promise<{ error: string } | { orderId: string; version?: number; quoteId?: string }> => {
     const [item] = await tx.select().from(teamOrderItems).where(eq(teamOrderItems.id, ids.data.itemId));
     if (!item) return { error: "השורה לא נמצאה" };
     const order = await lockOrder(tx, item.orderId);
@@ -554,10 +562,11 @@ export async function replaceItem(itemId: string, variantId: string): Promise<{ 
     const quote = await currentQuote(tx, order.id);
     const quotedPrice = quote?.lines.find((l) => l.itemId === item.id)?.unitPriceIls ?? null;
     let version: number | undefined;
+    let quoteId: string | undefined;
     if (quote && replacementNeedsApproval({ status: order.status, quotedPrice, newPrice })) {
       const label = (s: string | null, t: string) => s ?? t;
       const reason = `הפריט הוחלף: ${label(part.supplierSku, part.title)} במקום ${label(item.supplierSku, item.title)}`;
-      ({ version } = await insertQuoteVersion(tx, {
+      ({ version, quoteId } = await insertQuoteVersion(tx, {
         orderId: order.id,
         adminId: admin.id,
         orderStatus: order.status,
@@ -582,11 +591,12 @@ export async function replaceItem(itemId: string, variantId: string): Promise<{ 
       before: { item, releasedFromDrafts: released.allocations.length ? released : undefined },
       after: { item: { id: item.id, ...snapshot }, version },
     });
-    return { orderId: order.id, version };
+    return { orderId: order.id, version, quoteId };
   });
 
   if ("error" in result) return { error: result.error };
   if (result.version && emailEnabled()) notifyLater(() => notifyQuoteReady(result.orderId));
+  if (result.quoteId) quoteDocumentLater(result.quoteId, admin.id);
   refresh(result.orderId);
   return { version: result.version };
 }

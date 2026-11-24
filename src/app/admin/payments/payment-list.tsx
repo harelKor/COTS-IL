@@ -5,6 +5,7 @@ import { formatDay } from "@/domain/display";
 import { METHOD_LABEL, MONEY_ADMIN, type OrderMoney, type PaymentMethod } from "@/domain/payments";
 import { formatIls } from "@/domain/pricing";
 import type { PaymentRow } from "@/lib/payments";
+import { IssuePaymentDocument } from "../morning/morning-forms";
 import { PaymentDocNo, VoidPayment } from "./payment-forms";
 
 /** The order's money state as a small square tag; nothing while nothing is owed or paid. */
@@ -35,7 +36,7 @@ export function MoneyFacts({ money }: { money: OrderMoney }) {
 }
 
 /** Payments, newest first; a voided one stays, struck through, with its reason. */
-export function PaymentList({ rows, showOrder = false }: { rows: PaymentRow[]; showOrder?: boolean }) {
+export function PaymentList({ rows, showOrder = false, morningReceipt = false }: { rows: PaymentRow[]; showOrder?: boolean; morningReceipt?: boolean }) {
   if (rows.length === 0) return <p className="text-sm text-muted">עוד לא נרשמו תשלומים.</p>;
   return (
     <ul className="flex flex-col">
@@ -65,14 +66,22 @@ export function PaymentList({ rows, showOrder = false }: { rows: PaymentRow[]; s
               </span>
               {!p.voidedAt && <VoidPayment paymentId={p.id} label={label} />}
             </div>
-            {p.voidedAt ? (
+            {p.documentId && p.morningDocNo ? (
+              // Issued by the site in Morning (P3): the number is the document's, not edited here.
+              <span className="text-caption text-muted">
+                חשבונית מס/קבלה <Ltr>{p.morningDocNo}</Ltr> בחשבונית ירוקה
+              </span>
+            ) : p.voidedAt ? (
               p.morningDocNo && (
                 <span className="text-caption text-muted">
                   חשבונית מס/קבלה <Ltr>{p.morningDocNo}</Ltr>
                 </span>
               )
             ) : (
-              <PaymentDocNo paymentId={p.id} docNo={p.morningDocNo} />
+              <div className="flex flex-wrap items-center gap-2">
+                <PaymentDocNo paymentId={p.id} docNo={p.morningDocNo} />
+                {morningReceipt && !p.morningDocNo && p.method !== "other" && <IssuePaymentDocument paymentId={p.id} cheque={p.method === "cheque"} />}
+              </div>
             )}
             <span className="text-caption text-muted">
               נרשם על ידי <bdi>{p.createdBy}</bdi>

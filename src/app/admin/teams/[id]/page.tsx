@@ -23,6 +23,8 @@ import { getTeamBalance, listPayments } from "@/lib/payments";
 import { RecordPayment } from "../../payments/payment-forms";
 import { MoneyTag, PaymentList } from "../../payments/payment-list";
 import { reviewTeam } from "../../actions";
+import { TeamMorning } from "../../morning/team-morning";
+import { morningStepOn } from "@/lib/morning-documents";
 import {
   addTeamEmail,
   deleteTeam,
@@ -89,7 +91,7 @@ async function TeamPage({ params }: PageProps<"/admin/teams/[id]">) {
   const orders = await listOrders(team.id);
   const stages = await getOrderStages(orders);
   const [delivered] = await db.select({ n: count() }).from(deliveries).where(eq(deliveries.teamId, team.id));
-  const [money, payments] = await Promise.all([getTeamBalance(team.id), listPayments({ teamId: team.id })]);
+  const [money, payments, morningReceipt] = await Promise.all([getTeamBalance(team.id), listPayments({ teamId: team.id }), morningStepOn("invoice_receipt")]);
   const moneyByOrder = new Map(money.orders.map((o) => [o.orderId, o.money]));
   const otherTeams = await db
     .select({ id: teams.id, name: teams.name, program: teams.program, number: teams.number })
@@ -327,10 +329,12 @@ async function TeamPage({ params }: PageProps<"/admin/teams/[id]">) {
           אושר בהצעות {formatIls(money.balance.owed, { agorot: true })}, שולם {formatIls(money.balance.paid, { agorot: true })}
           {money.onAccount > 0 && <> (מתוכו {formatIls(money.onAccount, { agorot: true })} על חשבון)</>}.
         </p>
-        <RecordPayment teamId={team.id} orderId={null} left={0} today={israelToday()} title={`${team.name}, תשלום על חשבון (לא להזמנה אחת)`} />
+        <RecordPayment teamId={team.id} orderId={null} left={0} today={israelToday()} title={`${team.name}, תשלום על חשבון (לא להזמנה אחת)`} morningReceipt={morningReceipt} />
         <h3 className="text-callout font-semibold">היסטוריית תשלומים</h3>
-        <PaymentList rows={payments} showOrder />
+        <PaymentList rows={payments} showOrder morningReceipt={morningReceipt} />
       </Section>
+
+      <TeamMorning team={team} />
 
       <Section title="השהיה" hint="קבוצה מושהית לא שולחת בקשות ולא מאשרת הצעות, אבל רואה את ההזמנות שלה.">
         {team.status === "active" || team.status === "pending" ? (

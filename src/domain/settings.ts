@@ -153,10 +153,26 @@ export const contentSchema = z.object({
 });
 export type Content = z.infer<typeof contentSchema>;
 
+/**
+ * Morning (חשבונית ירוקה) steps (P3): which documents the site issues by itself. Each is on until
+ * the admin turns it off; none runs while Morning has no keys.
+ */
+export const morningStepsSchema = z.object({
+  /** Quote sent: הצעת מחיר (10). */
+  quote: z.boolean().default(true),
+  /** Quote approved: חשבון עסקה (300). */
+  deal: z.boolean().default(true),
+  /** Payment recorded: חשבונית מס/קבלה (320), the payment sheet's box ticked by default. */
+  receipt: z.boolean().default(true),
+  /** "הפקת זיכוי" (330) on the order card. */
+  credit: z.boolean().default(true),
+});
+
 export const settingsSchema = z.object({
   business: businessSchema.default(() => businessSchema.parse({})),
   pricing: pricingSettingsSchema.default(() => pricingSettingsSchema.parse({})),
   content: contentSchema.default(() => contentSchema.parse({})),
+  morning: morningStepsSchema.default(() => morningStepsSchema.parse({})),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 
@@ -171,10 +187,12 @@ export function parseSettings(data: unknown): Settings {
   const business = businessSchema.safeParse(raw.business ?? {});
   const pricing = pricingSettingsSchema.safeParse(raw.pricing ?? {});
   const content = contentSchema.safeParse(raw.content ?? {});
+  const morning = morningStepsSchema.safeParse(raw.morning ?? {});
   return {
     business: business.success ? business.data : DEFAULT_SETTINGS.business,
     pricing: pricing.success ? pricing.data : DEFAULT_SETTINGS.pricing,
     content: content.success ? content.data : DEFAULT_SETTINGS.content,
+    morning: morning.success ? morning.data : DEFAULT_SETTINGS.morning,
   };
 }
 

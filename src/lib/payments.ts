@@ -98,6 +98,8 @@ export async function listPayments(filter: { orderId: string } | { teamId: strin
       method: payments.method,
       reference: payments.reference,
       morningDocNo: payments.morningDocNo,
+      /** P3: the Morning document issued for it, when the site issued one. */
+      documentId: payments.documentId,
       note: payments.note,
       createdAt: payments.createdAt,
       createdBy: sql<string>`coalesce(${profiles.fullName}, ${profiles.email})`,

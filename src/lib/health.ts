@@ -14,8 +14,10 @@ import {
   type Job,
   type JobHistory,
   type SupplierSync,
+  type MorningHealth,
   type TokenStatus,
 } from "@/domain/health";
+import { morningSetup } from "@/domain/morning";
 import { emailConfig } from "@/domain/notifications";
 import { getSettings } from "@/lib/settings";
 import { GITHUB_REPO } from "@/lib/supplier-admin";
@@ -99,6 +101,21 @@ async function latestRate(): Promise<HealthInput["rate"]> {
   return { rateDate: String(date).slice(0, 10), manual: !!settings.pricing.rateOverride };
 }
 
+/** Morning's setup and its latest call; undefined while it has no keys (the check is left out). */
+async function morningHealth(): Promise<MorningHealth | undefined> {
+  const setup = morningSetup(process.env);
+  if (setup.state === "off") return undefined;
+  if (setup.state === "invalid") return { state: "invalid", reason: setup.reason };
+  const [last] = await db
+    .select({ ok: schema.jobRuns.ok, at: schema.jobRuns.at, detail: schema.jobRuns.detail })
+    .from(schema.jobRuns)
+    .where(sql`${schema.jobRuns.job} = 'morning'`)
+    .orderBy(sql`${schema.jobRuns.at} DESC`)
+    .limit(1);
+  const error = (last?.detail as { error?: unknown } | null)?.error;
+  return { state: "on", env: setup.config.env, lastRun: last ? { ok: last.ok, at: last.at, error: typeof error === "string" ? error : null } : null };
+}
+
 async function adminCount(): Promise<number> {
   const { rows } = await db.execute<{ n: number }>(sql`SELECT count(*)::int AS n FROM ${schema.profiles} WHERE is_admin`);
   return rows[0]?.n ?? 0;
@@ -147,16 +164,17 @@ async function githubToken(fresh: boolean): Promise<TokenStatus> {
 export type Health = { checks: HealthCheck[]; staleSuppliers: string[] };
 
 async function gather(fresh: boolean): Promise<Health> {
-  const [suppliers, rate, jobs, emails, github, admins] = await Promise.all([
+  const [suppliers, rate, jobs, emails, github, admins, morning] = await Promise.all([
     supplierSyncs(),
     latestRate(),
     jobHistories(),
     emailStats(),
     githubToken(fresh),
     adminCount(),
+    morningHealth(),
   ]);
   const now = new Date();
-  const input: HealthInput = { now, suppliers, rate, jobs, emails: { on: emailConfig(process.env) !== null, ...emails }, github, admins };
+  const input: HealthInput = { now, suppliers, rate, jobs, emails: { on: emailConfig(process.env) !== null, ...emails }, github, admins, morning };
   return { checks: healthChecks(input), staleSuppliers: staleSupplierCodes(suppliers, now) };
 }
 

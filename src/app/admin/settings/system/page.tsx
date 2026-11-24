@@ -15,6 +15,7 @@ import { getHealth } from "@/lib/health";
 import { priceContext } from "@/lib/settings";
 import { syncUnavailableReason } from "@/lib/supplier-admin";
 import { HealthList } from "../../health-list";
+import { MorningCard } from "../../morning/morning-card";
 import { TestEmailButton } from "./test-email";
 
 export const metadata: Metadata = { title: "הגדרות: מערכת" };
@@ -117,6 +118,8 @@ async function System() {
           {github && <p className="text-caption text-muted">{github}</p>}
           <TestEmailButton unavailable={emailReason} />
         </Card>
+
+        <MorningCard />
 
         <Card className="flex flex-col gap-2">
           <h2 className="text-section font-semibold">הפריסה האחרונה</h2>

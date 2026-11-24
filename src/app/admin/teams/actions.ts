@@ -316,7 +316,22 @@ export async function mergeTeams(_prev: ActionState, formData: FormData): Promis
       orders: (await tx.update(teamOrders).set({ teamId: into }).where(eq(teamOrders.teamId, from)).returning({ id: teamOrders.id })).length,
       deliveries: (await tx.update(deliveries).set({ teamId: into }).where(eq(deliveries.teamId, from)).returning({ id: deliveries.id })).length,
       payments: (await tx.update(schema.payments).set({ teamId: into }).where(eq(schema.payments.teamId, from)).returning({ id: schema.payments.id })).length,
+      // P3: Morning documents follow too (the merged team is the same client).
+      documents: (await tx.update(schema.billingDocuments).set({ teamId: into }).where(eq(schema.billingDocuments.teamId, from)).returning({ id: schema.billingDocuments.id })).length,
     };
+    // The Morning client and billing details the kept team lacks come from the merged one.
+    if (!target.morningClientId && source.morningClientId) {
+      await tx
+        .update(teams)
+        .set({
+          morningClientId: source.morningClientId,
+          billingName: target.billingName ?? source.billingName,
+          billingTaxId: target.billingTaxId ?? source.billingTaxId,
+          billingEmail: target.billingEmail ?? source.billingEmail,
+          billingAddress: target.billingAddress ?? source.billingAddress,
+        })
+        .where(eq(teams.id, into));
+    }
     await tx.update(teamInvitations).set({ teamId: into }).where(eq(teamInvitations.teamId, from));
     // A join request for the other team from someone already on it, or already asking it, isn't moved.
     await tx.execute(sql`

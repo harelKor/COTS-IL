@@ -32,6 +32,9 @@ import { getOrderHistory, getOrderLinks, getSurplus, listTeamsForMove, previewCa
 import { createShipment } from "./logistics/actions";
 import { deleteBlockedByPayments, israelToday } from "@/domain/payments";
 import { getOrderMoney, listPayments } from "@/lib/payments";
+import { deleteBlockedByDocuments } from "@/domain/morning";
+import { morningStepOn, orderDocuments, toIssuedDocs } from "@/lib/morning-documents";
+import { OrderDocuments } from "./morning/order-documents";
 import { QuoteMorningNumbers, RecordPayment } from "./payments/payment-forms";
 import { MoneyFacts, MoneyTag, PaymentList } from "./payments/payment-list";
 import { addLinesToDraft, sendDraft, sendVendorBatch } from "./purchasing/actions";
@@ -622,7 +625,7 @@ function LineAvailability({ detail }: { detail: Detail }) {
  */
 async function Payment({ detail }: { detail: Detail }) {
   const orderId = detail.order.id;
-  const [row, payments] = await Promise.all([getOrderMoney(orderId), listPayments({ orderId })]);
+  const [row, payments, morningReceipt] = await Promise.all([getOrderMoney(orderId), listPayments({ orderId }), morningStepOn("invoice_receipt")]);
   if (!row || (row.approvedTotal === null && payments.length === 0)) return null;
   const { money } = row;
   return (
@@ -632,8 +635,8 @@ async function Payment({ detail }: { detail: Detail }) {
         {money.state === "none" && <span className="text-sm text-muted">אין סכום לתשלום</span>}
       </div>
       <MoneyFacts money={money} />
-      <RecordPayment teamId={detail.team.id} orderId={orderId} left={money.left} today={israelToday()} title={`הזמנה ${detail.order.number}`} />
-      <PaymentList rows={payments} />
+      <RecordPayment teamId={detail.team.id} orderId={orderId} left={money.left} today={israelToday()} title={`הזמנה ${detail.order.number}`} morningReceipt={morningReceipt} />
+      <PaymentList rows={payments} morningReceipt={morningReceipt} />
     </Section>
   );
 }
@@ -673,13 +676,14 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
   if (!detail) return <Alert>ההזמנה לא נמצאה.</Alert>;
   const stored = detail.order.status;
   const finished = stored === "rejected" || stored === "cancelled";
-  const [lock, links, cancel, teams, deleteWarnings, live] = await Promise.all([
+  const [lock, links, cancel, teams, deleteWarnings, live, documents] = await Promise.all([
     orderSupplierLock(db, orderId),
     getOrderLinks(db, orderId),
     canAdminCancel(stored) ? previewCancel(orderId) : null,
     listTeamsForMove(),
     previewDelete(orderId),
     listPayments({ orderId }),
+    orderDocuments(orderId),
   ]);
 
   return (
@@ -698,7 +702,7 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
             teams={links.onDeliveryNotes === 0 ? teams.filter((t) => t.id !== detail.team.id) : []}
             orderNumber={detail.order.number}
             deleteWarnings={deleteWarnings}
-            deleteBlocked={deleteBlockedByPayments(live)}
+            deleteBlocked={deleteBlockedByPayments(live) ?? deleteBlockedByDocuments(toIssuedDocs(documents))}
           />
         </div>
       </Section>
@@ -715,6 +719,7 @@ export async function OrderPanel({ orderId, status, edit }: { orderId: string; s
       )}
       {status === "quote_sent" && <Links orderId={orderId} />}
       <Payment detail={detail} />
+      <OrderDocuments orderId={orderId} quotes={detail.quotes} />
       {stored === "approved" && <Logistics detail={detail} status={status} />}
       {(isFinished(status) || finished) && <Summary detail={detail} />}
       <History orderId={orderId} />

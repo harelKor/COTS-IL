@@ -9,6 +9,7 @@ import { canCancelOrder, canDecideQuote, quoteContentHash, teamCanOrder } from "
 import { readQuoteLinkToken, readSignedQuoteLinkToken } from "@/domain/quote-link";
 import { UNDO_SECONDS } from "@/domain/quote-view";
 import { getViewer } from "@/lib/auth";
+import { dealDocumentLater } from "@/lib/morning-documents";
 import { notifyAfterUndo, notifyDecision, notifyLater, notifyLinkRequested } from "@/lib/notify";
 import { orderSupplierLock } from "@/lib/purchasing";
 
@@ -109,6 +110,8 @@ export async function decideQuote(input: z.input<typeof decisionSchema>): Promis
       async () => (await db.select({ status: quotes.status }).from(quotes).where(eq(quotes.id, quoteId)))[0]?.status === status,
       () => notifyDecision(orderId, decision === "approve" ? "quote_approved" : "quote_rejected", reason || null),
     );
+    // P3: the חשבון עסקה in Morning once the undo window closes and the approval stands.
+    if (decision === "approve") dealDocumentLater(quoteId, actor.userId);
   }
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/orders");

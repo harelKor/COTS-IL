@@ -8,7 +8,9 @@ import { Button, Field, Input } from "@/components/form";
 import { Ltr } from "@/components/ltr";
 import { getViewer, orderingTeam } from "@/lib/auth";
 import { EMAIL_GROUP_LABELS, EMAIL_GROUPS } from "@/domain/notifications";
-import { decideJoinRequest, revokeInvitation, setEmailPreferences, updateTeamDetails } from "./actions";
+import { decideJoinRequest, revokeInvitation, setEmailPreferences, updateBilling, updateTeamDetails } from "./actions";
+import { BillingForm } from "@/components/billing-form";
+import { morningConfig } from "@/lib/morning";
 import { InviteForm, RemoveMember } from "./invite-form";
 import { Loading, PageSkeleton } from "@/components/skeleton";
 
@@ -111,6 +113,19 @@ async function Team() {
           שמירה
         </Button>
       </ActionForm>
+
+      {morningConfig() && (
+        // P2: only while the site issues documents in Morning by itself.
+        <section className="flex flex-col gap-3 card-surface p-4" aria-labelledby="billing-title">
+          <div className="flex flex-col gap-1">
+            <h2 id="billing-title" className="font-semibold">
+              פרטי חיוב
+            </h2>
+            <p className="text-caption text-muted">על שם מי יוצאות החשבוניות: בית הספר, העמותה או הקבוצה. שדה ריק: פרטי הקבוצה שלמעלה.</p>
+          </div>
+          <BillingForm action={updateBilling} values={details} placeholders={{ name: details.name, email: details.contactEmail ?? "" }} />
+        </section>
+      )}
 
       <section className="flex flex-col gap-3 card-surface p-4">
         <h2 className="font-semibold">כתובות כניסה</h2>

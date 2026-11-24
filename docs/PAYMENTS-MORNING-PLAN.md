@@ -69,6 +69,39 @@ It works without Morning too. Phase P1 alone (recording payments by hand) is use
 - **Audit:** every record or void writes an `audit_log` row.
 - **Order delete (Nov 17):** if an order has payments that aren't voided, the confirm says so, and deleting is blocked until they are voided. Once P3 exists, it is also blocked when an issued document exists; see "Credit notes".
 
+### P2 and P3: built (Nov 24, 2026)
+
+Built against the Morning **sandbox**. Production has no Morning keys: the owner's Basic plan refuses API keys ("Product is not included in your subscription"), so every Morning control stays hidden there and nothing changes until the keys are added.
+
+What exists:
+- **Config** (`morningSetup` in `src/domain/morning.ts`): `MORNING_API_ID`, `MORNING_API_SECRET`, `MORNING_ENV` (`sandbox` | `production`). No keys at all means off: no card, no health row, no buttons, no billing form. Half a setup is "invalid" (a red health row, the card says what is missing).
+- **Client** (`src/lib/morning.ts`): a token cached per process and fetched again on a 401, 15 s timeouts, reads retried on 5xx/429/network with backoff (0.5 s, 1.5 s), `job_runs` rows under job `morning` for each issue and connection test.
+- **Payloads** (`src/domain/morning.ts`, tested): built from the quote snapshot (lines with quantity, then shipping) or the payment as recorded; every income row is `vatType: 1` (the price includes VAT, D1), the document `vatType: 0`.
+- **`billing_documents`** (migration `20261124145811_morning_documents`): pending row first, its reference (`BH-` + 12 hex of the row id) in `remarks`; a retry or a timeout looks the reference up with `POST /documents/search` before sending again; a claim (`attempt_at`, 2 minutes) keeps two attempts apart. A trigger refuses deleting a pending or issued row and editing an issued one (its order and quote may go null when an order is deleted; its team follows a team merge). Unique: one הצעת מחיר and one חשבון עסקה per quote version, one חשבונית מס/קבלה per payment.
+- **Steps** (`settings.morning`, each on by default, switched on the system page's "חשבונית ירוקה" card):
+  - quote sent (`sendQuote`, and a replaced part's new version) → הצעת מחיר (10), after the response;
+  - quote approved → חשבון עסקה (300), once the team's 30-second undo window closes and the approval stands;
+  - "רישום תשלום" with the box "הפקת חשבונית מס/קבלה בחשבונית ירוקה" (ticked) → 320 in the same action, linked to the order's 300 (repeats its lines when the payment is the whole deal, else one line "תשלום עבור הזמנה N"); a cheque asks for bank, branch and account (Morning refuses a cheque without them); "אחר" has no Morning type and is left to the admin;
+  - "הפקת זיכוי" on an issued 320 → 330 for all or part of what is left, with a reason; `linkType: "cancel"` when it credits the whole document.
+- **Numbers on both paths:** an issued document fills `quotes.morning_quote_no` / `morning_deal_no` and `payments.morning_doc_no` (+ `document_id`) when they are empty. A number typed by hand means the step is skipped (it was issued in Morning already).
+- **Order card:** "מסמכים" with each document, its PDF, "ניסיון חוזר" on a failed or stuck one, "הפקת זיכוי", and "הפקת הצעת מחיר" / "הפקת חשבון עסקה" when a step was off or failed; "הפקת חשבונית מס/קבלה" on a payment without one.
+- **Guards:** an order isn't deleted while a document is pending or a 320 has no full credit note (`deleteBlockedByDocuments`); an order with documents doesn't move to another team.
+- **Teams:** `billing_name`, `billing_tax_id`, `billing_email`, `billing_address`, `morning_client_id`. "פרטי חיוב" on `/team` and on the admin's team page (shown only while Morning is on). Linking (D4): the team page lists Morning clients that may be the team (same tax id, same email, or a name sharing most words: `clientSuggestions`) with "קישור", or "יצירת לקוח חדש". A document for an unlinked team creates a client only when Morning has no similar one; otherwise it fails with "מקשרים את הקבוצה ללקוח בדף הקבוצה, ואז ״ניסיון חוזר״".
+- **Team:** `/orders/<id>` lists the issued documents with "PDF" (and "English" when there is one) through `/orders/<id>/documents/<docId>`, which checks the viewer is on the team and asks Morning for a fresh link.
+- **Health:** a "חשבונית ירוקה" row (red: half a setup or the last call failed; yellow: never tested; ok), only while there are keys.
+
+Confirmed on the sandbox (Nov 24, 2026; Morning's OpenAPI file is at `https://developers.morning.co/docs/openapi.bundled.json`):
+- **Token:** `POST https://api.sandbox.morning.dev/idp/v1/oauth/token` (sandbox; `api.sandbox.d.greeninvoice.co.il/idp/v1/oauth/token` answers too) and `https://api.morning.co/idp/v1/oauth/token` (production, per the OpenAPI file; it answers `invalid_client` without keys). JSON `{grant_type: "client_credentials", client_id, client_secret}`; the reply has `accessToken`/`access_token` and `expires_in` 3600.
+- **API base:** `https://sandbox.d.greeninvoice.co.il/api/v1` and `https://api.greeninvoice.co.il/api/v1`. Both hosts live in `MORNING_HOSTS`.
+- **`POST /documents`:** required `type`, `lang`, `currency`, `vatType`, `income[]` (each `description`, `quantity`, `price`, `currency`, `vatType`); optional `client` (`{id}` for an existing client, or `name`, `emails`, `taxId`, `address`, `add`), `payment[]` (`date`, `type`, `price`, `currency`, plus `transactionId`, or `chequeNum`/`bankName`/`bankBranch`/`bankAccount` for a cheque), `linkedDocumentIds`, `linkType` (`link` | `cancel`), `description`, `remarks`. Reply 201: `{id, number, url: {he, en, origin}, …}`.
+- **VAT-inclusive:** income `vatType` 0 = add VAT by business type, 1 = included in the price, 2 = exempt. The document `vatType` 0 = by business type.
+- **Linking a receipt:** `linkedDocumentIds: [<300's id>]` on the 320 closes the חשבון עסקה. A 330 names the 320 it credits.
+- **PDFs:** the create reply's `url`, or `GET /documents/{id}/download/links` → `{he, en, origin}`.
+- **No-cost checks:** `POST /documents/preview` takes the same body and returns `{file: <base64 PDF>}` without issuing or counting.
+- **Payment types:** 1 cash, 2 cheque, 3 card, 4 bank transfer, 11 other (needs a `subType` none of ours fits).
+- **Errors:** `{errorCode, errorMessage}` in Hebrew (e.g. 2403 "סוג מסמך לא נשלח או אינו נתמך עבור סוג עסק זה", 2443 "נא למלא את פרטי הצ׳ק בשורת התקבול").
+- **The sandbox business "test" was created as עוסק פטור** (`exemption: true`): 0% VAT, and 320/330 are refused for that business type. See "Sandbox run" below.
+
 ### P2: Connecting Morning, size S–M
 
 - **Keys:**

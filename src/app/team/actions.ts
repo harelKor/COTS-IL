@@ -4,6 +4,7 @@ import { and, desc, eq, gte, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { parseBilling } from "@/domain/morning";
 import { db, schema } from "@/db";
 import type { ActionState } from "@/components/action-form";
 import { emailOffFromForm } from "@/domain/notifications";
@@ -216,6 +217,30 @@ export async function updateTeamDetails(_prev: ActionState, formData: FormData):
 
   revalidatePath("/team");
   return { ok: "הפרטים נשמרו" };
+}
+
+/**
+ * "פרטי חיוב" (P2): who the team's documents in Morning are made out to (its school or
+ * non-profit). Shown only while Morning is connected; empty fields use the team's own details.
+ */
+export async function updateBilling(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { viewer, team } = await requireTeamMember();
+  const parsed = parseBilling(Object.fromEntries(formData));
+  if (!parsed.ok) return { error: parsed.error };
+  await db.transaction(async (tx) => {
+    const [before] = await tx.select().from(teams).where(eq(teams.id, team.id)).for("update");
+    await tx.update(teams).set(parsed.value).where(eq(teams.id, team.id));
+    await tx.insert(auditLog).values({
+      actorId: viewer.id,
+      entity: "team",
+      entityId: team.id,
+      action: "update_billing",
+      before: { billingName: before.billingName, billingTaxId: before.billingTaxId, billingEmail: before.billingEmail, billingAddress: before.billingAddress },
+      after: parsed.value,
+    });
+  });
+  revalidatePath("/team");
+  return { ok: "פרטי החיוב נשמרו" };
 }
 
 /**

@@ -5,10 +5,12 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/db";
 import type { ActionState } from "@/components/action-form";
+import { parseCheque } from "@/domain/morning";
 import { parseMorningNo } from "@/domain/morning-numbers";
 import { parsePayment, voidInput } from "@/domain/payments";
 import { formatIls } from "@/domain/pricing";
 import { requireAdmin } from "@/lib/auth";
+import { issueDocument, issueResultText, morningStepOn, prepareReceipt } from "@/lib/morning-documents";
 
 /**
  * P1: the admin records what a team paid, or voids a payment recorded by mistake. Payments
@@ -32,8 +34,12 @@ export async function recordPayment(_prev: ActionState, formData: FormData): Pro
   const parsed = parsePayment(Object.fromEntries(formData));
   if (!parsed.ok) return { error: parsed.error };
   const p = parsed.value;
+  // P3: "הפקת חשבונית מס/קבלה בחשבונית ירוקה", ticked by default while Morning is on. A number
+  // typed by hand means it was issued there already.
+  const issue = formData.get("issueDocument") === "on" && !p.morningDocNo && (await morningStepOn("invoice_receipt"));
+  const cheque = parseCheque({ bankName: formData.get("bankName"), bankBranch: formData.get("bankBranch"), bankAccount: formData.get("bankAccount") });
 
-  const result = await db.transaction(async (tx): Promise<ActionState & { teamId?: string }> => {
+  const result = await db.transaction(async (tx): Promise<ActionState & { teamId?: string; documentId?: string; documentError?: string }> => {
     let teamId = p.teamId;
     if (p.orderId) {
       // The order's row lock keeps a delete from racing the payment.
@@ -65,10 +71,32 @@ export async function recordPayment(_prev: ActionState, formData: FormData): Pro
       action: "record",
       after: { orderId: row.orderId, teamId, amountIls: p.amount, paidAt: p.paidAt, method: p.method, reference: p.reference, note: p.note, morningDocNo: p.morningDocNo },
     });
-    return { ok: `נרשם תשלום של ${formatIls(p.amount, { agorot: true })}`, teamId };
+    let documentId: string | undefined;
+    let documentError: string | undefined;
+    if (issue) {
+      const prepared = await prepareReceipt(tx, {
+        paymentId: row.id,
+        orderId: row.orderId,
+        teamId,
+        amount: p.amount,
+        paidAt: p.paidAt,
+        method: p.method,
+        reference: p.reference,
+        cheque,
+        actorId: admin.id,
+      });
+      if (prepared.ok) documentId = prepared.id;
+      else documentError = prepared.error;
+    }
+    return { ok: `נרשם תשלום של ${formatIls(p.amount, { agorot: true })}`, teamId, documentId, documentError };
   });
-  if (result.teamId) refresh(p.orderId, result.teamId);
-  return { error: result.error, ok: result.ok };
+  if (!result.teamId) return { error: result.error };
+  // The payment is recorded either way; the document is issued after the commit, and the toast says how it went.
+  let ok = result.ok;
+  if (result.documentId) ok = `${ok}. ${issueResultText(await issueDocument(result.documentId))}`;
+  else if (result.documentError) ok = `${ok}. בלי חשבונית: ${result.documentError}`;
+  refresh(p.orderId, result.teamId);
+  return { ok };
 }
 
 /** Voids a payment with a reason. It stays on record, marked, and stops counting. */

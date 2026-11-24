@@ -7,6 +7,8 @@ import { Alert, StatusTag } from "@/components/form";
 import { PaymentTerms } from "@/components/payment-terms";
 import { teamMoneyLabel } from "@/domain/payments";
 import { getOrderMoney, listPayments } from "@/lib/payments";
+import { teamDocuments } from "@/lib/morning-documents";
+import { formatDay } from "@/domain/display";
 import { documentsLine, morningQuoteNumbers } from "@/domain/morning-numbers";
 import { formatDateTime, QuoteTable, RequestTable } from "@/components/orders";
 import { QuoteDecision } from "@/components/quote-decision";
@@ -104,7 +106,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
   const stoppedAt = latest ? "quote_sent" : "awaiting_quote";
   const waitingForDecision = latest?.status === "sent" && canDecideQuote(order.status);
   const pickup = order.deliveryMethod === "pickup";
-  const [dates, decided, cancelled, changeRequest, lock, pay, paymentRows] = await Promise.all([
+  const [dates, decided, cancelled, changeRequest, lock, pay, paymentRows, issuedDocs] = await Promise.all([
     getStepDates(order.id, order.submittedAt),
     recentDecision("quote", latest?.id),
     recentDecision("team_order", order.id),
@@ -113,6 +115,7 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
     canCancelOrder(order.status) ? orderSupplierLock(db, order.id) : null,
     getOrderMoney(order.id),
     listPayments({ orderId: order.id }),
+    teamDocuments(order.id),
   ]);
   // Morning document numbers the admin typed in (no links: the owner's Morning plan has no API).
   const documents = documentsLine({ ...morningQuoteNumbers(quotes), receipts: paymentRows.filter((p) => !p.voidedAt).map((p) => p.morningDocNo) });
@@ -215,7 +218,35 @@ async function Order({ params }: PageProps<"/orders/[id]">) {
         </section>
       )}
 
-      {documents && (
+      {issuedDocs.length > 0 ? (
+        // P3: documents the site issued in Morning, each with its PDF.
+        <section className="flex flex-col gap-2 card-surface p-4 text-sm" aria-labelledby="documents-title">
+          <h2 id="documents-title" className="font-semibold">
+            מסמכים
+          </h2>
+          <ul className="flex flex-col">
+            {issuedDocs.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-1 first:border-t-0">
+                <span className="flex flex-wrap items-center gap-x-2">
+                  <span className="font-medium">{d.label}</span>
+                  {d.issuedAt && <bdi className="text-muted">{formatDay(d.issuedAt)}</bdi>}
+                  <span className="tabular-nums">{d.money}</span>
+                </span>
+                <span className="flex items-center gap-3 print:hidden">
+                  <a href={`/orders/${order.id}/documents/${d.id}`} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center text-brand hover:underline">
+                    PDF
+                  </a>
+                  {d.pdfUrlEn && (
+                    <a href={`/orders/${order.id}/documents/${d.id}?lang=en`} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center text-brand hover:underline">
+                      English
+                    </a>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : documents && (
         <p className="card-surface px-4 py-3 text-callout">
           <span className="text-muted">מסמכים: </span>
           {documents}

@@ -13,6 +13,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { authUsers } from "drizzle-orm/supabase";
@@ -38,6 +39,10 @@ export const pricingScope = pgEnum("pricing_scope", ["supplier", "category"]);
 export const deliveryStatus = pgEnum("delivery_status", ["prepared", "delivered"]);
 /** How a team paid (P1): bank transfer, card, cheque (a school's), cash, or anything else. */
 export const paymentMethod = pgEnum("payment_method", ["transfer", "card", "cheque", "cash", "other"]);
+/** Morning documents (P3): הצעת מחיר (10), חשבון עסקה (300), חשבונית מס/קבלה (320), חשבונית זיכוי (330). */
+export const billingDocumentKind = pgEnum("billing_document_kind", ["quote", "deal", "invoice_receipt", "credit"]);
+/** A row is written pending before Morning is called, then issued, or failed (and retried as the same row). */
+export const billingDocumentStatus = pgEnum("billing_document_status", ["pending", "issued", "failed"]);
 /** Where a product comes from: a store's sync, or the admin's "הוספת חלק" (S16c), which the sync never touches. */
 export const productSource = pgEnum("product_source", ["synced", "custom"]);
 
@@ -70,6 +75,17 @@ export const teams = pgTable(
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     reviewedBy: uuid("reviewed_by").references(() => profiles.id),
     rejectionReason: text("rejection_reason"),
+    /**
+     * Billing details for Morning documents (P2): who the invoice is made out to (the team, its
+     * school or its non-profit). Empty fields fall back to the team's name, contact email and address.
+     */
+    billingName: text("billing_name"),
+    /** ח.פ., עמותה or school number. */
+    billingTaxId: text("billing_tax_id"),
+    billingEmail: text("billing_email"),
+    billingAddress: text("billing_address"),
+    /** The team's client in Morning (D4): linked by the admin, or created on the first document. */
+    morningClientId: text("morning_client_id"),
     createdAt,
   },
   (t) => [unique("teams_program_number_key").on(t.program, t.number)],
@@ -541,7 +557,7 @@ export const payments = pgTable(
     reference: text("reference"),
     note: text("note"),
     /** The Morning document for it (P3); null until then. */
-    documentId: uuid("document_id"),
+    documentId: uuid("document_id").references((): AnyPgColumn => billingDocuments.id),
     /** The חשבונית מס/קבלה number the admin issued in Morning by hand: digits only. The one field that may change later. */
     morningDocNo: text("morning_doc_no"),
     createdBy: uuid("created_by")
@@ -553,6 +569,60 @@ export const payments = pgTable(
     voidReason: text("void_reason"),
   },
   (t) => [index("payments_order_id_idx").on(t.orderId), index("payments_team_id_idx").on(t.teamId)],
+);
+
+/**
+ * Documents issued in Morning (P3, docs/PAYMENTS-MORNING-PLAN.md). Exactly once: the row is
+ * written pending before the call, its reference (docRef(id)) goes into the document's remarks,
+ * and a retry first looks that reference up in Morning. An issued row is never deleted or
+ * changed (a trigger); a mistake is credited (kind credit, credits_id). Rows outlive their
+ * order: order_id and quote_id go null when an order is deleted, order_number stays.
+ */
+export const billingDocuments = pgTable(
+  "billing_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id").references(() => teamOrders.id, { onDelete: "set null" }),
+    orderNumber: integer("order_number"),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id),
+    /** The quote version a הצעת מחיר or חשבון עסקה was made from. */
+    quoteId: uuid("quote_id").references(() => quotes.id, { onDelete: "set null" }),
+    /** The payment a חשבונית מס/קבלה is for. */
+    paymentId: uuid("payment_id").references(() => payments.id),
+    /** The document a credit note credits. */
+    creditsId: uuid("credits_id").references((): AnyPgColumn => billingDocuments.id),
+    kind: billingDocumentKind("kind").notNull(),
+    status: billingDocumentStatus("status").notNull().default("pending"),
+    /** "sandbox" or "production": the Morning account it went to. */
+    env: text("env").notNull(),
+    /** What is sent (src/domain/morning.ts), fixed when the row is written; the client is added at each attempt. */
+    payload: jsonb("payload").notNull(),
+    amountIls: numeric("amount_ils", { precision: 12, scale: 2 }).notNull(),
+    morningId: text("morning_id"),
+    number: text("number"),
+    issuedAt: timestamp("issued_at", { withTimezone: true }),
+    pdfUrlHe: text("pdf_url_he"),
+    pdfUrlEn: text("pdf_url_en"),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    /** When the current attempt started: a second attempt waits until it is old (a claim, not a lock). */
+    attemptAt: timestamp("attempt_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt,
+  },
+  (t) => [
+    index("billing_documents_order_id_idx").on(t.orderId),
+    index("billing_documents_team_id_idx").on(t.teamId),
+    // One הצעת מחיר and one חשבון עסקה per quote version, one חשבונית מס/קבלה per payment.
+    uniqueIndex("billing_documents_quote_kind_key")
+      .on(t.quoteId, t.kind)
+      .where(sql`${t.kind} IN ('quote', 'deal')`),
+    uniqueIndex("billing_documents_payment_key")
+      .on(t.paymentId)
+      .where(sql`${t.kind} = 'invoice_receipt'`),
+  ],
 );
 
 /** Proof of what was approved: who, when, and a hash of the quote's content. */

@@ -21,6 +21,7 @@ export function RecordPayment({
   today,
   title,
   primary = false,
+  morningReceipt = false,
 }: {
   teamId: string;
   /** Null for a payment on account. */
@@ -32,11 +33,15 @@ export function RecordPayment({
   title: string;
   /** The card's main button while the order is unpaid. */
   primary?: boolean;
+  /** P3: Morning is connected and its receipt step is on, so the sheet offers to issue the חשבונית מס/קבלה. */
+  morningReceipt?: boolean;
 }) {
   const router = useRouter();
   const dialog = useRef<HTMLDialogElement>(null);
   // A new key per opening resets the fields to what is left now.
   const [opening, setOpening] = useState(0);
+  const [method, setMethod] = useState("transfer");
+  const [issue, setIssue] = useState(true);
   const [state, action, pending] = useActionState(async (prev: ActionState, data: FormData) => {
     const result = await recordPayment(prev, data);
     if (result.ok) {
@@ -55,6 +60,8 @@ export function RecordPayment({
         className="self-start"
         onClick={() => {
           setOpening((n) => n + 1);
+          setMethod("transfer");
+          setIssue(true);
           dialog.current?.showModal();
         }}
       >
@@ -87,7 +94,7 @@ export function RecordPayment({
               <Input id={`paidAt-${opening}`} name="paidAt" type="date" lang="he-IL" required defaultValue={today} />
             </Field>
             <Field label="אמצעי תשלום" name={`method-${opening}`}>
-              <Select id={`method-${opening}`} name="method" defaultValue="transfer">
+              <Select id={`method-${opening}`} name="method" defaultValue="transfer" onChange={(e) => setMethod(e.target.value)}>
                 {PAYMENT_METHODS.map((m) => (
                   <option key={m} value={m}>
                     {METHOD_LABEL[m]}
@@ -100,10 +107,34 @@ export function RecordPayment({
             <Field label="אסמכתא" name={`reference-${opening}`} hint="מספר העברה בבנק או מספר צ׳ק, לא חובה">
               <Input id={`reference-${opening}`} name="reference" dir="ltr" maxLength={100} autoComplete="off" />
             </Field>
-            <Field label="מס׳ חשבונית מס/קבלה" name={`morningDocNo-${opening}`} hint="מחשבונית ירוקה, לא חובה; אפשר גם אחר כך">
-              <Input id={`morningDocNo-${opening}`} name="morningDocNo" inputMode="numeric" dir="ltr" maxLength={20} autoComplete="off" />
-            </Field>
+            {!(morningReceipt && issue) && (
+              <Field label="מס׳ חשבונית מס/קבלה" name={`morningDocNo-${opening}`} hint="מחשבונית ירוקה, לא חובה; אפשר גם אחר כך">
+                <Input id={`morningDocNo-${opening}`} name="morningDocNo" inputMode="numeric" dir="ltr" maxLength={20} autoComplete="off" />
+              </Field>
+            )}
           </div>
+          {morningReceipt && (
+            <div className="flex flex-col gap-3 rounded-xl bg-subtle p-3">
+              <label className="flex min-h-11 items-center gap-3 text-callout">
+                <input type="checkbox" name="issueDocument" checked={issue} onChange={(e) => setIssue(e.target.checked)} className="size-5 accent-brand" />
+                הפקת חשבונית מס/קבלה בחשבונית ירוקה
+              </label>
+              {issue && method === "other" && <p className="text-caption text-muted">לתשלום ״אחר״ אין סוג מתאים בחשבונית ירוקה: התשלום יירשם בלי חשבונית.</p>}
+              {issue && method === "cheque" && (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Field label="בנק" name={`bankName-${opening}`} hint="מספר או שם">
+                    <Input id={`bankName-${opening}`} name="bankName" maxLength={40} autoComplete="off" required />
+                  </Field>
+                  <Field label="סניף" name={`bankBranch-${opening}`}>
+                    <Input id={`bankBranch-${opening}`} name="bankBranch" inputMode="numeric" dir="ltr" maxLength={10} autoComplete="off" required />
+                  </Field>
+                  <Field label="חשבון" name={`bankAccount-${opening}`}>
+                    <Input id={`bankAccount-${opening}`} name="bankAccount" inputMode="numeric" dir="ltr" maxLength={20} autoComplete="off" required />
+                  </Field>
+                </div>
+              )}
+            </div>
+          )}
           <Field label="הערה" name={`note-${opening}`}>
             <Input id={`note-${opening}`} name="note" maxLength={500} autoComplete="off" />
           </Field>

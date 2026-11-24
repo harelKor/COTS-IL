@@ -29,6 +29,12 @@ describe("parseSettings", () => {
     expect(s.business.phone).toBe("03-1234567");
   });
 
+  it("has every Morning step on until the admin turns one off", () => {
+    expect(DEFAULT_SETTINGS.morning).toEqual({ quote: true, deal: true, receipt: true, credit: true });
+    expect(parseSettings({ morning: { deal: false } }).morning).toEqual({ quote: true, deal: false, receipt: true, credit: true });
+    expect(parseSettings({ morning: { deal: "no" } }).morning).toEqual(DEFAULT_SETTINGS.morning);
+  });
+
   it("turns empty text into null so the sentence stays hidden", () => {
     expect(parseSettings({ business: { legalName: "  " } }).business.legalName).toBeNull();
   });
